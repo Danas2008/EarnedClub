@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>{% block title %}Earned Club{% endblock %}</title>
+
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #0a0a0a;
+            color: #ffffff;
+        }
+
+        .nav {
+            display: flex;
+            justify-content: space-between;
+            padding: 20px 40px;
+            border-bottom: 1px solid #1f1f1f;
+        }
+
+        .logo {
+            font-weight: bold;
+            letter-spacing: 2px;
+        }
+
+        .nav a {
+            color: white;
+            text-decoration: none;
+            margin-left: 20px;
+            opacity: 0.7;
+        }
+
+        .nav a:hover {
+            opacity: 1;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: auto;
+            padding: 60px 20px;
+            text-align: center;
+        }
+
+        .card {
+            background: #121212;
+            border: 1px solid #1f1f1f;
+            padding: 25px;
+            border-radius: 12px;
+            margin-top: 20px;
+        }
+
+        .btn {
+            display: inline-block;
+            margin-top: 20px;
+            padding: 12px 24px;
+            background: white;
+            color: black;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: bold;
+        }
+
+        .btn:hover {
+            background: #ddd;
+        }
+
+        .muted {
+            opacity: 0.6;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="nav">
+        <div class="logo">EARNED CLUB</div>
+        <div>
+            <a href="/">Home</a>
+            <a href="/challenge">Challenge</a>
+            <a href="/leaderboard">Leaderboard</a>
+        </div>
+    </div>
+
+    <div class="container">
+        {% block content %}
+        {% endblock %}
+    </div>
+
+</body>
+</html>
