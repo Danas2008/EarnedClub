@@ -4,17 +4,42 @@
 
 {% block content %}
 
-<h1>Leaderboard</h1>
-
-<div class="card">
-    <h3>Top Performers</h3>
+<!-- HEADER -->
+<div class="card-dark">
+    <h1>Leaderboard</h1>
     <p class="muted">Live rankings coming soon</p>
 </div>
 
-<div class="card">
-    <p>1. Athlete A — 72 reps</p>
-    <p>2. Athlete B — 68 reps</p>
-    <p>3. Athlete C — 65 reps</p>
+<!-- TOP SECTION -->
+<div class="card-dark">
+    <h2>Top Performers</h2>
+    <p class="muted">Based on verified submissions</p>
+</div>
+
+<!-- RANKINGS -->
+<div class="card-dark">
+    <h3>Current Rankings</h3>
+
+    <div style="text-align:left; font-size:18px; line-height:1.8;">
+        <p>1. Athlete A — <b>72 reps</b></p>
+        <p>2. Athlete B — <b>68 reps</b></p>
+        <p>3. Athlete C — <b>65 reps</b></p>
+    </div>
+
+    <p class="muted" style="margin-top:15px;">
+        Real rankings will be generated from verified submissions.
+    </p>
+</div>
+
+<!-- FUTURE SYSTEM -->
+<div class="card-dark">
+    <h2>System Status</h2>
+
+    <ul>
+        <li>Submission system → coming</li>
+        <li>Verification → manual (phase 1)</li>
+        <li>Auto ranking → phase 2</li>
+    </ul>
 </div>
 
 {% endblock %}

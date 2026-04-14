@@ -4,29 +4,41 @@
 
 {% block content %}
 
-<h1>First Challenge</h1>
+<!-- HEADER -->
+<div class="card-dark">
+    <h1>First Challenge</h1>
+    <p class="muted">Prove your level. No shortcuts.</p>
+</div>
 
-<div class="card">
+<!-- CHALLENGE RULES -->
+<div class="card-dark">
     <h2>Max Strict Push-ups</h2>
 
-    <p class="muted">
-        Rules:
-    </p>
+    <p class="muted">Rules:</p>
 
     <ul style="text-align:left; display:inline-block;">
         <li>Full range of motion</li>
         <li>Chest touches near ground</li>
-        <li>No rest > 2 seconds</li>
+        <li>No rest longer than 2 seconds</li>
         <li>Video proof required</li>
     </ul>
 </div>
 
-<div class="card">
-    <h3>How to submit</h3>
-    <p>Upload video to TikTok / YouTube / Drive</p>
-    <p>We will verify manually</p>
+<!-- SUBMISSION -->
+<div class="card-dark">
+    <h2>How to submit</h2>
 
-    <a class="btn" href="#">Submit Result</a>
+    <p>Upload your video to:</p>
+
+    <ul style="text-align:left; display:inline-block;">
+        <li>YouTube</li>
+        <li>TikTok</li>
+        <li>Google Drive</li>
+    </ul>
+
+    <p class="muted">We manually verify each submission.</p>
+
+    <a class="btn-main" href="#">Submit Result</a>
 </div>
 
 {% endblock %}
