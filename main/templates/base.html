@@ -2,67 +2,43 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    {% load static %}
+
     <title>{% block title %}Earned Club{% endblock %}</title>
+
+    <!-- Bootstrap -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="{% static 'favicon.png' %}">
 
     <style>
         body {
-            margin: 0;
-            font-family: Arial, sans-serif;
             background: #0a0a0a;
-            color: #ffffff;
-        }
-
-        .nav {
-            display: flex;
-            justify-content: space-between;
-            padding: 20px 40px;
-            border-bottom: 1px solid #1f1f1f;
-        }
-
-        .logo {
-            font-weight: bold;
-            letter-spacing: 2px;
-        }
-
-        .nav a {
             color: white;
-            text-decoration: none;
-            margin-left: 20px;
-            opacity: 0.7;
         }
 
-        .nav a:hover {
-            opacity: 1;
-        }
-
-        .container {
-            max-width: 900px;
-            margin: auto;
-            padding: 60px 20px;
-            text-align: center;
+        .navbar {
+            background: #0a0a0a;
+            border-bottom: 1px solid #1f1f1f;
         }
 
         .card {
             background: #121212;
             border: 1px solid #1f1f1f;
-            padding: 25px;
-            border-radius: 12px;
-            margin-top: 20px;
         }
 
-        .btn {
-            display: inline-block;
-            margin-top: 20px;
-            padding: 12px 24px;
+        .btn-primary {
             background: white;
             color: black;
-            text-decoration: none;
-            border-radius: 8px;
-            font-weight: bold;
+            border: none;
         }
 
-        .btn:hover {
+        .btn-primary:hover {
             background: #ddd;
+            color: black;
         }
 
         .muted {
@@ -71,27 +47,43 @@
     </style>
 </head>
 
-{% load static %}
-
 <body>
 
-<div class="nav">
-    <div class="logo">
-        <img src="{% static 'EarnedClubLogo.png' %}" style="height:30px; vertical-align:middle;">
-        EARNED CLUB
-    </div>
+<!-- NAVBAR -->
+<nav class="navbar navbar-expand-lg">
+    <div class="container">
 
-    <div>
-        <a href="/">Home</a>
-        <a href="/challenge">Challenge</a>
-        <a href="/leaderboard">Leaderboard</a>
-    </div>
-</div>
+        <!-- LOGO -->
+        <a class="navbar-brand d-flex align-items-center" href="/">
+            <img src="{% static 'EarnedClubLogo.png' %}" height="40" class="me-2">
+            <strong>Earned Club</strong>
+        </a>
 
-<div class="container">
+        <!-- MOBILE MENU BUTTON -->
+        <button class="navbar-toggler bg-light" type="button" data-bs-toggle="collapse" data-bs-target="#nav">
+            ☰
+        </button>
+
+        <!-- NAV LINKS -->
+        <div class="collapse navbar-collapse justify-content-end" id="nav">
+            <ul class="navbar-nav">
+                <li class="nav-item"><a class="nav-link text-white" href="/">Home</a></li>
+                <li class="nav-item"><a class="nav-link text-white" href="/challenge">Challenge</a></li>
+                <li class="nav-item"><a class="nav-link text-white" href="/leaderboard">Leaderboard</a></li>
+            </ul>
+        </div>
+
+    </div>
+</nav>
+
+<!-- CONTENT -->
+<div class="container py-5">
     {% block content %}
     {% endblock %}
 </div>
+
+<!-- Bootstrap JS -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
 </body>
 </html>
