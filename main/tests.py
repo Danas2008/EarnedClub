@@ -15,10 +15,23 @@ class SubmissionFlowTests(TestCase):
             },
         )
 
-        self.assertRedirects(response, reverse("leaderboard"))
+        self.assertRedirects(response, reverse("challenge"))
         submission = Submission.objects.get(name="Alex")
         self.assertEqual(submission.reps, 42)
         self.assertFalse(submission.verified)
+
+    def test_challenge_submission_shows_success_message(self):
+        response = self.client.post(
+            reverse("challenge"),
+            {
+                "name": "Jordan",
+                "reps": 33,
+                "video_link": "https://example.com/proof",
+            },
+            follow=True,
+        )
+
+        self.assertContains(response, "Submission received.")
 
     def test_leaderboard_shows_only_verified_submissions(self):
         Submission.objects.create(

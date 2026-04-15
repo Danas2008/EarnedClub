@@ -36,18 +36,21 @@
         <!-- NAME -->
         <div style="margin-bottom:15px;">
             <input type="text" name="name" placeholder="Your name" required
+                   value="{{ form_data.name|default:'' }}"
                    style="width:100%; padding:14px; border-radius:10px; border:none; background:#111; color:white; font-size:16px;">
         </div>
 
         <!-- REPS -->
         <div style="margin-bottom:15px;">
-            <input type="number" name="reps" placeholder="Number of reps" required
+            <input type="number" name="reps" placeholder="Number of reps" required min="1"
+                   value="{{ form_data.reps|default:'' }}"
                    style="width:100%; padding:14px; border-radius:10px; border:none; background:#111; color:white; font-size:16px;">
         </div>
 
         <!-- VIDEO LINK -->
         <div style="margin-bottom:20px;">
             <input type="url" name="video_link" placeholder="Video link (YouTube / TikTok / Drive)" required
+                   value="{{ form_data.video_link|default:'' }}"
                    style="width:100%; padding:14px; border-radius:10px; border:none; background:#111; color:white; font-size:16px;">
         </div>
 
