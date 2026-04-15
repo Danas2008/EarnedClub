@@ -1,29 +1,76 @@
-<!-- SUBMISSION -->
+{% extends "base.html" %}
+
+{% block title %}Challenge{% endblock %}
+
+{% block content %}
+
+<!-- HEADER -->
+<div class="card-dark">
+    <h1>First Challenge</h1>
+    <p class="muted">Prove your level. No shortcuts.</p>
+</div>
+
+<!-- CHALLENGE RULES -->
+<div class="card-dark">
+    <h2>Max Strict Push-ups</h2>
+
+    <p class="muted">Rules:</p>
+
+    <ul style="text-align:left; max-width:400px; margin:0 auto;">
+        <li>Full range of motion</li>
+        <li>Chest touches near ground</li>
+        <li>No rest longer than 2 seconds</li>
+        <li>Video proof required</li>
+    </ul>
+</div>
+
+<!-- SUBMISSION FORM -->
 <div class="card-dark">
     <h2>Submit Your Result</h2>
 
-    <p class="muted">Enter your performance below</p>
+    <p class="muted">Upload your video and enter your performance</p>
 
-    <form method="POST">
+    <form method="POST" style="margin-top:20px;">
         {% csrf_token %}
 
+        <!-- NAME -->
         <div style="margin-bottom:15px;">
             <input type="text" name="name" placeholder="Your name" required
-                   style="width:100%; padding:12px; border-radius:8px; border:none; background:#111; color:white;">
+                   style="width:100%; padding:14px; border-radius:10px; border:none; background:#111; color:white; font-size:16px;">
         </div>
 
+        <!-- REPS -->
         <div style="margin-bottom:15px;">
             <input type="number" name="reps" placeholder="Number of reps" required
-                   style="width:100%; padding:12px; border-radius:8px; border:none; background:#111; color:white;">
+                   style="width:100%; padding:14px; border-radius:10px; border:none; background:#111; color:white; font-size:16px;">
         </div>
 
-        <div style="margin-bottom:15px;">
+        <!-- VIDEO LINK -->
+        <div style="margin-bottom:20px;">
             <input type="url" name="video_link" placeholder="Video link (YouTube / TikTok / Drive)" required
-                   style="width:100%; padding:12px; border-radius:8px; border:none; background:#111; color:white;">
+                   style="width:100%; padding:14px; border-radius:10px; border:none; background:#111; color:white; font-size:16px;">
         </div>
 
-        <button type="submit" class="btn-main" style="width:100%;">
+        <!-- BUTTON -->
+        <button type="submit" class="btn-main" style="width:100%; padding:14px; font-size:16px;">
             Submit Result
         </button>
     </form>
+
+    <p class="muted" style="margin-top:15px;">
+        All submissions are manually verified before appearing on leaderboard.
+    </p>
 </div>
+
+<!-- EXTRA INFO -->
+<div class="card-dark">
+    <h3>Where to upload video?</h3>
+
+    <ul style="text-align:left; max-width:400px; margin:0 auto;">
+        <li>YouTube (recommended)</li>
+        <li>TikTok</li>
+        <li>Google Drive (public link)</li>
+    </ul>
+</div>
+
+{% endblock %}
