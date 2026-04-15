@@ -3,77 +3,162 @@
 {% block title %}Challenge{% endblock %}
 
 {% block content %}
-
-<!-- HEADER -->
-<div class="card-dark">
-    <h1>First Challenge</h1>
-    <p class="muted">Prove your level. No shortcuts.</p>
-</div>
-
-<!-- CHALLENGE RULES -->
-<div class="card-dark">
-    <h2>Max Strict Push-ups</h2>
-
-    <p class="muted">Rules:</p>
-
-    <ul style="text-align:left; max-width:400px; margin:0 auto;">
-        <li>Full range of motion</li>
-        <li>Chest touches near ground</li>
-        <li>No rest longer than 2 seconds</li>
-        <li>Video proof required</li>
-    </ul>
-</div>
-
-<!-- SUBMISSION FORM -->
-<div class="card-dark">
-    <h2>Submit Your Result</h2>
-
-    <p class="muted">Upload your video and enter your performance</p>
-
-    <form method="POST" style="margin-top:20px;">
-        {% csrf_token %}
-
-        <!-- NAME -->
-        <div style="margin-bottom:15px;">
-            <input type="text" name="name" placeholder="Your name" required
-                   value="{{ form_data.name|default:'' }}"
-                   style="width:100%; padding:14px; border-radius:10px; border:none; background:#111; color:white; font-size:16px;">
+<section class="hero-card" style="margin-bottom: 24px;">
+    <div class="content-split">
+        <div class="stack">
+            <div class="eyebrow">First public challenge</div>
+            <h1>Max strict push-ups.</h1>
+            <p class="muted">
+                This is the first proof challenge for Earned Club. The goal is not to collect fake scores.
+                The goal is to build a leaderboard people respect.
+            </p>
+            <p>
+                Submit one clean set, one clear video, and one number you can stand behind publicly.
+            </p>
+            <div class="button-row">
+                <a class="btn-main" href="#submit-form">Submit Your Score</a>
+                <a class="btn-secondary" href="/leaderboard/">See Current Rankings</a>
+            </div>
         </div>
 
-        <!-- REPS -->
-        <div style="margin-bottom:15px;">
-            <input type="number" name="reps" placeholder="Number of reps" required min="1"
-                   value="{{ form_data.reps|default:'' }}"
-                   style="width:100%; padding:14px; border-radius:10px; border:none; background:#111; color:white; font-size:16px;">
+        <div class="stack">
+            <div class="mini-card">
+                <h4>Target tiers</h4>
+                <p><strong>61-80 reps</strong> places you in Elite.</p>
+                <p style="margin-bottom: 0;"><strong>81+ reps</strong> is the Earned Legend benchmark.</p>
+            </div>
+            <div class="mini-card">
+                <h4>Submission rule</h4>
+                <p style="margin-bottom: 0;">If the video does not make the reps clear, it will not be verified.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="grid-2">
+    <div class="card-dark">
+        <h2>Strict Push-up Rules</h2>
+        <ul class="rule-list">
+            <li>Start in a full plank with locked elbows.</li>
+            <li>Lower until your chest clearly reaches the bottom position.</li>
+            <li>Press back to full lockout for every counted rep.</li>
+            <li>No extended resting in the top position.</li>
+            <li>No knee reps, half reps, or camera cuts during the set.</li>
+        </ul>
+    </div>
+
+    <div class="card-dark">
+        <h2>How To Record The Video</h2>
+        <ul class="rule-list">
+            <li>Use a side angle or diagonal angle that shows both depth and lockout.</li>
+            <li>Keep the whole set visible from start to finish.</li>
+            <li>Use normal speed, not slowed footage.</li>
+            <li>Upload to YouTube, TikTok, Google Drive, or another public link.</li>
+            <li>Test the link before submitting it so reviewers can open it immediately.</li>
+        </ul>
+    </div>
+</section>
+
+<section class="grid-2">
+    <div class="card-dark" id="submit-form">
+        <h2>Submit Your Result</h2>
+        <p class="muted">
+            After submission, your result is reviewed manually. Verified entries go live on the leaderboard.
+        </p>
+
+        <form class="submission-form" method="POST">
+            {% csrf_token %}
+
+            <div>
+                <label class="field-label" for="name">Name</label>
+                <input
+                    id="name"
+                    class="input"
+                    type="text"
+                    name="name"
+                    placeholder="How your name should appear on the leaderboard"
+                    value="{{ form_data.name|default:'' }}"
+                    required
+                >
+            </div>
+
+            <div>
+                <label class="field-label" for="reps">Reps</label>
+                <input
+                    id="reps"
+                    class="input"
+                    type="number"
+                    name="reps"
+                    min="1"
+                    placeholder="Your strict push-up score"
+                    value="{{ form_data.reps|default:'' }}"
+                    required
+                >
+            </div>
+
+            <div>
+                <label class="field-label" for="video_link">Public video link</label>
+                <input
+                    id="video_link"
+                    class="input"
+                    type="url"
+                    name="video_link"
+                    placeholder="https://youtube.com/... or https://drive.google.com/..."
+                    value="{{ form_data.video_link|default:'' }}"
+                    required
+                >
+            </div>
+
+            <button type="submit" class="btn-main">Send For Verification</button>
+        </form>
+    </div>
+
+    <div class="stack">
+        <div class="card-dark">
+            <h2>Verification Notes</h2>
+            <p>
+                The current system is manual on purpose. Early trust matters more than volume. If a rep count
+                is unclear, the submission stays off the board until it can be confirmed.
+            </p>
+            <p class="muted" style="margin-bottom: 0;">
+                This protects the credibility of future rank-based products, plans, and public status.
+            </p>
         </div>
 
-        <!-- VIDEO LINK -->
-        <div style="margin-bottom:20px;">
-            <input type="url" name="video_link" placeholder="Video link (YouTube / TikTok / Drive)" required
-                   value="{{ form_data.video_link|default:'' }}"
-                   style="width:100%; padding:14px; border-radius:10px; border:none; background:#111; color:white; font-size:16px;">
+        <div class="card-dark">
+            <h2>Before You Submit</h2>
+            <ul class="rule-list">
+                <li>Open the video link in a private browser tab.</li>
+                <li>Make sure viewers do not need permission.</li>
+                <li>Check your final rep count once more.</li>
+                <li>Use the name you want the public to see.</li>
+            </ul>
         </div>
+    </div>
+</section>
 
-        <!-- BUTTON -->
-        <button type="submit" class="btn-main" style="width:100%; padding:14px; font-size:16px;">
-            Submit Result
-        </button>
-    </form>
+<section class="card-dark">
+    <div class="section-spread">
+        <div>
+            <h2>Why Submit Now</h2>
+            <p class="muted">Early leaderboard positions are easier to claim before the audience grows.</p>
+        </div>
+        <a class="btn-secondary" href="/calculators/">Use The Calculators</a>
+    </div>
 
-    <p class="muted" style="margin-top:15px;">
-        All submissions are manually verified before appearing on leaderboard.
-    </p>
-</div>
-
-<!-- EXTRA INFO -->
-<div class="card-dark">
-    <h3>Where to upload video?</h3>
-
-    <ul style="text-align:left; max-width:400px; margin:0 auto;">
-        <li>YouTube (recommended)</li>
-        <li>TikTok</li>
-        <li>Google Drive (public link)</li>
-    </ul>
-</div>
-
+    <div class="grid-3">
+        <div class="feature-card">
+            <h3>Public Proof</h3>
+            <p class="muted">Your score becomes part of the social proof engine for the brand.</p>
+        </div>
+        <div class="feature-card">
+            <h3>Early Status</h3>
+            <p class="muted">Foundational users will help define what the rank system means publicly.</p>
+        </div>
+        <div class="feature-card">
+            <h3>Future Perks</h3>
+            <p class="muted">Newsletter, training plans, and future offers will likely start with the most engaged users first.</p>
+        </div>
+    </div>
+</section>
 {% endblock %}

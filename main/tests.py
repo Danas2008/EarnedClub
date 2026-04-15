@@ -1,7 +1,7 @@
 from django.test import TestCase
 from django.urls import reverse
 
-from .models import Submission
+from .models import NewsletterSubscriber, Submission
 
 
 class SubmissionFlowTests(TestCase):
@@ -51,3 +51,24 @@ class SubmissionFlowTests(TestCase):
 
         self.assertContains(response, "Visible Athlete")
         self.assertNotContains(response, "Hidden Athlete")
+
+    def test_newsletter_signup_creates_subscriber(self):
+        response = self.client.post(
+            reverse("newsletter_signup"),
+            {"email": "test@example.com"},
+            follow=True,
+        )
+
+        self.assertRedirects(response, reverse("home"))
+        self.assertTrue(NewsletterSubscriber.objects.filter(email="test@example.com").exists())
+        self.assertContains(response, "You are in.")
+
+    def test_submission_exposes_rank_name(self):
+        submission = Submission.objects.create(
+            name="Legend",
+            reps=82,
+            video_link="https://example.com/legend",
+            verified=True,
+        )
+
+        self.assertEqual(submission.rank_name, "Earned Legend")

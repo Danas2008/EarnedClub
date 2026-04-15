@@ -1,0 +1,112 @@
+[
+  {
+    "model": "main.submission",
+    "pk": 1,
+    "fields": {
+      "name": "Marek Novak",
+      "reps": 92,
+      "video_link": "https://example.com/videos/marek-novak",
+      "verified": true,
+      "created_at": "2026-04-14T18:00:00Z"
+    }
+  },
+  {
+    "model": "main.submission",
+    "pk": 2,
+    "fields": {
+      "name": "Daniel Urban",
+      "reps": 86,
+      "video_link": "https://example.com/videos/daniel-urban",
+      "verified": true,
+      "created_at": "2026-04-13T18:00:00Z"
+    }
+  },
+  {
+    "model": "main.submission",
+    "pk": 3,
+    "fields": {
+      "name": "Samuel Varga",
+      "reps": 80,
+      "video_link": "https://example.com/videos/samuel-varga",
+      "verified": true,
+      "created_at": "2026-04-12T18:00:00Z"
+    }
+  },
+  {
+    "model": "main.submission",
+    "pk": 4,
+    "fields": {
+      "name": "Tomas Hruby",
+      "reps": 74,
+      "video_link": "https://example.com/videos/tomas-hruby",
+      "verified": true,
+      "created_at": "2026-04-11T18:00:00Z"
+    }
+  },
+  {
+    "model": "main.submission",
+    "pk": 5,
+    "fields": {
+      "name": "Adam Kral",
+      "reps": 69,
+      "video_link": "https://example.com/videos/adam-kral",
+      "verified": true,
+      "created_at": "2026-04-10T18:00:00Z"
+    }
+  },
+  {
+    "model": "main.submission",
+    "pk": 6,
+    "fields": {
+      "name": "Filip Dvorak",
+      "reps": 58,
+      "video_link": "https://example.com/videos/filip-dvorak",
+      "verified": true,
+      "created_at": "2026-04-09T18:00:00Z"
+    }
+  },
+  {
+    "model": "main.submission",
+    "pk": 7,
+    "fields": {
+      "name": "Jakub Vesely",
+      "reps": 51,
+      "video_link": "https://example.com/videos/jakub-vesely",
+      "verified": true,
+      "created_at": "2026-04-08T18:00:00Z"
+    }
+  },
+  {
+    "model": "main.submission",
+    "pk": 8,
+    "fields": {
+      "name": "Lukas Havel",
+      "reps": 44,
+      "video_link": "https://example.com/videos/lukas-havel",
+      "verified": true,
+      "created_at": "2026-04-07T18:00:00Z"
+    }
+  },
+  {
+    "model": "main.submission",
+    "pk": 9,
+    "fields": {
+      "name": "Matej Benes",
+      "reps": 36,
+      "video_link": "https://example.com/videos/matej-benes",
+      "verified": true,
+      "created_at": "2026-04-06T18:00:00Z"
+    }
+  },
+  {
+    "model": "main.submission",
+    "pk": 10,
+    "fields": {
+      "name": "Viktor Cerny",
+      "reps": 24,
+      "video_link": "https://example.com/videos/viktor-cerny",
+      "verified": true,
+      "created_at": "2026-04-05T18:00:00Z"
+    }
+  }
+]
