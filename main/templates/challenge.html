@@ -1,44 +1,29 @@
-{% extends "base.html" %}
-
-{% block title %}Challenge{% endblock %}
-
-{% block content %}
-
-<!-- HEADER -->
-<div class="card-dark">
-    <h1>First Challenge</h1>
-    <p class="muted">Prove your level. No shortcuts.</p>
-</div>
-
-<!-- CHALLENGE RULES -->
-<div class="card-dark">
-    <h2>Max Strict Push-ups</h2>
-
-    <p class="muted">Rules:</p>
-
-    <ul style="text-align:left; display:inline-block;">
-        <li>Full range of motion</li>
-        <li>Chest touches near ground</li>
-        <li>No rest longer than 2 seconds</li>
-        <li>Video proof required</li>
-    </ul>
-</div>
-
 <!-- SUBMISSION -->
 <div class="card-dark">
-    <h2>How to submit</h2>
+    <h2>Submit Your Result</h2>
 
-    <p>Upload your video to:</p>
+    <p class="muted">Enter your performance below</p>
 
-    <ul style="text-align:left; display:inline-block;">
-        <li>YouTube</li>
-        <li>TikTok</li>
-        <li>Google Drive</li>
-    </ul>
+    <form method="POST">
+        {% csrf_token %}
 
-    <p class="muted">We manually verify each submission.</p>
+        <div style="margin-bottom:15px;">
+            <input type="text" name="name" placeholder="Your name" required
+                   style="width:100%; padding:12px; border-radius:8px; border:none; background:#111; color:white;">
+        </div>
 
-    <a class="btn-main" href="#">Submit Result</a>
+        <div style="margin-bottom:15px;">
+            <input type="number" name="reps" placeholder="Number of reps" required
+                   style="width:100%; padding:12px; border-radius:8px; border:none; background:#111; color:white;">
+        </div>
+
+        <div style="margin-bottom:15px;">
+            <input type="url" name="video_link" placeholder="Video link (YouTube / TikTok / Drive)" required
+                   style="width:100%; padding:12px; border-radius:8px; border:none; background:#111; color:white;">
+        </div>
+
+        <button type="submit" class="btn-main" style="width:100%;">
+            Submit Result
+        </button>
+    </form>
 </div>
-
-{% endblock %}
