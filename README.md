@@ -2,19 +2,40 @@
 
 Earn your rank. Prove your performance. Unlock exclusive status-based fitness rewards.
 
-## Concept
-A fitness ranking system where users must demonstrate performance to qualify for exclusive rewards.
+## Local development
 
-## First Challenge
-Max strict push-ups (one set)
+1. Create and activate a virtual environment.
+2. Install dependencies with `pip install -r requirements.txt`.
+3. Run migrations with `python manage.py migrate`.
+4. Start the server with `python manage.py runserver`.
 
-Rules:
-- Full range of motion
-- Chest to ground
-- Controlled reps
-- Video proof required
+If `DATABASE_URL` is not set, the project falls back to local SQLite.
 
-## Status System
-Users are ranked based on performance percentiles.
+## Production stack
 
-Top performers unlock exclusive rewards.
+- Web app: Render
+- Database: Supabase Postgres
+- Static files: WhiteNoise
+
+## Required Render environment variables
+
+- `SECRET_KEY`
+- `DEBUG=False`
+- `ALLOWED_HOSTS=earnedclub.onrender.com,<your-domain>`
+- `CSRF_TRUSTED_ORIGINS=https://earnedclub.onrender.com,https://<your-domain>`
+- `DATABASE_URL=<Supabase Postgres connection string>`
+
+## Supabase setup
+
+1. Create a Supabase project.
+2. Open `Project Settings -> Database`.
+3. Copy the Postgres connection string.
+4. Add it to Render as `DATABASE_URL`.
+5. Deploy the Render web service.
+6. Create an admin user with `python manage.py createsuperuser`.
+
+## Verification flow
+
+- User submissions are created as unverified.
+- Verified results are managed in Django admin.
+- The leaderboard displays only verified submissions.

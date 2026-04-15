@@ -1,9 +1,11 @@
 from django.db import models
 
+
 class Submission(models.Model):
     name = models.CharField(max_length=100)
     reps = models.IntegerField()
     video_link = models.URLField()
+    verified = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):

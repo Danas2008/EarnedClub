@@ -7,7 +7,7 @@
 <!-- HEADER -->
 <div class="card-dark">
     <h1>Leaderboard</h1>
-    <p class="muted">Live rankings coming soon</p>
+    <p class="muted">Verified rankings only</p>
 </div>
 
 <!-- TOP SECTION -->
@@ -21,13 +21,15 @@
     <h3>Current Rankings</h3>
 
     <div style="text-align:left; font-size:18px; line-height:1.8;">
-        <p>1. Athlete A — <b>72 reps</b></p>
-        <p>2. Athlete B — <b>68 reps</b></p>
-        <p>3. Athlete C — <b>65 reps</b></p>
+        {% for submission in submissions %}
+        <p>{{ forloop.counter }}. {{ submission.name }} - <b>{{ submission.reps }} reps</b></p>
+        {% empty %}
+        <p>No verified submissions yet.</p>
+        {% endfor %}
     </div>
 
     <p class="muted" style="margin-top:15px;">
-        Real rankings will be generated from verified submissions.
+        New submissions appear after manual verification in Django admin.
     </p>
 </div>
 
@@ -36,9 +38,9 @@
     <h2>System Status</h2>
 
     <ul>
-        <li>Submission system → coming</li>
-        <li>Verification → manual (phase 1)</li>
-        <li>Auto ranking → phase 2</li>
+        <li>Submission system - live</li>
+        <li>Verification - manual in admin</li>
+        <li>Auto ranking - next phase</li>
     </ul>
 </div>
 
