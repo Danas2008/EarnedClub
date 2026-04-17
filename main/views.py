@@ -38,7 +38,7 @@ def home(request):
         "total_verified": len(leaderboard_rows),
         "top_three": leaderboard_rows[:3],
         "weekly_top_five": weekly_rows[:5],
-        "overall_top_five": leaderboard_rows[:5],
+        "overall_top_five": leaderboard_rows[:10],
     }
     return render(request, "home.html", context)
 
