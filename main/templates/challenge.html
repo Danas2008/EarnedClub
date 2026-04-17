@@ -1,34 +1,85 @@
 {% extends "base.html" %}
 
-{% block title %}Challenge{% endblock %}
+{% block title %}Challenge — Submit for Verification{% endblock %}
 
 {% block content %}
 <section class="hero-card" style="margin-bottom: 24px;">
     <div class="content-split">
         <div class="stack">
-            <div class="eyebrow">First public challenge</div>
-            <h1>Max strict push-ups.</h1>
+            <div class="eyebrow">Submit Your Result</div>
+            <h1>Max strict push-ups — Verify to rank.</h1>
             <p class="muted">
-                This is your entry into the Earned Club leaderboard. Every result you submit becomes part of a public ranking system built on verified performance.
+                This is your entry into the Earned Club leaderboard. Verified results appear publicly on the leaderboard — unverified results do not.
             </p>
             <p>
-                Submit one clean set, one clear video, and one number you can stand behind publicly.
+                Submit one clean set, one clear video, and one number you can stand behind. Verification is manual and necessary to be ranked.
             </p>
             <div class="button-row">
-                <a class="btn-main" href="#submit-form">Submit Your Score</a>
+                <a class="btn-main" href="#submit-form-top">Send For Verification</a>
                 <a class="btn-secondary" href="/leaderboard/">See Current Rankings</a>
             </div>
+            <p class="muted" style="margin-top: 12px;">
+                Tip: Make sure your video link is publicly accessible before submitting.
+            </p>
         </div>
 
-        <div class="stack">
-            <div class="mini-card">
-                <h4>Target tiers</h4>
-                <p><strong>60-79 reps</strong> places you in Elite.</p>
-                <p style="margin-bottom: 0;"><strong>80+ reps</strong> is the Earned Legend benchmark.</p>
+        <div class="stack" id="submit-form-top">
+            <div class="card-dark">
+                <h2>Submit Your Result</h2>
+                <p class="muted">
+                    Verified entries go live on the leaderboard. Use the form below to send your submission for manual review.
+                </p>
+
+                <form class="submission-form" method="POST">
+                    {% csrf_token %}
+
+                    <div>
+                        <label class="field-label" for="name">Name</label>
+                        <input
+                            id="name"
+                            class="input"
+                            type="text"
+                            name="name"
+                            placeholder="How your name should appear on the leaderboard"
+                            value="{{ form_data.name|default:'' }}"
+                            required
+                        >
+                    </div>
+
+                    <div>
+                        <label class="field-label" for="reps">Reps</label>
+                        <input
+                            id="reps"
+                            class="input"
+                            type="number"
+                            name="reps"
+                            min="1"
+                            placeholder="Your strict push-up score"
+                            value="{{ form_data.reps|default:'' }}"
+                            required
+                        >
+                    </div>
+
+                    <div>
+                        <label class="field-label" for="video_link">Public video link</label>
+                        <input
+                            id="video_link"
+                            class="input"
+                            type="url"
+                            name="video_link"
+                            placeholder="https://youtube.com/... or https://drive.google.com/..."
+                            value="{{ form_data.video_link|default:'' }}"
+                            required
+                        >
+                    </div>
+
+                    <button type="submit" class="btn-main">Send For Verification</button>
+                </form>
             </div>
-            <div class="mini-card">
-                <h4>Submission rule</h4>
-                <p style="margin-bottom: 0;">If the video does not make the reps clear, it will not be verified.</p>
+
+            <div class="mini-card" style="margin-top: 12px;">
+                <h4>Submission rules</h4>
+                <p style="margin-bottom: 0;">If the video does not make the reps clear, it will not be verified — and won’t appear on the leaderboard.</p>
             </div>
         </div>
     </div>
@@ -59,70 +110,17 @@
 </section>
 
 <section class="grid-2">
-    <div class="card-dark" id="submit-form">
-        <h2>Submit Your Result</h2>
-        <p class="muted">
-            After submission, your result is reviewed manually. Verified entries go live on the leaderboard.
+    <div class="card-dark">
+        <h2>Verification Notes</h2>
+        <p>
+            The current system is manual on purpose. If your reps are unclear or questionable, your entry will not be ranked until it can be verified.
         </p>
-
-        <form class="submission-form" method="POST">
-            {% csrf_token %}
-
-            <div>
-                <label class="field-label" for="name">Name</label>
-                <input
-                    id="name"
-                    class="input"
-                    type="text"
-                    name="name"
-                    placeholder="How your name should appear on the leaderboard"
-                    value="{{ form_data.name|default:'' }}"
-                    required
-                >
-            </div>
-
-            <div>
-                <label class="field-label" for="reps">Reps</label>
-                <input
-                    id="reps"
-                    class="input"
-                    type="number"
-                    name="reps"
-                    min="1"
-                    placeholder="Your strict push-up score"
-                    value="{{ form_data.reps|default:'' }}"
-                    required
-                >
-            </div>
-
-            <div>
-                <label class="field-label" for="video_link">Public video link</label>
-                <input
-                    id="video_link"
-                    class="input"
-                    type="url"
-                    name="video_link"
-                    placeholder="https://youtube.com/... or https://drive.google.com/..."
-                    value="{{ form_data.video_link|default:'' }}"
-                    required
-                >
-            </div>
-
-            <button type="submit" class="btn-main">Send For Verification</button>
-        </form>
+        <p class="muted" style="margin-bottom: 0;">
+            This protects the credibility of future rank-based products, plans, and public status.
+        </p>
     </div>
 
     <div class="stack">
-        <div class="card-dark">
-            <h2>Verification Notes</h2>
-            <p>
-                The current system is manual on purpose. If your reps are unclear or questionable, your entry will not be ranked until it can be verified.
-            </p>
-            <p class="muted" style="margin-bottom: 0;">
-                This protects the credibility of future rank-based products, plans, and public status.
-            </p>
-        </div>
-
         <div class="card-dark">
             <h2>Before You Submit</h2>
             <ul class="rule-list">
@@ -132,22 +130,28 @@
                 <li>Use the name you want the public to see.</li>
             </ul>
         </div>
+
+        <div class="card-dark">
+            <h2>Need Help?</h2>
+            <p class="muted">If you're unsure whether your video will verify, submit and reviewers will guide you — or use the calculators to prepare.</p>
+            <a class="btn-secondary" href="/calculators/">Use The Calculators</a>
+        </div>
     </div>
 </section>
 
 <section class="card-dark">
     <div class="section-spread">
         <div>
-            <h2>Why Submit Now</h2>
-            <p class="muted">Early spots on the leaderboard are easier to claim before competition increases. This is where your position is defined.</p>
+            <h2>Why Verify</h2>
+            <p class="muted">Verified results are what count. Submitting and passing verification is the only way to claim a genuine leaderboard position.</p>
         </div>
-        <a class="btn-secondary" href="/calculators/">Use The Calculators</a>
+        <a class="btn-secondary" href="/leaderboard/">See Leaderboard</a>
     </div>
 
     <div class="grid-3">
         <div class="feature-card">
             <h3>Public Proof</h3>
-            <p class="muted">Your result doesn’t stay private — it becomes part of the system, part of your identity.</p>
+            <p class="muted">Your result becomes part of the system and your public record.</p>
         </div>
         <div class="feature-card">
             <h3>Early Status</h3>
