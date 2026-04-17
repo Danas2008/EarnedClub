@@ -2,16 +2,53 @@
 
 {% block title %}Leaderboard{% endblock %}
 
+{% macro position_pill(row) -%}
+<span class="position-pill">
+    {% if row.medal_place == 1 %}<span class="medal">&#129351;</span>{% endif %}
+    {% if row.medal_place == 2 %}<span class="medal">&#129352;</span>{% endif %}
+    {% if row.medal_place == 3 %}<span class="medal">&#129353;</span>{% endif %}
+    #{{ row.position }}
+</span>
+{%- endmacro %}
+
+{% macro stat_card(kicker, value, muted_text) -%}
+<div class="stat-card">
+    <span class="kicker">{{ kicker }}</span>
+    <span class="stat-value">{{ value }}</span>
+    {% if muted_text %}<div class="muted">{{ muted_text }}</div>{% endif %}
+</div>
+{%- endmacro %}
+
 {% block content %}
 
-<section class="page-header" style="margin-bottom: 24px;">
-    <h1>Leaderboard.</h1>
-    <p class="muted">
-        Verified public rankings of top performances — this board is the main focus here. Only manually verified
-        entries are shown and sorted from highest reps to lowest reps.
-    </p>
+<!-- Intro hero (new: appears before weekly top 5) -->
+<section class="hero-card" style="margin-bottom: 24px;">
+    <div class="content-split">
+        <div class="stack">
+            <div class="eyebrow">Welcome</div>
+            <h1>Leaderboard.</h1>
+            <p class="muted">
+                Verified public rankings of top performances — this board is the main focus here. Only manually
+                verified entries are shown and sorted from highest reps to lowest reps. Explore top performers,
+                learn about our ranking framework, and submit your best attempts.
+            </p>
+            <div class="button-row">
+                <a class="btn-main" href="/challenge/">Submit A Score</a>
+                <a class="btn-outline" href="/rules/">Ranking Rules</a>
+            </div>
+        </div>
+
+        <div class="stack">
+            <div class="stat-grid">
+                {{ stat_card('Verified entries', verified_count, 'Live and ranked publicly.') }}
+                {{ stat_card('Elite line', '60+', 'Top 10% benchmark.') }}
+                {{ stat_card('Legend line', '80+', 'Top 1% benchmark.') }}
+            </div>
+        </div>
+    </div>
 </section>
 
+<!-- Main two-column area: Weekly Top 5 (left) + quick stats / actions (right) -->
 <section class="grid-2" style="margin-bottom: 24px;">
     <div class="card-dark">
         <h2>Top 5 This Week</h2>
@@ -22,12 +59,7 @@
                 {% for row in weekly_rows %}
                     <div class="leaderboard-card">
                         <div class="section-spread" style="margin-bottom: 10px;">
-                            <div class="position-pill">
-                                {% if row.medal_place == 1 %}<span class="medal">&#129351;</span>{% endif %}
-                                {% if row.medal_place == 2 %}<span class="medal">&#129352;</span>{% endif %}
-                                {% if row.medal_place == 3 %}<span class="medal">&#129353;</span>{% endif %}
-                                <span>#{{ row.position }}</span>
-                            </div>
+                            {{ position_pill(row) }}
                             <div class="tag-pill">{{ row.submission.rank_name }}</div>
                         </div>
                         <div class="submission-name">{{ row.submission.name }}</div>
@@ -42,21 +74,9 @@
 
     <div class="stack">
         <div class="stat-grid">
-            <div class="stat-card">
-                <span class="kicker">Verified entries</span>
-                <span class="stat-value">{{ verified_count }}</span>
-                <div class="muted">Live and ranked publicly.</div>
-            </div>
-            <div class="stat-card">
-                <span class="kicker">Elite line</span>
-                <span class="stat-value">60+</span>
-                <div class="muted">Top 10% benchmark.</div>
-            </div>
-            <div class="stat-card">
-                <span class="kicker">Legend line</span>
-                <span class="stat-value">80+</span>
-                <div class="muted">Top 1% benchmark.</div>
-            </div>
+            {{ stat_card('Verified entries', verified_count, 'Live and ranked publicly.') }}
+            {{ stat_card('Elite line', '60+', 'Top 10% benchmark.') }}
+            {{ stat_card('Legend line', '80+', 'Top 1% benchmark.') }}
         </div>
 
         <div style="margin-top: 16px;" class="button-row">
@@ -66,6 +86,7 @@
     </div>
 </section>
 
+<!-- Full leaderboard -->
 <section class="card-dark" style="margin-bottom: 32px;">
     <div class="section-spread">
         <div>
@@ -91,14 +112,7 @@
             <tbody>
                 {% for row in leaderboard_rows %}
                     <tr>
-                        <td>
-                            <span class="position-pill">
-                                {% if row.medal_place == 1 %}<span class="medal">&#129351;</span>{% endif %}
-                                {% if row.medal_place == 2 %}<span class="medal">&#129352;</span>{% endif %}
-                                {% if row.medal_place == 3 %}<span class="medal">&#129353;</span>{% endif %}
-                                #{{ row.position }}
-                            </span>
-                        </td>
+                        <td>{{ position_pill(row) }}</td>
                         <td>
                             <div class="submission-name">{{ row.submission.name }}</div>
                             <div class="submission-meta">Verified score</div>
@@ -115,12 +129,7 @@
             {% for row in leaderboard_rows %}
                 <div class="leaderboard-card">
                     <div class="section-spread" style="margin-bottom: 10px;">
-                        <div class="position-pill">
-                            {% if row.medal_place == 1 %}<span class="medal">&#129351;</span>{% endif %}
-                            {% if row.medal_place == 2 %}<span class="medal">&#129352;</span>{% endif %}
-                            {% if row.medal_place == 3 %}<span class="medal">&#129353;</span>{% endif %}
-                            #{{ row.position }}
-                        </div>
+                        {{ position_pill(row) }}
                         <div class="score">{{ row.submission.reps }}</div>
                     </div>
                     <div class="submission-name">{{ row.submission.name }}</div>
@@ -133,6 +142,7 @@
     {% endif %}
 </section>
 
+<!-- Rank framework (kept, but DRY: reuses stat_card macro above) -->
 <section class="hero-card" style="margin-bottom: 24px;">
     <div class="content-split">
         <div class="stack">
@@ -154,24 +164,12 @@
 
         <div class="stack">
             <div class="stat-grid">
-                <div class="stat-card">
-                    <span class="kicker">Verified entries</span>
-                    <span class="stat-value">{{ verified_count }}</span>
-                    <div class="muted">Live and ranked publicly.</div>
-                </div>
-                <div class="stat-card">
-                    <span class="kicker">Elite line</span>
-                    <span class="stat-value">60+</span>
-                    <div class="muted">Top 10% benchmark.</div>
-                </div>
-                <div class="stat-card">
-                    <span class="kicker">Legend line</span>
-                    <span class="stat-value">80+</span>
-                    <div class="muted">Top 1% benchmark.</div>
-                </div>
+                {{ stat_card('Verified entries', verified_count, 'Live and ranked publicly.') }}
+                {{ stat_card('Elite line', '60+', 'Top 10% benchmark.') }}
+                {{ stat_card('Legend line', '80+', 'Top 1% benchmark.') }}
             </div>
         </div>
     </div>
 </section>
 
-{% endblock %}</div>
+{% endblock %}
