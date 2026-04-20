@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+
+{% block title %}{{ profile.display_name }}{% endblock %}
+
+{% block content %}
+<section class="hero-card profile-header">
+    <div class="eyebrow">Athlete Profile</div>
+    <h1>{{ profile.display_name }}</h1>
+    {% if profile.bio %}<p>{{ profile.bio }}</p>{% endif %}
+    <div class="stat-grid">
+        <div class="stat-card">
+            <span class="kicker">Verified PR</span>
+            <span class="stat-value">{{ profile.personal_best_reps }}</span>
+        </div>
+        <div class="stat-card">
+            <span class="kicker">Rank</span>
+            <span class="stat-value">{% if profile.current_rank %}#{{ profile.current_rank }}{% else %}-{% endif %}</span>
+        </div>
+        <div class="stat-card">
+            <span class="kicker">Tier</span>
+            <span class="stat-value">{{ current_tier.name }}</span>
+        </div>
+    </div>
+</section>
+
+<section class="grid-2">
+    <div class="card-dark">
+        <h2>Verified Progress</h2>
+        <div class="progress-chart">
+            <svg id="progress-chart" class="chart-area" role="img" aria-label="Athlete verified progress chart"></svg>
+        </div>
+    </div>
+
+    <div class="card-dark">
+        <h2>Verified Submissions</h2>
+        {% if verified_submissions %}
+            <div class="stack">
+                {% for submission in verified_submissions %}
+                    <div class="leaderboard-card">
+                        <span class="status-pill verified">{{ submission.status }}</span>
+                        <div class="submission-name" style="margin-top: 10px;">{{ submission.reps }} reps</div>
+                        <div class="submission-meta">{{ submission.rank_name }} - {{ submission.created_at|date:"M j, Y" }}</div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p class="muted">No verified submissions yet.</p>
+        {% endif %}
+    </div>
+</section>
+
+{{ progress_data|json_script:"progress-data" }}
+<script>
+    const progressData = JSON.parse(document.getElementById("progress-data").textContent);
+    const svg = document.getElementById("progress-chart");
+    const width = 640;
+    const height = 220;
+    const pad = 28;
+    svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+
+    if (!progressData.length) {
+        svg.innerHTML = `<text x="${pad}" y="${height / 2}" fill="rgba(245,247,251,.72)" font-size="18">No verified data yet.</text>`;
+    } else {
+        const maxReps = Math.max(...progressData.map((point) => point.reps), 80);
+        const step = progressData.length > 1 ? (width - pad * 2) / (progressData.length - 1) : 0;
+        const points = progressData.map((point, index) => {
+            const x = progressData.length > 1 ? pad + index * step : width / 2;
+            const y = height - pad - (point.reps / maxReps) * (height - pad * 2);
+            return { x, y, reps: point.reps, date: point.date };
+        });
+        const path = points.map((point, index) => `${index === 0 ? "M" : "L"} ${point.x} ${point.y}`).join(" ");
+        svg.innerHTML = `
+            <line x1="${pad}" y1="${height - pad}" x2="${width - pad}" y2="${height - pad}" stroke="rgba(255,255,255,.14)" />
+            <line x1="${pad}" y1="${pad}" x2="${pad}" y2="${height - pad}" stroke="rgba(255,255,255,.14)" />
+            <path d="${path}" fill="none" stroke="#f7b733" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" />
+            ${points.map((point) => `<circle cx="${point.x}" cy="${point.y}" r="5" fill="#ffd77b"><title>${point.date}: ${point.reps} reps</title></circle>`).join("")}
+        `;
+    }
+</script>
+{% endblock %}

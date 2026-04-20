@@ -359,6 +359,7 @@
         }
 
         .stat-card,
+        .metric-card,
         .mini-card,
         .feature-card,
         .rank-card,
@@ -385,6 +386,56 @@
             text-transform: uppercase;
             letter-spacing: 0.08em;
             font-weight: 700;
+        }
+
+        .auth-card,
+        .profile-header {
+            max-width: 720px;
+            margin: 0 auto 24px;
+        }
+
+        .metric-card {
+            min-height: 140px;
+        }
+
+        .progress-chart {
+            width: 100%;
+            min-height: 260px;
+            background: rgba(255, 255, 255, 0.035);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: var(--radius-md);
+            padding: 18px;
+        }
+
+        .chart-area {
+            width: 100%;
+            min-height: 210px;
+        }
+
+        .status-pill {
+            display: inline-flex;
+            align-items: center;
+            padding: 6px 10px;
+            border-radius: 999px;
+            font-size: 0.82rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+        }
+
+        .status-pill.pending {
+            color: #ffd77b;
+            background: rgba(247, 183, 51, 0.14);
+        }
+
+        .status-pill.verified {
+            color: #8df0c9;
+            background: rgba(30, 157, 116, 0.16);
+        }
+
+        .status-pill.rejected {
+            color: #ffb8a8;
+            background: rgba(252, 74, 26, 0.16);
         }
 
         .feature-card,
@@ -719,14 +770,37 @@
                         <div class="collapse navbar-collapse justify-content-end" id="navMenu">
                             <ul class="navbar-nav align-items-lg-center">
                                 <li class="nav-item">
-                                    <a class="nav-link" href="/">Home</a>
+                                    <a class="nav-link" href="{% url 'home' %}">Home</a>
                                 </li>
                                 <li class="nav-item">
-                                    <a class="nav-link" href="/challenge/">Challenge</a>
+                                    <a class="nav-link" href="{% url 'challenge' %}">Challenge</a>
                                 </li>
                                 <li class="nav-item">
-                                    <a class="nav-link" href="/leaderboard/">Leaderboard</a>
+                                    <a class="nav-link" href="{% url 'leaderboard' %}">Leaderboard</a>
                                 </li>
+                                <li class="nav-item">
+                                    <a class="nav-link" href="{% url 'profiles' %}">Profiles</a>
+                                </li>
+                                {% if request.user.is_authenticated %}
+                                    <li class="nav-item">
+                                        <a class="nav-link" href="{% url 'dashboard' %}">Dashboard</a>
+                                    </li>
+                                    {% if request.user.profile %}
+                                        <li class="nav-item">
+                                            <a class="nav-link" href="{% url 'athlete_profile' request.user.profile.slug %}">My Profile</a>
+                                        </li>
+                                    {% endif %}
+                                    <li class="nav-item">
+                                        <a class="nav-link" href="{% url 'logout' %}">Logout</a>
+                                    </li>
+                                {% else %}
+                                    <li class="nav-item">
+                                        <a class="nav-link" href="{% url 'login' %}">Login</a>
+                                    </li>
+                                    <li class="nav-item">
+                                        <a class="nav-link" href="{% url 'register' %}">Register</a>
+                                    </li>
+                                {% endif %}
                             </ul>
                         </div>
                     </div>

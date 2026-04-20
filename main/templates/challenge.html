@@ -26,55 +26,85 @@
         <div class="stack" id="submit-form-top">
             <div class="card-dark">
                 <h2>Submit Your Result</h2>
-                <p class="muted">
-                    Verified entries go live on the leaderboard. Use the form below to send your submission for manual review.
-                </p>
+                {% if request.user.is_authenticated %}
+                    <p class="muted">
+                        Submitting as {{ profile.display_name }}. Verified entries go live on your profile and the public leaderboard.
+                    </p>
+                {% else %}
+                    <p class="muted">
+                        Verified entries go live on the leaderboard. Anonymous submissions stay supported, but email is needed for review status.
+                    </p>
+                {% endif %}
 
-                <form class="submission-form" method="POST">
-                    {% csrf_token %}
-
-                    <div>
-                        <label class="field-label" for="name">Name</label>
-                        <input
-                            id="name"
-                            class="input"
-                            type="text"
-                            name="name"
-                            placeholder="How your name should appear on the leaderboard"
-                            value="{{ form_data.name|default:'' }}"
-                            required
-                        >
+                {% if has_pending_submission %}
+                    <div class="mini-card">
+                        <span class="status-pill pending">Pending</span>
+                        <p class="muted" style="margin: 12px 0 0;">
+                            You already have a submission waiting for verification. Please wait until it is reviewed before submitting again.
+                        </p>
                     </div>
+                {% else %}
+                    <form class="submission-form" method="POST">
+                        {% csrf_token %}
 
-                    <div>
-                        <label class="field-label" for="reps">Reps</label>
-                        <input
-                            id="reps"
-                            class="input"
-                            type="number"
-                            name="reps"
-                            min="1"
-                            placeholder="Your strict push-up score"
-                            value="{{ form_data.reps|default:'' }}"
-                            required
-                        >
-                    </div>
+                        {% if not request.user.is_authenticated %}
+                            <div>
+                                <label class="field-label" for="name">Name</label>
+                                <input
+                                    id="name"
+                                    class="input"
+                                    type="text"
+                                    name="name"
+                                    placeholder="How your name should appear on the leaderboard"
+                                    value="{{ form_data.name|default:'' }}"
+                                    required
+                                >
+                            </div>
 
-                    <div>
-                        <label class="field-label" for="video_link">Public video link</label>
-                        <input
-                            id="video_link"
-                            class="input"
-                            type="url"
-                            name="video_link"
-                            placeholder="https://youtube.com/... or https://drive.google.com/..."
-                            value="{{ form_data.video_link|default:'' }}"
-                            required
-                        >
-                    </div>
+                            <div>
+                                <label class="field-label" for="email">Email</label>
+                                <input
+                                    id="email"
+                                    class="input"
+                                    type="email"
+                                    name="email"
+                                    placeholder="you@example.com"
+                                    value="{{ form_data.email|default:'' }}"
+                                    required
+                                >
+                            </div>
+                        {% endif %}
 
-                    <button type="submit" class="btn-main">Send For Verification</button>
-                </form>
+                        <div>
+                            <label class="field-label" for="reps">Reps</label>
+                            <input
+                                id="reps"
+                                class="input"
+                                type="number"
+                                name="reps"
+                                min="1"
+                                placeholder="Your strict push-up score"
+                                value="{{ form_data.reps|default:'' }}"
+                                required
+                            >
+                        </div>
+
+                        <div>
+                            <label class="field-label" for="video_link">Public video link</label>
+                            <input
+                                id="video_link"
+                                class="input"
+                                type="url"
+                                name="video_link"
+                                placeholder="https://youtube.com/... or https://drive.google.com/..."
+                                value="{{ form_data.video_link|default:'' }}"
+                            >
+                            <div class="hint">Optional for submission, strongly recommended for verification.</div>
+                        </div>
+
+                        <button type="submit" class="btn-main">Send For Verification</button>
+                    </form>
+                {% endif %}
             </div>
 
             <div class="mini-card" style="margin-top: 12px;">

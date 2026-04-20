@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+
+{% block title %}Login{% endblock %}
+
+{% block content %}
+<section class="card-dark auth-card">
+    <div class="eyebrow">Athlete Access</div>
+    <h1>Login.</h1>
+    <p class="muted">Return to your dashboard, pending submissions, and verified progress history.</p>
+
+    <form class="submission-form" method="POST">
+        {% csrf_token %}
+
+        {% if form.errors %}
+            <div class="mini-card">
+                <p class="muted" style="margin-bottom: 0;">Your username and password did not match.</p>
+            </div>
+        {% endif %}
+
+        <div>
+            <label class="field-label" for="{{ form.username.id_for_label }}">Username</label>
+            {{ form.username }}
+        </div>
+
+        <div>
+            <label class="field-label" for="{{ form.password.id_for_label }}">Password</label>
+            {{ form.password }}
+        </div>
+
+        <button class="btn-main" type="submit">Login</button>
+        <a class="btn-secondary" href="{% url 'register' %}">Create Account</a>
+    </form>
+</section>
+
+<script>
+    for (const field of document.querySelectorAll("input")) {
+        field.classList.add("input");
+    }
+</script>
+{% endblock %}

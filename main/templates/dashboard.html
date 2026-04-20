@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<section class="hero-card profile-header">
+    <div class="eyebrow">Athlete Dashboard</div>
+    <h1>{{ profile.display_name }}</h1>
+    <p class="muted">Only verified submissions count toward your rank, PR, and graph.</p>
+    <div class="button-row">
+        <a class="btn-main" href="{% url 'challenge' %}">Submit New Result</a>
+        <a class="btn-secondary" href="{% url 'athlete_profile' profile.slug %}">View Public Profile</a>
+    </div>
+</section>
+
+<section class="grid-4">
+    <div class="metric-card">
+        <span class="kicker">Current PR</span>
+        <span class="stat-value">{{ current_pr }}</span>
+        <div class="muted">{{ current_tier.name }}</div>
+    </div>
+    <div class="metric-card">
+        <span class="kicker">Current Rank</span>
+        <span class="stat-value">{% if current_rank %}#{{ current_rank }}{% else %}-{% endif %}</span>
+        <div class="muted">{{ rank_movement }}</div>
+    </div>
+    <div class="metric-card">
+        <span class="kicker">Verified</span>
+        <span class="stat-value">{{ total_verified }}</span>
+        <div class="muted">Reviewed and ranked.</div>
+    </div>
+    <div class="metric-card">
+        <span class="kicker">Pending</span>
+        <span class="stat-value">{{ total_pending }}</span>
+        <div class="muted">Waiting for review.</div>
+    </div>
+</section>
+
+<section class="grid-2">
+    <div class="card-dark">
+        <h2>Progress</h2>
+        <p class="muted">Verified reps over time.</p>
+        <div class="progress-chart">
+            <svg id="progress-chart" class="chart-area" role="img" aria-label="Verified push-up progress chart"></svg>
+        </div>
+    </div>
+
+    <div class="card-dark">
+        <h2>Training Snapshot</h2>
+        <div class="stack">
+            <div class="leaderboard-card">
+                <span class="kicker">All-time PR</span>
+                <span class="stat-value">{{ all_time_pr }}</span>
+            </div>
+            <div class="leaderboard-card">
+                <span class="kicker">Weeks active</span>
+                <span class="stat-value">{{ weeks_active }}</span>
+            </div>
+            <div class="leaderboard-card">
+                <span class="kicker">Verified streak</span>
+                <span class="stat-value">{{ verified_streak }}</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="grid-2">
+    <div class="card-dark">
+        <h2>Pending Review</h2>
+        {% if pending_submissions %}
+            <div class="stack">
+                {% for submission in pending_submissions %}
+                    <div class="leaderboard-card">
+                        <span class="status-pill pending">{{ submission.status }}</span>
+                        <div class="submission-name" style="margin-top: 10px;">{{ submission.reps }} reps</div>
+                        <div class="submission-meta">{{ submission.created_at|date:"M j, Y" }}</div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p class="muted">No pending submissions right now.</p>
+        {% endif %}
+    </div>
+
+    <div class="card-dark">
+        <h2>Verified History</h2>
+        {% if verified_submissions %}
+            <div class="stack">
+                {% for submission in verified_submissions %}
+                    <div class="leaderboard-card">
+                        <span class="status-pill verified">{{ submission.status }}</span>
+                        <div class="submission-name" style="margin-top: 10px;">{{ submission.reps }} reps</div>
+                        <div class="submission-meta">{{ submission.rank_name }} - {{ submission.created_at|date:"M j, Y" }}</div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p class="muted">No verified submissions yet.</p>
+        {% endif %}
+    </div>
+</section>
+
+{{ progress_data|json_script:"progress-data" }}
+<script>
+    const progressData = JSON.parse(document.getElementById("progress-data").textContent);
+    const svg = document.getElementById("progress-chart");
+    const width = 640;
+    const height = 220;
+    const pad = 28;
+    svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+
+    if (!progressData.length) {
+        svg.innerHTML = `<text x="${pad}" y="${height / 2}" fill="rgba(245,247,251,.72)" font-size="18">No verified data yet.</text>`;
+    } else {
+        const maxReps = Math.max(...progressData.map((point) => point.reps), 80);
+        const step = progressData.length > 1 ? (width - pad * 2) / (progressData.length - 1) : 0;
+        const points = progressData.map((point, index) => {
+            const x = progressData.length > 1 ? pad + index * step : width / 2;
+            const y = height - pad - (point.reps / maxReps) * (height - pad * 2);
+            return { x, y, reps: point.reps, date: point.date };
+        });
+        const path = points.map((point, index) => `${index === 0 ? "M" : "L"} ${point.x} ${point.y}`).join(" ");
+        svg.innerHTML = `
+            <line x1="${pad}" y1="${height - pad}" x2="${width - pad}" y2="${height - pad}" stroke="rgba(255,255,255,.14)" />
+            <line x1="${pad}" y1="${pad}" x2="${pad}" y2="${height - pad}" stroke="rgba(255,255,255,.14)" />
+            <path d="${path}" fill="none" stroke="#f7b733" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" />
+            ${points.map((point) => `<circle cx="${point.x}" cy="${point.y}" r="5" fill="#ffd77b"><title>${point.date}: ${point.reps} reps</title></circle>`).join("")}
+        `;
+    }
+</script>
+{% endblock %}

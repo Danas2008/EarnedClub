@@ -75,7 +75,13 @@
                             </div>
                             <div class="tag-pill">{{ row.submission.rank_name }}</div>
                         </div>
-                        <div class="submission-name">{{ row.submission.name }}</div>
+                        <div class="submission-name">
+                            {% if row.profile %}
+                                <a href="{% url 'athlete_profile' row.profile.slug %}">{{ row.submission.name }}</a>
+                            {% else %}
+                                {{ row.submission.name }}
+                            {% endif %}
+                        </div>
                         <div class="submission-meta">{{ row.submission.reps }} reps - {{ row.submission.benchmark_label }}</div>
                     </div>
                 {% endfor %}
@@ -120,7 +126,13 @@
                             </span>
                         </td>
                         <td>
-                            <div class="submission-name">{{ row.submission.name }}</div>
+                            <div class="submission-name">
+                                {% if row.profile %}
+                                    <a href="{% url 'athlete_profile' row.profile.slug %}">{{ row.submission.name }}</a>
+                                {% else %}
+                                    {{ row.submission.name }}
+                                {% endif %}
+                            </div>
                             <div class="submission-meta">Verified score</div>
                         </td>
                         <td><span class="score">{{ row.submission.reps }}</span></td>
@@ -143,7 +155,13 @@
                         </div>
                         <div class="score">{{ row.submission.reps }}</div>
                     </div>
-                    <div class="submission-name">{{ row.submission.name }}</div>
+                    <div class="submission-name">
+                        {% if row.profile %}
+                            <a href="{% url 'athlete_profile' row.profile.slug %}">{{ row.submission.name }}</a>
+                        {% else %}
+                            {{ row.submission.name }}
+                        {% endif %}
+                    </div>
                     <div class="submission-meta">{{ row.submission.rank_name }} - {{ row.submission.benchmark_label }}</div>
                 </div>
             {% endfor %}

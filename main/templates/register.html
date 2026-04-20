@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+
+{% block title %}Register{% endblock %}
+
+{% block content %}
+<section class="card-dark auth-card">
+    <div class="eyebrow">Create Athlete Account</div>
+    <h1>Register.</h1>
+    <p class="muted">Create a profile, submit results under your name, and start building verified progress history.</p>
+
+    <form class="submission-form" method="POST">
+        {% csrf_token %}
+
+        {% if form.errors %}
+            <div class="mini-card">
+                <p class="muted" style="margin-bottom: 0;">Please check the fields below and try again.</p>
+            </div>
+        {% endif %}
+
+        <div>
+            <label class="field-label" for="display_name">Display name</label>
+            <input id="display_name" class="input" type="text" name="display_name" placeholder="How your profile should appear">
+        </div>
+
+        <div>
+            <label class="field-label" for="email">Email</label>
+            <input id="email" class="input" type="email" name="email" placeholder="you@example.com">
+        </div>
+
+        <div>
+            <label class="field-label" for="{{ form.username.id_for_label }}">Username</label>
+            {{ form.username }}
+            {% for error in form.username.errors %}<div class="hint">{{ error }}</div>{% endfor %}
+        </div>
+
+        <div>
+            <label class="field-label" for="{{ form.password1.id_for_label }}">Password</label>
+            {{ form.password1 }}
+            {% for error in form.password1.errors %}<div class="hint">{{ error }}</div>{% endfor %}
+        </div>
+
+        <div>
+            <label class="field-label" for="{{ form.password2.id_for_label }}">Confirm password</label>
+            {{ form.password2 }}
+            {% for error in form.password2.errors %}<div class="hint">{{ error }}</div>{% endfor %}
+        </div>
+
+        <button class="btn-main" type="submit">Create Account</button>
+        <a class="btn-secondary" href="{% url 'login' %}">Login Instead</a>
+    </form>
+</section>
+
+<script>
+    for (const field of document.querySelectorAll("input")) {
+        field.classList.add("input");
+    }
+</script>
+{% endblock %}
