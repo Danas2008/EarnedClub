@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+
+{% block title %}Profiles{% endblock %}
+
+{% block content %}
+<section class="hero-card" style="margin-bottom: 24px;">
+    <div class="eyebrow">Verified Athletes</div>
+    <h1>Profiles.</h1>
+    <p class="muted">Registered athletes with verified results. Legacy anonymous leaderboard entries stay on the board, but profiles belong to accounts.</p>
+</section>
+
+<section class="grid-3">
+    {% for profile in profiles %}
+        <a class="leaderboard-card" href="{% url 'athlete_profile' profile.slug %}">
+            <div class="section-spread" style="margin-bottom: 10px;">
+                <span class="position-pill">{% if profile.current_rank %}#{{ profile.current_rank }}{% else %}-{% endif %}</span>
+                <span class="tag-pill">{{ profile.personal_best_reps }} reps</span>
+            </div>
+            <div class="submission-name">{{ profile.display_name }}</div>
+            <div class="submission-meta">Verified athlete profile</div>
+        </a>
+    {% empty %}
+        <div class="card-dark">
+            <h2>No profiles yet.</h2>
+            <p class="muted">The first registered athletes with verified scores will appear here.</p>
+        </div>
+    {% endfor %}
+</section>
+{% endblock %}

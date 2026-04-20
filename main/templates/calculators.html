@@ -67,7 +67,7 @@
             </div>
             <div>
                 <label class="field-label" for="pace-gain">Weekly improvement goal</label>
-                <input id="pace-gain" class="input" type="number" min="1" step="1" placeholder="2">
+                <input id="pace-gain" class="input" type="number" min="0" step="1" placeholder="2">
             </div>
             <button class="btn-main" type="button" onclick="calculatePace()">Estimate Time To Elite</button>
             <div id="pace-result" class="hint">Estimate how many weeks you need to reach Elite or Legend.</div>
@@ -96,14 +96,17 @@
     </div>
 </section>
 
+{{ rank_tiers|json_script:"rank-tier-data" }}
+
 <script>
-    const tiers = [
-        { name: "Beginner", min: 0, max: 20, benchmark: "Foundation tier" },
-        { name: "Intermediate", min: 21, max: 40, benchmark: "Rising tier" },
-        { name: "Advanced", min: 41, max: 60, benchmark: "Performance tier" },
-        { name: "Elite", min: 61, max: 80, benchmark: "Top 10% benchmark" },
-        { name: "Earned Legend", min: 81, max: null, benchmark: "Top 1% benchmark" }
-    ];
+    const tiers = JSON.parse(document.getElementById("rank-tier-data").textContent).map((tier) => ({
+        name: tier.name,
+        min: tier.min_reps,
+        max: tier.max_reps,
+        benchmark: tier.benchmark
+    }));
+    const eliteTarget = 60;
+    const legendTarget = 80;
 
     function getTier(reps) {
         for (const tier of tiers) {
@@ -149,7 +152,9 @@
         }
 
         const tier = getTier(reps);
-        result.textContent = `${reps} reps places you in ${tier.name} (${tier.benchmark}).`;
+        const toElite = Math.max(0, eliteTarget - reps);
+        const toLegend = Math.max(0, legendTarget - reps);
+        result.textContent = `${reps} reps places you in ${tier.name} (${tier.benchmark}). Elite needs ${toElite} more rep(s); Earned Legend needs ${toLegend} more.`;
     }
 
     function calculatePace() {
@@ -157,14 +162,22 @@
         const gain = parseInt(document.getElementById("pace-gain").value, 10);
         const result = document.getElementById("pace-result");
 
-        if (Number.isNaN(current) || Number.isNaN(gain) || current < 0 || gain <= 0) {
+        if (Number.isNaN(current) || Number.isNaN(gain) || current < 0 || gain < 0) {
             result.textContent = "Enter a valid current rep count and weekly gain.";
             return;
         }
 
-        const eliteWeeks = current >= 61 ? 0 : Math.ceil((61 - current) / gain);
-        const legendWeeks = current >= 81 ? 0 : Math.ceil((81 - current) / gain);
-        result.textContent = `At +${gain} reps per week, Elite could take about ${eliteWeeks} week(s) and Earned Legend about ${legendWeeks} week(s).`;
+        const tier = getTier(current);
+        const toElite = Math.max(0, eliteTarget - current);
+        const toLegend = Math.max(0, legendTarget - current);
+        if (gain === 0) {
+            result.textContent = `Current tier: ${tier.name}. You need ${toElite} rep(s) for Elite and ${toLegend} for Earned Legend. Add weekly improvement to estimate time.`;
+            return;
+        }
+
+        const eliteWeeks = Math.ceil(toElite / gain);
+        const legendWeeks = Math.ceil(toLegend / gain);
+        result.textContent = `Current tier: ${tier.name}. At +${gain} reps per week, Elite could take about ${eliteWeeks} week(s) and Earned Legend about ${legendWeeks} week(s).`;
     }
 </script>
 {% endblock %}
