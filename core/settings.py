@@ -26,7 +26,7 @@ SECRET_KEY = os.getenv(
     "local-dev-secret-key-change-me-please-1234567890-abcdef-safe",
 )
 DEBUG = get_bool_env("DEBUG", default=True)
-ALLOWED_HOSTS = get_list_env("ALLOWED_HOSTS", "127.0.0.1,localhost")
+ALLOWED_HOSTS = get_list_env("ALLOWED_HOSTS", "127.0.0.1,localhost,earnedclub.club,www.earnedclub.club")
 CSRF_TRUSTED_ORIGINS = get_list_env("CSRF_TRUSTED_ORIGINS")
 
 
@@ -95,6 +95,9 @@ AUTH_PASSWORD_VALIDATORS = [
     },
     {
         "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",
+        "OPTIONS": {
+            "min_length": 6,
+        },
     },
     {
         "NAME": "django.contrib.auth.password_validation.CommonPasswordValidator",

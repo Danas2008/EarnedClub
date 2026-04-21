@@ -6,14 +6,14 @@
 <section class="hero-card" style="margin-bottom: 24px;">
     <div class="content-split">
         <div class="stack">
-            <div class="eyebrow">Verified rankings only</div>
+            <div class="eyebrow">Open board with verification status</div>
             <h1>Leaderboard.</h1>
             <p class="muted">
-                This board is sorted from highest reps to lowest reps. Only manually verified entries make it live.
+                This board shows every submitted result from highest reps to lowest reps. Verified entries count as official ranked scores; unverified entries stay visible while they wait for review.
             </p>
             <p>
                 Elite is treated as a top 10% style benchmark. Earned Legend is the top 1% style benchmark.
-                These are the standards you’re competing against.
+                These are the standards you are competing against.
             </p>
             <div class="button-row">
                 <a class="btn-main" href="/challenge/">Submit A Score</a>
@@ -26,17 +26,17 @@
                 <div class="stat-card">
                     <span class="kicker">Verified entries</span>
                     <span class="stat-value">{{ verified_count }}</span>
-                    <div class="muted">Live and ranked publicly.</div>
+                    <div class="muted">Official ranked scores.</div>
+                </div>
+                <div class="stat-card">
+                    <span class="kicker">All submissions</span>
+                    <span class="stat-value">{{ submission_count }}</span>
+                    <div class="muted">Visible with review status.</div>
                 </div>
                 <div class="stat-card">
                     <span class="kicker">Elite line</span>
                     <span class="stat-value">60+</span>
                     <div class="muted">Top 10% benchmark.</div>
-                </div>
-                <div class="stat-card">
-                    <span class="kicker">Legend line</span>
-                    <span class="stat-value">80+</span>
-                    <div class="muted">Top 1% benchmark.</div>
                 </div>
             </div>
         </div>
@@ -60,7 +60,7 @@
 
     <div class="card-dark">
         <h2>Top 5 This Week</h2>
-        <p class="muted">The top performers of the past 7 days.</p>
+        <p class="muted">The top submitted performances of the past 7 days, with verification status shown.</p>
 
         {% if weekly_rows %}
             <div class="stack">
@@ -83,11 +83,12 @@
                             {% endif %}
                         </div>
                         <div class="submission-meta">{{ row.submission.reps }} reps - {{ row.submission.benchmark_label }}</div>
+                        <span class="status-pill {{ row.submission.status }}" style="margin-top: 10px;">{{ row.submission.public_status_label }}</span>
                     </div>
                 {% endfor %}
             </div>
         {% else %}
-            <p>No verified submissions from the last 7 days yet.</p>
+            <p>No submissions from the last 7 days yet.</p>
         {% endif %}
     </div>
 </section>
@@ -97,8 +98,7 @@
         <div>
             <h2>Full Leaderboard</h2>
             <p class="muted">
-                This is the full ranking of all verified entries, sorted from highest to lowest reps.
-                The leaderboard is designed to be a credible, long-term record of performance. It’s not just a place to put numbers — it’s a public ranking system that reflects real achievement.
+                This is the full open board of all entries, sorted from highest to lowest reps. Unverified results stay visible, but only verified results receive an official rank.
             </p>
         </div>
     </div>
@@ -107,10 +107,12 @@
         <table class="leaderboard-table">
             <thead>
                 <tr>
-                    <th>Position</th>
+                    <th>Open position</th>
                     <th>Athlete</th>
                     <th>Reps</th>
                     <th>Tier</th>
+                    <th>Status</th>
+                    <th>Official rank</th>
                     <th>Benchmark</th>
                 </tr>
             </thead>
@@ -133,10 +135,18 @@
                                     {{ row.submission.name }}
                                 {% endif %}
                             </div>
-                            <div class="submission-meta">Verified score</div>
+                            <div class="submission-meta">
+                                {% if row.verified_position %}
+                                    Official rank #{{ row.verified_position }}
+                                {% else %}
+                                    Waiting for verification
+                                {% endif %}
+                            </div>
                         </td>
                         <td><span class="score">{{ row.submission.reps }}</span></td>
                         <td><span class="tag-pill">{{ row.submission.rank_name }}</span></td>
+                        <td><span class="status-pill {{ row.submission.status }}">{{ row.submission.public_status_label }}</span></td>
+                        <td>{% if row.verified_position %}#{{ row.verified_position }}{% else %}-{% endif %}</td>
                         <td>{{ row.submission.benchmark_label }}</td>
                     </tr>
                 {% endfor %}
@@ -163,11 +173,19 @@
                         {% endif %}
                     </div>
                     <div class="submission-meta">{{ row.submission.rank_name }} - {{ row.submission.benchmark_label }}</div>
+                    <span class="status-pill {{ row.submission.status }}" style="margin-top: 10px;">{{ row.submission.public_status_label }}</span>
+                    <div class="submission-meta" style="margin-top: 8px;">
+                        {% if row.verified_position %}
+                            Official rank #{{ row.verified_position }}
+                        {% else %}
+                            Waiting for verification
+                        {% endif %}
+                    </div>
                 </div>
             {% endfor %}
         </div>
     {% else %}
-        <p>No verified submissions yet. The first verified athletes will shape the culture of the board.</p>
+        <p>No submissions yet. The first athletes will shape the culture of the board.</p>
     {% endif %}
 </section>
 {% endblock %}

@@ -36,6 +36,7 @@
         <div>
             <label class="field-label" for="{{ form.password1.id_for_label }}">Password</label>
             {{ form.password1 }}
+            <div class="hint">Password must contain at least 6 characters. 8 or more is recommended.</div>
             {% for error in form.password1.errors %}<div class="hint">{{ error }}</div>{% endfor %}
         </div>
 

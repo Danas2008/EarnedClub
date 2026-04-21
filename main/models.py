@@ -78,19 +78,46 @@ class Submission(models.Model):
         return f"{self.name} - {self.reps}"
 
     def save(self, *args, **kwargs):
-        if self.verified and self.status == self.STATUS_PENDING:
-            self.status = self.STATUS_VERIFIED
-        if self.status == self.STATUS_VERIFIED:
-            self.verified = True
-        elif self.status in {self.STATUS_PENDING, self.STATUS_REJECTED}:
-            self.verified = False
+        previous = None
+        if self.pk:
+            previous = Submission.objects.filter(pk=self.pk).only("status", "verified", "user_id").first()
+
+        status_changed = previous is not None and self.status != previous.status
+        verified_changed = previous is not None and self.verified != previous.verified
+        old_status = previous.status if previous else None
+        old_user_id = previous.user_id if previous else None
+
+        if previous is None:
+            if self.verified and self.status == self.STATUS_PENDING:
+                self.status = self.STATUS_VERIFIED
+            self.verified = self.status == self.STATUS_VERIFIED
+        elif status_changed:
+            self.verified = self.status == self.STATUS_VERIFIED
+        elif verified_changed:
+            self.status = self.STATUS_VERIFIED if self.verified else self.STATUS_PENDING
+        else:
+            self.verified = self.status == self.STATUS_VERIFIED
+
+        if kwargs.get("update_fields") is not None:
+            kwargs["update_fields"] = set(kwargs["update_fields"]) | {"status", "verified"}
+
         super().save(*args, **kwargs)
-        if self.user_id and hasattr(self.user, "profile"):
-            self.user.profile.refresh_verified_stats()
+
+        affected_user_ids = {user_id for user_id in (old_user_id, self.user_id) if user_id}
+        refresh_all_ranks = old_status == self.STATUS_VERIFIED or self.status == self.STATUS_VERIFIED
+        refresh_profile_stats(affected_user_ids, refresh_all_ranks=refresh_all_ranks)
 
     @property
     def is_verified(self):
         return self.status == self.STATUS_VERIFIED
+
+    @property
+    def public_status_label(self):
+        if self.status == self.STATUS_VERIFIED:
+            return "Verified"
+        if self.status == self.STATUS_REJECTED:
+            return "Rejected"
+        return "Unverified"
 
     @property
     def rank_tier(self):
@@ -163,6 +190,21 @@ def ensure_user_profile(sender, instance, created, **kwargs):
             user=instance,
             display_name=instance.get_full_name() or instance.username,
         )
+
+
+def refresh_profile_stats(user_ids=None, refresh_all_ranks=False):
+    profile_ids = set()
+    if user_ids:
+        profile_ids.update(Profile.objects.filter(user_id__in=user_ids).values_list("id", flat=True))
+    if refresh_all_ranks:
+        profile_ids.update(
+            Profile.objects.filter(user__submission__status=Submission.STATUS_VERIFIED)
+            .distinct()
+            .values_list("id", flat=True)
+        )
+
+    for profile in Profile.objects.filter(id__in=profile_ids):
+        profile.refresh_verified_stats()
 
 
 class NewsletterSubscriber(models.Model):

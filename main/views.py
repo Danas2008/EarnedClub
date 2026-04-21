@@ -17,10 +17,14 @@ def build_leaderboard_rows(submissions):
         profile = None
         if submission.user_id:
             profile = getattr(submission.user, "profile", None)
+        verified_position = None
+        if submission.status == Submission.STATUS_VERIFIED:
+            verified_position = verified_submission_queryset().filter(reps__gt=submission.reps).count() + 1
         rows.append(
             {
                 "position": index,
                 "medal_place": index if index <= 3 else None,
+                "verified_position": verified_position,
                 "submission": submission,
                 "profile": profile,
             }
@@ -30,6 +34,10 @@ def build_leaderboard_rows(submissions):
 
 def verified_submission_queryset():
     return Submission.objects.filter(status=Submission.STATUS_VERIFIED)
+
+
+def public_submission_queryset():
+    return Submission.objects.all()
 
 
 def pending_submission_queryset():
@@ -83,15 +91,17 @@ def get_weekly_window():
 
 def home(request):
     verified_submissions = list(verified_submission_queryset())
-    leaderboard_rows = build_leaderboard_rows(verified_submissions)
+    public_submissions = list(public_submission_queryset())
+    leaderboard_rows = build_leaderboard_rows(public_submissions)
     weekly_cutoff = get_weekly_window()
     weekly_rows = build_leaderboard_rows(
-        [submission for submission in verified_submissions if submission.created_at >= weekly_cutoff]
+        [submission for submission in public_submissions if submission.created_at >= weekly_cutoff]
     )
 
     context = {
         "rank_tiers": RANK_TIERS,
-        "total_verified": len(leaderboard_rows),
+        "total_verified": len(verified_submissions),
+        "total_submissions": len(public_submissions),
         "top_three": leaderboard_rows[:3],
         "weekly_top_five": weekly_rows[:5],
         "overall_top_five": leaderboard_rows[:10],
@@ -101,16 +111,18 @@ def home(request):
 
 def leaderboard(request):
     verified_submissions = list(verified_submission_queryset())
+    public_submissions = list(public_submission_queryset())
     weekly_cutoff = get_weekly_window()
     weekly_submissions = [
-        submission for submission in verified_submissions if submission.created_at >= weekly_cutoff
+        submission for submission in public_submissions if submission.created_at >= weekly_cutoff
     ]
 
     context = {
-        "leaderboard_rows": build_leaderboard_rows(verified_submissions),
+        "leaderboard_rows": build_leaderboard_rows(public_submissions),
         "weekly_rows": build_leaderboard_rows(weekly_submissions)[:5],
         "rank_tiers": RANK_TIERS,
         "verified_count": len(verified_submissions),
+        "submission_count": len(public_submissions),
     }
     return render(request, "leaderboard.html", context)
 
@@ -185,6 +197,7 @@ def dashboard(request):
         "current_rank": current_rank,
         "current_tier": current_tier,
         "rank_movement": "New season baseline",
+        "total_submissions": request.user.submission_set.count(),
         "total_verified": verified_submissions.count(),
         "total_pending": pending_submissions.count(),
         "weeks_active": weeks_active,
