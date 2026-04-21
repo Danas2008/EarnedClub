@@ -30,7 +30,10 @@ ALLOWED_HOSTS = get_list_env(
     "ALLOWED_HOSTS",
     "127.0.0.1,localhost,earnedclub.club,www.earnedclub.club,earnedclub.onrender.com"
 )
-CSRF_TRUSTED_ORIGINS = get_list_env("CSRF_TRUSTED_ORIGINS")
+CSRF_TRUSTED_ORIGINS = [
+    "https://earnedclub.club",
+    "https://www.earnedclub.club",
+]
 
 
 INSTALLED_APPS = [
