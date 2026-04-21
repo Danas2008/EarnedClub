@@ -21,9 +21,9 @@
 
             <div class="stat-grid">
                 <div class="stat-card">
-                    <span class="kicker">Verified athletes</span>
-                    <span class="stat-value">{{ total_verified }}</span>
-                    <div class="muted">No inflated scores. No fake results.</div>
+                    <span class="kicker">All submissions</span>
+                    <span class="stat-value">{{ total_submissions }}</span>
+                    <div class="muted">Every entry is visible with status.</div>
                 </div>
                 <div class="stat-card">
                     <span class="kicker">Elite target</span>
@@ -107,7 +107,7 @@
             <li>Show your full body or at least your chest lockout and bottom position clearly.</li>
             <li>Upload the video to YouTube, TikTok, Google Drive, or another public link.</li>
             <li>Submit your score and link on the challenge page.</li>
-            <li>After manual verification, your score goes live on the leaderboard.</li>
+            <li>Your score appears on the open leaderboard immediately and shows as verified after manual review.</li>
         </ul>
         <div class="button-row">
             <a class="btn-main" href="/challenge/">Submit a Score</a>
@@ -181,6 +181,7 @@
                         </div>
                         <div class="submission-name">{{ row.submission.name }}</div>
                         <div class="submission-meta">{{ row.submission.reps }} reps - {{ row.submission.benchmark_label }}</div>
+                        <span class="status-pill {{ row.submission.status }}" style="margin-top: 10px;">{{ row.submission.public_status_label }}</span>
                     </div>
                 {% endfor %}
             </div>
@@ -212,6 +213,7 @@
                         </div>
                         <div class="submission-name">{{ row.submission.name }}</div>
                         <div class="submission-meta">{{ row.submission.reps }} reps - {{ row.submission.benchmark_label }}</div>
+                        <span class="status-pill {{ row.submission.status }}" style="margin-top: 10px;">{{ row.submission.public_status_label }}</span>
                     </div>
                 {% endfor %}
             </div>

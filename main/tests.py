@@ -45,7 +45,7 @@ class SubmissionFlowTests(TestCase):
         self.assertContains(response, "Submission received.")
         self.assertContains(response, "would currently rank #2")
 
-    def test_leaderboard_shows_only_verified_submissions(self):
+    def test_leaderboard_shows_all_submissions_with_verification_status(self):
         Submission.objects.create(
             name="Visible Athlete",
             reps=55,
@@ -62,7 +62,10 @@ class SubmissionFlowTests(TestCase):
         response = self.client.get(reverse("leaderboard"))
 
         self.assertContains(response, "Visible Athlete")
-        self.assertNotContains(response, "Hidden Athlete")
+        self.assertContains(response, "Hidden Athlete")
+        self.assertContains(response, "Verified")
+        self.assertContains(response, "Unverified")
+        self.assertContains(response, "Waiting for verification")
 
     def test_newsletter_signup_creates_subscriber(self):
         response = self.client.post(
@@ -119,6 +122,21 @@ class SubmissionFlowTests(TestCase):
         self.assertEqual(user.email, "athlete@example.com")
         self.assertEqual(user.profile.display_name, "Earned Athlete")
         self.assertEqual(user.profile.slug, "earned-athlete")
+
+    def test_registration_accepts_six_character_password(self):
+        response = self.client.post(
+            reverse("register"),
+            {
+                "username": "sixpass",
+                "display_name": "Six Pass",
+                "email": "six@example.com",
+                "password1": "z9Qv7p",
+                "password2": "z9Qv7p",
+            },
+        )
+
+        self.assertRedirects(response, reverse("dashboard"))
+        self.assertTrue(User.objects.filter(username="sixpass").exists())
 
     def test_profile_slug_is_unique(self):
         first = User.objects.create_user(username="first")
@@ -197,9 +215,56 @@ class SubmissionFlowTests(TestCase):
         response = self.client.get(reverse("dashboard"))
 
         self.assertEqual(response.context["current_pr"], 55)
+        self.assertEqual(response.context["total_submissions"], 2)
         self.assertEqual(response.context["total_verified"], 1)
         self.assertEqual(response.context["total_pending"], 1)
         self.assertEqual([point["reps"] for point in response.context["progress_data"]], [55])
+
+    def test_verified_checkbox_updates_status_for_admin_workflow(self):
+        submission = Submission.objects.create(name="Manual", reps=44, status=Submission.STATUS_PENDING)
+
+        submission.verified = True
+        submission.save()
+        submission.refresh_from_db()
+        self.assertEqual(submission.status, Submission.STATUS_VERIFIED)
+
+        submission.verified = False
+        submission.save()
+        submission.refresh_from_db()
+        self.assertEqual(submission.status, Submission.STATUS_PENDING)
+
+    def test_status_updates_verified_flag(self):
+        submission = Submission.objects.create(name="Status", reps=41, verified=True)
+
+        submission.status = Submission.STATUS_REJECTED
+        submission.save()
+        submission.refresh_from_db()
+
+        self.assertFalse(submission.verified)
+
+    def test_verified_status_sync_survives_update_fields(self):
+        submission = Submission.objects.create(name="Partial", reps=47, status=Submission.STATUS_PENDING)
+
+        submission.verified = True
+        submission.save(update_fields=["verified"])
+        submission.refresh_from_db()
+
+        self.assertTrue(submission.verified)
+        self.assertEqual(submission.status, Submission.STATUS_VERIFIED)
+
+    def test_profile_rank_cache_refreshes_for_existing_profiles(self):
+        first = User.objects.create_user(username="first-rank", password="StrongPass12345")
+        second = User.objects.create_user(username="second-rank", password="StrongPass12345")
+        Submission.objects.create(user=first, name="First", reps=50, status=Submission.STATUS_VERIFIED)
+        first.profile.refresh_from_db()
+        self.assertEqual(first.profile.current_rank, 1)
+
+        Submission.objects.create(user=second, name="Second", reps=70, status=Submission.STATUS_VERIFIED)
+        first.profile.refresh_from_db()
+        second.profile.refresh_from_db()
+
+        self.assertEqual(second.profile.current_rank, 1)
+        self.assertEqual(first.profile.current_rank, 2)
 
     def test_athlete_profile_shows_only_verified_submissions(self):
         user = User.objects.create_user(username="public", password="StrongPass12345")

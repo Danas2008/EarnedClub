@@ -4,7 +4,7 @@
 
 Implement the first account-based expansion of Earned Club on the `extension-web` branch.
 
-The goal is to keep the existing verified leaderboard and manual verification workflow intact while adding user accounts, public athlete profiles, linked submissions, dashboard metrics, and calculator cleanup.
+The goal is to keep the existing manual verification workflow intact while adding user accounts, public athlete profiles, linked submissions, dashboard metrics, calculator cleanup, and an open public board that shows every submission with verification status.
 
 ## Scope
 
@@ -13,7 +13,7 @@ This plan covers the MVP account and progression layer:
 - User registration, login, and logout.
 - Automatic athlete profiles for registered users.
 - Public athlete profile pages.
-- Authenticated dashboard with verified-only metrics.
+- Authenticated dashboard with verified-only performance metrics and total submission counts.
 - User-linked submissions while preserving anonymous submissions.
 - Email and status fields on submissions.
 - One-active-pending-submission guard.
@@ -38,7 +38,8 @@ Current project state before this change:
 
 - Django app `main` has a `Submission` model with `name`, `reps`, `video_link`, `verified`, and `created_at`.
 - Manual verification is represented by `verified=True`.
-- Public leaderboard only shows verified submissions.
+- Public leaderboard shows all submissions with verification status.
+- Official ranks, profile stats, dashboard PRs, and progress graphs only count verified submissions.
 - Anonymous submissions through `/challenge/` are supported.
 - There are no user accounts, profiles, dashboards, or public athlete profile pages.
 - Calculator frontend thresholds are not fully aligned with Python `RANK_TIERS`.
@@ -59,13 +60,13 @@ Add only small visual extensions:
 - `.profile-header` for dashboard and athlete profile hero areas.
 - `.metric-card` for dashboard metrics.
 - `.progress-chart` for verified progress graph.
-- `.status-pill` for pending, verified, and rejected labels.
+- `.status-pill` for unverified, verified, and rejected labels.
 
 Avoid:
 
 - Light admin-style forms.
 - A redesigned landing page.
-- Counting pending or rejected submissions in rankings.
+- Counting pending or rejected submissions in official rankings.
 - Requiring accounts for anonymous submissions.
 
 ## Data Model Changes
@@ -170,13 +171,15 @@ Success message:
 
 ### Leaderboard
 
-Use `status=verified` as the ranking source.
+Show an open board of all submissions sorted by reps.
 
 Behavior:
 
 - Legacy anonymous submissions still display as plain names.
 - Linked user submissions link to their athlete profile.
-- Pending and rejected submissions never appear.
+- Pending submissions appear with an `Unverified` status.
+- Rejected submissions appear with a `Rejected` status.
+- Only verified submissions receive official rank numbers and count toward profile/dashboard performance stats.
 
 ### Dashboard
 
@@ -188,6 +191,7 @@ Show verified-only metrics:
 - All-time verified PR.
 - Current verified rank.
 - Rank movement placeholder.
+- Total submissions.
 - Total verified submissions.
 - Total pending submissions.
 - Weeks active.
@@ -241,6 +245,8 @@ Update:
   - Mark video link as optional.
 - `leaderboard.html`:
   - Link athlete names to profiles when submission is linked to a user.
+  - Show every submission with a visible `Verified`, `Unverified`, or `Rejected` status pill.
+  - Show official rank only for verified submissions.
 - `calculators.html`:
   - Use backend `RANK_TIERS` data through `json_script`.
   - Fix thresholds:
@@ -290,7 +296,8 @@ Add or update tests for:
 
 - Anonymous challenge submission still creates pending submission.
 - Success message includes estimated verified leaderboard position.
-- Leaderboard shows only verified submissions.
+- Leaderboard shows all submissions with verification status.
+- Leaderboard official rank only applies to verified submissions.
 - Rank tier boundaries match the plan.
 - Registration creates `User` and `Profile`.
 - Profile slugs are unique.
@@ -329,7 +336,8 @@ This change is complete when:
 - Logged-out submissions store email.
 - Users cannot submit a second pending submission.
 - Emails cannot create repeated anonymous pending submissions.
-- Leaderboard counts only verified submissions.
+- Leaderboard displays all submissions with verification status.
+- Leaderboard official ranks count only verified submissions.
 - Dashboard counts only verified submissions for performance stats.
 - Athlete profile shows only verified history.
 - Calculator uses the same tier thresholds as the backend.
