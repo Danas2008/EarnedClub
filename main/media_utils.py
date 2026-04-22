@@ -5,7 +5,10 @@ import uuid
 from io import BytesIO
 from pathlib import Path
 
+from django.conf import settings
 from django.core.files.base import ContentFile
+
+from .supabase_storage import build_object_path, delete_object, get_public_object_url, upload_content
 
 try:
     from PIL import Image, ImageOps
@@ -112,3 +115,40 @@ def process_submission_video(uploaded_file):
                     os.remove(path)
                 except OSError:
                     pass
+
+
+def store_profile_image(profile, uploaded_file, crop_x=None, crop_y=None, crop_size=None):
+    processed_file = process_profile_image(uploaded_file, crop_x=crop_x, crop_y=crop_y, crop_size=crop_size)
+    processed_file.seek(0)
+    content = processed_file.read()
+    object_path = build_object_path(f"profile-{profile.user_id}", getattr(processed_file, "name", "profile.jpg"))
+
+    if upload_content(settings.SUPABASE_PROFILE_BUCKET, object_path, content, content_type="image/jpeg"):
+        if getattr(profile, "profile_storage_path", ""):
+            delete_object(settings.SUPABASE_PROFILE_BUCKET, profile.profile_storage_path)
+        return {
+            "storage_path": object_path,
+            "public_url": get_public_object_url(settings.SUPABASE_PROFILE_BUCKET, object_path),
+            "local_file": None,
+        }
+
+    processed_file.seek(0)
+    return {"storage_path": "", "public_url": "", "local_file": processed_file}
+
+
+def store_submission_video(submission, uploaded_file):
+    processed_file = process_submission_video(uploaded_file)
+    processed_file.seek(0)
+    content = processed_file.read()
+    object_path = build_object_path(
+        f"submission-{submission.user_id or submission.pk or 'anon'}",
+        getattr(processed_file, "name", "submission.mp4"),
+    )
+
+    if upload_content(settings.SUPABASE_SUBMISSION_BUCKET, object_path, content, content_type="video/mp4"):
+        if getattr(submission, "video_storage_path", ""):
+            delete_object(settings.SUPABASE_SUBMISSION_BUCKET, submission.video_storage_path)
+        return {"storage_path": object_path, "local_file": None}
+
+    processed_file.seek(0)
+    return {"storage_path": "", "local_file": processed_file}

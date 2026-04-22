@@ -1,4 +1,5 @@
 from django.contrib.auth.models import User
+from django.conf import settings
 from django.db import models
 from django.db.models.signals import post_save
 from django.dispatch import receiver
@@ -85,10 +86,12 @@ def get_official_rank_for_submission(submission):
 
 
 class Submission(models.Model):
+    STATUS_UNVERIFIED = "unverified"
     STATUS_PENDING = "pending"
     STATUS_VERIFIED = "verified"
     STATUS_REJECTED = "rejected"
     STATUS_CHOICES = [
+        (STATUS_UNVERIFIED, "Unverified"),
         (STATUS_PENDING, "Pending"),
         (STATUS_VERIFIED, "Verified"),
         (STATUS_REJECTED, "Rejected"),
@@ -100,6 +103,7 @@ class Submission(models.Model):
     reps = models.IntegerField()
     video_link = models.URLField(blank=True)
     video_file = models.FileField(upload_to="submission_videos/", blank=True)
+    video_storage_path = models.CharField(max_length=255, blank=True)
     verified = models.BooleanField(default=False)
     status = models.CharField(max_length=16, choices=STATUS_CHOICES, default=STATUS_PENDING)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -121,14 +125,22 @@ class Submission(models.Model):
         old_user_id = previous.user_id if previous else None
 
         if previous is None:
-            if self.verified and self.status == self.STATUS_PENDING:
+            if self.verified and self.status in {self.STATUS_PENDING, self.STATUS_UNVERIFIED}:
                 self.status = self.STATUS_VERIFIED
+            elif self.status == self.STATUS_PENDING and not self.has_proof:
+                self.status = self.STATUS_UNVERIFIED
             self.verified = self.status == self.STATUS_VERIFIED
         elif status_changed:
+            if self.status == self.STATUS_PENDING and not self.has_proof:
+                self.status = self.STATUS_UNVERIFIED
             self.verified = self.status == self.STATUS_VERIFIED
         elif verified_changed:
-            self.status = self.STATUS_VERIFIED if self.verified else self.STATUS_PENDING
+            self.status = self.STATUS_VERIFIED if self.verified else (
+                self.STATUS_PENDING if self.has_proof else self.STATUS_UNVERIFIED
+            )
         else:
+            if self.status == self.STATUS_PENDING and not self.has_proof:
+                self.status = self.STATUS_UNVERIFIED
             self.verified = self.status == self.STATUS_VERIFIED
 
         if kwargs.get("update_fields") is not None:
@@ -148,6 +160,8 @@ class Submission(models.Model):
     def public_status_label(self):
         if self.status == self.STATUS_VERIFIED:
             return "Verified"
+        if self.status == self.STATUS_PENDING:
+            return "Pending"
         if self.status == self.STATUS_REJECTED:
             return "Rejected"
         return "Unverified"
@@ -170,17 +184,25 @@ class Submission(models.Model):
 
     @property
     def proof_url(self):
+        if self.video_storage_path and settings.SUPABASE_URL:
+            from .supabase_storage import create_signed_object_url
+
+            return create_signed_object_url(settings.SUPABASE_SUBMISSION_BUCKET, self.video_storage_path)
         if self.video_file:
             return self.video_file.url
         return self.video_link
 
     @property
     def proof_label(self):
-        if self.video_file:
+        if self.video_storage_path or self.video_file:
             return "Open uploaded video"
         if self.video_link:
             return "Open proof link"
         return ""
+
+    @property
+    def has_proof(self):
+        return bool(self.video_link or self.video_storage_path or self.video_file)
 
 
 class Profile(models.Model):
@@ -189,6 +211,7 @@ class Profile(models.Model):
     slug = models.SlugField(max_length=120, unique=True, blank=True)
     profile_photo = models.URLField(blank=True)
     profile_image = models.FileField(upload_to="profile_photos/", blank=True)
+    profile_storage_path = models.CharField(max_length=255, blank=True)
     country = models.CharField(max_length=80, blank=True)
     age = models.PositiveSmallIntegerField(null=True, blank=True)
     bio = models.TextField(blank=True)
@@ -227,6 +250,10 @@ class Profile(models.Model):
 
     @property
     def profile_image_url(self):
+        if self.profile_storage_path and settings.SUPABASE_URL:
+            from .supabase_storage import get_public_object_url
+
+            return get_public_object_url(settings.SUPABASE_PROFILE_BUCKET, self.profile_storage_path)
         if self.profile_image:
             return self.profile_image.url
         return self.profile_photo

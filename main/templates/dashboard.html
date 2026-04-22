@@ -102,7 +102,7 @@
     <div class="metric-card">
         <span class="kicker">Submissions</span>
         <span class="stat-value">{{ total_submissions }}</span>
-        <div class="muted">{{ total_verified }} verified, {{ total_pending }} pending, {{ rejected_count }} rejected.</div>
+        <div class="muted">{{ total_verified }} verified, {{ total_pending }} pending, {{ total_unverified }} unverified, {{ rejected_count }} rejected.</div>
     </div>
     <div class="metric-card">
         <span class="kicker">Pending</span>
@@ -110,6 +110,8 @@
         <div class="muted">
             {% if total_pending %}
                 One submission can wait at a time. Your next score unlocks after review.
+            {% elif total_unverified %}
+                You have a score waiting for proof before it can enter review.
             {% else %}
                 Nothing is waiting for review.
             {% endif %}
@@ -143,7 +145,7 @@
 
 <section class="card-dark">
     <h2>History</h2>
-    <p class="muted">Everything you have submitted, including pending and rejected attempts.</p>
+    <p class="muted">Everything you have submitted, including pending, unverified, and rejected attempts.</p>
     {% if history_submissions %}
         <div>
             {% for submission in history_submissions %}
@@ -151,7 +153,30 @@
                     <span class="status-pill {{ submission.status }}">{{ submission.public_status_label }}</span>
                     <div class="row-title">
                         <div class="submission-name">{{ submission.reps }} reps</div>
-                        <div class="submission-meta">{{ submission.rank_name }}</div>
+                        <div class="submission-meta">
+                            {{ submission.rank_name }}
+                            {% if submission.has_proof %}| Proof attached{% else %}| No proof yet{% endif %}
+                        </div>
+                        {% if submission.status == "unverified" %}
+                            <details class="score-details" style="margin-top: 10px;">
+                                <summary>Add proof</summary>
+                                <form class="submission-form" method="POST" action="{% url 'add_submission_proof' submission.id %}" enctype="multipart/form-data" style="margin-top: 12px;">
+                                    {% csrf_token %}
+                                    <div class="proof-options">
+                                        <div class="proof-card">
+                                            <label class="field-label" for="dashboard-video-file-{{ submission.id }}">Upload video</label>
+                                            <input id="dashboard-video-file-{{ submission.id }}" class="input" type="file" name="video_file" accept="video/*">
+                                        </div>
+                                        <div class="proof-divider">or</div>
+                                        <div class="proof-card">
+                                            <label class="field-label" for="dashboard-video-link-{{ submission.id }}">Public video link</label>
+                                            <input id="dashboard-video-link-{{ submission.id }}" class="input" type="url" name="video_link" placeholder="https://youtube.com/watch?v=your-video">
+                                        </div>
+                                    </div>
+                                    <button class="btn-main" type="submit">Submit Proof</button>
+                                </form>
+                            </details>
+                        {% endif %}
                     </div>
                     <div class="submission-meta">{{ submission.created_at|date:"M j, Y" }}</div>
                 </div>

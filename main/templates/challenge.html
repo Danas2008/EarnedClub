@@ -34,11 +34,15 @@
                     </p>
                 {% endif %}
 
-                {% if has_pending_submission %}
+                {% if active_submission %}
                     <div class="mini-card">
-                        <span class="status-pill pending">Pending</span>
+                        <span class="status-pill {{ active_submission.status }}">{{ active_submission.public_status_label }}</span>
                         <p class="muted" style="margin: 12px 0 0;">
-                            You already have a submission waiting for verification. Please wait until it is reviewed before submitting again.
+                            {% if active_submission.status == "unverified" %}
+                                You already have an unverified submission without proof. Open your profile dashboard, add a video or link, and it will move back into pending review.
+                            {% else %}
+                                You already have a submission waiting for verification. Please wait until it is reviewed before submitting again.
+                            {% endif %}
                         </p>
                     </div>
                 {% else %}
@@ -121,7 +125,7 @@
 
             <div class="mini-card" style="margin-top: 12px;">
                 <h4>Submission rules</h4>
-                <p style="margin-bottom: 0;">If the proof does not make the reps clear, it will not be verified and will not appear on the official leaderboard.</p>
+                <p style="margin-bottom: 0;">If you submit without a video or proof link, the entry is saved as unverified. Add proof later from your profile dashboard to send it into pending review.</p>
             </div>
         </div>
     </div>

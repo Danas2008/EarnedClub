@@ -28,10 +28,10 @@
                 <div class="submission-name">{{ submission.name }}</div>
                 <div class="submission-meta">{{ submission.reps }} reps submitted {{ submission.created_at|date:"M j, Y H:i" }}</div>
                 <div class="review-proof-actions">
-                    {% if submission.video_file %}
-                        <a class="btn-secondary" style="min-height: 34px; padding: 6px 10px;" href="{{ submission.video_file.url }}" target="_blank" rel="noopener noreferrer">Open Uploaded Video</a>
+                    {% if submission.review_video_url %}
+                        <a class="btn-secondary" style="min-height: 34px; padding: 6px 10px;" href="{{ submission.review_video_url }}" target="_blank" rel="noopener noreferrer">Open Uploaded Video</a>
                         <video controls preload="metadata">
-                            <source src="{{ submission.video_file.url }}" type="video/mp4">
+                            <source src="{{ submission.review_video_url }}" type="video/mp4">
                         </video>
                     {% endif %}
                     {% if submission.video_link %}

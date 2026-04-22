@@ -1,6 +1,7 @@
 from datetime import timedelta
 
 from django.contrib import messages
+from django.conf import settings
 from django.contrib.auth import login, logout
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.decorators import user_passes_test
@@ -14,7 +15,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
 from .countries import COUNTRY_CHOICES
-from .media_utils import process_profile_image, process_submission_video
+from .media_utils import store_profile_image, store_submission_video
 from .models import (
     NewsletterSubscriber,
     Profile,
@@ -26,6 +27,7 @@ from .models import (
     get_rank_tier,
     get_submission_identity,
 )
+from .supabase_storage import create_signed_object_url
 
 
 def build_leaderboard_rows(submissions):
@@ -89,6 +91,10 @@ def public_submission_queryset(since=None):
 
 def pending_submission_queryset():
     return Submission.objects.filter(status=Submission.STATUS_PENDING)
+
+
+def active_submission_queryset():
+    return Submission.objects.filter(status__in=[Submission.STATUS_UNVERIFIED, Submission.STATUS_PENDING])
 
 
 def estimate_verified_position(reps):
@@ -281,8 +287,15 @@ def dashboard(request):
         profile.display_name = request.user.username
         profile.profile_photo = profile_photo
         if profile_image:
-            profile.profile_image = process_profile_image(profile_image, crop_x=crop_x, crop_y=crop_y, crop_size=crop_size)
-            profile.profile_photo = ""
+            stored_profile = store_profile_image(profile, profile_image, crop_x=crop_x, crop_y=crop_y, crop_size=crop_size)
+            if stored_profile["storage_path"]:
+                profile.profile_storage_path = stored_profile["storage_path"]
+                profile.profile_photo = stored_profile["public_url"]
+                profile.profile_image = ""
+            elif stored_profile["local_file"]:
+                profile.profile_image = stored_profile["local_file"]
+                profile.profile_storage_path = ""
+                profile.profile_photo = ""
         profile.country = country
         profile.age = age_value
         profile.bio = bio
@@ -291,6 +304,7 @@ def dashboard(request):
                 "display_name",
                 "profile_photo",
                 "profile_image",
+                "profile_storage_path",
                 "country",
                 "age",
                 "bio",
@@ -302,6 +316,7 @@ def dashboard(request):
 
     verified_submissions = request.user.submission_set.filter(status=Submission.STATUS_VERIFIED)
     pending_submissions = request.user.submission_set.filter(status=Submission.STATUS_PENDING)
+    unverified_submissions = request.user.submission_set.filter(status=Submission.STATUS_UNVERIFIED)
     rejected_submissions = request.user.submission_set.filter(status=Submission.STATUS_REJECTED)
     best_submission = get_best_verified_submission_for_user(request.user)
     first_submission = request.user.submission_set.order_by("created_at").first()
@@ -327,9 +342,11 @@ def dashboard(request):
         "total_submissions": request.user.submission_set.count(),
         "total_verified": verified_submissions.count(),
         "total_pending": pending_submissions.count(),
+        "total_unverified": unverified_submissions.count(),
         "weeks_active": weeks_active,
         "verified_streak": get_current_streak(verified_submissions),
         "pending_submissions": pending_submissions.order_by("-created_at"),
+        "unverified_submissions": unverified_submissions.order_by("-created_at"),
         "history_submissions": request.user.submission_set.order_by("-created_at"),
         "rejected_count": rejected_submissions.count(),
         "progress_data": get_progress_data(verified_submissions),
@@ -378,7 +395,7 @@ def challenge(request):
     context = {}
     if request.user.is_authenticated:
         context["profile"] = request.user.profile
-        context["has_pending_submission"] = pending_submission_queryset().filter(user=request.user).exists()
+        context["active_submission"] = active_submission_queryset().filter(user=request.user).order_by("-created_at").first()
 
     if request.method == "POST":
         name = (request.POST.get("name") or "").strip()
@@ -408,19 +425,19 @@ def challenge(request):
             context["form_data"] = request.POST
             return render(request, "challenge.html", context)
 
-        pending_filter = pending_submission_queryset()
+        active_filter = active_submission_queryset()
         if request.user.is_authenticated:
-            has_pending_submission = pending_filter.filter(user=request.user).exists()
+            active_submission = active_filter.filter(user=request.user).first()
         else:
-            has_pending_submission = pending_filter.filter(email=email).exists()
+            active_submission = active_filter.filter(email=email).first()
 
-        if has_pending_submission:
+        if active_submission:
             messages.error(
                 request,
-                "You already have a submission waiting for verification. Please wait until it is reviewed before submitting again.",
+                "You already have an active submission. Add proof to your current entry or wait until it is reviewed before submitting again.",
             )
             context["form_data"] = request.POST
-            context["has_pending_submission"] = has_pending_submission
+            context["active_submission"] = active_submission
             return render(request, "challenge.html", context)
 
         estimated_position = estimate_verified_position(reps_value)
@@ -430,19 +447,65 @@ def challenge(request):
             email=email,
             reps=reps_value,
             video_link=video_link,
-            video_file=video_file,
+            status=Submission.STATUS_PENDING if (video_link or video_file) else Submission.STATUS_UNVERIFIED,
         )
-        if video_file and submission.video_file:
-            submission.video_file = process_submission_video(submission.video_file)
-            submission.save(update_fields=["video_file"])
+        if video_file:
+            stored_video = store_submission_video(submission, video_file)
+            if stored_video["storage_path"]:
+                submission.video_storage_path = stored_video["storage_path"]
+                submission.video_file = ""
+            elif stored_video["local_file"]:
+                submission.video_file = stored_video["local_file"]
+            submission.save(update_fields=["video_storage_path", "video_file"])
 
         messages.success(
             request,
-            f"Submission received. If verified, this result would currently rank #{estimated_position} on the verified leaderboard.",
+            (
+                f"Submission received. If verified, this result would currently rank #{estimated_position} on the verified leaderboard."
+                if submission.has_proof else
+                "Submission saved as unverified. Add a video or link from your profile to move it into pending review."
+            ),
         )
         return redirect("challenge")
 
     return render(request, "challenge.html", context)
+
+
+@require_POST
+@login_required
+def add_submission_proof(request, submission_id):
+    submission = get_object_or_404(Submission, pk=submission_id, user=request.user)
+    video_link = (request.POST.get("video_link") or "").strip()
+    video_file = request.FILES.get("video_file")
+
+    if submission.status != Submission.STATUS_UNVERIFIED:
+        messages.error(request, "Proof can only be added to unverified submissions.")
+        return redirect("dashboard")
+
+    if pending_submission_queryset().filter(user=request.user).exclude(pk=submission.pk).exists():
+        messages.error(request, "You already have a submission waiting for verification.")
+        return redirect("dashboard")
+
+    if not video_link and not video_file:
+        messages.error(request, "Add either a public proof link or upload a video.")
+        return redirect("dashboard")
+
+    if video_link:
+        submission.video_link = video_link
+
+    if video_file:
+        stored_video = store_submission_video(submission, video_file)
+        if stored_video["storage_path"]:
+            submission.video_storage_path = stored_video["storage_path"]
+            submission.video_file = ""
+        elif stored_video["local_file"]:
+            submission.video_file = stored_video["local_file"]
+
+    submission.status = Submission.STATUS_PENDING
+    submission.verified = False
+    submission.save(update_fields=["video_link", "video_storage_path", "video_file", "status", "verified"])
+    messages.success(request, "Proof added. Your submission is back in pending review.")
+    return redirect("dashboard")
 
 
 def is_app_admin(user):
@@ -454,6 +517,12 @@ def admin_review(request):
     pending_submissions = Submission.objects.filter(status=Submission.STATUS_PENDING).select_related(
         "user", "user__profile"
     ).order_by("-created_at")
+    for submission in pending_submissions:
+        submission.review_video_url = ""
+        if submission.video_storage_path:
+            submission.review_video_url = create_signed_object_url(settings.SUPABASE_SUBMISSION_BUCKET, submission.video_storage_path)
+        elif submission.video_file:
+            submission.review_video_url = submission.video_file.url
     reviewed_submissions = Submission.objects.exclude(status=Submission.STATUS_PENDING).select_related(
         "user", "user__profile"
     ).order_by("-created_at")[:20]

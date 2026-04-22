@@ -50,6 +50,22 @@ class SubmissionFlowTests(TestCase):
         self.assertEqual(submission.status, Submission.STATUS_PENDING)
         self.assertEqual(submission.email, "alex@example.com")
 
+    def test_challenge_submission_without_proof_becomes_unverified(self):
+        response = self.client.post(
+            reverse("challenge"),
+            {
+                "name": "No Proof",
+                "email": "noproof@example.com",
+                "reps": 21,
+            },
+            follow=True,
+        )
+
+        self.assertRedirects(response, reverse("challenge"))
+        submission = Submission.objects.get(name="No Proof")
+        self.assertEqual(submission.status, Submission.STATUS_UNVERIFIED)
+        self.assertContains(response, "saved as unverified")
+
     def test_challenge_submission_shows_success_message(self):
         Submission.objects.create(
             name="Top Athlete",
@@ -97,7 +113,7 @@ class SubmissionFlowTests(TestCase):
             name="Hidden Athlete",
             reps=99,
             video_link="https://example.com/hidden",
-            verified=False,
+            status=Submission.STATUS_PENDING,
         )
 
         response = self.client.get(reverse("leaderboard"))
@@ -105,7 +121,7 @@ class SubmissionFlowTests(TestCase):
         self.assertContains(response, "Visible Athlete")
         self.assertContains(response, "Hidden Athlete")
         self.assertContains(response, "Verified")
-        self.assertContains(response, "Unverified")
+        self.assertContains(response, "Pending")
         self.assertContains(response, "Waiting for verification")
 
     def test_newsletter_signup_creates_subscriber(self):
@@ -215,7 +231,7 @@ class SubmissionFlowTests(TestCase):
     def test_duplicate_pending_submission_is_blocked_for_user(self):
         user = User.objects.create_user(username="pending", password="StrongPass12345")
         self.client.force_login(user)
-        Submission.objects.create(user=user, name="Pending", reps=20, status=Submission.STATUS_PENDING)
+        Submission.objects.create(user=user, name="Pending", reps=20, status=Submission.STATUS_PENDING, video_link="https://example.com/proof")
 
         response = self.client.post(reverse("challenge"), {"reps": 30}, follow=True)
 
@@ -228,6 +244,7 @@ class SubmissionFlowTests(TestCase):
             email="anon@example.com",
             reps=20,
             status=Submission.STATUS_PENDING,
+            video_link="https://example.com/proof",
         )
 
         response = self.client.post(
@@ -248,7 +265,7 @@ class SubmissionFlowTests(TestCase):
     def test_dashboard_counts_only_verified_submissions(self):
         user = User.objects.create_user(username="dash", password="StrongPass12345")
         self.client.force_login(user)
-        Submission.objects.create(user=user, name="Dash", reps=30, status=Submission.STATUS_PENDING)
+        Submission.objects.create(user=user, name="Dash", reps=30, status=Submission.STATUS_PENDING, video_link="https://example.com/proof")
         Submission.objects.create(user=user, name="Dash", reps=55, status=Submission.STATUS_VERIFIED)
 
         response = self.client.get(reverse("dashboard"))
@@ -260,7 +277,7 @@ class SubmissionFlowTests(TestCase):
         self.assertEqual([point["reps"] for point in response.context["progress_data"]], [55])
 
     def test_verified_checkbox_updates_status_for_admin_workflow(self):
-        submission = Submission.objects.create(name="Manual", reps=44, status=Submission.STATUS_PENDING)
+        submission = Submission.objects.create(name="Manual", reps=44, status=Submission.STATUS_PENDING, video_link="https://example.com/proof")
 
         submission.verified = True
         submission.save()
@@ -282,7 +299,7 @@ class SubmissionFlowTests(TestCase):
         self.assertFalse(submission.verified)
 
     def test_verified_status_sync_survives_update_fields(self):
-        submission = Submission.objects.create(name="Partial", reps=47, status=Submission.STATUS_PENDING)
+        submission = Submission.objects.create(name="Partial", reps=47, status=Submission.STATUS_PENDING, video_link="https://example.com/proof")
 
         submission.verified = True
         submission.save(update_fields=["verified"])
@@ -307,7 +324,7 @@ class SubmissionFlowTests(TestCase):
 
     def test_athlete_profile_shows_only_verified_submissions(self):
         user = User.objects.create_user(username="public", password="StrongPass12345")
-        Submission.objects.create(user=user, name="Public", reps=25, status=Submission.STATUS_PENDING)
+        Submission.objects.create(user=user, name="Public", reps=25, status=Submission.STATUS_PENDING, video_link="https://example.com/proof")
         Submission.objects.create(user=user, name="Public", reps=65, status=Submission.STATUS_VERIFIED)
 
         response = self.client.get(reverse("athlete_profile", args=[user.profile.slug]))
@@ -320,19 +337,19 @@ class SubmissionFlowTests(TestCase):
         user.profile.display_name = "One Row"
         user.profile.save()
         Submission.objects.create(user=user, name="One Row", reps=40, status=Submission.STATUS_VERIFIED)
-        Submission.objects.create(user=user, name="One Row", reps=55, status=Submission.STATUS_PENDING)
+        Submission.objects.create(user=user, name="One Row", reps=55, status=Submission.STATUS_PENDING, video_link="https://example.com/proof")
 
         response = self.client.get(reverse("leaderboard"))
 
         self.assertContains(response, "55")
-        self.assertContains(response, "Unverified")
+        self.assertContains(response, "Pending")
         self.assertContains(response, "Official rank #1")
         self.assertNotContains(response, "40</span>")
 
     def test_approving_higher_verified_submission_preserves_history_for_user(self):
         user = User.objects.create_user(username="replace", password="StrongPass12345")
         Submission.objects.create(user=user, name="Replace", reps=42, status=Submission.STATUS_VERIFIED)
-        newer = Submission.objects.create(user=user, name="Replace", reps=60, status=Submission.STATUS_PENDING)
+        newer = Submission.objects.create(user=user, name="Replace", reps=60, status=Submission.STATUS_PENDING, video_link="https://example.com/proof")
 
         newer.status = Submission.STATUS_VERIFIED
         newer.save(update_fields=["status"])
@@ -401,10 +418,26 @@ class SubmissionFlowTests(TestCase):
         self.assertTrue(user.profile.profile_image.name)
         self.assertFalse(user.profile.profile_photo)
 
+    def test_dashboard_can_add_proof_to_unverified_submission(self):
+        user = User.objects.create_user(username="proof-user", password="StrongPass12345")
+        self.client.force_login(user)
+        submission = Submission.objects.create(user=user, name="Proof User", reps=31, status=Submission.STATUS_UNVERIFIED)
+
+        response = self.client.post(
+            reverse("add_submission_proof", args=[submission.id]),
+            {"video_link": "https://example.com/new-proof"},
+            follow=True,
+        )
+
+        self.assertRedirects(response, reverse("dashboard"))
+        submission.refresh_from_db()
+        self.assertEqual(submission.status, Submission.STATUS_PENDING)
+        self.assertEqual(submission.video_link, "https://example.com/new-proof")
+
     def test_staff_can_approve_submission_in_app(self):
         admin = User.objects.create_user(username="staff", password="StrongPass12345", is_staff=True)
         self.client.force_login(admin)
-        submission = Submission.objects.create(name="Review Me", reps=48, status=Submission.STATUS_PENDING)
+        submission = Submission.objects.create(name="Review Me", reps=48, status=Submission.STATUS_PENDING, video_link="https://example.com/proof")
 
         response = self.client.post(
             reverse("review_submission", args=[submission.id]),
