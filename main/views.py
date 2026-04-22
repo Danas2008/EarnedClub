@@ -13,6 +13,8 @@ from django.views.decorators.http import require_POST
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
+from .countries import COUNTRY_CHOICES
+from .media_utils import process_profile_image, process_submission_video
 from .models import (
     NewsletterSubscriber,
     Profile,
@@ -202,14 +204,13 @@ def register(request):
 
     if request.method == "POST":
         form = UserCreationForm(request.POST)
-        display_name = (request.POST.get("display_name") or "").strip()
         email = (request.POST.get("email") or "").strip().lower()
         if form.is_valid():
             user = form.save(commit=False)
             user.email = email
             user.save()
             profile = user.profile
-            profile.display_name = display_name or user.username
+            profile.display_name = user.username
             profile.slug = ""
             profile.save()
             login(request, user)
@@ -246,10 +247,12 @@ def dashboard(request):
     profile = request.user.profile
     if request.method == "POST":
         username = (request.POST.get("username") or "").strip()
-        display_name = (request.POST.get("display_name") or "").strip()
         email = (request.POST.get("email") or "").strip().lower()
         profile_photo = (request.POST.get("profile_photo") or "").strip()
         profile_image = request.FILES.get("profile_image")
+        crop_x = request.POST.get("profile_crop_x")
+        crop_y = request.POST.get("profile_crop_y")
+        crop_size = request.POST.get("profile_crop_size")
         country = (request.POST.get("country") or "").strip()
         age = (request.POST.get("age") or "").strip()
         bio = (request.POST.get("bio") or "").strip()
@@ -275,10 +278,11 @@ def dashboard(request):
         request.user.email = email
         request.user.save(update_fields=["username", "email"])
 
-        profile.display_name = display_name or request.user.username
+        profile.display_name = request.user.username
         profile.profile_photo = profile_photo
         if profile_image:
-            profile.profile_image = profile_image
+            profile.profile_image = process_profile_image(profile_image, crop_x=crop_x, crop_y=crop_y, crop_size=crop_size)
+            profile.profile_photo = ""
         profile.country = country
         profile.age = age_value
         profile.bio = bio
@@ -298,8 +302,8 @@ def dashboard(request):
 
     verified_submissions = request.user.submission_set.filter(status=Submission.STATUS_VERIFIED)
     pending_submissions = request.user.submission_set.filter(status=Submission.STATUS_PENDING)
+    rejected_submissions = request.user.submission_set.filter(status=Submission.STATUS_REJECTED)
     best_submission = get_best_verified_submission_for_user(request.user)
-    best_pending_submission = pending_submissions.order_by("-reps", "created_at").first()
     first_submission = request.user.submission_set.order_by("created_at").first()
     current_rank = None
     current_tier = get_rank_tier(0)
@@ -315,7 +319,6 @@ def dashboard(request):
     context = {
         "profile": profile,
         "best_submission": best_submission,
-        "best_pending_submission": best_pending_submission,
         "current_pr": best_submission.reps if best_submission else 0,
         "all_time_pr": best_submission.reps if best_submission else 0,
         "current_rank": current_rank,
@@ -327,8 +330,10 @@ def dashboard(request):
         "weeks_active": weeks_active,
         "verified_streak": get_current_streak(verified_submissions),
         "pending_submissions": pending_submissions.order_by("-created_at"),
-        "verified_submissions": verified_submissions.order_by("-created_at"),
+        "history_submissions": request.user.submission_set.order_by("-created_at"),
+        "rejected_count": rejected_submissions.count(),
         "progress_data": get_progress_data(verified_submissions),
+        "country_choices": COUNTRY_CHOICES,
     }
     return render(request, "dashboard.html", context)
 
@@ -380,6 +385,7 @@ def challenge(request):
         email = (request.POST.get("email") or "").strip().lower()
         reps = (request.POST.get("reps") or "").strip()
         video_link = (request.POST.get("video_link") or "").strip()
+        video_file = request.FILES.get("video_file")
 
         if request.user.is_authenticated:
             name = user_display_name(request.user)
@@ -418,13 +424,17 @@ def challenge(request):
             return render(request, "challenge.html", context)
 
         estimated_position = estimate_verified_position(reps_value)
-        Submission.objects.create(
+        submission = Submission.objects.create(
             user=request.user if request.user.is_authenticated else None,
             name=name,
             email=email,
             reps=reps_value,
             video_link=video_link,
+            video_file=video_file,
         )
+        if video_file and submission.video_file:
+            submission.video_file = process_submission_video(submission.video_file)
+            submission.save(update_fields=["video_file"])
 
         messages.success(
             request,

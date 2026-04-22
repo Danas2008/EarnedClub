@@ -99,6 +99,7 @@ class Submission(models.Model):
     email = models.EmailField(blank=True)
     reps = models.IntegerField()
     video_link = models.URLField(blank=True)
+    video_file = models.FileField(upload_to="submission_videos/", blank=True)
     verified = models.BooleanField(default=False)
     status = models.CharField(max_length=16, choices=STATUS_CHOICES, default=STATUS_PENDING)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -166,6 +167,20 @@ class Submission(models.Model):
     @property
     def rank_description(self):
         return self.rank_tier["description"]
+
+    @property
+    def proof_url(self):
+        if self.video_file:
+            return self.video_file.url
+        return self.video_link
+
+    @property
+    def proof_label(self):
+        if self.video_file:
+            return "Open uploaded video"
+        if self.video_link:
+            return "Open proof link"
+        return ""
 
 
 class Profile(models.Model):

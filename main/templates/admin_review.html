@@ -13,30 +13,40 @@
     <div class="section-spread">
         <div>
             <h2>Pending Review</h2>
-            <p class="muted">Open the video, check the rep count, then approve or reject.</p>
+            <p class="muted">Open the proof, check the rep count, then approve or reject.</p>
         </div>
     </div>
 
     {% for submission in pending_submissions %}
-        <div class="athlete-row">
-            {% if submission.user.profile.profile_image_url %}
+        <div class="review-card">
+            {% if submission.user and submission.user.profile.profile_image_url %}
                 <img class="avatar" src="{{ submission.user.profile.profile_image_url }}" alt="{{ submission.name }} profile picture">
             {% else %}
                 <span class="avatar">{{ submission.name|first|upper }}</span>
             {% endif %}
-            <div class="row-title">
+            <div class="stack" style="gap: 12px;">
                 <div class="submission-name">{{ submission.name }}</div>
-                <div class="submission-meta">
-                    {{ submission.reps }} reps submitted {{ submission.created_at|date:"M j, Y H:i" }}
-                    {% if submission.video_link %}<a class="btn-secondary" style="min-height: 34px; padding: 6px 10px; margin-left: 8px;" href="{{ submission.video_link }}" target="_blank" rel="noopener noreferrer">Open Proof Link</a>{% endif %}
+                <div class="submission-meta">{{ submission.reps }} reps submitted {{ submission.created_at|date:"M j, Y H:i" }}</div>
+                <div class="review-proof-actions">
+                    {% if submission.video_file %}
+                        <a class="btn-secondary" style="min-height: 34px; padding: 6px 10px;" href="{{ submission.video_file.url }}" target="_blank" rel="noopener noreferrer">Open Uploaded Video</a>
+                        <video controls preload="metadata">
+                            <source src="{{ submission.video_file.url }}" type="video/mp4">
+                        </video>
+                    {% endif %}
+                    {% if submission.video_link %}
+                        <a class="btn-secondary" style="min-height: 34px; padding: 6px 10px;" href="{{ submission.video_link }}" target="_blank" rel="noopener noreferrer">Open Proof Link</a>
+                    {% endif %}
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;">
+                    <span class="status-pill pending">Pending</span>
+                    <form method="POST" action="{% url 'review_submission' submission.id %}" class="review-actions">
+                        {% csrf_token %}
+                        <button class="btn-main" type="submit" name="action" value="approve">Approve</button>
+                        <button class="btn-secondary" type="submit" name="action" value="reject">Reject</button>
+                    </form>
                 </div>
             </div>
-            <span class="status-pill pending">Pending</span>
-            <form method="POST" action="{% url 'review_submission' submission.id %}" class="button-row" style="margin-top: 0;">
-                {% csrf_token %}
-                <button class="btn-main" type="submit" name="action" value="approve">Approve</button>
-                <button class="btn-secondary" type="submit" name="action" value="reject">Reject</button>
-            </form>
         </div>
     {% empty %}
         <p class="muted">No pending submissions right now.</p>

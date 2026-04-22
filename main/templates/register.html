@@ -6,7 +6,7 @@
 <section class="card-dark auth-card">
     <div class="eyebrow">Create Athlete Account</div>
     <h1>Register.</h1>
-    <p class="muted">Create a profile, submit results under your name, and start building verified progress history.</p>
+    <p class="muted">Create a profile, submit results under your username, and start building verified progress history.</p>
 
     <form class="submission-form" method="POST">
         {% csrf_token %}
@@ -16,11 +16,6 @@
                 <p class="muted" style="margin-bottom: 0;">Please check the fields below and try again.</p>
             </div>
         {% endif %}
-
-        <div>
-            <label class="field-label" for="display_name">Display name</label>
-            <input id="display_name" class="input" type="text" name="display_name" placeholder="How your profile should appear">
-        </div>
 
         <div>
             <label class="field-label" for="email">Email</label>

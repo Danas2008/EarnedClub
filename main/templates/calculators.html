@@ -10,20 +10,18 @@
             <h1>Calculators.</h1>
             <p class="muted">
                 These tools help you understand where you stand right now.
-
                 They give you a clear picture of your level, your rank, and how close you are to the next tier.
-
             </p>
             <p>
-                Use them before you submit — or to track your progress between attempts.
+                Use them before you submit, or to track your progress between attempts.
             </p>
         </div>
 
         <div class="mini-card">
             <h4>Best use</h4>
             <p style="margin-bottom: 0;">
-                Most people guess their level. You don’t need to.
-                These calculators show you exactly where you are in the system — and what it takes to move up.
+                Most people guess their level. You do not need to.
+                These calculators show you exactly where you are in the system and what it takes to move up.
             </p>
         </div>
     </div>
@@ -84,16 +82,7 @@
         <a class="btn-secondary" href="/challenge/">Go To Challenge</a>
     </div>
 
-    <div class="grid-3">
-        {% for tier in rank_tiers %}
-            <div class="rank-card">
-                <div class="rank-name">{{ tier.name }}</div>
-                <h3>{{ tier.min_reps }}{% if tier.max_reps %}-{{ tier.max_reps }}{% else %}+{% endif %} reps</h3>
-                <p><strong>{{ tier.benchmark }}</strong></p>
-                <p class="muted" style="margin-bottom: 0;">{{ tier.description }}</p>
-            </div>
-        {% endfor %}
-    </div>
+    {% include "includes/rank_benchmark_carousel.html" %}
 </section>
 
 {{ rank_tiers|json_script:"rank-tier-data" }}
