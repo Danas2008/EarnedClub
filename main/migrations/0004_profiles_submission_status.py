@@ -31,7 +31,7 @@ def backfill_status_and_profiles(apps, schema_editor):
 class Migration(migrations.Migration):
     dependencies = [
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
-        ("main", "0003_newslettersubscriber"),
+        ("main", "0004_alter_submission_options"),
     ]
 
     operations = [

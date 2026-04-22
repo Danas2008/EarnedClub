@@ -13,7 +13,6 @@ Tento plan vychazi z:
 ## Zakladni pravidla implementace
 
 1. Manual verification zustava hlavni zdroj duvery.
-2. Verejny leaderboard dal pocita jen overene vysledky.
 3. Legacy anonymni submissions musi zustat funkcni.
 4. Nove ucty a profily se pridavaji vedle existujiciho flow, ne jako tvrda bariera.
 5. UI navazuje na soucasny dark system v `base.html`; zadny svetly redesign.

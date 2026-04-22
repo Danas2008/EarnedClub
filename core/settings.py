@@ -26,8 +26,14 @@ SECRET_KEY = os.getenv(
     "local-dev-secret-key-change-me-please-1234567890-abcdef-safe",
 )
 DEBUG = get_bool_env("DEBUG", default=True)
-ALLOWED_HOSTS = get_list_env("ALLOWED_HOSTS", "127.0.0.1,localhost,earnedclub.club,www.earnedclub.club")
-CSRF_TRUSTED_ORIGINS = get_list_env("CSRF_TRUSTED_ORIGINS")
+ALLOWED_HOSTS = get_list_env(
+    "ALLOWED_HOSTS",
+    "127.0.0.1,localhost,earnedclub.club,www.earnedclub.club,earnedclub.onrender.com",
+)
+CSRF_TRUSTED_ORIGINS = get_list_env(
+    "CSRF_TRUSTED_ORIGINS",
+    "https://earnedclub.club,https://www.earnedclub.club,https://earnedclub.onrender.com",
+)
 
 
 INSTALLED_APPS = [
