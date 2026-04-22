@@ -15,7 +15,7 @@
                 Your pending score appears fast. Your official rank is earned after verification.
             </p>
             <div class="hero-actions">
-                <a class="btn-main" href="/challenge/">Submit Your Push-up Test</a>
+                <a class="btn-main" href="/challenge/#submit-form-top">Submit Your Push-up Test</a>
                 <a class="btn-secondary" href="/leaderboard/">See the Leaderboard</a>
             </div>
 
@@ -110,7 +110,7 @@
             <li>Your score appears on the open leaderboard immediately and shows as verified after manual review.</li>
         </ul>
         <div class="button-row">
-            <a class="btn-main" href="/challenge/">Submit a Score</a>
+            <a class="btn-main" href="/challenge/#submit-form-top">Submit a Score</a>
             <a class="btn-secondary" href="/leaderboard/">See Rankings</a>
         </div>
     </div>
@@ -147,7 +147,7 @@
             <p class="muted">The strongest athletes in the system. If you’re here, you’ve built consistent performance over time.</p>
         </div>
         <div class="feature-card">
-            <h3>Weekly Top 5 This Week</h3>
+            <h3>Top 5 This Week</h3>
             <p class="muted">This week’s competition. If you’re improving fast, this is where you can break through.</p>
         </div>
         <div class="feature-card">
@@ -167,21 +167,39 @@
         </div>
 
         {% if overall_top_five %}
-            <div class="stack">
+            <div class="compact-board">
                 {% for row in overall_top_five %}
-                    <div class="leaderboard-card">
-                        <div class="section-spread" style="margin-bottom: 10px;">
-                            <div class="position-pill">
+                    <div class="score-row">
+                        {% if row.profile and row.profile.profile_image_url %}
+                            <img class="avatar" src="{{ row.profile.profile_image_url }}" alt="{{ row.profile.display_name }} profile picture">
+                        {% elif row.profile %}
+                            <span class="avatar">{{ row.profile.display_name|first|upper }}</span>
+                        {% else %}
+                            <span class="avatar">{{ row.submission.name|first|upper }}</span>
+                        {% endif %}
+                        <div class="score-row-main">
+                            <div class="submission-name">
+                                {% if row.profile %}
+                                    <a href="{% url 'athlete_profile' row.profile.slug %}">{{ row.submission.name }}</a>
+                                {% else %}
+                                    {{ row.submission.name }}
+                                {% endif %}
+                            </div>
+                            <div class="submission-meta">{{ row.submission.rank_name }} | {{ row.submission.benchmark_label }}</div>
+                        </div>
+                        <div class="score-row-score">
+                            <span class="position-pill">
                                 {% if row.medal_place == 1 %}<span class="medal">&#129351;</span>{% endif %}
                                 {% if row.medal_place == 2 %}<span class="medal">&#129352;</span>{% endif %}
                                 {% if row.medal_place == 3 %}<span class="medal">&#129353;</span>{% endif %}
-                                <span>#{{ row.position }}</span>
-                            </div>
-                            <div class="tag-pill">{{ row.submission.rank_name }}</div>
+                                #{{ row.position }}
+                            </span>
+                            <span class="score">{{ row.submission.reps }}</span>
                         </div>
-                        <div class="submission-name">{{ row.submission.name }}</div>
-                        <div class="submission-meta">{{ row.submission.reps }} reps - {{ row.submission.benchmark_label }}</div>
-                        <span class="status-pill {{ row.submission.status }}" style="margin-top: 10px;">{{ row.submission.public_status_label }}</span>
+                        <details class="score-details">
+                            <summary>Details</summary>
+                            <div class="submission-meta" style="margin-top: 8px;">{{ row.submission.reps }} reps | {{ row.submission.public_status_label }}{% if row.verified_position %} | Official rank #{{ row.verified_position }}{% endif %}</div>
+                        </details>
                     </div>
                 {% endfor %}
             </div>
@@ -199,21 +217,39 @@
         </div>
 
         {% if weekly_top_five %}
-            <div class="stack">
+            <div class="compact-board">
                 {% for row in weekly_top_five %}
-                    <div class="leaderboard-card">
-                        <div class="section-spread" style="margin-bottom: 10px;">
-                            <div class="position-pill">
+                    <div class="score-row">
+                        {% if row.profile and row.profile.profile_image_url %}
+                            <img class="avatar" src="{{ row.profile.profile_image_url }}" alt="{{ row.profile.display_name }} profile picture">
+                        {% elif row.profile %}
+                            <span class="avatar">{{ row.profile.display_name|first|upper }}</span>
+                        {% else %}
+                            <span class="avatar">{{ row.submission.name|first|upper }}</span>
+                        {% endif %}
+                        <div class="score-row-main">
+                            <div class="submission-name">
+                                {% if row.profile %}
+                                    <a href="{% url 'athlete_profile' row.profile.slug %}">{{ row.submission.name }}</a>
+                                {% else %}
+                                    {{ row.submission.name }}
+                                {% endif %}
+                            </div>
+                            <div class="submission-meta">{{ row.submission.rank_name }} | {{ row.submission.benchmark_label }}</div>
+                        </div>
+                        <div class="score-row-score">
+                            <span class="position-pill">
                                 {% if row.medal_place == 1 %}<span class="medal">&#129351;</span>{% endif %}
                                 {% if row.medal_place == 2 %}<span class="medal">&#129352;</span>{% endif %}
                                 {% if row.medal_place == 3 %}<span class="medal">&#129353;</span>{% endif %}
-                                <span>#{{ row.position }}</span>
-                            </div>
-                            <div class="tag-pill">{{ row.submission.rank_name }}</div>
+                                #{{ row.position }}
+                            </span>
+                            <span class="score">{{ row.submission.reps }}</span>
                         </div>
-                        <div class="submission-name">{{ row.submission.name }}</div>
-                        <div class="submission-meta">{{ row.submission.reps }} reps - {{ row.submission.benchmark_label }}</div>
-                        <span class="status-pill {{ row.submission.status }}" style="margin-top: 10px;">{{ row.submission.public_status_label }}</span>
+                        <details class="score-details">
+                            <summary>Details</summary>
+                            <div class="submission-meta" style="margin-top: 8px;">{{ row.submission.reps }} reps | {{ row.submission.public_status_label }}{% if row.verified_position %} | Official rank #{{ row.verified_position }}{% endif %}</div>
+                        </details>
                     </div>
                 {% endfor %}
             </div>

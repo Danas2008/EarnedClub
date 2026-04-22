@@ -53,16 +53,29 @@ def verified_submission_queryset():
     return Submission.objects.filter(status=Submission.STATUS_VERIFIED)
 
 
-def public_submission_queryset():
+def public_submission_queryset(since=None):
     visible = {}
-    for submission in get_official_verified_submissions():
-        visible[get_submission_identity(submission)] = submission
+    if since:
+        verified_pool = (
+            Submission.objects.filter(status=Submission.STATUS_VERIFIED, created_at__gte=since)
+            .select_related("user", "user__profile")
+            .order_by("-reps", "created_at")
+        )
+    else:
+        verified_pool = get_official_verified_submissions()
+    for submission in verified_pool:
+        identity = get_submission_identity(submission)
+        current = visible.get(identity)
+        if current is None or submission.reps > current.reps:
+            visible[identity] = submission
 
     pending_submissions = (
         Submission.objects.filter(status=Submission.STATUS_PENDING)
         .select_related("user", "user__profile")
         .order_by("-reps", "created_at")
     )
+    if since:
+        pending_submissions = pending_submissions.filter(created_at__gte=since)
     for submission in pending_submissions:
         identity = get_submission_identity(submission)
         current = visible.get(identity)
@@ -89,19 +102,14 @@ def user_display_name(user):
 
 
 def get_progress_data(submissions):
-    best_by_day = {}
-    for submission in submissions.order_by("created_at"):
-        day = submission.created_at.date()
-        current = best_by_day.get(day)
-        if current is None or submission.reps > current.reps:
-            best_by_day[day] = submission
-
     return [
         {
             "date": submission.created_at.strftime("%Y-%m-%d"),
+            "time": submission.created_at.strftime("%H:%M"),
+            "label": submission.created_at.strftime("%b %d, %H:%M"),
             "reps": submission.reps,
         }
-        for submission in best_by_day.values()
+        for submission in submissions.order_by("created_at", "id")
     ]
 
 
@@ -154,9 +162,7 @@ def home(request):
     public_submissions = list(public_submission_queryset())
     leaderboard_rows = build_leaderboard_rows(public_submissions)
     weekly_cutoff = get_weekly_window()
-    weekly_rows = build_leaderboard_rows(
-        [submission for submission in public_submissions if submission.created_at >= weekly_cutoff]
-    )
+    weekly_rows = build_leaderboard_rows(public_submission_queryset(since=weekly_cutoff))
 
     context = {
         "rank_tiers": RANK_TIERS,
@@ -175,9 +181,7 @@ def leaderboard(request):
     public_submissions = list(public_submission_queryset())
     public_submissions = search_submissions(public_submissions, query)
     weekly_cutoff = get_weekly_window()
-    weekly_submissions = [
-        submission for submission in public_submissions if submission.created_at >= weekly_cutoff
-    ]
+    weekly_submissions = search_submissions(public_submission_queryset(since=weekly_cutoff), query)
 
     leaderboard_rows = build_leaderboard_rows(public_submissions)
 
@@ -245,6 +249,7 @@ def dashboard(request):
         display_name = (request.POST.get("display_name") or "").strip()
         email = (request.POST.get("email") or "").strip().lower()
         profile_photo = (request.POST.get("profile_photo") or "").strip()
+        profile_image = request.FILES.get("profile_image")
         country = (request.POST.get("country") or "").strip()
         age = (request.POST.get("age") or "").strip()
         bio = (request.POST.get("bio") or "").strip()
@@ -272,10 +277,22 @@ def dashboard(request):
 
         profile.display_name = display_name or request.user.username
         profile.profile_photo = profile_photo
+        if profile_image:
+            profile.profile_image = profile_image
         profile.country = country
         profile.age = age_value
         profile.bio = bio
-        profile.save(update_fields=["display_name", "profile_photo", "country", "age", "bio", "updated_at"])
+        profile.save(
+            update_fields=[
+                "display_name",
+                "profile_photo",
+                "profile_image",
+                "country",
+                "age",
+                "bio",
+                "updated_at",
+            ]
+        )
         messages.success(request, "Profile updated.")
         return redirect("dashboard")
 
@@ -485,3 +502,11 @@ def newsletter_signup(request):
 
 def calculators(request):
     return render(request, "calculators.html", {"rank_tiers": RANK_TIERS})
+
+
+def privacy(request):
+    return render(request, "privacy.html")
+
+
+def terms(request):
+    return render(request, "terms.html")

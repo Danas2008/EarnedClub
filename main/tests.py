@@ -290,7 +290,7 @@ class SubmissionFlowTests(TestCase):
         self.assertContains(response, "Official rank #1")
         self.assertNotContains(response, "40</span>")
 
-    def test_approving_higher_verified_submission_removes_previous_verified_for_user(self):
+    def test_approving_higher_verified_submission_preserves_history_for_user(self):
         user = User.objects.create_user(username="replace", password="StrongPass12345")
         Submission.objects.create(user=user, name="Replace", reps=42, status=Submission.STATUS_VERIFIED)
         newer = Submission.objects.create(user=user, name="Replace", reps=60, status=Submission.STATUS_PENDING)
@@ -300,8 +300,10 @@ class SubmissionFlowTests(TestCase):
 
         self.assertEqual(
             list(user.submission_set.filter(status=Submission.STATUS_VERIFIED).values_list("reps", flat=True)),
-            [60],
+            [60, 42],
         )
+        user.profile.refresh_from_db()
+        self.assertEqual(user.profile.personal_best_reps, 60)
 
     def test_dashboard_updates_profile_fields(self):
         user = User.objects.create_user(username="editable", password="StrongPass12345")
@@ -342,3 +344,12 @@ class SubmissionFlowTests(TestCase):
         self.assertRedirects(response, reverse("admin_review"))
         submission.refresh_from_db()
         self.assertEqual(submission.status, Submission.STATUS_VERIFIED)
+
+    def test_review_page_requires_staff_or_superuser(self):
+        user = User.objects.create_user(username="regular", password="StrongPass12345")
+        self.client.force_login(user)
+
+        response = self.client.get(reverse("admin_review"))
+
+        self.assertEqual(response.status_code, 302)
+        self.assertIn(reverse("login"), response["Location"])

@@ -20,8 +20,8 @@
 
     {% for profile in profiles %}
         <a class="athlete-row" href="{% url 'athlete_profile' profile.slug %}">
-            {% if profile.profile_photo %}
-                <img class="avatar" src="{{ profile.profile_photo }}" alt="{{ profile.display_name }} profile picture">
+            {% if profile.profile_image_url %}
+                <img class="avatar" src="{{ profile.profile_image_url }}" alt="{{ profile.display_name }} profile picture">
             {% else %}
                 <span class="avatar">{{ profile.display_name|first|upper }}</span>
             {% endif %}
@@ -61,7 +61,7 @@
             <h2>Verified Athlete Directory</h2>
             <p class="muted">Public profiles create durable pages for athlete names, ranks, progress charts, and verified push-up performance.</p>
         </div>
-        <a class="btn-main" href="{% url 'challenge' %}">Earn Your Profile</a>
+        <a class="btn-main" href="{% url 'register' %}">Earn Your Profile</a>
     </div>
     <div class="grid-3">
         <div class="feature-card">

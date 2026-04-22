@@ -135,13 +135,6 @@ class Submission(models.Model):
 
         super().save(*args, **kwargs)
 
-        if self.user_id and self.status == self.STATUS_VERIFIED:
-            Submission.objects.filter(
-                user_id=self.user_id,
-                status=self.STATUS_VERIFIED,
-                reps__lte=self.reps,
-            ).exclude(pk=self.pk).delete()
-
         affected_user_ids = {user_id for user_id in (old_user_id, self.user_id) if user_id}
         refresh_all_ranks = old_status == self.STATUS_VERIFIED or self.status == self.STATUS_VERIFIED
         refresh_profile_stats(affected_user_ids, refresh_all_ranks=refresh_all_ranks)
@@ -180,6 +173,7 @@ class Profile(models.Model):
     display_name = models.CharField(max_length=100)
     slug = models.SlugField(max_length=120, unique=True, blank=True)
     profile_photo = models.URLField(blank=True)
+    profile_image = models.FileField(upload_to="profile_photos/", blank=True)
     country = models.CharField(max_length=80, blank=True)
     age = models.PositiveSmallIntegerField(null=True, blank=True)
     bio = models.TextField(blank=True)
@@ -215,6 +209,12 @@ class Profile(models.Model):
         self.personal_best_reps = best_submission.reps if best_submission else 0
         self.current_rank = get_official_rank_for_submission(best_submission)
         self.save(update_fields=["personal_best_reps", "current_rank", "updated_at"])
+
+    @property
+    def profile_image_url(self):
+        if self.profile_image:
+            return self.profile_image.url
+        return self.profile_photo
 
 
 @receiver(post_save, sender=User)

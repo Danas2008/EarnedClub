@@ -16,4 +16,6 @@ urlpatterns = [
     path("leaderboard/", views.leaderboard, name="leaderboard"),
     path("calculators/", views.calculators, name="calculators"),
     path("newsletter-signup/", views.newsletter_signup, name="newsletter_signup"),
+    path("privacy/", views.privacy, name="privacy"),
+    path("terms/", views.terms, name="terms"),
 ]

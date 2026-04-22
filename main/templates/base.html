@@ -85,7 +85,7 @@
         .topbar-inner {
             max-width: var(--content-width);
             margin: 0 auto;
-            padding: 18px 20px;
+            padding: 10px 20px;
         }
 
         .navbar {
@@ -100,13 +100,13 @@
         }
 
         .brand-logo {
-            height: 74px;
+            height: 54px;
             width: auto;
             object-fit: contain;
         }
 
         .brand-copy {
-            display: flex;
+            display: none;
             flex-direction: column;
             gap: 2px;
         }
@@ -127,15 +127,15 @@
             border: 1px solid var(--line) !important;
             box-shadow: none !important;
             color: var(--text) !important;
-            font-size: 1rem;
+            font-size: 0.9rem;
             border-radius: var(--radius-sm);
-            padding: 8px 14px;
+            padding: 6px 10px;
         }
 
         .nav-link {
             color: var(--muted) !important;
             font-weight: 600;
-            padding: 10px 16px !important;
+            padding: 8px 12px !important;
             border-radius: var(--radius-sm);
             transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease;
         }
@@ -189,6 +189,10 @@
         .card-dark {
             padding: 20px;
             margin-bottom: 18px;
+        }
+
+        #submit-form-top {
+            scroll-margin-top: 92px;
         }
 
         .section-title,
@@ -559,9 +563,68 @@
 
         .row-title .submission-name,
         .row-title .submission-meta {
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
+            overflow: visible;
+            white-space: normal;
+            overflow-wrap: anywhere;
+            line-height: 1.35;
+        }
+
+        .compact-board {
+            display: grid;
+            gap: 8px;
+        }
+
+        .score-row {
+            display: grid;
+            grid-template-columns: auto minmax(0, 1fr) auto;
+            gap: 10px;
+            align-items: center;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: var(--radius-md);
+        }
+
+        .score-row-main {
+            min-width: 0;
+        }
+
+        .score-row-main .submission-name,
+        .score-row-main .submission-meta {
+            overflow-wrap: anywhere;
+            line-height: 1.35;
+        }
+
+        .score-row-score {
+            display: grid;
+            gap: 4px;
+            justify-items: end;
+            min-width: 58px;
+        }
+
+        .score-details {
+            grid-column: 1 / -1;
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
+            padding-top: 8px;
+        }
+
+        .score-details summary {
+            cursor: pointer;
+            color: #ffd77b;
+            font-weight: 800;
+            list-style: none;
+        }
+
+        .score-details summary::-webkit-details-marker {
+            display: none;
+        }
+
+        .score-details summary::after {
+            content: " +";
+        }
+
+        .score-details[open] summary::after {
+            content: " -";
         }
 
         .pagination-row {
@@ -592,7 +655,31 @@
             right: 18px;
             bottom: 18px;
             z-index: 20;
-            box-shadow: var(--shadow);
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            min-height: 54px;
+            padding: 13px 18px;
+            color: #111111;
+            background: linear-gradient(135deg, #ffd77b, var(--accent) 54%, #ff8a4b);
+            border: 1px solid rgba(255, 255, 255, 0.34);
+            border-radius: 999px;
+            box-shadow: 0 18px 48px rgba(247, 183, 51, 0.28), 0 8px 24px rgba(0, 0, 0, 0.38);
+            font-family: "Archivo", sans-serif;
+            letter-spacing: 0;
+        }
+
+        .floating-cta::before {
+            content: "+";
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 26px;
+            height: 26px;
+            border-radius: 50%;
+            background: rgba(17, 17, 17, 0.12);
+            font-size: 1.3rem;
+            line-height: 1;
         }
 
         .medal {
@@ -667,6 +754,14 @@
             line-height: 1.6;
         }
 
+        .hidden-panel {
+            display: none;
+        }
+
+        .hidden-panel.is-open {
+            display: grid;
+        }
+
         .content-split {
             display: grid;
             grid-template-columns: 1.2fr 0.8fr;
@@ -720,15 +815,53 @@
         }
 
         .footer-card {
-            display: flex;
-            justify-content: space-between;
+            display: grid;
+            grid-template-columns: 1.3fr 1fr 1fr;
             gap: 18px;
-            align-items: center;
+            align-items: start;
             padding: 18px 22px;
             border-radius: var(--radius-md);
             background: rgba(255, 255, 255, 0.04);
             border: 1px solid rgba(255, 255, 255, 0.08);
             color: var(--muted);
+        }
+
+        .footer-brand {
+            color: var(--text);
+            font-family: "Archivo", sans-serif;
+            font-size: 1.15rem;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
+
+        .footer-links,
+        .social-links {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .footer-links a,
+        .social-link {
+            color: var(--muted);
+            font-weight: 700;
+        }
+
+        .social-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            padding: 7px 10px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: var(--radius-sm);
+            background: rgba(255, 255, 255, 0.04);
+        }
+
+        .social-link svg {
+            width: 18px;
+            height: 18px;
+            fill: #f7b733;
         }
 
         .mobile-cards {
@@ -759,7 +892,11 @@
                 grid-template-columns: 1fr;
             }
 
-            .footer-card,
+            .footer-card {
+                grid-template-columns: 1fr;
+                align-items: flex-start;
+            }
+
             .section-spread {
                 flex-direction: column;
                 align-items: flex-start;
@@ -770,8 +907,13 @@
             .topbar-inner,
             .main-container,
             .footer {
-                padding-left: 16px;
-                padding-right: 16px;
+                padding-left: 12px;
+                padding-right: 12px;
+            }
+
+            .topbar-inner {
+                padding-top: 6px;
+                padding-bottom: 6px;
             }
 
             .hero-card,
@@ -781,7 +923,7 @@
             }
 
             .brand-logo {
-                height: 100px;
+                height: 46px;
             }
 
             .brand-copy {
@@ -815,6 +957,7 @@
                 left: 16px;
                 right: 16px;
                 bottom: 14px;
+                justify-content: center;
             }
         }
     </style>
@@ -906,17 +1049,34 @@
         <footer class="footer">
             <div class="footer-card">
                 <div>
-                    <strong>Earned Club</strong>
-                    <div>Performance is the standard. Your rank is the result. </div>
+                    <div class="footer-brand">EarnedClub</div>
+                    <div>Track it. Prove it. Earn your rank.</div>
                 </div>
                 <div>
-                    Weekly competition, verified results, and real progression.
+                    <div class="kicker" style="margin-bottom: 8px;">Social</div>
+                    <div class="social-links">
+                        <a class="social-link" href="https://www.instagram.com/EarnedClubOfficial/" target="_blank" rel="noopener noreferrer" aria-label="EarnedClubOfficial Instagram">
+                            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7.8 2h8.4A5.8 5.8 0 0 1 22 7.8v8.4a5.8 5.8 0 0 1-5.8 5.8H7.8A5.8 5.8 0 0 1 2 16.2V7.8A5.8 5.8 0 0 1 7.8 2Zm0 2A3.8 3.8 0 0 0 4 7.8v8.4A3.8 3.8 0 0 0 7.8 20h8.4a3.8 3.8 0 0 0 3.8-3.8V7.8A3.8 3.8 0 0 0 16.2 4H7.8Zm4.2 3.3a4.7 4.7 0 1 1 0 9.4 4.7 4.7 0 0 1 0-9.4Zm0 2a2.7 2.7 0 1 0 0 5.4 2.7 2.7 0 0 0 0-5.4Zm5-2.4a1.1 1.1 0 1 1 0 2.2 1.1 1.1 0 0 1 0-2.2Z"/></svg>
+                            Instagram
+                        </a>
+                        <a class="social-link" href="https://www.tiktok.com/@EarnedClub" target="_blank" rel="noopener noreferrer" aria-label="EarnedClub TikTok">
+                            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15.3 2c.4 3 2.1 4.8 5 5v3.3a8.4 8.4 0 0 1-5-1.6v6.6c0 4.1-2.7 6.7-6.5 6.7A6.3 6.3 0 0 1 2.4 16c0-3.8 3-6.5 6.9-6.2v3.5c-1.8-.3-3.3.7-3.3 2.6 0 1.5 1.2 2.6 2.8 2.6 1.7 0 2.8-1 2.8-3.1V2h3.7Z"/></svg>
+                            TikTok
+                        </a>
+                    </div>
+                </div>
+                <div>
+                    <div class="kicker" style="margin-bottom: 8px;">Legal</div>
+                    <div class="footer-links">
+                        <a href="{% url 'privacy' %}">Privacy Policy</a>
+                        <a href="{% url 'terms' %}">Terms of Service</a>
+                    </div>
                 </div>
             </div>
         </footer>
     </div>
 
-    <a class="btn-main floating-cta" href="{% url 'challenge' %}">Submit Score</a>
+    <a class="floating-cta" href="{% url 'challenge' %}#submit-form-top">Submit Score</a>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>

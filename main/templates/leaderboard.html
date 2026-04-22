@@ -16,7 +16,7 @@
                 These are the standards you are competing against.
             </p>
             <div class="button-row">
-                <a class="btn-main" href="/challenge/">Submit A Score</a>
+                <a class="btn-main" href="/challenge/#submit-form-top">Submit A Score</a>
                 <a class="btn-secondary" href="/calculators/">Check Your Target Tier</a>
             </div>
         </div>
@@ -51,8 +51,8 @@
             <div>
                 {% for row in weekly_rows %}
                     <div class="athlete-row">
-                        {% if row.profile and row.profile.profile_photo %}
-                            <img class="avatar" src="{{ row.profile.profile_photo }}" alt="{{ row.profile.display_name }} profile picture">
+                        {% if row.profile and row.profile.profile_image_url %}
+                            <img class="avatar" src="{{ row.profile.profile_image_url }}" alt="{{ row.profile.display_name }} profile picture">
                         {% elif row.profile %}
                             <span class="avatar">{{ row.profile.display_name|first|upper }}</span>
                         {% else %}
@@ -75,6 +75,9 @@
                             #{{ row.position }}
                         </div>
                         <span class="status-pill {{ row.submission.status }}">{{ row.submission.public_status_label }}</span>
+                        {% if row.profile %}
+                            <a class="btn-secondary hide-mobile" style="min-height: 34px; padding: 6px 10px;" href="{% url 'athlete_profile' row.profile.slug %}">View Profile</a>
+                        {% endif %}
                     </div>
                 {% endfor %}
             </div>
@@ -128,8 +131,8 @@
                             <div class="submission-name">
                                 {% if row.profile %}
                                     <a href="{% url 'athlete_profile' row.profile.slug %}" style="display: inline-flex; align-items: center; gap: 10px;">
-                                        {% if row.profile.profile_photo %}
-                                            <img class="avatar" src="{{ row.profile.profile_photo }}" alt="{{ row.profile.display_name }} profile picture">
+                                        {% if row.profile.profile_image_url %}
+                                            <img class="avatar" src="{{ row.profile.profile_image_url }}" alt="{{ row.profile.display_name }} profile picture">
                                         {% else %}
                                             <span class="avatar">{{ row.profile.display_name|first|upper }}</span>
                                         {% endif %}
@@ -160,8 +163,8 @@
         <div class="mobile-cards">
             {% for row in leaderboard_rows %}
                 <div class="athlete-row">
-                    {% if row.profile and row.profile.profile_photo %}
-                        <img class="avatar" src="{{ row.profile.profile_photo }}" alt="{{ row.profile.display_name }} profile picture">
+                    {% if row.profile and row.profile.profile_image_url %}
+                        <img class="avatar" src="{{ row.profile.profile_image_url }}" alt="{{ row.profile.display_name }} profile picture">
                     {% elif row.profile %}
                         <span class="avatar">{{ row.profile.display_name|first|upper }}</span>
                     {% else %}
@@ -187,6 +190,9 @@
                         <div class="score">{{ row.submission.reps }}</div>
                     </div>
                     <span class="status-pill {{ row.submission.status }}">{{ row.submission.public_status_label }}</span>
+                    {% if row.profile %}
+                        <a class="btn-secondary" style="min-height: 34px; padding: 6px 10px;" href="{% url 'athlete_profile' row.profile.slug %}">View Profile</a>
+                    {% endif %}
                     <div class="submission-meta" style="margin-top: 8px;">
                         {% if row.verified_position %}
                             Official rank #{{ row.verified_position }}

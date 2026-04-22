@@ -6,7 +6,7 @@
 <section class="hero-card" style="margin-bottom: 24px;">
     <div class="eyebrow">Admin Review</div>
     <h1>Verify scores.</h1>
-    <p class="muted">Approve or reject pending submissions directly in the app. Approving a new score replaces that user's previous verified official score.</p>
+    <p class="muted">Approve or reject pending submissions directly in the app. Old verified attempts stay in profile history, while leaderboard rank uses only the best verified result.</p>
 </section>
 
 <section class="card-dark">
@@ -19,8 +19,8 @@
 
     {% for submission in pending_submissions %}
         <div class="athlete-row">
-            {% if submission.user.profile.profile_photo %}
-                <img class="avatar" src="{{ submission.user.profile.profile_photo }}" alt="{{ submission.name }} profile picture">
+            {% if submission.user.profile.profile_image_url %}
+                <img class="avatar" src="{{ submission.user.profile.profile_image_url }}" alt="{{ submission.name }} profile picture">
             {% else %}
                 <span class="avatar">{{ submission.name|first|upper }}</span>
             {% endif %}
@@ -28,7 +28,7 @@
                 <div class="submission-name">{{ submission.name }}</div>
                 <div class="submission-meta">
                     {{ submission.reps }} reps submitted {{ submission.created_at|date:"M j, Y H:i" }}
-                    {% if submission.video_link %}- <a href="{{ submission.video_link }}" target="_blank" rel="noopener noreferrer">Open proof</a>{% endif %}
+                    {% if submission.video_link %}<a class="btn-secondary" style="min-height: 34px; padding: 6px 10px; margin-left: 8px;" href="{{ submission.video_link }}" target="_blank" rel="noopener noreferrer">Open Proof Link</a>{% endif %}
                 </div>
             </div>
             <span class="status-pill pending">Pending</span>
