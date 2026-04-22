@@ -123,17 +123,19 @@ def store_profile_image(profile, uploaded_file, crop_x=None, crop_y=None, crop_s
     content = processed_file.read()
     object_path = build_object_path(f"profile-{profile.user_id}", getattr(processed_file, "name", "profile.jpg"))
 
-    if upload_content(settings.SUPABASE_PROFILE_BUCKET, object_path, content, content_type="image/jpeg"):
+    uploaded, error = upload_content(settings.SUPABASE_PROFILE_BUCKET, object_path, content, content_type="image/jpeg")
+    if uploaded:
         if getattr(profile, "profile_storage_path", ""):
             delete_object(settings.SUPABASE_PROFILE_BUCKET, profile.profile_storage_path)
         return {
             "storage_path": object_path,
             "public_url": get_public_object_url(settings.SUPABASE_PROFILE_BUCKET, object_path),
             "local_file": None,
+            "error": "",
         }
 
     processed_file.seek(0)
-    return {"storage_path": "", "public_url": "", "local_file": processed_file}
+    return {"storage_path": "", "public_url": "", "local_file": processed_file, "error": error}
 
 
 def store_submission_video(submission, uploaded_file):
@@ -145,10 +147,11 @@ def store_submission_video(submission, uploaded_file):
         getattr(processed_file, "name", "submission.mp4"),
     )
 
-    if upload_content(settings.SUPABASE_SUBMISSION_BUCKET, object_path, content, content_type="video/mp4"):
+    uploaded, error = upload_content(settings.SUPABASE_SUBMISSION_BUCKET, object_path, content, content_type="video/mp4")
+    if uploaded:
         if getattr(submission, "video_storage_path", ""):
             delete_object(settings.SUPABASE_SUBMISSION_BUCKET, submission.video_storage_path)
-        return {"storage_path": object_path, "local_file": None}
+        return {"storage_path": object_path, "local_file": None, "error": ""}
 
     processed_file.seek(0)
-    return {"storage_path": "", "local_file": processed_file}
+    return {"storage_path": "", "local_file": processed_file, "error": error}

@@ -296,6 +296,8 @@ def dashboard(request):
                 profile.profile_image = stored_profile["local_file"]
                 profile.profile_storage_path = ""
                 profile.profile_photo = ""
+                if stored_profile["error"]:
+                    messages.warning(request, f"Profile image was saved only locally. {stored_profile['error']}")
         profile.country = country
         profile.age = age_value
         profile.bio = bio
@@ -456,6 +458,8 @@ def challenge(request):
                 submission.video_file = ""
             elif stored_video["local_file"]:
                 submission.video_file = stored_video["local_file"]
+                if stored_video["error"]:
+                    messages.warning(request, f"Video upload did not reach Supabase. {stored_video['error']}")
             submission.save(update_fields=["video_storage_path", "video_file"])
 
         messages.success(
@@ -500,6 +504,8 @@ def add_submission_proof(request, submission_id):
             submission.video_file = ""
         elif stored_video["local_file"]:
             submission.video_file = stored_video["local_file"]
+            if stored_video["error"]:
+                messages.warning(request, f"Video upload did not reach Supabase. {stored_video['error']}")
 
     submission.status = Submission.STATUS_PENDING
     submission.verified = False

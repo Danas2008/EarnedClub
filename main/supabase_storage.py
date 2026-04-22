@@ -1,4 +1,5 @@
 import json
+import logging
 import mimetypes
 import urllib.error
 import urllib.parse
@@ -7,6 +8,8 @@ import uuid
 from pathlib import Path
 
 from django.conf import settings
+
+logger = logging.getLogger(__name__)
 
 
 def storage_enabled():
@@ -37,7 +40,7 @@ def build_object_path(prefix, filename):
 
 def upload_content(bucket, object_path, content, content_type=None):
     if not storage_enabled():
-        return False
+        return False, "Supabase storage is not configured."
 
     quoted_path = urllib.parse.quote(object_path, safe="/")
     url = f"{settings.SUPABASE_URL}/storage/v1/object/{bucket}/{quoted_path}"
@@ -45,11 +48,18 @@ def upload_content(bucket, object_path, content, content_type=None):
     headers["x-upsert"] = "true"
     try:
         _request(url, method="POST", headers=headers, data=content)
-        return True
-    except urllib.error.URLError:
-        return False
-    except urllib.error.HTTPError:
-        return False
+        return True, ""
+    except urllib.error.HTTPError as exc:
+        body = ""
+        try:
+            body = exc.read().decode("utf-8", errors="ignore")
+        except Exception:  # pragma: no cover
+            body = ""
+        logger.warning("Supabase upload failed for %s/%s: %s %s", bucket, object_path, exc.code, body)
+        return False, f"Supabase upload failed with HTTP {exc.code}."
+    except urllib.error.URLError as exc:
+        logger.warning("Supabase upload failed for %s/%s: %s", bucket, object_path, exc)
+        return False, "Supabase upload failed because the storage endpoint could not be reached."
 
 
 def delete_object(bucket, object_path):
