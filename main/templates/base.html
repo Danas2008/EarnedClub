@@ -7,6 +7,18 @@
     {% load static %}
 
     <title>{% block title %}Earned Club{% endblock %}</title>
+    <meta name="description" content="{% block meta_description %}Earned Club is a push-up leaderboard and athlete profile platform where strict reps, verification, and public rank turn performance into status.{% endblock %}">
+    <meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1,max-video-preview:-1">
+    <link rel="canonical" href="{% block canonical_url %}{{ request.build_absolute_uri }}{% endblock %}">
+    <meta property="og:site_name" content="Earned Club">
+    <meta property="og:type" content="{% block og_type %}website{% endblock %}">
+    <meta property="og:title" content="{% block og_title %}Earned Club{% endblock %}">
+    <meta property="og:description" content="{% block og_description %}Earned Club is a push-up leaderboard and athlete profile platform where strict reps, verification, and public rank turn performance into status.{% endblock %}">
+    <meta property="og:url" content="{{ request.build_absolute_uri }}">
+    <meta property="og:image" content="{{ request.build_absolute_uri }}{% static 'favicon.png' %}">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="{% block twitter_title %}Earned Club{% endblock %}">
+    <meta name="twitter:description" content="{% block twitter_description %}Earned Club is a push-up leaderboard and athlete profile platform where strict reps, verification, and public rank turn performance into status.{% endblock %}">
 
     <link rel="icon" type="image/png" href="{% static 'favicon.png' %}">
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -21,6 +33,20 @@
     >
 
     <meta name="google-site-verification" content="GuOuK6aFpswxBuUAb0kSwvLyJq0F5_mqmkHqH1_uecY" />
+    <script type="application/ld+json">
+        {
+            "@context": "https://schema.org",
+            "@type": "WebSite",
+            "name": "Earned Club",
+            "url": "{{ request.scheme }}://{{ request.get_host }}",
+            "description": "Push-up leaderboard, athlete profiles, verification, and public rank tracking.",
+            "potentialAction": {
+                "@type": "SearchAction",
+                "target": "{{ request.scheme }}://{{ request.get_host }}/leaderboard/?q={search_term_string}",
+                "query-input": "required name=search_term_string"
+            }
+        }
+    </script>
 
 
     <style>

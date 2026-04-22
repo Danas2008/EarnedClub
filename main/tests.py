@@ -1,16 +1,12 @@
-import io
 import shutil
 import tempfile
 
 from django.contrib.auth.models import User
-from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 from django.test import override_settings
 from django.urls import reverse
 
 from .models import NewsletterSubscriber, Profile, Submission, get_rank_tier
-
-from PIL import Image
 
 
 class SubmissionFlowTests(TestCase):
@@ -21,16 +17,6 @@ class SubmissionFlowTests(TestCase):
         self.settings_override.enable()
         self.addCleanup(self.settings_override.disable)
         self.addCleanup(lambda: shutil.rmtree(self._media_root, ignore_errors=True))
-
-    def build_test_image(self, name="avatar.jpg", size=(600, 400), color=(240, 120, 80)):
-        image = Image.new("RGB", size, color)
-        buffer = io.BytesIO()
-        image.save(buffer, format="JPEG")
-        buffer.seek(0)
-        return SimpleUploadedFile(name, buffer.read(), content_type="image/jpeg")
-
-    def build_test_video(self, name="proof.mp4"):
-        return SimpleUploadedFile(name, b"not-a-real-video", content_type="video/mp4")
 
     def test_challenge_submission_creates_unverified_record(self):
         response = self.client.post(
@@ -86,21 +72,6 @@ class SubmissionFlowTests(TestCase):
 
         self.assertContains(response, "Submission received.")
         self.assertContains(response, "would currently rank #2")
-
-    def test_challenge_submission_accepts_uploaded_video_file(self):
-        response = self.client.post(
-            reverse("challenge"),
-            {
-                "name": "Video Athlete",
-                "email": "video@example.com",
-                "reps": 28,
-                "video_file": self.build_test_video(),
-            },
-        )
-
-        self.assertRedirects(response, reverse("challenge"))
-        submission = Submission.objects.get(name="Video Athlete")
-        self.assertTrue(submission.video_file.name)
 
     def test_leaderboard_shows_all_submissions_with_verification_status(self):
         Submission.objects.create(
@@ -236,7 +207,7 @@ class SubmissionFlowTests(TestCase):
         response = self.client.post(reverse("challenge"), {"reps": 30}, follow=True)
 
         self.assertEqual(Submission.objects.filter(user=user).count(), 1)
-        self.assertContains(response, "already have a submission waiting for verification")
+        self.assertContains(response, "already have an active submission")
 
     def test_duplicate_pending_submission_is_blocked_for_email(self):
         Submission.objects.create(
@@ -254,7 +225,7 @@ class SubmissionFlowTests(TestCase):
         )
 
         self.assertEqual(Submission.objects.filter(email="anon@example.com").count(), 1)
-        self.assertContains(response, "already have a submission waiting for verification")
+        self.assertContains(response, "already have an active submission")
 
     def test_dashboard_requires_login(self):
         response = self.client.get(reverse("dashboard"))
@@ -396,7 +367,7 @@ class SubmissionFlowTests(TestCase):
         self.assertContains(response, "Rejected")
         self.assertEqual(response.context["rejected_count"], 1)
 
-    def test_dashboard_uploads_and_processes_profile_image(self):
+    def test_dashboard_updates_profile_photo_url(self):
         user = User.objects.create_user(username="photo-user", password="StrongPass12345")
         self.client.force_login(user)
 
@@ -406,17 +377,13 @@ class SubmissionFlowTests(TestCase):
                 "username": "photo-user",
                 "email": "photo@example.com",
                 "country": "Czech Republic",
-                "profile_crop_x": "20",
-                "profile_crop_y": "10",
-                "profile_crop_size": "200",
-                "profile_image": self.build_test_image(),
+                "profile_photo": "https://example.com/avatar.jpg",
             },
         )
 
         self.assertRedirects(response, reverse("dashboard"))
         user.profile.refresh_from_db()
-        self.assertTrue(user.profile.profile_image.name)
-        self.assertFalse(user.profile.profile_photo)
+        self.assertEqual(user.profile.profile_photo, "https://example.com/avatar.jpg")
 
     def test_dashboard_can_add_proof_to_unverified_submission(self):
         user = User.objects.create_user(username="proof-user", password="StrongPass12345")
@@ -433,6 +400,21 @@ class SubmissionFlowTests(TestCase):
         submission.refresh_from_db()
         self.assertEqual(submission.status, Submission.STATUS_PENDING)
         self.assertEqual(submission.video_link, "https://example.com/new-proof")
+
+    def test_sitemap_xml_lists_core_pages(self):
+        response = self.client.get(reverse("sitemap_xml"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "<urlset", html=False)
+        self.assertContains(response, "/leaderboard/", html=False)
+        self.assertContains(response, "/challenge/", html=False)
+
+    def test_robots_txt_references_sitemap(self):
+        response = self.client.get(reverse("robots_txt"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "User-agent: *")
+        self.assertContains(response, "Sitemap:")
 
     def test_staff_can_approve_submission_in_app(self):
         admin = User.objects.create_user(username="staff", password="StrongPass12345", is_staff=True)

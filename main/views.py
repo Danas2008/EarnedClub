@@ -1,21 +1,21 @@
 from datetime import timedelta
 
 from django.contrib import messages
-from django.conf import settings
 from django.contrib.auth import login, logout
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.decorators import user_passes_test
 from django.contrib.auth.forms import AuthenticationForm, UserCreationForm
 from django.contrib.auth.models import User
+from django.http import HttpResponse
 from django.db import IntegrityError
 from django.core.paginator import Paginator
 from django.db.models import Q
 from django.views.decorators.http import require_POST
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.utils import timezone
 
 from .countries import COUNTRY_CHOICES
-from .media_utils import store_profile_image, store_submission_video
 from .models import (
     NewsletterSubscriber,
     Profile,
@@ -27,7 +27,6 @@ from .models import (
     get_rank_tier,
     get_submission_identity,
 )
-from .supabase_storage import create_signed_object_url
 
 
 def build_leaderboard_rows(submissions):
@@ -165,6 +164,10 @@ def get_weekly_window():
     return timezone.now() - timedelta(days=7)
 
 
+def build_absolute_url(request, view_name, *args):
+    return request.build_absolute_uri(reverse(view_name, args=args))
+
+
 def home(request):
     verified_submissions = get_official_verified_submissions()
     public_submissions = list(public_submission_queryset())
@@ -181,6 +184,40 @@ def home(request):
         "overall_top_five": leaderboard_rows[:5],
     }
     return render(request, "home.html", context)
+
+
+def sitemap_xml(request):
+    urls = [
+        ("home", None),
+        ("challenge", None),
+        ("leaderboard", None),
+        ("profiles", None),
+        ("calculators", None),
+        ("register", None),
+        ("login", None),
+        ("privacy", None),
+        ("terms", None),
+    ]
+    entries = [build_absolute_url(request, name) for name, _ in urls]
+    entries.extend(
+        build_absolute_url(request, "athlete_profile", profile.slug)
+        for profile in Profile.objects.filter(personal_best_reps__gt=0).order_by("slug")
+    )
+
+    xml = ['<?xml version="1.0" encoding="UTF-8"?>', '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">']
+    for entry in entries:
+        xml.append(f"  <url><loc>{entry}</loc></url>")
+    xml.append("</urlset>")
+    return HttpResponse("\n".join(xml), content_type="application/xml")
+
+
+def robots_txt(request):
+    lines = [
+        "User-agent: *",
+        "Allow: /",
+        f"Sitemap: {request.build_absolute_uri(reverse('sitemap_xml'))}",
+    ]
+    return HttpResponse("\n".join(lines), content_type="text/plain")
 
 
 def leaderboard(request):
@@ -255,10 +292,6 @@ def dashboard(request):
         username = (request.POST.get("username") or "").strip()
         email = (request.POST.get("email") or "").strip().lower()
         profile_photo = (request.POST.get("profile_photo") or "").strip()
-        profile_image = request.FILES.get("profile_image")
-        crop_x = request.POST.get("profile_crop_x")
-        crop_y = request.POST.get("profile_crop_y")
-        crop_size = request.POST.get("profile_crop_size")
         country = (request.POST.get("country") or "").strip()
         age = (request.POST.get("age") or "").strip()
         bio = (request.POST.get("bio") or "").strip()
@@ -286,18 +319,8 @@ def dashboard(request):
 
         profile.display_name = request.user.username
         profile.profile_photo = profile_photo
-        if profile_image:
-            stored_profile = store_profile_image(profile, profile_image, crop_x=crop_x, crop_y=crop_y, crop_size=crop_size)
-            if stored_profile["storage_path"]:
-                profile.profile_storage_path = stored_profile["storage_path"]
-                profile.profile_photo = stored_profile["public_url"]
-                profile.profile_image = ""
-            elif stored_profile["local_file"]:
-                profile.profile_image = stored_profile["local_file"]
-                profile.profile_storage_path = ""
-                profile.profile_photo = ""
-                if stored_profile["error"]:
-                    messages.warning(request, f"Profile image was saved only locally. {stored_profile['error']}")
+        profile.profile_image = ""
+        profile.profile_storage_path = ""
         profile.country = country
         profile.age = age_value
         profile.bio = bio
@@ -404,7 +427,6 @@ def challenge(request):
         email = (request.POST.get("email") or "").strip().lower()
         reps = (request.POST.get("reps") or "").strip()
         video_link = (request.POST.get("video_link") or "").strip()
-        video_file = request.FILES.get("video_file")
 
         if request.user.is_authenticated:
             name = user_display_name(request.user)
@@ -449,18 +471,8 @@ def challenge(request):
             email=email,
             reps=reps_value,
             video_link=video_link,
-            status=Submission.STATUS_PENDING if (video_link or video_file) else Submission.STATUS_UNVERIFIED,
+            status=Submission.STATUS_PENDING if video_link else Submission.STATUS_UNVERIFIED,
         )
-        if video_file:
-            stored_video = store_submission_video(submission, video_file)
-            if stored_video["storage_path"]:
-                submission.video_storage_path = stored_video["storage_path"]
-                submission.video_file = ""
-            elif stored_video["local_file"]:
-                submission.video_file = stored_video["local_file"]
-                if stored_video["error"]:
-                    messages.warning(request, f"Video upload did not reach Supabase. {stored_video['error']}")
-            submission.save(update_fields=["video_storage_path", "video_file"])
 
         messages.success(
             request,
@@ -480,7 +492,6 @@ def challenge(request):
 def add_submission_proof(request, submission_id):
     submission = get_object_or_404(Submission, pk=submission_id, user=request.user)
     video_link = (request.POST.get("video_link") or "").strip()
-    video_file = request.FILES.get("video_file")
 
     if submission.status != Submission.STATUS_UNVERIFIED:
         messages.error(request, "Proof can only be added to unverified submissions.")
@@ -490,23 +501,13 @@ def add_submission_proof(request, submission_id):
         messages.error(request, "You already have a submission waiting for verification.")
         return redirect("dashboard")
 
-    if not video_link and not video_file:
-        messages.error(request, "Add either a public proof link or upload a video.")
+    if not video_link:
+        messages.error(request, "Add a public proof link.")
         return redirect("dashboard")
 
-    if video_link:
-        submission.video_link = video_link
-
-    if video_file:
-        stored_video = store_submission_video(submission, video_file)
-        if stored_video["storage_path"]:
-            submission.video_storage_path = stored_video["storage_path"]
-            submission.video_file = ""
-        elif stored_video["local_file"]:
-            submission.video_file = stored_video["local_file"]
-            if stored_video["error"]:
-                messages.warning(request, f"Video upload did not reach Supabase. {stored_video['error']}")
-
+    submission.video_link = video_link
+    submission.video_storage_path = ""
+    submission.video_file = ""
     submission.status = Submission.STATUS_PENDING
     submission.verified = False
     submission.save(update_fields=["video_link", "video_storage_path", "video_file", "status", "verified"])
@@ -523,12 +524,6 @@ def admin_review(request):
     pending_submissions = Submission.objects.filter(status=Submission.STATUS_PENDING).select_related(
         "user", "user__profile"
     ).order_by("-created_at")
-    for submission in pending_submissions:
-        submission.review_video_url = ""
-        if submission.video_storage_path:
-            submission.review_video_url = create_signed_object_url(settings.SUPABASE_SUBMISSION_BUCKET, submission.video_storage_path)
-        elif submission.video_file:
-            submission.review_video_url = submission.video_file.url
     reviewed_submissions = Submission.objects.exclude(status=Submission.STATUS_PENDING).select_related(
         "user", "user__profile"
     ).order_by("-created_at")[:20]

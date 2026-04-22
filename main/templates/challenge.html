@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 
 {% block title %}Challenge - Submit for Verification{% endblock %}
+{% block meta_description %}Submit your strict push-up result to the Earned Club challenge, add your public proof link, and earn a verified public leaderboard rank.{% endblock %}
 
 {% block content %}
 <section class="hero-card" style="margin-bottom: 24px;">
@@ -18,7 +19,7 @@
                 <a class="btn-main" href="#submit-form-top">Send For Verification</a>
                 <a class="btn-secondary" href="/leaderboard/#full-leaderboard">See Current Rankings</a>
             </div>
-            <p class="muted" style="margin-top: 12px;">Tip: upload a video directly if you want the simplest proof flow. We compress uploads automatically to keep storage lean.</p>
+            <p class="muted" style="margin-top: 12px;">Tip: for now use a public proof link from YouTube, Drive, TikTok, or a similar service. Direct file uploads are disabled on this branch.</p>
         </div>
 
         <div class="stack" id="submit-form-top">
@@ -46,7 +47,7 @@
                         </p>
                     </div>
                 {% else %}
-                    <form class="submission-form" method="POST" enctype="multipart/form-data">
+                    <form class="submission-form" method="POST">
                         {% csrf_token %}
 
                         {% if not request.user.is_authenticated %}
@@ -91,31 +92,17 @@
                             >
                         </div>
 
-                        <div class="proof-options">
-                            <div class="proof-card">
-                                <label class="field-label" for="video_file">Upload video</label>
-                                <input
-                                    id="video_file"
-                                    class="input"
-                                    type="file"
-                                    name="video_file"
-                                    accept="video/*"
-                                >
-                                <div class="hint">Best for users. Uploaded videos are converted toward a lightweight 480p MP4 for storage efficiency.</div>
-                            </div>
-                            <div class="proof-divider">or</div>
-                            <div class="proof-card">
-                                <label class="field-label" for="video_link">Public video link</label>
-                                <input
-                                    id="video_link"
-                                    class="input"
-                                    type="url"
-                                    name="video_link"
-                                    placeholder="https://youtube.com/watch?v=your-video"
-                                    value="{{ form_data.video_link|default:'' }}"
-                                >
-                                <div class="hint">Keep this option for YouTube, Drive, TikTok, or another public proof link.</div>
-                            </div>
+                        <div>
+                            <label class="field-label" for="video_link">Public video link</label>
+                            <input
+                                id="video_link"
+                                class="input"
+                                type="url"
+                                name="video_link"
+                                placeholder="https://youtube.com/watch?v=your-video"
+                                value="{{ form_data.video_link|default:'' }}"
+                            >
+                            <div class="hint">File uploads are temporarily disabled on this branch. Use a public YouTube, Drive, TikTok, or similar proof link.</div>
                         </div>
 
                         <button type="submit" class="btn-main">Send For Verification</button>

@@ -21,7 +21,7 @@
         <a class="btn-secondary" href="{% url 'athlete_profile' profile.slug %}">View Public Profile</a>
         <button class="btn-secondary" type="button" data-toggle-panel="profile-edit" aria-expanded="false" aria-controls="profile-edit">&#9881; Settings</button>
     </div>
-    <form id="profile-edit" class="submission-form hidden-panel settings-inline-panel" method="POST" enctype="multipart/form-data">
+    <form id="profile-edit" class="submission-form hidden-panel settings-inline-panel" method="POST">
         {% csrf_token %}
         <div class="grid-2">
             <div>
@@ -48,37 +48,10 @@
                 <input id="age" class="input" type="number" name="age" min="13" max="100" value="{{ profile.age|default:'' }}">
             </div>
         </div>
-        <div class="profile-image-editor">
-            <div>
-                <label class="field-label" for="profile_image">Upload profile picture</label>
-                <input id="profile_image" class="input" type="file" name="profile_image" accept="image/*">
-                <div class="hint">Upload a photo and crop it before saving so it sits well in the avatar.</div>
-            </div>
-            <div class="cropper-shell" id="profile-cropper" hidden>
-                <div class="cropper-preview">
-                    <img id="profile-crop-image" alt="Profile crop preview">
-                    <div class="cropper-frame"></div>
-                </div>
-                <div class="slider-row">
-                    <label class="field-label" for="crop-zoom">Zoom</label>
-                    <input id="crop-zoom" type="range" min="100" max="250" value="100">
-                </div>
-                <div class="slider-row">
-                    <label class="field-label" for="crop-x">Horizontal position</label>
-                    <input id="crop-x" type="range" min="0" max="100" value="50">
-                </div>
-                <div class="slider-row">
-                    <label class="field-label" for="crop-y">Vertical position</label>
-                    <input id="crop-y" type="range" min="0" max="100" value="50">
-                </div>
-                <input type="hidden" name="profile_crop_x" id="profile-crop-x-hidden">
-                <input type="hidden" name="profile_crop_y" id="profile-crop-y-hidden">
-                <input type="hidden" name="profile_crop_size" id="profile-crop-size-hidden">
-            </div>
-        </div>
         <div>
-            <label class="field-label" for="profile_photo">Profile picture URL fallback</label>
+            <label class="field-label" for="profile_photo">Profile picture URL</label>
             <input id="profile_photo" class="input" type="url" name="profile_photo" value="{{ profile.profile_photo }}" placeholder="https://example.com/photo.jpg">
+            <div class="hint">Direct file photo uploads are temporarily disabled on this branch. Paste a public image URL instead.</div>
         </div>
         <div>
             <label class="field-label" for="bio">Bio</label>
@@ -137,7 +110,7 @@
             </div>
             <div class="feature-card">
                 <h3>Submission Flow</h3>
-                <p class="muted">Upload a video or paste a public link. The review queue stays simple and clear.</p>
+                <p class="muted">Use public proof links for submissions while direct video and photo uploads stay disabled on this stable branch.</p>
             </div>
         </div>
     </div>
@@ -160,18 +133,11 @@
                         {% if submission.status == "unverified" %}
                             <details class="score-details" style="margin-top: 10px;">
                                 <summary>Add proof</summary>
-                                <form class="submission-form" method="POST" action="{% url 'add_submission_proof' submission.id %}" enctype="multipart/form-data" style="margin-top: 12px;">
+                                <form class="submission-form" method="POST" action="{% url 'add_submission_proof' submission.id %}" style="margin-top: 12px;">
                                     {% csrf_token %}
-                                    <div class="proof-options">
-                                        <div class="proof-card">
-                                            <label class="field-label" for="dashboard-video-file-{{ submission.id }}">Upload video</label>
-                                            <input id="dashboard-video-file-{{ submission.id }}" class="input" type="file" name="video_file" accept="video/*">
-                                        </div>
-                                        <div class="proof-divider">or</div>
-                                        <div class="proof-card">
-                                            <label class="field-label" for="dashboard-video-link-{{ submission.id }}">Public video link</label>
-                                            <input id="dashboard-video-link-{{ submission.id }}" class="input" type="url" name="video_link" placeholder="https://youtube.com/watch?v=your-video">
-                                        </div>
+                                    <div>
+                                        <label class="field-label" for="dashboard-video-link-{{ submission.id }}">Public video link</label>
+                                        <input id="dashboard-video-link-{{ submission.id }}" class="input" type="url" name="video_link" placeholder="https://youtube.com/watch?v=your-video">
                                     </div>
                                     <button class="btn-main" type="submit">Submit Proof</button>
                                 </form>
@@ -234,71 +200,6 @@
             trigger.setAttribute("aria-expanded", isOpen ? "true" : "false");
             trigger.innerHTML = isOpen ? "Close Settings" : "&#9881; Settings";
         });
-    }
-
-    const profileInput = document.getElementById("profile_image");
-    const cropShell = document.getElementById("profile-cropper");
-    const cropImage = document.getElementById("profile-crop-image");
-    const cropZoom = document.getElementById("crop-zoom");
-    const cropX = document.getElementById("crop-x");
-    const cropY = document.getElementById("crop-y");
-    const cropXHidden = document.getElementById("profile-crop-x-hidden");
-    const cropYHidden = document.getElementById("profile-crop-y-hidden");
-    const cropSizeHidden = document.getElementById("profile-crop-size-hidden");
-    const previewSize = 260;
-    let naturalWidth = 0;
-    let naturalHeight = 0;
-
-    const updateCropPreview = () => {
-        if (!naturalWidth || !naturalHeight) {
-            return;
-        }
-
-        const zoom = parseInt(cropZoom.value, 10) / 100;
-        const baseScale = Math.max(previewSize / naturalWidth, previewSize / naturalHeight);
-        const actualScale = baseScale * zoom;
-        const displayWidth = naturalWidth * actualScale;
-        const displayHeight = naturalHeight * actualScale;
-        const maxOffsetX = Math.max(0, displayWidth - previewSize);
-        const maxOffsetY = Math.max(0, displayHeight - previewSize);
-        const offsetX = (parseInt(cropX.value, 10) / 100) * maxOffsetX;
-        const offsetY = (parseInt(cropY.value, 10) / 100) * maxOffsetY;
-
-        cropImage.style.width = `${displayWidth}px`;
-        cropImage.style.height = `${displayHeight}px`;
-        cropImage.style.left = `${-offsetX}px`;
-        cropImage.style.top = `${-offsetY}px`;
-
-        cropXHidden.value = (offsetX / actualScale).toFixed(2);
-        cropYHidden.value = (offsetY / actualScale).toFixed(2);
-        cropSizeHidden.value = (previewSize / actualScale).toFixed(2);
-    };
-
-    if (profileInput) {
-        profileInput.addEventListener("change", (event) => {
-            const [file] = event.target.files || [];
-            if (!file) {
-                cropShell.hidden = true;
-                return;
-            }
-
-            const reader = new FileReader();
-            reader.addEventListener("load", () => {
-                cropImage.src = reader.result;
-                cropImage.onload = () => {
-                    naturalWidth = cropImage.naturalWidth;
-                    naturalHeight = cropImage.naturalHeight;
-                    cropShell.hidden = false;
-                    cropZoom.value = "100";
-                    cropX.value = "50";
-                    cropY.value = "50";
-                    updateCropPreview();
-                };
-            });
-            reader.readAsDataURL(file);
-        });
-
-        [cropZoom, cropX, cropY].forEach((input) => input?.addEventListener("input", updateCropPreview));
     }
 </script>
 {% endblock %}
