@@ -4,9 +4,22 @@
 
 {% block content %}
 <section class="hero-card profile-header">
-    <div class="eyebrow">Athlete Profile</div>
-    <h1>{{ profile.display_name }}</h1>
-    {% if profile.bio %}<p>{{ profile.bio }}</p>{% endif %}
+    <div style="display: flex; gap: 18px; align-items: center; flex-wrap: wrap;">
+        {% if profile.profile_photo %}
+            <img class="avatar avatar-lg" src="{{ profile.profile_photo }}" alt="{{ profile.display_name }} profile picture">
+        {% else %}
+            <span class="avatar avatar-lg">{{ profile.display_name|first|upper }}</span>
+        {% endif %}
+        <div>
+            <div class="eyebrow">Athlete Profile</div>
+            <h1>{{ profile.display_name }}</h1>
+            <p class="muted">
+                {% if profile.country %}{{ profile.country }}{% endif %}
+                {% if profile.age %}{% if profile.country %} - {% endif %}{{ profile.age }} years old{% endif %}
+            </p>
+            {% if profile.bio %}<p>{{ profile.bio }}</p>{% endif %}
+        </div>
+    </div>
     <div class="stat-grid">
         <div class="stat-card">
             <span class="kicker">Verified PR</span>
@@ -26,6 +39,7 @@
 <section class="grid-2">
     <div class="card-dark">
         <h2>Verified Progress</h2>
+        <p class="muted">Best verified performance by date. X-axis is date, Y-axis is reps.</p>
         <div class="progress-chart">
             <svg id="progress-chart" class="chart-area" role="img" aria-label="Athlete verified progress chart"></svg>
         </div>
@@ -34,12 +48,15 @@
     <div class="card-dark">
         <h2>Verified Submissions</h2>
         {% if verified_submissions %}
-            <div class="stack">
+            <div>
                 {% for submission in verified_submissions %}
-                    <div class="leaderboard-card">
+                    <div class="athlete-row">
                         <span class="status-pill verified">{{ submission.status }}</span>
-                        <div class="submission-name" style="margin-top: 10px;">{{ submission.reps }} reps</div>
-                        <div class="submission-meta">{{ submission.rank_name }} - {{ submission.created_at|date:"M j, Y" }}</div>
+                        <div class="row-title">
+                            <div class="submission-name">{{ submission.reps }} reps</div>
+                            <div class="submission-meta">{{ submission.rank_name }}</div>
+                        </div>
+                        <div class="submission-meta">{{ submission.created_at|date:"M j, Y" }}</div>
                     </div>
                 {% endfor %}
             </div>
@@ -70,8 +87,13 @@
         });
         const path = points.map((point, index) => `${index === 0 ? "M" : "L"} ${point.x} ${point.y}`).join(" ");
         svg.innerHTML = `
-            <line x1="${pad}" y1="${height - pad}" x2="${width - pad}" y2="${height - pad}" stroke="rgba(255,255,255,.14)" />
-            <line x1="${pad}" y1="${pad}" x2="${pad}" y2="${height - pad}" stroke="rgba(255,255,255,.14)" />
+            <line x1="${pad}" y1="${height - pad}" x2="${width - pad}" y2="${height - pad}" stroke="rgba(255,255,255,.18)" />
+            <line x1="${pad}" y1="${pad}" x2="${pad}" y2="${height - pad}" stroke="rgba(255,255,255,.18)" />
+            <text x="${width / 2}" y="${height - 4}" text-anchor="middle" fill="rgba(245,247,251,.68)" font-size="12">Date</text>
+            <text x="8" y="${height / 2}" transform="rotate(-90 8 ${height / 2})" text-anchor="middle" fill="rgba(245,247,251,.68)" font-size="12">Performance</text>
+            ${points.map((point, index) => index % Math.ceil(points.length / 3) === 0 ? `<text x="${point.x}" y="${height - pad + 18}" text-anchor="middle" fill="rgba(245,247,251,.55)" font-size="10">${point.date.slice(5)}</text>` : "").join("")}
+            <text x="${pad - 8}" y="${pad + 4}" text-anchor="end" fill="rgba(245,247,251,.55)" font-size="10">${maxReps}</text>
+            <text x="${pad - 8}" y="${height - pad}" text-anchor="end" fill="rgba(245,247,251,.55)" font-size="10">0</text>
             <path d="${path}" fill="none" stroke="#f7b733" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" />
             ${points.map((point) => `<circle cx="${point.x}" cy="${point.y}" r="5" fill="#ffd77b"><title>${point.date}: ${point.reps} reps</title></circle>`).join("")}
         `;

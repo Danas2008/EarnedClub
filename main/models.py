@@ -52,6 +52,38 @@ def get_rank_tier(reps):
     return RANK_TIERS[0]
 
 
+def get_submission_identity(submission):
+    if submission.user_id:
+        return ("user", submission.user_id)
+    if submission.email:
+        return ("email", submission.email.lower())
+    return ("submission", submission.pk)
+
+
+def get_official_verified_submissions():
+    official = {}
+    submissions = (
+        Submission.objects.filter(status=Submission.STATUS_VERIFIED)
+        .select_related("user", "user__profile")
+        .order_by("-reps", "created_at")
+    )
+    for submission in submissions:
+        identity = get_submission_identity(submission)
+        if identity not in official:
+            official[identity] = submission
+    return list(official.values())
+
+
+def get_best_verified_submission_for_user(user):
+    return user.submission_set.filter(status=Submission.STATUS_VERIFIED).order_by("-reps", "created_at").first()
+
+
+def get_official_rank_for_submission(submission):
+    if not submission:
+        return None
+    return sum(1 for item in get_official_verified_submissions() if item.reps > submission.reps) + 1
+
+
 class Submission(models.Model):
     STATUS_PENDING = "pending"
     STATUS_VERIFIED = "verified"
@@ -103,6 +135,13 @@ class Submission(models.Model):
 
         super().save(*args, **kwargs)
 
+        if self.user_id and self.status == self.STATUS_VERIFIED:
+            Submission.objects.filter(
+                user_id=self.user_id,
+                status=self.STATUS_VERIFIED,
+                reps__lte=self.reps,
+            ).exclude(pk=self.pk).delete()
+
         affected_user_ids = {user_id for user_id in (old_user_id, self.user_id) if user_id}
         refresh_all_ranks = old_status == self.STATUS_VERIFIED or self.status == self.STATUS_VERIFIED
         refresh_profile_stats(affected_user_ids, refresh_all_ranks=refresh_all_ranks)
@@ -141,6 +180,8 @@ class Profile(models.Model):
     display_name = models.CharField(max_length=100)
     slug = models.SlugField(max_length=120, unique=True, blank=True)
     profile_photo = models.URLField(blank=True)
+    country = models.CharField(max_length=80, blank=True)
+    age = models.PositiveSmallIntegerField(null=True, blank=True)
     bio = models.TextField(blank=True)
     current_rank = models.PositiveIntegerField(null=True, blank=True)
     personal_best_reps = models.PositiveIntegerField(default=0)
@@ -170,16 +211,9 @@ class Profile(models.Model):
         return candidate
 
     def refresh_verified_stats(self):
-        verified_submissions = self.user.submission_set.filter(status=Submission.STATUS_VERIFIED)
-        best_submission = verified_submissions.order_by("-reps", "created_at").first()
+        best_submission = get_best_verified_submission_for_user(self.user)
         self.personal_best_reps = best_submission.reps if best_submission else 0
-        if best_submission:
-            self.current_rank = (
-                Submission.objects.filter(status=Submission.STATUS_VERIFIED, reps__gt=best_submission.reps).count()
-                + 1
-            )
-        else:
-            self.current_rank = None
+        self.current_rank = get_official_rank_for_submission(best_submission)
         self.save(update_fields=["personal_best_reps", "current_rank", "updated_at"])
 
 

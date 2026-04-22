@@ -6,24 +6,76 @@
 <section class="hero-card" style="margin-bottom: 24px;">
     <div class="eyebrow">Verified Athletes</div>
     <h1>Profiles.</h1>
-    <p class="muted">Registered athletes with verified results. Legacy anonymous leaderboard entries stay on the board, but profiles belong to accounts.</p>
+    <p class="muted">Find verified athletes, compare ranks, and open public progress profiles.</p>
 </section>
 
-<section class="grid-3">
+<section class="card-dark">
+    <form class="search-row" method="GET">
+        <div>
+            <label class="field-label" for="profile-search">Search by name</label>
+            <input id="profile-search" class="input" type="search" name="q" value="{{ query }}" placeholder="Search athletes">
+        </div>
+        <button class="btn-secondary" type="submit">Search</button>
+    </form>
+
     {% for profile in profiles %}
-        <a class="leaderboard-card" href="{% url 'athlete_profile' profile.slug %}">
-            <div class="section-spread" style="margin-bottom: 10px;">
-                <span class="position-pill">{% if profile.current_rank %}#{{ profile.current_rank }}{% else %}-{% endif %}</span>
-                <span class="tag-pill">{{ profile.personal_best_reps }} reps</span>
+        <a class="athlete-row" href="{% url 'athlete_profile' profile.slug %}">
+            {% if profile.profile_photo %}
+                <img class="avatar" src="{{ profile.profile_photo }}" alt="{{ profile.display_name }} profile picture">
+            {% else %}
+                <span class="avatar">{{ profile.display_name|first|upper }}</span>
+            {% endif %}
+            <div class="row-title">
+                <div class="submission-name">{{ profile.display_name }}</div>
+                <div class="submission-meta">
+                    {% if profile.country %}{{ profile.country }}{% else %}Verified athlete{% endif %}
+                </div>
             </div>
-            <div class="submission-name">{{ profile.display_name }}</div>
-            <div class="submission-meta">Verified athlete profile</div>
+            <span class="tag-pill hide-mobile">{{ profile.personal_best_reps }} reps</span>
+            <span class="position-pill">{% if profile.current_rank %}#{{ profile.current_rank }}{% else %}-{% endif %}</span>
+            <span class="btn-secondary hide-mobile" style="min-height: 36px; padding: 7px 11px;">View</span>
         </a>
     {% empty %}
-        <div class="card-dark">
-            <h2>No profiles yet.</h2>
-            <p class="muted">The first registered athletes with verified scores will appear here.</p>
-        </div>
+        <h2>No profiles yet.</h2>
+        <p class="muted">The first registered athletes with verified scores will appear here.</p>
     {% endfor %}
+
+    {% if profiles %}
+        <div class="pagination-row">
+            <div class="muted">Page {{ profiles.number }} of {{ profiles.paginator.num_pages }}</div>
+            <div class="button-row" style="margin-top: 0;">
+                {% if profiles.has_previous %}
+                    <a class="btn-secondary" href="?q={{ query }}&page={{ profiles.previous_page_number }}">Previous 10</a>
+                {% endif %}
+                {% if profiles.has_next %}
+                    <a class="btn-main" href="?q={{ query }}&page={{ profiles.next_page_number }}">Next 10</a>
+                {% endif %}
+            </div>
+        </div>
+    {% endif %}
+</section>
+
+<section class="card-dark">
+    <div class="section-spread">
+        <div>
+            <h2>Verified Athlete Directory</h2>
+            <p class="muted">Public profiles create durable pages for athlete names, ranks, progress charts, and verified push-up performance.</p>
+        </div>
+        <a class="btn-main" href="{% url 'challenge' %}">Earn Your Profile</a>
+    </div>
+    <div class="grid-3">
+        <div class="feature-card">
+            <h3>Profile Proof</h3>
+            <p class="muted">Every profile links to a clear verified PR, rank, and progress graph.</p>
+        </div>
+        <div class="feature-card">
+            <h3>Searchable Names</h3>
+            <p class="muted">Athletes can be found directly by name as the leaderboard grows.</p>
+        </div>
+        <div class="feature-card">
+            <h3>Performance SEO</h3>
+            <p class="muted">Clean public pages help Earned Club become discoverable around real challenge results.</p>
+        </div>
+    </div>
 </section>
 {% endblock %}

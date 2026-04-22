@@ -4,9 +4,18 @@
 
 {% block content %}
 <section class="hero-card profile-header">
-    <div class="eyebrow">Athlete Dashboard</div>
-    <h1>{{ profile.display_name }}</h1>
-    <p class="muted">Only verified submissions count toward your rank, PR, and graph.</p>
+    <div style="display: flex; gap: 18px; align-items: center; flex-wrap: wrap;">
+        {% if profile.profile_photo %}
+            <img class="avatar avatar-lg" src="{{ profile.profile_photo }}" alt="{{ profile.display_name }} profile picture">
+        {% else %}
+            <span class="avatar avatar-lg">{{ profile.display_name|first|upper }}</span>
+        {% endif %}
+        <div>
+            <div class="eyebrow">Athlete Profile</div>
+            <h1>{{ profile.display_name }}</h1>
+            <p class="muted">Your private dashboard and public profile settings live in one place.</p>
+        </div>
+    </div>
     <div class="button-row">
         <a class="btn-main" href="{% url 'challenge' %}">Submit New Result</a>
         <a class="btn-secondary" href="{% url 'athlete_profile' profile.slug %}">View Public Profile</a>
@@ -32,35 +41,65 @@
     <div class="metric-card">
         <span class="kicker">Pending</span>
         <span class="stat-value">{{ total_pending }}</span>
-        <div class="muted">Waiting for review.</div>
+        <div class="muted">
+            {% if best_pending_submission %}
+                Best pending: {{ best_pending_submission.reps }} reps.
+            {% else %}
+                Waiting for review.
+            {% endif %}
+        </div>
     </div>
 </section>
 
 <section class="grid-2">
     <div class="card-dark">
         <h2>Progress</h2>
-        <p class="muted">Verified reps over time.</p>
+        <p class="muted">Best verified performance by date. X-axis is date, Y-axis is reps.</p>
         <div class="progress-chart">
             <svg id="progress-chart" class="chart-area" role="img" aria-label="Verified push-up progress chart"></svg>
         </div>
     </div>
 
     <div class="card-dark">
-        <h2>Training Snapshot</h2>
-        <div class="stack">
-            <div class="leaderboard-card">
-                <span class="kicker">All-time PR</span>
-                <span class="stat-value">{{ all_time_pr }}</span>
+        <h2>Edit Profile</h2>
+        <form class="submission-form" method="POST">
+            {% csrf_token %}
+            <div class="grid-2">
+                <div>
+                    <label class="field-label" for="display_name">Display name</label>
+                    <input id="display_name" class="input" type="text" name="display_name" value="{{ profile.display_name }}">
+                </div>
+                <div>
+                    <label class="field-label" for="username">Username</label>
+                    <input id="username" class="input" type="text" name="username" value="{{ request.user.username }}">
+                </div>
             </div>
-            <div class="leaderboard-card">
-                <span class="kicker">Weeks active</span>
-                <span class="stat-value">{{ weeks_active }}</span>
+            <div class="grid-2">
+                <div>
+                    <label class="field-label" for="email">Email</label>
+                    <input id="email" class="input" type="email" name="email" value="{{ request.user.email }}">
+                </div>
+                <div>
+                    <label class="field-label" for="country">Country</label>
+                    <input id="country" class="input" type="text" name="country" value="{{ profile.country }}" placeholder="Czech Republic">
+                </div>
             </div>
-            <div class="leaderboard-card">
-                <span class="kicker">Verified streak</span>
-                <span class="stat-value">{{ verified_streak }}</span>
+            <div class="grid-2">
+                <div>
+                    <label class="field-label" for="age">Age</label>
+                    <input id="age" class="input" type="number" name="age" min="13" max="100" value="{{ profile.age|default:'' }}">
+                </div>
+                <div>
+                    <label class="field-label" for="profile_photo">Profile picture URL</label>
+                    <input id="profile_photo" class="input" type="url" name="profile_photo" value="{{ profile.profile_photo }}" placeholder="https://...">
+                </div>
             </div>
-        </div>
+            <div>
+                <label class="field-label" for="bio">Bio</label>
+                <textarea id="bio" class="textarea" name="bio" placeholder="Short public profile note">{{ profile.bio }}</textarea>
+            </div>
+            <button class="btn-main" type="submit">Save Profile</button>
+        </form>
     </div>
 </section>
 
@@ -68,11 +107,14 @@
     <div class="card-dark">
         <h2>Pending Review</h2>
         {% if pending_submissions %}
-            <div class="stack">
+            <div>
                 {% for submission in pending_submissions %}
-                    <div class="leaderboard-card">
+                    <div class="athlete-row">
                         <span class="status-pill pending">{{ submission.status }}</span>
-                        <div class="submission-name" style="margin-top: 10px;">{{ submission.reps }} reps</div>
+                        <div class="row-title">
+                            <div class="submission-name">{{ submission.reps }} reps</div>
+                            <div class="submission-meta">{{ submission.rank_name }}</div>
+                        </div>
                         <div class="submission-meta">{{ submission.created_at|date:"M j, Y" }}</div>
                     </div>
                 {% endfor %}
@@ -85,12 +127,15 @@
     <div class="card-dark">
         <h2>Verified History</h2>
         {% if verified_submissions %}
-            <div class="stack">
+            <div>
                 {% for submission in verified_submissions %}
-                    <div class="leaderboard-card">
+                    <div class="athlete-row">
                         <span class="status-pill verified">{{ submission.status }}</span>
-                        <div class="submission-name" style="margin-top: 10px;">{{ submission.reps }} reps</div>
-                        <div class="submission-meta">{{ submission.rank_name }} - {{ submission.created_at|date:"M j, Y" }}</div>
+                        <div class="row-title">
+                            <div class="submission-name">{{ submission.reps }} reps</div>
+                            <div class="submission-meta">{{ submission.rank_name }}</div>
+                        </div>
+                        <div class="submission-meta">{{ submission.created_at|date:"M j, Y" }}</div>
                     </div>
                 {% endfor %}
             </div>
@@ -121,8 +166,13 @@
         });
         const path = points.map((point, index) => `${index === 0 ? "M" : "L"} ${point.x} ${point.y}`).join(" ");
         svg.innerHTML = `
-            <line x1="${pad}" y1="${height - pad}" x2="${width - pad}" y2="${height - pad}" stroke="rgba(255,255,255,.14)" />
-            <line x1="${pad}" y1="${pad}" x2="${pad}" y2="${height - pad}" stroke="rgba(255,255,255,.14)" />
+            <line x1="${pad}" y1="${height - pad}" x2="${width - pad}" y2="${height - pad}" stroke="rgba(255,255,255,.18)" />
+            <line x1="${pad}" y1="${pad}" x2="${pad}" y2="${height - pad}" stroke="rgba(255,255,255,.18)" />
+            <text x="${width / 2}" y="${height - 4}" text-anchor="middle" fill="rgba(245,247,251,.68)" font-size="12">Date</text>
+            <text x="8" y="${height / 2}" transform="rotate(-90 8 ${height / 2})" text-anchor="middle" fill="rgba(245,247,251,.68)" font-size="12">Performance</text>
+            ${points.map((point, index) => index % Math.ceil(points.length / 3) === 0 ? `<text x="${point.x}" y="${height - pad + 18}" text-anchor="middle" fill="rgba(245,247,251,.55)" font-size="10">${point.date.slice(5)}</text>` : "").join("")}
+            <text x="${pad - 8}" y="${pad + 4}" text-anchor="end" fill="rgba(245,247,251,.55)" font-size="10">${maxReps}</text>
+            <text x="${pad - 8}" y="${height - pad}" text-anchor="end" fill="rgba(245,247,251,.55)" font-size="10">0</text>
             <path d="${path}" fill="none" stroke="#f7b733" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" />
             ${points.map((point) => `<circle cx="${point.x}" cy="${point.y}" r="5" fill="#ffd77b"><title>${point.date}: ${point.reps} reps</title></circle>`).join("")}
         `;

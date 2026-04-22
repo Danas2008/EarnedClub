@@ -3,12 +3,27 @@ from datetime import timedelta
 from django.contrib import messages
 from django.contrib.auth import login, logout
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth.decorators import user_passes_test
 from django.contrib.auth.forms import AuthenticationForm, UserCreationForm
+from django.contrib.auth.models import User
 from django.db import IntegrityError
+from django.core.paginator import Paginator
+from django.db.models import Q
+from django.views.decorators.http import require_POST
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
-from .models import NewsletterSubscriber, Profile, RANK_TIERS, Submission, get_rank_tier
+from .models import (
+    NewsletterSubscriber,
+    Profile,
+    RANK_TIERS,
+    Submission,
+    get_best_verified_submission_for_user,
+    get_official_rank_for_submission,
+    get_official_verified_submissions,
+    get_rank_tier,
+    get_submission_identity,
+)
 
 
 def build_leaderboard_rows(submissions):
@@ -19,7 +34,9 @@ def build_leaderboard_rows(submissions):
             profile = getattr(submission.user, "profile", None)
         verified_position = None
         if submission.status == Submission.STATUS_VERIFIED:
-            verified_position = verified_submission_queryset().filter(reps__gt=submission.reps).count() + 1
+            verified_position = get_official_rank_for_submission(submission)
+        elif submission.user_id:
+            verified_position = get_official_rank_for_submission(get_best_verified_submission_for_user(submission.user))
         rows.append(
             {
                 "position": index,
@@ -37,7 +54,22 @@ def verified_submission_queryset():
 
 
 def public_submission_queryset():
-    return Submission.objects.all()
+    visible = {}
+    for submission in get_official_verified_submissions():
+        visible[get_submission_identity(submission)] = submission
+
+    pending_submissions = (
+        Submission.objects.filter(status=Submission.STATUS_PENDING)
+        .select_related("user", "user__profile")
+        .order_by("-reps", "created_at")
+    )
+    for submission in pending_submissions:
+        identity = get_submission_identity(submission)
+        current = visible.get(identity)
+        if current is None or submission.reps > current.reps:
+            visible[identity] = submission
+
+    return sorted(visible.values(), key=lambda item: (-item.reps, item.created_at))
 
 
 def pending_submission_queryset():
@@ -45,7 +77,7 @@ def pending_submission_queryset():
 
 
 def estimate_verified_position(reps):
-    equal_or_better = verified_submission_queryset().filter(reps__gte=reps).count()
+    equal_or_better = sum(1 for item in get_official_verified_submissions() if item.reps >= reps)
     return equal_or_better + 1
 
 
@@ -57,12 +89,40 @@ def user_display_name(user):
 
 
 def get_progress_data(submissions):
+    best_by_day = {}
+    for submission in submissions.order_by("created_at"):
+        day = submission.created_at.date()
+        current = best_by_day.get(day)
+        if current is None or submission.reps > current.reps:
+            best_by_day[day] = submission
+
     return [
         {
             "date": submission.created_at.strftime("%Y-%m-%d"),
             "reps": submission.reps,
         }
-        for submission in submissions.order_by("created_at")
+        for submission in best_by_day.values()
+    ]
+
+
+def paginate_items(request, items, per_page=10):
+    paginator = Paginator(items, per_page)
+    return paginator.get_page(request.GET.get("page"))
+
+
+def search_submissions(submissions, query):
+    if not query:
+        return submissions
+    lowered = query.lower()
+    return [
+        submission for submission in submissions
+        if lowered in submission.name.lower()
+        or (submission.user_id and lowered in submission.user.username.lower())
+        or (
+            submission.user_id
+            and hasattr(submission.user, "profile")
+            and lowered in submission.user.profile.display_name.lower()
+        )
     ]
 
 
@@ -90,7 +150,7 @@ def get_weekly_window():
 
 
 def home(request):
-    verified_submissions = list(verified_submission_queryset())
+    verified_submissions = get_official_verified_submissions()
     public_submissions = list(public_submission_queryset())
     leaderboard_rows = build_leaderboard_rows(public_submissions)
     weekly_cutoff = get_weekly_window()
@@ -104,25 +164,30 @@ def home(request):
         "total_submissions": len(public_submissions),
         "top_three": leaderboard_rows[:3],
         "weekly_top_five": weekly_rows[:5],
-        "overall_top_five": leaderboard_rows[:10],
+        "overall_top_five": leaderboard_rows[:5],
     }
     return render(request, "home.html", context)
 
 
 def leaderboard(request):
-    verified_submissions = list(verified_submission_queryset())
+    query = (request.GET.get("q") or "").strip()
+    verified_submissions = get_official_verified_submissions()
     public_submissions = list(public_submission_queryset())
+    public_submissions = search_submissions(public_submissions, query)
     weekly_cutoff = get_weekly_window()
     weekly_submissions = [
         submission for submission in public_submissions if submission.created_at >= weekly_cutoff
     ]
 
+    leaderboard_rows = build_leaderboard_rows(public_submissions)
+
     context = {
-        "leaderboard_rows": build_leaderboard_rows(public_submissions),
+        "leaderboard_rows": paginate_items(request, leaderboard_rows),
         "weekly_rows": build_leaderboard_rows(weekly_submissions)[:5],
         "rank_tiers": RANK_TIERS,
         "verified_count": len(verified_submissions),
         "submission_count": len(public_submissions),
+        "query": query,
     }
     return render(request, "leaderboard.html", context)
 
@@ -174,15 +239,56 @@ def logout_view(request):
 
 @login_required
 def dashboard(request):
+    profile = request.user.profile
+    if request.method == "POST":
+        username = (request.POST.get("username") or "").strip()
+        display_name = (request.POST.get("display_name") or "").strip()
+        email = (request.POST.get("email") or "").strip().lower()
+        profile_photo = (request.POST.get("profile_photo") or "").strip()
+        country = (request.POST.get("country") or "").strip()
+        age = (request.POST.get("age") or "").strip()
+        bio = (request.POST.get("bio") or "").strip()
+
+        if username and User.objects.filter(username=username).exclude(pk=request.user.pk).exists():
+            messages.error(request, "This username is already taken.")
+            return redirect("dashboard")
+
+        if age:
+            try:
+                age_value = int(age)
+            except ValueError:
+                messages.error(request, "Age must be a whole number.")
+                return redirect("dashboard")
+            if age_value < 13 or age_value > 100:
+                messages.error(request, "Age must be between 13 and 100.")
+                return redirect("dashboard")
+        else:
+            age_value = None
+
+        if username:
+            request.user.username = username
+        request.user.email = email
+        request.user.save(update_fields=["username", "email"])
+
+        profile.display_name = display_name or request.user.username
+        profile.profile_photo = profile_photo
+        profile.country = country
+        profile.age = age_value
+        profile.bio = bio
+        profile.save(update_fields=["display_name", "profile_photo", "country", "age", "bio", "updated_at"])
+        messages.success(request, "Profile updated.")
+        return redirect("dashboard")
+
     verified_submissions = request.user.submission_set.filter(status=Submission.STATUS_VERIFIED)
     pending_submissions = request.user.submission_set.filter(status=Submission.STATUS_PENDING)
-    best_submission = verified_submissions.order_by("-reps", "created_at").first()
+    best_submission = get_best_verified_submission_for_user(request.user)
+    best_pending_submission = pending_submissions.order_by("-reps", "created_at").first()
     first_submission = request.user.submission_set.order_by("created_at").first()
     current_rank = None
     current_tier = get_rank_tier(0)
 
     if best_submission:
-        current_rank = verified_submission_queryset().filter(reps__gt=best_submission.reps).count() + 1
+        current_rank = get_official_rank_for_submission(best_submission)
         current_tier = best_submission.rank_tier
 
     weeks_active = 0
@@ -190,8 +296,9 @@ def dashboard(request):
         weeks_active = max(1, ((timezone.now() - first_submission.created_at).days // 7) + 1)
 
     context = {
-        "profile": request.user.profile,
+        "profile": profile,
         "best_submission": best_submission,
+        "best_pending_submission": best_pending_submission,
         "current_pr": best_submission.reps if best_submission else 0,
         "all_time_pr": best_submission.reps if best_submission else 0,
         "current_rank": current_rank,
@@ -210,16 +317,30 @@ def dashboard(request):
 
 
 def profiles(request):
+    query = (request.GET.get("q") or "").strip()
     profiles_with_scores = Profile.objects.filter(personal_best_reps__gt=0).order_by(
         "current_rank", "-personal_best_reps", "display_name"
     )
-    return render(request, "profiles.html", {"profiles": profiles_with_scores})
+    if query:
+        profiles_with_scores = profiles_with_scores.filter(
+            Q(display_name__icontains=query)
+            | Q(user__username__icontains=query)
+            | Q(country__icontains=query)
+        )
+    return render(
+        request,
+        "profiles.html",
+        {
+            "profiles": paginate_items(request, profiles_with_scores, per_page=10),
+            "query": query,
+        },
+    )
 
 
 def athlete_profile(request, slug):
     profile = get_object_or_404(Profile, slug=slug)
     verified_submissions = profile.user.submission_set.filter(status=Submission.STATUS_VERIFIED)
-    best_submission = verified_submissions.order_by("-reps", "created_at").first()
+    best_submission = get_best_verified_submission_for_user(profile.user)
     profile.refresh_verified_stats()
     context = {
         "profile": profile,
@@ -295,6 +416,50 @@ def challenge(request):
         return redirect("challenge")
 
     return render(request, "challenge.html", context)
+
+
+def is_app_admin(user):
+    return user.is_authenticated and user.is_staff
+
+
+@user_passes_test(is_app_admin, login_url="login")
+def admin_review(request):
+    pending_submissions = Submission.objects.filter(status=Submission.STATUS_PENDING).select_related(
+        "user", "user__profile"
+    ).order_by("-created_at")
+    reviewed_submissions = Submission.objects.exclude(status=Submission.STATUS_PENDING).select_related(
+        "user", "user__profile"
+    ).order_by("-created_at")[:20]
+    return render(
+        request,
+        "admin_review.html",
+        {
+            "pending_submissions": pending_submissions,
+            "reviewed_submissions": reviewed_submissions,
+        },
+    )
+
+
+@require_POST
+@user_passes_test(is_app_admin, login_url="login")
+def review_submission(request, submission_id):
+    submission = get_object_or_404(Submission, pk=submission_id)
+    action = request.POST.get("action")
+
+    if action == "approve":
+        submission.status = Submission.STATUS_VERIFIED
+        submission.verified = True
+        submission.save(update_fields=["status", "verified"])
+        messages.success(request, f"{submission.name} was approved with {submission.reps} reps.")
+    elif action == "reject":
+        submission.status = Submission.STATUS_REJECTED
+        submission.verified = False
+        submission.save(update_fields=["status", "verified"])
+        messages.info(request, f"{submission.name} was rejected.")
+    else:
+        messages.error(request, "Unknown review action.")
+
+    return redirect("admin_review")
 
 
 def newsletter_signup(request):

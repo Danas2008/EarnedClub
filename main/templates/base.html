@@ -36,9 +36,9 @@
             --accent-2: #fc4a1a;
             --success: #1e9d74;
             --shadow: 0 22px 60px rgba(0, 0, 0, 0.35);
-            --radius-lg: 28px;
-            --radius-md: 20px;
-            --radius-sm: 14px;
+            --radius-lg: 8px;
+            --radius-md: 8px;
+            --radius-sm: 8px;
             --content-width: 1180px;
         }
 
@@ -55,10 +55,7 @@
             min-height: 100vh;
             color: var(--text);
             font-family: "Source Sans 3", sans-serif;
-            background:
-                radial-gradient(circle at top left, rgba(247, 183, 51, 0.18), transparent 30%),
-                radial-gradient(circle at top right, rgba(252, 74, 26, 0.12), transparent 25%),
-                linear-gradient(180deg, #0a0f14 0%, #0d141c 45%, #0c1117 100%);
+            background: linear-gradient(180deg, #0a0f14 0%, #0d141c 45%, #0c1117 100%);
         }
 
         a {
@@ -74,32 +71,6 @@
         .site-shell {
             position: relative;
             overflow: hidden;
-        }
-
-        .site-shell::before,
-        .site-shell::after {
-            content: "";
-            position: fixed;
-            inset: auto;
-            width: 420px;
-            height: 420px;
-            border-radius: 999px;
-            filter: blur(90px);
-            opacity: 0.18;
-            pointer-events: none;
-            z-index: 0;
-        }
-
-        .site-shell::before {
-            top: -120px;
-            left: -120px;
-            background: #ff7b54;
-        }
-
-        .site-shell::after {
-            right: -120px;
-            top: 180px;
-            background: #f7b733;
         }
 
         .topbar {
@@ -157,7 +128,7 @@
             box-shadow: none !important;
             color: var(--text) !important;
             font-size: 1rem;
-            border-radius: 999px;
+            border-radius: var(--radius-sm);
             padding: 8px 14px;
         }
 
@@ -165,7 +136,7 @@
             color: var(--muted) !important;
             font-weight: 600;
             padding: 10px 16px !important;
-            border-radius: 999px;
+            border-radius: var(--radius-sm);
             transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease;
         }
 
@@ -204,7 +175,7 @@
         .hero-card {
             overflow: hidden;
             position: relative;
-            padding: 40px;
+            padding: 28px;
         }
 
         .hero-card::after {
@@ -216,8 +187,8 @@
         }
 
         .card-dark {
-            padding: 30px;
-            margin-bottom: 24px;
+            padding: 20px;
+            margin-bottom: 18px;
         }
 
         .section-title,
@@ -232,14 +203,14 @@
         }
 
         h1 {
-            font-size: clamp(2.9rem, 7vw, 5.3rem);
+            font-size: clamp(2.4rem, 7vw, 4.6rem);
             line-height: 0.95;
             margin-bottom: 16px;
             font-weight: 900;
         }
 
         h2 {
-            font-size: clamp(1.8rem, 3vw, 2.7rem);
+            font-size: clamp(1.45rem, 3vw, 2.2rem);
             margin-bottom: 16px;
             font-weight: 800;
         }
@@ -262,8 +233,8 @@
         p {
             margin: 0 0 14px;
             color: var(--text);
-            font-size: 1.05rem;
-            line-height: 1.7;
+            font-size: 1rem;
+            line-height: 1.55;
         }
 
         .muted {
@@ -276,7 +247,7 @@
             gap: 8px;
             margin-bottom: 18px;
             padding: 8px 14px;
-            border-radius: 999px;
+            border-radius: var(--radius-sm);
             background: rgba(255, 255, 255, 0.06);
             border: 1px solid rgba(255, 255, 255, 0.08);
             color: var(--muted);
@@ -326,9 +297,9 @@
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            min-height: 48px;
-            padding: 12px 20px;
-            border-radius: 999px;
+            min-height: 44px;
+            padding: 10px 16px;
+            border-radius: var(--radius-sm);
             font-weight: 800;
             transition: transform 0.2s ease, opacity 0.2s ease, background 0.2s ease;
         }
@@ -369,13 +340,13 @@
             background: rgba(255, 255, 255, 0.04);
             border: 1px solid rgba(255, 255, 255, 0.08);
             border-radius: var(--radius-md);
-            padding: 20px;
+            padding: 14px;
         }
 
         .stat-value {
             display: block;
             font-family: "Archivo", sans-serif;
-            font-size: 2rem;
+            font-size: 1.65rem;
             line-height: 1;
             margin-bottom: 8px;
         }
@@ -395,7 +366,7 @@
         }
 
         .metric-card {
-            min-height: 140px;
+            min-height: 104px;
         }
 
         .progress-chart {
@@ -416,7 +387,7 @@
             display: inline-flex;
             align-items: center;
             padding: 6px 10px;
-            border-radius: 999px;
+            border-radius: var(--radius-sm);
             font-size: 0.82rem;
             font-weight: 800;
             text-transform: uppercase;
@@ -480,8 +451,8 @@
         .rank-name {
             display: inline-flex;
             align-items: center;
-            padding: 8px 12px;
-            border-radius: 999px;
+            padding: 6px 10px;
+            border-radius: var(--radius-sm);
             background: rgba(247, 183, 51, 0.14);
             color: #ffd77b;
             font-size: 0.9rem;
@@ -498,7 +469,7 @@
 
         .leaderboard-table th,
         .leaderboard-table td {
-            padding: 16px 14px;
+            padding: 10px 12px;
             text-align: left;
             border-bottom: 1px solid rgba(255, 255, 255, 0.08);
             vertical-align: top;
@@ -522,7 +493,7 @@
             align-items: center;
             gap: 8px;
             padding: 7px 12px;
-            border-radius: 999px;
+            border-radius: var(--radius-sm);
             background: rgba(255, 255, 255, 0.06);
             border: 1px solid rgba(255, 255, 255, 0.08);
             font-weight: 700;
@@ -531,6 +502,97 @@
         .tag-pill {
             font-size: 0.86rem;
             color: var(--muted);
+        }
+
+        .search-row {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            gap: 10px;
+            align-items: end;
+            margin-bottom: 16px;
+        }
+
+        .athlete-row {
+            display: grid;
+            grid-template-columns: auto minmax(0, 1fr) auto auto auto;
+            gap: 12px;
+            align-items: center;
+            padding: 10px 12px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            transition: background 0.2s ease, transform 0.2s ease;
+        }
+
+        .athlete-row:hover {
+            background: rgba(255, 255, 255, 0.045);
+            transform: translateY(-1px);
+        }
+
+        .athlete-row:last-child {
+            border-bottom: none;
+        }
+
+        .avatar {
+            width: 42px;
+            height: 42px;
+            border-radius: 50%;
+            object-fit: cover;
+            background: rgba(247, 183, 51, 0.16);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-family: "Archivo", sans-serif;
+            font-weight: 800;
+            color: #ffd77b;
+            flex: 0 0 auto;
+        }
+
+        .avatar-lg {
+            width: 84px;
+            height: 84px;
+            font-size: 1.8rem;
+        }
+
+        .row-title {
+            min-width: 0;
+        }
+
+        .row-title .submission-name,
+        .row-title .submission-meta {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .pagination-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            margin-top: 16px;
+            flex-wrap: wrap;
+        }
+
+        .rank-strip {
+            display: grid;
+            grid-template-columns: repeat(5, minmax(180px, 1fr));
+            gap: 12px;
+            overflow-x: auto;
+            scroll-snap-type: x mandatory;
+            padding-bottom: 8px;
+        }
+
+        .rank-strip .rank-card {
+            min-width: 180px;
+            scroll-snap-align: start;
+        }
+
+        .floating-cta {
+            position: fixed;
+            right: 18px;
+            bottom: 18px;
+            z-index: 20;
+            box-shadow: var(--shadow);
         }
 
         .medal {
@@ -714,8 +776,8 @@
 
             .hero-card,
             .card-dark {
-                padding: 24px;
-                border-radius: 24px;
+                padding: 18px;
+                border-radius: var(--radius-lg);
             }
 
             .brand-logo {
@@ -733,6 +795,26 @@
             .mobile-cards {
                 display: grid;
                 gap: 14px;
+            }
+
+            .search-row,
+            .athlete-row {
+                grid-template-columns: auto minmax(0, 1fr) auto;
+            }
+
+            .athlete-row .hide-mobile {
+                display: none;
+            }
+
+            .rank-strip {
+                grid-template-columns: repeat(5, 84%);
+                gap: 14px;
+            }
+
+            .floating-cta {
+                left: 16px;
+                right: 16px;
+                bottom: 14px;
             }
         }
     </style>
@@ -783,11 +865,11 @@
                                 </li>
                                 {% if request.user.is_authenticated %}
                                     <li class="nav-item">
-                                        <a class="nav-link" href="{% url 'dashboard' %}">Dashboard</a>
+                                        <a class="nav-link" href="{% url 'dashboard' %}">Profile</a>
                                     </li>
-                                    {% if request.user.profile %}
+                                    {% if request.user.is_staff %}
                                         <li class="nav-item">
-                                            <a class="nav-link" href="{% url 'athlete_profile' request.user.profile.slug %}">My Profile</a>
+                                            <a class="nav-link" href="{% url 'admin_review' %}">Review</a>
                                         </li>
                                     {% endif %}
                                     <li class="nav-item">
@@ -833,6 +915,8 @@
             </div>
         </footer>
     </div>
+
+    <a class="btn-main floating-cta" href="{% url 'challenge' %}">Submit Score</a>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>

@@ -275,3 +275,70 @@ class SubmissionFlowTests(TestCase):
 
         self.assertContains(response, "65 reps")
         self.assertNotContains(response, "25 reps")
+
+    def test_leaderboard_shows_best_pending_instead_of_lower_verified_for_user(self):
+        user = User.objects.create_user(username="one-row", password="StrongPass12345")
+        user.profile.display_name = "One Row"
+        user.profile.save()
+        Submission.objects.create(user=user, name="One Row", reps=40, status=Submission.STATUS_VERIFIED)
+        Submission.objects.create(user=user, name="One Row", reps=55, status=Submission.STATUS_PENDING)
+
+        response = self.client.get(reverse("leaderboard"))
+
+        self.assertContains(response, "55")
+        self.assertContains(response, "Unverified")
+        self.assertContains(response, "Official rank #1")
+        self.assertNotContains(response, "40</span>")
+
+    def test_approving_higher_verified_submission_removes_previous_verified_for_user(self):
+        user = User.objects.create_user(username="replace", password="StrongPass12345")
+        Submission.objects.create(user=user, name="Replace", reps=42, status=Submission.STATUS_VERIFIED)
+        newer = Submission.objects.create(user=user, name="Replace", reps=60, status=Submission.STATUS_PENDING)
+
+        newer.status = Submission.STATUS_VERIFIED
+        newer.save(update_fields=["status"])
+
+        self.assertEqual(
+            list(user.submission_set.filter(status=Submission.STATUS_VERIFIED).values_list("reps", flat=True)),
+            [60],
+        )
+
+    def test_dashboard_updates_profile_fields(self):
+        user = User.objects.create_user(username="editable", password="StrongPass12345")
+        self.client.force_login(user)
+
+        response = self.client.post(
+            reverse("dashboard"),
+            {
+                "username": "edited-name",
+                "display_name": "Edited Athlete",
+                "email": "edited@example.com",
+                "country": "Czech Republic",
+                "age": "24",
+                "profile_photo": "https://example.com/photo.jpg",
+                "bio": "Training daily.",
+            },
+        )
+
+        self.assertRedirects(response, reverse("dashboard"))
+        user.refresh_from_db()
+        user.profile.refresh_from_db()
+        self.assertEqual(user.username, "edited-name")
+        self.assertEqual(user.email, "edited@example.com")
+        self.assertEqual(user.profile.display_name, "Edited Athlete")
+        self.assertEqual(user.profile.country, "Czech Republic")
+        self.assertEqual(user.profile.age, 24)
+
+    def test_staff_can_approve_submission_in_app(self):
+        admin = User.objects.create_user(username="staff", password="StrongPass12345", is_staff=True)
+        self.client.force_login(admin)
+        submission = Submission.objects.create(name="Review Me", reps=48, status=Submission.STATUS_PENDING)
+
+        response = self.client.post(
+            reverse("review_submission", args=[submission.id]),
+            {"action": "approve"},
+        )
+
+        self.assertRedirects(response, reverse("admin_review"))
+        submission.refresh_from_db()
+        self.assertEqual(submission.status, Submission.STATUS_VERIFIED)
