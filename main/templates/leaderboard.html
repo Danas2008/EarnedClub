@@ -69,6 +69,11 @@
                         </div>
                         <div class="submission-meta">{{ row.submission.reps }} reps - {{ row.submission.benchmark_label }}</div>
                     </div>
+                    
+                    {% if row.profile %}
+                        <a class="btn-secondary hide-mobile" style="min-height: 34px; padding: 6px 10px;" href="{% url 'athlete_profile' row.profile.slug %}">View Public Profile</a>
+                    {% endif %}
+
                     <div class="position-pill hide-mobile">
                         {% if row.medal_place == 1 %}<span class="medal">&#129351;</span>{% endif %}
                         {% if row.medal_place == 2 %}<span class="medal">&#129352;</span>{% endif %}
@@ -76,9 +81,6 @@
                         #{{ row.position }}
                     </div>
                     <span class="status-pill {{ row.submission.status }}">{{ row.submission.public_status_label }}</span>
-                    {% if row.profile %}
-                        <a class="btn-secondary hide-mobile" style="min-height: 34px; padding: 6px 10px;" href="{% url 'athlete_profile' row.profile.slug %}">View Public Profile</a>
-                    {% endif %}
                 </div>
             {% endfor %}
         </div>
