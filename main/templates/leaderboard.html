@@ -8,9 +8,9 @@
     <div class="content-split">
         <div class="stack">
             <div class="eyebrow">Open board with verification status</div>
-            <h1>Leaderboard.</h1>
+            <h1>Chase the board.</h1>
             <p class="muted">
-                This board shows every submitted result from highest reps to lowest reps. Verified entries count as official ranked scores; unverified entries stay visible while they wait for review.
+                Browse verified ranks, fresh weekly attempts, and pending performances waiting for review. The fastest path onto the board is simple: submit a clean set with clear proof.
             </p>
             <p>
                 Elite is treated as a top 10% style benchmark. Earned Legend is the top 1% style benchmark.
@@ -32,12 +32,12 @@
                 <div class="stat-card">
                     <span class="kicker">All submissions</span>
                     <span class="stat-value">{{ submission_count }}</span>
-                    <div class="muted">Visible with review status.</div>
+                    <div class="muted">Shown in this view.</div>
                 </div>
                 <div class="stat-card">
-                    <span class="kicker">Elite line</span>
-                    <span class="stat-value">60+</span>
-                    <div class="muted">Top 10% benchmark.</div>
+                    <span class="kicker">Pending review</span>
+                    <span class="stat-value">{{ pending_count }}</span>
+                    <div class="muted">Waiting for approval.</div>
                 </div>
             </div>
         </div>
@@ -92,13 +92,23 @@
 <section id="full-leaderboard" class="card-dark full-leaderboard-section">
     <div class="section-spread">
         <div>
-            <h2>Full Leaderboard</h2>
+            <h2>{{ active_mode.label }}</h2>
             <p class="muted">
-                This is the full open board of all entries, sorted from highest to lowest reps. Unverified results stay visible, but only verified results receive an official rank.
+                {{ active_mode.description }} Use the tabs and search to quickly compare the exact slice you care about.
             </p>
         </div>
+        <a class="btn-main" href="/challenge/#submit-form-top">Submit Score</a>
+    </div>
+    <div class="mode-tabs" role="list" aria-label="Leaderboard views">
+        {% for mode in leaderboard_modes %}
+            <a class="mode-tab{% if mode.is_active %} is-active{% endif %}" href="{{ mode.url }}" role="listitem">
+                <strong>{{ mode.label }}</strong>
+                <span>{{ mode.description }}</span>
+            </a>
+        {% endfor %}
     </div>
     <form class="search-row" method="GET" action="{% url 'leaderboard' %}#full-leaderboard">
+        <input type="hidden" name="mode" value="{{ active_mode.key }}">
         <div>
             <label class="field-label" for="leaderboard-search">Search by athlete name</label>
             <input id="leaderboard-search" class="input" type="search" name="q" value="{{ query }}" placeholder="Search athletes">
@@ -214,10 +224,10 @@
             <div class="muted">Page {{ leaderboard_rows.number }} of {{ leaderboard_rows.paginator.num_pages }}</div>
             <div class="button-row" style="margin-top: 0;">
                 {% if leaderboard_rows.has_previous %}
-                    <a class="btn-secondary" href="?q={{ query }}&page={{ leaderboard_rows.previous_page_number }}#full-leaderboard">Previous 10</a>
+                    <a class="btn-secondary" href="?{{ leaderboard_querystring }}&page={{ leaderboard_rows.previous_page_number }}#full-leaderboard">Previous 10</a>
                 {% endif %}
                 {% if leaderboard_rows.has_next %}
-                    <a class="btn-main" href="?q={{ query }}&page={{ leaderboard_rows.next_page_number }}#full-leaderboard">Next 10</a>
+                    <a class="btn-main" href="?{{ leaderboard_querystring }}&page={{ leaderboard_rows.next_page_number }}#full-leaderboard">Next 10</a>
                 {% endif %}
             </div>
         </div>

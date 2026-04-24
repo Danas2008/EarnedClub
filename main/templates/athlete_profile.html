@@ -1,7 +1,15 @@
 {% extends "base.html" %}
 
-{% block title %}{{ profile.display_name }}{% endblock %}
-{% block meta_description %}View {{ profile.display_name }} on Earned Club with verified push-up history, current rank, athlete profile details, and public progress tracking.{% endblock %}
+{% block title %}{{ profile.display_name }} - Earned Club Athlete{% endblock %}
+{% block meta_description %}{{ profile_description }} View verified push-up history, current rank, athlete details, and public progress tracking on Earned Club.{% endblock %}
+{% block og_type %}profile{% endblock %}
+{% block og_title %}{{ profile.display_name }} - {{ profile.personal_best_reps }} verified reps{% endblock %}
+{% block og_description %}{{ profile_description }}{% endblock %}
+{% block twitter_title %}{{ profile.display_name }} - Earned Club Athlete{% endblock %}
+{% block twitter_description %}{{ profile_description }}{% endblock %}
+{% block structured_data %}
+    <script type="application/ld+json">{{ profile_schema_json }}</script>
+{% endblock %}
 
 {% block content %}
 <section class="hero-card profile-header">
@@ -19,6 +27,10 @@
                 {% if profile.age %}{% if profile.country %} - {% endif %}{{ profile.age }} years old{% endif %}
             </p>
             {% if profile.bio %}<p>{{ profile.bio }}</p>{% endif %}
+            <div class="button-row">
+                <a class="btn-main" href="{% url 'challenge' %}#submit-form-top">Submit Your Score</a>
+                <a class="btn-secondary" href="{% url 'leaderboard' %}#full-leaderboard">Compare Rankings</a>
+            </div>
         </div>
     </div>
     <div class="stat-grid">

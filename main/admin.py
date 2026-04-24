@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.utils.html import format_html
 
-from .models import NewsletterSubscriber, Profile, Submission
+from .models import NewsletterSubscriber, Profile, Submission, VerificationEvent
 
 
 @admin.register(Submission)
@@ -31,4 +31,13 @@ class ProfileAdmin(admin.ModelAdmin):
 class NewsletterSubscriberAdmin(admin.ModelAdmin):
     list_display = ("email", "created_at")
     search_fields = ("email",)
+    ordering = ("-created_at",)
+
+
+@admin.register(VerificationEvent)
+class VerificationEventAdmin(admin.ModelAdmin):
+    list_display = ("submission", "action", "reviewer", "created_at")
+    list_filter = ("action", "created_at")
+    search_fields = ("submission__name", "submission__email", "note")
+    readonly_fields = ("submission", "reviewer", "action", "note", "created_at")
     ordering = ("-created_at",)

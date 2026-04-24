@@ -4,20 +4,72 @@
 
 {% block content %}
 <section class="hero-card" style="margin-bottom: 24px;">
-    <div class="eyebrow">Admin Review</div>
-    <h1>Verify scores.</h1>
-    <p class="muted">Approve or reject pending submissions directly in the app. Old verified attempts stay in profile history, while leaderboard rank uses only the best verified result.</p>
+    <div class="content-split">
+        <div>
+            <div class="eyebrow">Admin Review</div>
+            <h1>Verify scores.</h1>
+            <p class="muted">Filter the queue, open proof quickly, leave a short note, and keep an audit trail for every decision.</p>
+        </div>
+        <div class="stat-grid">
+            <div class="stat-card">
+                <span class="kicker">Pending</span>
+                <span class="stat-value">{{ pending_count }}</span>
+            </div>
+            <div class="stat-card">
+                <span class="kicker">In view</span>
+                <span class="stat-value">{{ review_count }}</span>
+            </div>
+            <div class="stat-card">
+                <span class="kicker">Decision</span>
+                <span class="stat-value">2</span>
+                <div class="muted">Approve or reject.</div>
+            </div>
+        </div>
+    </div>
 </section>
 
 <section class="card-dark">
     <div class="section-spread">
         <div>
-            <h2>Pending Review</h2>
-            <p class="muted">Open the proof, check the rep count, then approve or reject.</p>
+            <h2>Review Queue</h2>
+            <p class="muted">Open the proof, check the rep count, add an optional note, then move to the next submission.</p>
         </div>
     </div>
 
-    {% for submission in pending_submissions %}
+    <form class="review-filter-form filter-row" method="GET">
+        <div>
+            <label class="field-label" for="status">Status</label>
+            <select class="select" id="status" name="status">
+                {% for value, label in status_options %}
+                    <option value="{{ value }}"{% if status_filter == value %} selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div>
+            <label class="field-label" for="proof">Proof</label>
+            <select class="select" id="proof" name="proof">
+                <option value="all"{% if proof_filter == "all" %} selected{% endif %}>All proof states</option>
+                <option value="with-proof"{% if proof_filter == "with-proof" %} selected{% endif %}>With proof</option>
+                <option value="needs-proof"{% if proof_filter == "needs-proof" %} selected{% endif %}>Needs proof</option>
+            </select>
+        </div>
+        <div>
+            <label class="field-label" for="order">Sort</label>
+            <select class="select" id="order" name="order">
+                <option value="newest"{% if order_filter == "newest" %} selected{% endif %}>Newest first</option>
+                <option value="oldest"{% if order_filter == "oldest" %} selected{% endif %}>Oldest first</option>
+                <option value="highest"{% if order_filter == "highest" %} selected{% endif %}>Highest reps</option>
+                <option value="lowest"{% if order_filter == "lowest" %} selected{% endif %}>Lowest reps</option>
+            </select>
+        </div>
+        <div>
+            <label class="field-label" for="q">Search</label>
+            <input id="q" class="input" type="search" name="q" value="{{ query }}" placeholder="Name, email, username">
+        </div>
+        <button class="btn-secondary" type="submit">Filter</button>
+    </form>
+
+    {% for submission in review_submissions %}
         <div class="review-card">
             {% if submission.user and submission.user.profile.profile_image_url %}
                 <img class="avatar" src="{{ submission.user.profile.profile_image_url }}" alt="{{ submission.name }} profile picture">
@@ -26,24 +78,47 @@
             {% endif %}
             <div class="stack" style="gap: 12px;">
                 <div class="submission-name">{{ submission.name }}</div>
-                <div class="submission-meta">{{ submission.reps }} reps submitted {{ submission.created_at|date:"M j, Y H:i" }}</div>
+                <div class="submission-meta">
+                    {{ submission.reps }} reps submitted {{ submission.created_at|date:"M j, Y H:i" }}
+                    {% if submission.email %} - {{ submission.email }}{% endif %}
+                </div>
                 <div class="review-proof-actions">
-                    {% if submission.video_link %}
-                        <a class="btn-secondary" style="min-height: 34px; padding: 6px 10px;" href="{{ submission.video_link }}" target="_blank" rel="noopener noreferrer">Open Proof Link</a>
+                    {% if submission.proof_url %}
+                        <a class="btn-secondary" style="min-height: 34px; padding: 6px 10px;" href="{{ submission.proof_url }}" target="_blank" rel="noopener noreferrer">{{ submission.proof_label|default:"Open Proof" }}</a>
+                    {% else %}
+                        <span class="tag-pill">No proof yet</span>
                     {% endif %}
                 </div>
-                <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;">
-                    <span class="status-pill pending">Pending</span>
-                    <form method="POST" action="{% url 'review_submission' submission.id %}" class="review-actions">
-                        {% csrf_token %}
-                        <button class="btn-main" type="submit" name="action" value="approve">Approve</button>
-                        <button class="btn-secondary" type="submit" name="action" value="reject">Reject</button>
-                    </form>
-                </div>
+                {% if submission.verification_events.all %}
+                    <div class="audit-list">
+                        {% for event in submission.verification_events.all|slice:":2" %}
+                            <div class="audit-item">
+                                {{ event.get_action_display }} {{ event.created_at|date:"M j, H:i" }}
+                                {% if event.note %} - {{ event.note }}{% endif %}
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+                <form method="POST" action="{% url 'review_submission' submission.id %}" class="stack" style="gap: 10px;">
+                    {% csrf_token %}
+                    <input type="hidden" name="status_filter" value="{{ status_filter }}">
+                    <input type="hidden" name="proof_filter" value="{{ proof_filter }}">
+                    <input type="hidden" name="order_filter" value="{{ order_filter }}">
+                    <input type="hidden" name="q" value="{{ query }}">
+                    <label class="field-label" for="review-note-{{ submission.id }}">Review note</label>
+                    <textarea id="review-note-{{ submission.id }}" class="textarea textarea-sm" name="review_note" placeholder="Optional note for audit history and rejection email"></textarea>
+                    <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;">
+                        <span class="status-pill {{ submission.status }}">{{ submission.public_status_label }}</span>
+                        <div class="review-actions">
+                            <button class="btn-main" type="submit" name="action" value="approve">Approve</button>
+                            <button class="btn-secondary" type="submit" name="action" value="reject">Reject</button>
+                        </div>
+                    </div>
+                </form>
             </div>
         </div>
     {% empty %}
-        <p class="muted">No pending submissions right now.</p>
+        <p class="muted">No submissions match these filters.</p>
     {% endfor %}
 </section>
 

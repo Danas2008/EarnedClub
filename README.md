@@ -7,9 +7,18 @@ Earn your rank. Prove your performance. Unlock exclusive status-based fitness re
 1. Create and activate a virtual environment.
 2. Install dependencies with `pip install -r requirements.txt`.
 3. Run migrations with `python manage.py migrate`.
-4. Start the server with `python manage.py runserver`.
+4. Optional but useful: create local static output with `python manage.py collectstatic --noinput`.
+5. Start the server with `python manage.py runserver`.
 
 If `DATABASE_URL` is not set, the project falls back to local SQLite.
+
+Quick health check:
+
+```powershell
+python manage.py check
+python manage.py test
+python manage.py migrate --noinput
+```
 
 ## Production stack
 
@@ -21,9 +30,15 @@ If `DATABASE_URL` is not set, the project falls back to local SQLite.
 
 - `SECRET_KEY`
 - `DEBUG=False`
-- `ALLOWED_HOSTS=earnedclub.onrender.com,<your-domain>`
-- `CSRF_TRUSTED_ORIGINS=https://earnedclub.onrender.com,https://<your-domain>`
+- `SITE_URL=https://earnedclub.club`
+- `ALLOWED_HOSTS=earnedclub.club,www.earnedclub.club,earnedclub.onrender.com`
+- `CSRF_TRUSTED_ORIGINS=https://earnedclub.club,https://www.earnedclub.club,https://earnedclub.onrender.com`
 - `DATABASE_URL=<Supabase Postgres connection string>`
+- Optional email delivery:
+  - `EMAIL_BACKEND=<your SMTP/email backend>`
+  - `DEFAULT_FROM_EMAIL=Earned Club <noreply@earnedclub.club>`
+
+`SITE_URL` is used for canonical links, robots.txt, sitemap URLs, and structured data. Keep it set to the public production domain, not the Render subdomain.
 
 ## Supabase setup
 
@@ -36,6 +51,21 @@ If `DATABASE_URL` is not set, the project falls back to local SQLite.
 
 ## Verification flow
 
-- User submissions are created as unverified.
-- Verified results are managed in Django admin.
-- The leaderboard displays only verified submissions.
+- Submissions without proof are saved as unverified.
+- Submissions with proof enter pending review.
+- Review actions create an audit event and can notify the athlete by email.
+- The leaderboard can show open, verified, weekly, monthly, and pending views.
+- Only verified submissions receive official rank.
+
+## Sitemap and Google Search Console
+
+- Public sitemap: `https://earnedclub.club/sitemap.xml`
+- Robots file: `https://earnedclub.club/robots.txt`
+- Human-readable sitemap styling: `https://earnedclub.club/sitemap.xsl`
+
+If Search Console reports `nelze nacist` / Could not fetch, check:
+
+1. Render has deployed the latest `working-version` commit.
+2. `ALLOWED_HOSTS` includes `earnedclub.club` and `www.earnedclub.club`.
+3. `SITE_URL` is exactly `https://earnedclub.club`.
+4. `https://earnedclub.club/sitemap.xml` returns HTTP 200 with `application/xml`.

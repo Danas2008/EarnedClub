@@ -11,8 +11,10 @@ services:
       - key: SECRET_KEY
         generateValue: true
       - key: ALLOWED_HOSTS
-        value: earnedclub.onrender.com
+        value: earnedclub.club,www.earnedclub.club,earnedclub.onrender.com
       - key: CSRF_TRUSTED_ORIGINS
-        value: https://earnedclub.onrender.com
+        value: https://earnedclub.club,https://www.earnedclub.club,https://earnedclub.onrender.com
+      - key: SITE_URL
+        value: https://earnedclub.club
       - key: DATABASE_URL
         sync: false

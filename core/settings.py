@@ -34,6 +34,7 @@ CSRF_TRUSTED_ORIGINS = get_list_env(
     "CSRF_TRUSTED_ORIGINS",
     "https://earnedclub.club,https://www.earnedclub.club,https://earnedclub.onrender.com",
 )
+SITE_URL = os.getenv("SITE_URL", "https://earnedclub.club").rstrip("/")
 
 
 INSTALLED_APPS = [
@@ -69,6 +70,7 @@ TEMPLATES = [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
+                "main.context_processors.site_metadata",
             ],
         },
     },
@@ -158,3 +160,5 @@ SECURE_HSTS_PRELOAD = not DEBUG
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 LOGIN_URL = "login"
 LOGIN_REDIRECT_URL = "dashboard"
+DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "Earned Club <noreply@earnedclub.club>")
+EMAIL_BACKEND = os.getenv("EMAIL_BACKEND", "django.core.mail.backends.console.EmailBackend")

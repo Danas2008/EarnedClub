@@ -8,22 +8,35 @@
     <div class="content-split">
         <div class="stack">
             <div class="eyebrow">Submit Your Result</div>
-            <h1>Max strict push-ups - Verify to rank.</h1>
+            <h1>Put your best set on the board.</h1>
             <p class="muted">
-                This is your entry into the Earned Club leaderboard. Strong pending results can appear while they wait, but only verified scores count as official rank.
+                Submit one strict max set, attach a public proof link, and claim a place on the Earned Club leaderboard after review.
             </p>
             <p>
-                Submit one clean set, one clear proof source, and one number you can stand behind. Verification is manual and necessary to be ranked.
+                The flow is simple on purpose: your result stays visible with a clear status, and verified scores become official ranked performances.
             </p>
             <div class="button-row">
                 <a class="btn-main" href="#submit-form-top">Send For Verification</a>
                 <a class="btn-secondary" href="/leaderboard/#full-leaderboard">See Current Rankings</a>
             </div>
-            <p class="muted" style="margin-top: 12px;">Tip: for now use a public proof link from YouTube, Drive, TikTok, or a similar service. Direct file uploads are disabled on this branch.</p>
+            <div class="trust-strip">
+                <div class="trust-item">
+                    <strong>{{ verified_count }}</strong>
+                    <span class="muted">verified scores</span>
+                </div>
+                <div class="trust-item">
+                    <strong>60+</strong>
+                    <span class="muted">Elite benchmark</span>
+                </div>
+                <div class="trust-item">
+                    <strong>Manual</strong>
+                    <span class="muted">proof review</span>
+                </div>
+            </div>
         </div>
 
         <div class="stack" id="submit-form-top">
-            <div class="card-dark">
+            <div class="submit-panel">
                 <h2>Submit Your Result</h2>
                 {% if request.user.is_authenticated %}
                     <p class="muted">
@@ -49,32 +62,35 @@
                 {% else %}
                     <form class="submission-form" method="POST">
                         {% csrf_token %}
+                        <input class="sr-only" type="text" name="website" tabindex="-1" autocomplete="off" aria-hidden="true">
 
                         {% if not request.user.is_authenticated %}
-                            <div>
-                                <label class="field-label" for="name">Name</label>
-                                <input
-                                    id="name"
-                                    class="input"
-                                    type="text"
-                                    name="name"
-                                    placeholder="How your name should appear on the leaderboard"
-                                    value="{{ form_data.name|default:'' }}"
-                                    required
-                                >
-                            </div>
+                            <div class="form-grid-2">
+                                <div>
+                                    <label class="field-label" for="name">Display name</label>
+                                    <input
+                                        id="name"
+                                        class="input"
+                                        type="text"
+                                        name="name"
+                                        placeholder="How your name should appear"
+                                        value="{{ form_data.name|default:'' }}"
+                                        required
+                                    >
+                                </div>
 
-                            <div>
-                                <label class="field-label" for="email">Email</label>
-                                <input
-                                    id="email"
-                                    class="input"
-                                    type="email"
-                                    name="email"
-                                    placeholder="you@example.com"
-                                    value="{{ form_data.email|default:'' }}"
-                                    required
-                                >
+                                <div>
+                                    <label class="field-label" for="email">Email</label>
+                                    <input
+                                        id="email"
+                                        class="input"
+                                        type="email"
+                                        name="email"
+                                        placeholder="you@example.com"
+                                        value="{{ form_data.email|default:'' }}"
+                                        required
+                                    >
+                                </div>
                             </div>
                         {% endif %}
 
@@ -106,16 +122,73 @@
                         </div>
 
                         <button type="submit" class="btn-main">Send For Verification</button>
+                        <div class="result-note">
+                            Clear proof moves fastest: side angle, full range, no cuts, and a link reviewers can open without permission.
+                        </div>
                     </form>
                 {% endif %}
             </div>
 
-            <div class="mini-card" style="margin-top: 12px;">
-                <h4>Submission rules</h4>
-                <p style="margin-bottom: 0;">If you submit without a video or proof link, the entry is saved as unverified. Add proof later from your profile dashboard to send it into pending review.</p>
+            <div class="step-list">
+                <div class="step-item">
+                    <span class="step-number">1</span>
+                    <div>
+                        <strong>Submit reps</strong>
+                        <div class="muted">Your score appears with a review status.</div>
+                    </div>
+                </div>
+                <div class="step-item">
+                    <span class="step-number">2</span>
+                    <div>
+                        <strong>Add proof</strong>
+                        <div class="muted">A public video link sends it into review.</div>
+                    </div>
+                </div>
+                <div class="step-item">
+                    <span class="step-number">3</span>
+                    <div>
+                        <strong>Earn rank</strong>
+                        <div class="muted">Approved scores become official leaderboard ranks.</div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
+</section>
+
+<section class="card-dark">
+    <div class="section-spread">
+        <div>
+            <h2>Current athletes to chase</h2>
+            <p class="muted">See the standard before you submit. A clean verified result can move you onto this board.</p>
+        </div>
+        <a class="btn-secondary" href="/leaderboard/#full-leaderboard">Open Leaderboard</a>
+    </div>
+    {% if leaderboard_preview %}
+        <div class="compact-board">
+            {% for row in leaderboard_preview %}
+                <div class="score-row">
+                    {% if row.profile and row.profile.profile_image_url %}
+                        <img class="avatar" src="{{ row.profile.profile_image_url }}" alt="{{ row.profile.display_name }} profile picture">
+                    {% elif row.profile %}
+                        <span class="avatar">{{ row.profile.display_name|first|upper }}</span>
+                    {% else %}
+                        <span class="avatar">{{ row.submission.name|first|upper }}</span>
+                    {% endif %}
+                    <div class="score-row-main">
+                        <div class="submission-name">{{ row.submission.name }}</div>
+                        <div class="submission-meta">{{ row.submission.rank_name }} - {{ row.submission.public_status_label }}</div>
+                    </div>
+                    <div class="score-row-score">
+                        <span class="position-pill">#{{ row.position }}</span>
+                        <div class="score">{{ row.submission.reps }}</div>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <p class="muted">No scores yet. The first verified results will define the board.</p>
+    {% endif %}
 </section>
 
 <section class="grid-2">

@@ -2,12 +2,13 @@ import shutil
 import tempfile
 from xml.etree import ElementTree
 
+from django.core import mail
 from django.contrib.auth.models import User
 from django.test import TestCase
 from django.test import override_settings
 from django.urls import reverse
 
-from .models import NewsletterSubscriber, Profile, Submission, get_rank_tier
+from .models import NewsletterSubscriber, Profile, Submission, VerificationEvent, get_rank_tier
 
 
 class SubmissionFlowTests(TestCase):
@@ -123,6 +124,89 @@ class SubmissionFlowTests(TestCase):
         self.assertContains(response, "Verified")
         self.assertContains(response, "Pending")
         self.assertContains(response, "Waiting for verification")
+
+    def test_leaderboard_verified_mode_uses_official_results_only(self):
+        verified = Submission.objects.create(
+            name="Verified Mode",
+            reps=55,
+            video_link="https://example.com/verified-mode",
+            status=Submission.STATUS_VERIFIED,
+        )
+        Submission.objects.create(
+            name="Pending Mode",
+            reps=99,
+            video_link="https://example.com/pending-mode",
+            status=Submission.STATUS_PENDING,
+        )
+
+        response = self.client.get(f"{reverse('leaderboard')}?mode=verified")
+        rows = list(response.context["leaderboard_rows"].object_list)
+
+        self.assertEqual([row["submission"] for row in rows], [verified])
+        self.assertEqual(response.context["active_mode"]["key"], "verified")
+
+    @override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
+    def test_challenge_submission_creates_audit_event_and_email(self):
+        response = self.client.post(
+            reverse("challenge"),
+            {
+                "name": "Notify",
+                "email": "notify@example.com",
+                "reps": 38,
+                "video_link": "https://example.com/notify-proof",
+            },
+            follow=True,
+        )
+        submission = Submission.objects.get(email="notify@example.com")
+
+        self.assertContains(response, "Submission received.")
+        self.assertTrue(
+            VerificationEvent.objects.filter(
+                submission=submission,
+                action=VerificationEvent.ACTION_SUBMITTED,
+            ).exists()
+        )
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertIn("submission received", mail.outbox[0].subject.lower())
+
+    def test_duplicate_proof_link_is_blocked(self):
+        Submission.objects.create(
+            name="Original",
+            email="original@example.com",
+            reps=40,
+            status=Submission.STATUS_PENDING,
+            video_link="https://example.com/shared-proof",
+        )
+
+        response = self.client.post(
+            reverse("challenge"),
+            {
+                "name": "Copy",
+                "email": "copy@example.com",
+                "reps": 41,
+                "video_link": "https://example.com/shared-proof",
+            },
+            follow=True,
+        )
+
+        self.assertEqual(Submission.objects.count(), 1)
+        self.assertContains(response, "already attached to a submission")
+
+    def test_honeypot_submission_is_silently_ignored(self):
+        response = self.client.post(
+            reverse("challenge"),
+            {
+                "name": "Bot",
+                "email": "bot@example.com",
+                "reps": 44,
+                "video_link": "https://example.com/bot",
+                "website": "https://spam.example",
+            },
+            follow=True,
+        )
+
+        self.assertEqual(Submission.objects.count(), 0)
+        self.assertContains(response, "Submission received.")
 
     def test_newsletter_signup_creates_subscriber(self):
         response = self.client.post(
@@ -331,6 +415,8 @@ class SubmissionFlowTests(TestCase):
 
         self.assertContains(response, "65 reps")
         self.assertNotContains(response, "25 reps")
+        self.assertContains(response, 'type="application/ld+json"', html=False)
+        self.assertContains(response, "https://earnedclub.club/athlete/public/", html=False)
 
     def test_leaderboard_shows_best_pending_instead_of_lower_verified_for_user(self):
         user = User.objects.create_user(username="one-row", password="StrongPass12345")
@@ -440,9 +526,9 @@ class SubmissionFlowTests(TestCase):
         self.assertIn("application/xml", response["Content-Type"])
         self.assertContains(response, '<?xml-stylesheet type="text/xsl"', html=False)
         self.assertContains(response, "<urlset", html=False)
-        self.assertIn("http://testserver/leaderboard/", locs)
-        self.assertIn("http://testserver/challenge/", locs)
-        self.assertIn("http://testserver/sitemap.xsl", response.content.decode())
+        self.assertIn("https://earnedclub.club/leaderboard/", locs)
+        self.assertIn("https://earnedclub.club/challenge/", locs)
+        self.assertIn("https://earnedclub.club/sitemap.xsl", response.content.decode())
 
     def test_sitemap_xml_lists_public_athlete_profiles(self):
         user = User.objects.create_user(username="sitemap-athlete", password="StrongPass12345")
@@ -453,7 +539,7 @@ class SubmissionFlowTests(TestCase):
         response = self.client.get(reverse("sitemap_xml"))
         namespace = {"s": "http://www.sitemaps.org/schemas/sitemap/0.9"}
         root = ElementTree.fromstring(response.content)
-        profile_url = f"http://testserver{reverse('athlete_profile', args=[profile.slug])}"
+        profile_url = f"https://earnedclub.club{reverse('athlete_profile', args=[profile.slug])}"
         profile_nodes = [
             node
             for node in root.findall("s:url", namespace)
@@ -477,7 +563,8 @@ class SubmissionFlowTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "User-agent: *")
-        self.assertContains(response, "Sitemap: http://testserver/sitemap.xml")
+        self.assertContains(response, "Disallow: /admin/")
+        self.assertContains(response, "Sitemap: https://earnedclub.club/sitemap.xml")
 
     def test_staff_can_approve_submission_in_app(self):
         admin = User.objects.create_user(username="staff", password="StrongPass12345", is_staff=True)
@@ -489,9 +576,16 @@ class SubmissionFlowTests(TestCase):
             {"action": "approve"},
         )
 
-        self.assertRedirects(response, reverse("admin_review"))
+        self.assertRedirects(response, f"{reverse('admin_review')}?status=pending&proof=all&order=newest")
         submission.refresh_from_db()
         self.assertEqual(submission.status, Submission.STATUS_VERIFIED)
+        self.assertTrue(
+            VerificationEvent.objects.filter(
+                submission=submission,
+                action=VerificationEvent.ACTION_APPROVED,
+                reviewer=admin,
+            ).exists()
+        )
 
     def test_review_page_requires_staff_or_superuser(self):
         user = User.objects.create_user(username="regular", password="StrongPass12345")
@@ -501,3 +595,16 @@ class SubmissionFlowTests(TestCase):
 
         self.assertEqual(response.status_code, 302)
         self.assertIn(reverse("login"), response["Location"])
+
+    def test_review_page_filters_queue(self):
+        admin = User.objects.create_user(username="filter-staff", password="StrongPass12345", is_staff=True)
+        self.client.force_login(admin)
+        Submission.objects.create(name="Needs Proof", reps=20, status=Submission.STATUS_UNVERIFIED)
+        Submission.objects.create(name="Proof Ready", reps=70, status=Submission.STATUS_PENDING, video_link="https://example.com/ready")
+
+        response = self.client.get(f"{reverse('admin_review')}?status=all&proof=with-proof&q=Ready&order=highest")
+        review_names = [submission.name for submission in response.context["review_submissions"]]
+
+        self.assertContains(response, "Proof Ready")
+        self.assertEqual(review_names, ["Proof Ready"])
+        self.assertEqual(response.context["review_count"], 1)

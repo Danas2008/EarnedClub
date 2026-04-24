@@ -205,6 +205,31 @@ class Submission(models.Model):
         return bool(self.video_link or self.video_storage_path or self.video_file)
 
 
+class VerificationEvent(models.Model):
+    ACTION_SUBMITTED = "submitted"
+    ACTION_PROOF_ADDED = "proof_added"
+    ACTION_APPROVED = "approved"
+    ACTION_REJECTED = "rejected"
+    ACTION_CHOICES = [
+        (ACTION_SUBMITTED, "Submitted"),
+        (ACTION_PROOF_ADDED, "Proof added"),
+        (ACTION_APPROVED, "Approved"),
+        (ACTION_REJECTED, "Rejected"),
+    ]
+
+    submission = models.ForeignKey(Submission, related_name="verification_events", on_delete=models.CASCADE)
+    reviewer = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL)
+    action = models.CharField(max_length=24, choices=ACTION_CHOICES)
+    note = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ("-created_at",)
+
+    def __str__(self):
+        return f"{self.get_action_display()} - {self.submission.name}"
+
+
 class Profile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     display_name = models.CharField(max_length=100)

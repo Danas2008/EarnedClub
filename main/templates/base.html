@@ -9,13 +9,13 @@
     <title>{% block title %}Earned Club{% endblock %}</title>
     <meta name="description" content="{% block meta_description %}Earned Club is a push-up leaderboard and athlete profile platform where strict reps, verification, and public rank turn performance into status.{% endblock %}">
     <meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1,max-video-preview:-1">
-    <link rel="canonical" href="{% block canonical_url %}{{ request.build_absolute_uri }}{% endblock %}">
+    <link rel="canonical" href="{% block canonical_url %}{{ canonical_url }}{% endblock %}">
     <meta property="og:site_name" content="Earned Club">
     <meta property="og:type" content="{% block og_type %}website{% endblock %}">
     <meta property="og:title" content="{% block og_title %}Earned Club{% endblock %}">
     <meta property="og:description" content="{% block og_description %}Earned Club is a push-up leaderboard and athlete profile platform where strict reps, verification, and public rank turn performance into status.{% endblock %}">
-    <meta property="og:url" content="{{ request.build_absolute_uri }}">
-    <meta property="og:image" content="{{ request.build_absolute_uri }}{% static 'favicon.png' %}">
+    <meta property="og:url" content="{% block og_url %}{{ canonical_url }}{% endblock %}">
+    <meta property="og:image" content="{% block og_image %}{{ og_image_url }}{% endblock %}">
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="{% block twitter_title %}Earned Club{% endblock %}">
     <meta name="twitter:description" content="{% block twitter_description %}Earned Club is a push-up leaderboard and athlete profile platform where strict reps, verification, and public rank turn performance into status.{% endblock %}">
@@ -38,15 +38,16 @@
             "@context": "https://schema.org",
             "@type": "WebSite",
             "name": "Earned Club",
-            "url": "{{ request.scheme }}://{{ request.get_host }}",
+            "url": "{{ site_url }}",
             "description": "Push-up leaderboard, athlete profiles, verification, and public rank tracking.",
             "potentialAction": {
                 "@type": "SearchAction",
-                "target": "{{ request.scheme }}://{{ request.get_host }}/leaderboard/?q={search_term_string}",
+                "target": "{{ site_url }}/leaderboard/?q={search_term_string}",
                 "query-input": "required name=search_term_string"
             }
         }
     </script>
+    {% block structured_data %}{% endblock %}
 
 
     <style>
@@ -539,12 +540,148 @@
             color: var(--muted);
         }
 
+        .trust-strip,
+        .mode-tabs,
+        .step-list,
+        .review-filter-form {
+            display: grid;
+            gap: 10px;
+        }
+
+        .trust-strip {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            margin-top: 18px;
+        }
+
+        .trust-item,
+        .step-item,
+        .mode-tab,
+        .submit-panel {
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: var(--radius-md);
+            background: rgba(255, 255, 255, 0.04);
+        }
+
+        .submit-panel {
+            padding: 18px;
+        }
+
+        .trust-item {
+            padding: 12px;
+        }
+
+        .trust-item strong {
+            display: block;
+            margin-bottom: 4px;
+            font-family: "Archivo", sans-serif;
+        }
+
+        .step-item {
+            display: grid;
+            grid-template-columns: auto minmax(0, 1fr);
+            gap: 12px;
+            padding: 12px;
+        }
+
+        .step-number {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            color: #111111;
+            background: var(--accent);
+            font-weight: 900;
+        }
+
+        .mode-tabs {
+            grid-template-columns: repeat(5, minmax(0, 1fr));
+            margin-bottom: 16px;
+        }
+
+        .mode-tab {
+            display: grid;
+            gap: 4px;
+            padding: 12px;
+            color: var(--muted);
+            transition: border-color 0.2s ease, background 0.2s ease, transform 0.2s ease;
+        }
+
+        .mode-tab:hover,
+        .mode-tab.is-active {
+            color: var(--text);
+            border-color: rgba(247, 183, 51, 0.42);
+            background: rgba(247, 183, 51, 0.1);
+            transform: translateY(-1px);
+        }
+
+        .mode-tab strong {
+            font-family: "Archivo", sans-serif;
+            font-size: 0.98rem;
+        }
+
+        .mode-tab span {
+            font-size: 0.9rem;
+            line-height: 1.35;
+        }
+
         .search-row {
             display: grid;
             grid-template-columns: minmax(0, 1fr) auto;
             gap: 10px;
             align-items: end;
             margin-bottom: 16px;
+        }
+
+        .filter-row,
+        .review-filter-form {
+            grid-template-columns: repeat(4, minmax(0, 1fr)) auto;
+            align-items: end;
+            margin-bottom: 18px;
+        }
+
+        .form-grid-2 {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 14px;
+        }
+
+        .textarea-sm {
+            min-height: 82px;
+        }
+
+        .result-note {
+            padding: 12px;
+            border-left: 3px solid var(--accent);
+            background: rgba(247, 183, 51, 0.08);
+            color: var(--muted);
+        }
+
+        .audit-list {
+            display: grid;
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        .audit-item {
+            padding: 9px 10px;
+            border-radius: var(--radius-sm);
+            background: rgba(255, 255, 255, 0.035);
+            color: var(--muted);
+            font-size: 0.92rem;
+        }
+
+        .sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
         }
 
         .athlete-row {
@@ -1082,7 +1219,11 @@
             .grid-3,
             .grid-4,
             .content-split,
-            .video-grid {
+            .video-grid,
+            .trust-strip,
+            .mode-tabs,
+            .filter-row,
+            .review-filter-form {
                 grid-template-columns: 1fr;
             }
 
@@ -1154,6 +1295,11 @@
             .search-row,
             .athlete-row {
                 grid-template-columns: auto minmax(0, 1fr) auto;
+            }
+
+            .search-row,
+            .form-grid-2 {
+                grid-template-columns: 1fr;
             }
 
             .athlete-row .hide-mobile {

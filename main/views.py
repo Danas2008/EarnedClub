@@ -1,13 +1,18 @@
+import json
 from datetime import timedelta
 from xml.etree.ElementTree import Element, SubElement, indent, register_namespace, tostring
 from xml.sax.saxutils import quoteattr
+from urllib.parse import urlencode, urljoin
 
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import login, logout
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.decorators import user_passes_test
 from django.contrib.auth.forms import AuthenticationForm, UserCreationForm
 from django.contrib.auth.models import User
+from django.core.mail import send_mail
+from django.core.serializers.json import DjangoJSONEncoder
 from django.http import HttpResponse
 from django.db import IntegrityError
 from django.core.paginator import Paginator
@@ -16,6 +21,7 @@ from django.views.decorators.http import require_POST
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.safestring import mark_safe
 
 from .countries import COUNTRY_CHOICES
 from .models import (
@@ -23,6 +29,7 @@ from .models import (
     Profile,
     RANK_TIERS,
     Submission,
+    VerificationEvent,
     get_best_verified_submission_for_user,
     get_official_rank_for_submission,
     get_official_verified_submissions,
@@ -45,6 +52,35 @@ SITEMAP_STATIC_PAGES = [
     {"view_name": "privacy", "changefreq": "yearly", "priority": "0.2"},
     {"view_name": "terms", "changefreq": "yearly", "priority": "0.2"},
 ]
+
+LEADERBOARD_MODES = [
+    {
+        "key": "all",
+        "label": "Open Board",
+        "description": "Verified and pending entries ranked by reps.",
+    },
+    {
+        "key": "verified",
+        "label": "Verified Only",
+        "description": "Official ranked results only.",
+    },
+    {
+        "key": "week",
+        "label": "This Week",
+        "description": "Fresh entries from the past 7 days.",
+    },
+    {
+        "key": "month",
+        "label": "This Month",
+        "description": "Momentum from the past 30 days.",
+    },
+    {
+        "key": "pending",
+        "label": "Pending",
+        "description": "Strong attempts waiting for review.",
+    },
+]
+LEADERBOARD_MODE_LOOKUP = {mode["key"]: mode for mode in LEADERBOARD_MODES}
 
 
 def build_leaderboard_rows(submissions):
@@ -182,8 +218,129 @@ def get_weekly_window():
     return timezone.now() - timedelta(days=7)
 
 
+def get_monthly_window():
+    return timezone.now() - timedelta(days=30)
+
+
+def get_leaderboard_mode(request):
+    requested_mode = (request.GET.get("mode") or "all").strip().lower()
+    return LEADERBOARD_MODE_LOOKUP.get(requested_mode, LEADERBOARD_MODE_LOOKUP["all"])
+
+
+def get_leaderboard_submissions(mode_key):
+    if mode_key == "verified":
+        return get_official_verified_submissions()
+    if mode_key == "week":
+        return public_submission_queryset(since=get_weekly_window())
+    if mode_key == "month":
+        return public_submission_queryset(since=get_monthly_window())
+    if mode_key == "pending":
+        return pending_submission_queryset().select_related("user", "user__profile").order_by("-reps", "created_at")
+    return public_submission_queryset()
+
+
+def build_querystring(**params):
+    return urlencode({key: value for key, value in params.items() if value not in ("", None)})
+
+
 def build_absolute_url(request, view_name, *args):
-    return request.build_absolute_uri(reverse(view_name, args=args))
+    return urljoin(f"{settings.SITE_URL}/", reverse(view_name, args=args).lstrip("/"))
+
+
+def build_public_url(path):
+    return urljoin(f"{settings.SITE_URL}/", path.lstrip("/"))
+
+
+def json_ld(data):
+    return mark_safe(json.dumps(data, cls=DjangoJSONEncoder).replace("</", "<\\/"))
+
+
+def create_verification_event(submission, action, reviewer=None, note=""):
+    return VerificationEvent.objects.create(
+        submission=submission,
+        reviewer=reviewer if reviewer and reviewer.is_authenticated else None,
+        action=action,
+        note=note,
+    )
+
+
+def get_submission_recipient(submission):
+    if submission.user_id and submission.user.email:
+        return submission.user.email
+    return submission.email
+
+
+def send_submission_notification(submission, subject, message):
+    recipient = get_submission_recipient(submission)
+    if not recipient:
+        return
+    send_mail(
+        subject,
+        message,
+        settings.DEFAULT_FROM_EMAIL,
+        [recipient],
+        fail_silently=True,
+    )
+
+
+def find_proof_link_blocker(video_link, exclude_pk=None):
+    if not video_link:
+        return ""
+    proof_matches = Submission.objects.filter(video_link__iexact=video_link)
+    if exclude_pk:
+        proof_matches = proof_matches.exclude(pk=exclude_pk)
+    if proof_matches.exists():
+        return "This proof link is already attached to a submission. Use a different public proof link or update your existing entry."
+    return ""
+
+
+def find_submission_blocker(request, name, email, reps, video_link):
+    if request.POST.get("website"):
+        return "silent"
+
+    proof_blocker = find_proof_link_blocker(video_link)
+    if proof_blocker:
+        return proof_blocker
+
+    cooldown = timezone.now() - timedelta(minutes=10)
+    recent_duplicate = Submission.objects.filter(created_at__gte=cooldown, reps=reps)
+    if request.user.is_authenticated:
+        recent_duplicate = recent_duplicate.filter(user=request.user)
+    else:
+        recent_duplicate = recent_duplicate.filter(Q(email__iexact=email) | Q(name__iexact=name))
+    if recent_duplicate.exists():
+        return "That looks like a duplicate of a recent submission. Give it a few minutes or update your active entry with proof."
+
+    return ""
+
+
+def build_profile_schema(profile, best_submission):
+    image_url = profile.profile_image_url
+    schema = {
+        "@context": "https://schema.org",
+        "@type": "Person",
+        "name": profile.display_name,
+        "url": build_public_url(reverse("athlete_profile", args=[profile.slug])),
+        "description": (
+            f"{profile.display_name} has a verified Earned Club push-up PR of "
+            f"{profile.personal_best_reps} reps."
+        ),
+        "memberOf": {
+            "@type": "SportsOrganization",
+            "name": "Earned Club",
+            "url": settings.SITE_URL,
+        },
+    }
+    if profile.country:
+        schema["nationality"] = profile.country
+    if image_url:
+        schema["image"] = build_public_url(image_url) if image_url.startswith("/") else image_url
+    if best_submission:
+        schema["knowsAbout"] = [
+            f"Verified strict push-up personal record: {best_submission.reps} reps",
+            f"Earned Club rank tier: {best_submission.rank_name}",
+        ]
+    return schema
 
 
 def format_sitemap_date(value):
@@ -258,7 +415,7 @@ def home(request):
 def sitemap_xml(request):
     xml = build_sitemap_xml(
         build_sitemap_entries(request),
-        request.build_absolute_uri(reverse("sitemap_xsl")),
+        build_public_url(reverse("sitemap_xsl")),
     )
     return HttpResponse(xml, content_type="application/xml")
 
@@ -272,27 +429,42 @@ def robots_txt(request):
     lines = [
         "User-agent: *",
         "Allow: /",
-        f"Sitemap: {request.build_absolute_uri(reverse('sitemap_xml'))}",
+        "Disallow: /admin/",
+        f"Sitemap: {build_public_url(reverse('sitemap_xml'))}",
     ]
     return HttpResponse("\n".join(lines), content_type="text/plain")
 
 
 def leaderboard(request):
     query = (request.GET.get("q") or "").strip()
+    active_mode = get_leaderboard_mode(request)
     verified_submissions = get_official_verified_submissions()
-    public_submissions = list(public_submission_queryset())
+    public_submissions = list(get_leaderboard_submissions(active_mode["key"]))
     public_submissions = search_submissions(public_submissions, query)
     weekly_cutoff = get_weekly_window()
     weekly_submissions = search_submissions(public_submission_queryset(since=weekly_cutoff), query)
 
     leaderboard_rows = build_leaderboard_rows(public_submissions)
+    leaderboard_modes = [
+        {
+            **mode,
+            "url": f"{reverse('leaderboard')}?{build_querystring(mode=mode['key'], q=query)}#full-leaderboard",
+            "is_active": mode["key"] == active_mode["key"],
+        }
+        for mode in LEADERBOARD_MODES
+    ]
 
     context = {
         "leaderboard_rows": paginate_items(request, leaderboard_rows),
         "weekly_rows": build_leaderboard_rows(weekly_submissions)[:5],
+        "leaderboard_modes": leaderboard_modes,
+        "active_mode": active_mode,
+        "leaderboard_querystring": build_querystring(mode=active_mode["key"], q=query),
         "rank_tiers": RANK_TIERS,
         "verified_count": len(verified_submissions),
         "submission_count": len(public_submissions),
+        "pending_count": pending_submission_queryset().count(),
+        "weekly_count": len(public_submission_queryset(since=weekly_cutoff)),
         "query": query,
     }
     return render(request, "leaderboard.html", context)
@@ -463,18 +635,31 @@ def athlete_profile(request, slug):
     verified_submissions = profile.user.submission_set.filter(status=Submission.STATUS_VERIFIED)
     best_submission = get_best_verified_submission_for_user(profile.user)
     profile.refresh_verified_stats()
+    profile_description = (
+        f"{profile.display_name} has a verified Earned Club push-up PR of "
+        f"{profile.personal_best_reps} reps"
+        + (f" and is ranked #{profile.current_rank}" if profile.current_rank else "")
+        + "."
+    )
     context = {
         "profile": profile,
         "best_submission": best_submission,
         "current_tier": best_submission.rank_tier if best_submission else get_rank_tier(0),
         "verified_submissions": verified_submissions.order_by("-created_at"),
         "progress_data": get_progress_data(verified_submissions),
+        "profile_description": profile_description,
+        "profile_schema_json": json_ld(build_profile_schema(profile, best_submission)),
     }
     return render(request, "athlete_profile.html", context)
 
 
 def challenge(request):
-    context = {}
+    verified_submissions = get_official_verified_submissions()
+    context = {
+        "rank_tiers": RANK_TIERS,
+        "verified_count": len(verified_submissions),
+        "leaderboard_preview": build_leaderboard_rows(list(public_submission_queryset())[:3]),
+    }
     if request.user.is_authenticated:
         context["profile"] = request.user.profile
         context["active_submission"] = active_submission_queryset().filter(user=request.user).order_by("-created_at").first()
@@ -488,6 +673,10 @@ def challenge(request):
         if request.user.is_authenticated:
             name = user_display_name(request.user)
             email = request.user.email
+
+        if request.POST.get("website"):
+            messages.success(request, "Submission received. If it passes review, it will appear on the leaderboard.")
+            return redirect("challenge")
 
         if not name or not reps or (not request.user.is_authenticated and not email):
             messages.error(request, "Please fill in your name, email, and reps before submitting.")
@@ -514,6 +703,13 @@ def challenge(request):
 
         if active_submission:
             if active_submission.status == Submission.STATUS_UNVERIFIED and video_link:
+                proof_blocker = find_proof_link_blocker(video_link, exclude_pk=active_submission.pk)
+                if proof_blocker:
+                    messages.error(request, proof_blocker)
+                    context["form_data"] = request.POST
+                    context["active_submission"] = active_submission
+                    return render(request, "challenge.html", context)
+
                 active_submission.name = name
                 active_submission.email = email
                 active_submission.reps = reps_value
@@ -534,7 +730,16 @@ def challenge(request):
                         "verified",
                     ]
                 )
+                create_verification_event(active_submission, VerificationEvent.ACTION_PROOF_ADDED)
                 estimated_position = estimate_verified_position(reps_value)
+                send_submission_notification(
+                    active_submission,
+                    "Earned Club proof received",
+                    (
+                        f"Your proof for {active_submission.reps} reps was added and is now waiting for review. "
+                        f"If verified, it would currently rank #{estimated_position}."
+                    ),
+                )
                 messages.success(
                     request,
                     f"Proof added. If verified, this result would currently rank #{estimated_position} on the verified leaderboard.",
@@ -549,6 +754,15 @@ def challenge(request):
             context["active_submission"] = active_submission
             return render(request, "challenge.html", context)
 
+        blocker = find_submission_blocker(request, name, email, reps_value, video_link)
+        if blocker == "silent":
+            messages.success(request, "Submission received. If it passes review, it will appear on the leaderboard.")
+            return redirect("challenge")
+        if blocker:
+            messages.error(request, blocker)
+            context["form_data"] = request.POST
+            return render(request, "challenge.html", context)
+
         estimated_position = estimate_verified_position(reps_value)
         submission = Submission.objects.create(
             user=request.user if request.user.is_authenticated else None,
@@ -557,6 +771,19 @@ def challenge(request):
             reps=reps_value,
             video_link=video_link,
             status=Submission.STATUS_PENDING if video_link else Submission.STATUS_UNVERIFIED,
+        )
+        create_verification_event(submission, VerificationEvent.ACTION_SUBMITTED)
+        send_submission_notification(
+            submission,
+            "Earned Club submission received",
+            (
+                f"Your Earned Club submission for {submission.reps} reps was received. "
+                + (
+                    f"It is waiting for verification and would currently rank #{estimated_position} if approved."
+                    if submission.has_proof else
+                    "Add a public proof link from your profile dashboard to move it into review."
+                )
+            ),
         )
 
         messages.success(
@@ -590,12 +817,23 @@ def add_submission_proof(request, submission_id):
         messages.error(request, "Add a public proof link.")
         return redirect("dashboard")
 
+    proof_blocker = find_proof_link_blocker(video_link, exclude_pk=submission.pk)
+    if proof_blocker:
+        messages.error(request, proof_blocker)
+        return redirect("dashboard")
+
     submission.video_link = video_link
     submission.video_storage_path = ""
     submission.video_file = ""
     submission.status = Submission.STATUS_PENDING
     submission.verified = False
     submission.save(update_fields=["video_link", "video_storage_path", "video_file", "status", "verified"])
+    create_verification_event(submission, VerificationEvent.ACTION_PROOF_ADDED)
+    send_submission_notification(
+        submission,
+        "Earned Club proof received",
+        f"Your proof link for {submission.reps} reps was added. The submission is now waiting for review.",
+    )
     messages.success(request, "Proof added. Your submission is back in pending review.")
     return redirect("dashboard")
 
@@ -606,9 +844,29 @@ def is_app_admin(user):
 
 @user_passes_test(is_app_admin, login_url="login")
 def admin_review(request):
-    pending_submissions = Submission.objects.filter(status=Submission.STATUS_PENDING).select_related(
-        "user", "user__profile"
-    ).order_by("-created_at")
+    status_filter = (request.GET.get("status") or Submission.STATUS_PENDING).strip()
+    proof_filter = (request.GET.get("proof") or "all").strip()
+    order_filter = (request.GET.get("order") or "newest").strip()
+    query = (request.GET.get("q") or "").strip()
+
+    submissions = Submission.objects.select_related("user", "user__profile").prefetch_related("verification_events")
+    if status_filter != "all":
+        allowed_statuses = {key for key, _ in Submission.STATUS_CHOICES}
+        submissions = submissions.filter(status=status_filter if status_filter in allowed_statuses else Submission.STATUS_PENDING)
+    if proof_filter == "with-proof":
+        submissions = submissions.filter(Q(video_link__gt="") | Q(video_storage_path__gt="") | Q(video_file__gt=""))
+    elif proof_filter == "needs-proof":
+        submissions = submissions.filter(video_link="", video_storage_path="", video_file="")
+    if query:
+        submissions = submissions.filter(Q(name__icontains=query) | Q(email__icontains=query) | Q(user__username__icontains=query))
+
+    ordering = {
+        "newest": "-created_at",
+        "oldest": "created_at",
+        "highest": "-reps",
+        "lowest": "reps",
+    }.get(order_filter, "-created_at")
+    review_submissions = submissions.order_by(ordering, "-created_at")[:50]
     reviewed_submissions = Submission.objects.exclude(status=Submission.STATUS_PENDING).select_related(
         "user", "user__profile"
     ).order_by("-created_at")[:20]
@@ -616,8 +874,15 @@ def admin_review(request):
         request,
         "admin_review.html",
         {
-            "pending_submissions": pending_submissions,
+            "review_submissions": review_submissions,
             "reviewed_submissions": reviewed_submissions,
+            "status_filter": status_filter,
+            "proof_filter": proof_filter,
+            "order_filter": order_filter,
+            "query": query,
+            "pending_count": pending_submission_queryset().count(),
+            "review_count": submissions.count(),
+            "status_options": [("all", "All statuses"), *Submission.STATUS_CHOICES],
         },
     )
 
@@ -627,21 +892,56 @@ def admin_review(request):
 def review_submission(request, submission_id):
     submission = get_object_or_404(Submission, pk=submission_id)
     action = request.POST.get("action")
+    review_note = (request.POST.get("review_note") or "").strip()
 
     if action == "approve":
         submission.status = Submission.STATUS_VERIFIED
         submission.verified = True
         submission.save(update_fields=["status", "verified"])
+        create_verification_event(
+            submission,
+            VerificationEvent.ACTION_APPROVED,
+            reviewer=request.user,
+            note=review_note,
+        )
+        send_submission_notification(
+            submission,
+            "Earned Club submission approved",
+            f"Your {submission.reps}-rep submission was approved. Your verified result is now live on Earned Club.",
+        )
         messages.success(request, f"{submission.name} was approved with {submission.reps} reps.")
     elif action == "reject":
         submission.status = Submission.STATUS_REJECTED
         submission.verified = False
         submission.save(update_fields=["status", "verified"])
+        create_verification_event(
+            submission,
+            VerificationEvent.ACTION_REJECTED,
+            reviewer=request.user,
+            note=review_note,
+        )
+        send_submission_notification(
+            submission,
+            "Earned Club submission update",
+            (
+                f"Your {submission.reps}-rep submission was reviewed but not approved."
+                + (f" Reviewer note: {review_note}" if review_note else " You can submit again with clearer proof.")
+            ),
+        )
         messages.info(request, f"{submission.name} was rejected.")
     else:
         messages.error(request, "Unknown review action.")
 
-    return redirect("admin_review")
+    params = build_querystring(
+        status=request.POST.get("status_filter") or Submission.STATUS_PENDING,
+        proof=request.POST.get("proof_filter") or "all",
+        order=request.POST.get("order_filter") or "newest",
+        q=request.POST.get("q") or "",
+    )
+    redirect_url = reverse("admin_review")
+    if params:
+        redirect_url = f"{redirect_url}?{params}"
+    return redirect(redirect_url)
 
 
 def newsletter_signup(request):
