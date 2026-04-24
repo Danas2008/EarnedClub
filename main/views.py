@@ -1,4 +1,6 @@
 from datetime import timedelta
+from xml.etree.ElementTree import Element, SubElement, indent, register_namespace, tostring
+from xml.sax.saxutils import quoteattr
 
 from django.contrib import messages
 from django.contrib.auth import login, logout
@@ -27,6 +29,22 @@ from .models import (
     get_rank_tier,
     get_submission_identity,
 )
+
+
+SITEMAP_NAMESPACE = "http://www.sitemaps.org/schemas/sitemap/0.9"
+register_namespace("", SITEMAP_NAMESPACE)
+
+SITEMAP_STATIC_PAGES = [
+    {"view_name": "home", "changefreq": "daily", "priority": "1.0"},
+    {"view_name": "challenge", "changefreq": "weekly", "priority": "0.9"},
+    {"view_name": "leaderboard", "changefreq": "daily", "priority": "0.9"},
+    {"view_name": "profiles", "changefreq": "daily", "priority": "0.8"},
+    {"view_name": "calculators", "changefreq": "monthly", "priority": "0.6"},
+    {"view_name": "register", "changefreq": "monthly", "priority": "0.5"},
+    {"view_name": "login", "changefreq": "monthly", "priority": "0.3"},
+    {"view_name": "privacy", "changefreq": "yearly", "priority": "0.2"},
+    {"view_name": "terms", "changefreq": "yearly", "priority": "0.2"},
+]
 
 
 def build_leaderboard_rows(submissions):
@@ -168,6 +186,57 @@ def build_absolute_url(request, view_name, *args):
     return request.build_absolute_uri(reverse(view_name, args=args))
 
 
+def format_sitemap_date(value):
+    if not value:
+        return ""
+    if hasattr(value, "date"):
+        if timezone.is_aware(value):
+            value = timezone.localtime(value)
+        value = value.date()
+    return value.isoformat()
+
+
+def build_sitemap_entries(request):
+    entries = [
+        {
+            "loc": build_absolute_url(request, page["view_name"]),
+            "changefreq": page["changefreq"],
+            "priority": page["priority"],
+        }
+        for page in SITEMAP_STATIC_PAGES
+    ]
+    entries.extend(
+        {
+            "loc": build_absolute_url(request, "athlete_profile", profile.slug),
+            "lastmod": format_sitemap_date(profile.updated_at),
+            "changefreq": "weekly",
+            "priority": "0.7",
+        }
+        for profile in Profile.objects.filter(personal_best_reps__gt=0).only("slug", "updated_at").order_by("slug")
+    )
+    return entries
+
+
+def build_sitemap_xml(entries, stylesheet_url):
+    urlset = Element(f"{{{SITEMAP_NAMESPACE}}}urlset")
+    for entry in entries:
+        url = SubElement(urlset, f"{{{SITEMAP_NAMESPACE}}}url")
+        for key in ("loc", "lastmod", "changefreq", "priority"):
+            value = entry.get(key)
+            if value:
+                SubElement(url, f"{{{SITEMAP_NAMESPACE}}}{key}").text = str(value)
+
+    indent(urlset, space="  ")
+    body = tostring(urlset, encoding="unicode")
+    return "\n".join(
+        [
+            '<?xml version="1.0" encoding="UTF-8"?>',
+            f'<?xml-stylesheet type="text/xsl" href={quoteattr(stylesheet_url)}?>',
+            body,
+        ]
+    )
+
+
 def home(request):
     verified_submissions = get_official_verified_submissions()
     public_submissions = list(public_submission_queryset())
@@ -187,28 +256,16 @@ def home(request):
 
 
 def sitemap_xml(request):
-    urls = [
-        ("home", None),
-        ("challenge", None),
-        ("leaderboard", None),
-        ("profiles", None),
-        ("calculators", None),
-        ("register", None),
-        ("login", None),
-        ("privacy", None),
-        ("terms", None),
-    ]
-    entries = [build_absolute_url(request, name) for name, _ in urls]
-    entries.extend(
-        build_absolute_url(request, "athlete_profile", profile.slug)
-        for profile in Profile.objects.filter(personal_best_reps__gt=0).order_by("slug")
+    xml = build_sitemap_xml(
+        build_sitemap_entries(request),
+        request.build_absolute_uri(reverse("sitemap_xsl")),
     )
+    return HttpResponse(xml, content_type="application/xml")
 
-    xml = ['<?xml version="1.0" encoding="UTF-8"?>', '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">']
-    for entry in entries:
-        xml.append(f"  <url><loc>{entry}</loc></url>")
-    xml.append("</urlset>")
-    return HttpResponse("\n".join(xml), content_type="application/xml")
+
+def sitemap_xsl(request):
+    return render(request, "sitemap.xsl", content_type="text/xsl")
+
 
 
 def robots_txt(request):

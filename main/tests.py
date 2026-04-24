@@ -1,5 +1,6 @@
 import shutil
 import tempfile
+from xml.etree import ElementTree
 
 from django.contrib.auth.models import User
 from django.test import TestCase
@@ -431,18 +432,52 @@ class SubmissionFlowTests(TestCase):
 
     def test_sitemap_xml_lists_core_pages(self):
         response = self.client.get(reverse("sitemap_xml"))
+        namespace = {"s": "http://www.sitemaps.org/schemas/sitemap/0.9"}
+        root = ElementTree.fromstring(response.content)
+        locs = [node.text for node in root.findall("s:url/s:loc", namespace)]
 
         self.assertEqual(response.status_code, 200)
+        self.assertIn("application/xml", response["Content-Type"])
+        self.assertContains(response, '<?xml-stylesheet type="text/xsl"', html=False)
         self.assertContains(response, "<urlset", html=False)
-        self.assertContains(response, "/leaderboard/", html=False)
-        self.assertContains(response, "/challenge/", html=False)
+        self.assertIn("http://testserver/leaderboard/", locs)
+        self.assertIn("http://testserver/challenge/", locs)
+        self.assertIn("http://testserver/sitemap.xsl", response.content.decode())
+
+    def test_sitemap_xml_lists_public_athlete_profiles(self):
+        user = User.objects.create_user(username="sitemap-athlete", password="StrongPass12345")
+        profile = user.profile
+        profile.personal_best_reps = 54
+        profile.save()
+
+        response = self.client.get(reverse("sitemap_xml"))
+        namespace = {"s": "http://www.sitemaps.org/schemas/sitemap/0.9"}
+        root = ElementTree.fromstring(response.content)
+        profile_url = f"http://testserver{reverse('athlete_profile', args=[profile.slug])}"
+        profile_nodes = [
+            node
+            for node in root.findall("s:url", namespace)
+            if node.find("s:loc", namespace).text == profile_url
+        ]
+
+        self.assertEqual(len(profile_nodes), 1)
+        self.assertRegex(profile_nodes[0].find("s:lastmod", namespace).text, r"^\d{4}-\d{2}-\d{2}$")
+        self.assertEqual(profile_nodes[0].find("s:changefreq", namespace).text, "weekly")
+
+    def test_sitemap_xsl_renders_browser_stylesheet(self):
+        response = self.client.get(reverse("sitemap_xsl"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("text/xsl", response["Content-Type"])
+        self.assertContains(response, "Earned Club Sitemap", html=False)
+        self.assertContains(response, "s:urlset/s:url", html=False)
 
     def test_robots_txt_references_sitemap(self):
         response = self.client.get(reverse("robots_txt"))
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "User-agent: *")
-        self.assertContains(response, "Sitemap:")
+        self.assertContains(response, "Sitemap: http://testserver/sitemap.xml")
 
     def test_staff_can_approve_submission_in_app(self):
         admin = User.objects.create_user(username="staff", password="StrongPass12345", is_staff=True)
