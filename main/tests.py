@@ -52,6 +52,34 @@ class SubmissionFlowTests(TestCase):
         self.assertEqual(submission.status, Submission.STATUS_UNVERIFIED)
         self.assertContains(response, "saved as unverified")
 
+    def test_anonymous_unverified_submission_can_be_completed_with_proof(self):
+        self.client.post(
+            reverse("challenge"),
+            {
+                "name": "No Proof",
+                "email": "noproof@example.com",
+                "reps": 21,
+            },
+        )
+
+        response = self.client.post(
+            reverse("challenge"),
+            {
+                "name": "No Proof",
+                "email": "noproof@example.com",
+                "reps": 24,
+                "video_link": "https://example.com/proof",
+            },
+            follow=True,
+        )
+
+        self.assertEqual(Submission.objects.filter(email="noproof@example.com").count(), 1)
+        submission = Submission.objects.get(email="noproof@example.com")
+        self.assertEqual(submission.status, Submission.STATUS_PENDING)
+        self.assertEqual(submission.reps, 24)
+        self.assertEqual(submission.video_link, "https://example.com/proof")
+        self.assertContains(response, "Proof added.")
+
     def test_challenge_submission_shows_success_message(self):
         Submission.objects.create(
             name="Top Athlete",

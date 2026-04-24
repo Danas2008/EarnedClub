@@ -456,6 +456,34 @@ def challenge(request):
             active_submission = active_filter.filter(email=email).first()
 
         if active_submission:
+            if active_submission.status == Submission.STATUS_UNVERIFIED and video_link:
+                active_submission.name = name
+                active_submission.email = email
+                active_submission.reps = reps_value
+                active_submission.video_link = video_link
+                active_submission.video_storage_path = ""
+                active_submission.video_file = ""
+                active_submission.status = Submission.STATUS_PENDING
+                active_submission.verified = False
+                active_submission.save(
+                    update_fields=[
+                        "name",
+                        "email",
+                        "reps",
+                        "video_link",
+                        "video_storage_path",
+                        "video_file",
+                        "status",
+                        "verified",
+                    ]
+                )
+                estimated_position = estimate_verified_position(reps_value)
+                messages.success(
+                    request,
+                    f"Proof added. If verified, this result would currently rank #{estimated_position} on the verified leaderboard.",
+                )
+                return redirect("challenge")
+
             messages.error(
                 request,
                 "You already have an active submission. Add proof to your current entry or wait until it is reviewed before submitting again.",
