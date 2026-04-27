@@ -13,7 +13,7 @@
                 Submit one strict max set, add video proof, and claim a place on the Earned Club leaderboard after review.
             </p>
             <p>
-                The flow is simple on purpose: your result stays visible with a clear status, and verified scores become official ranked performances.
+                The flow is simple on purpose: enter reps, upload proof, and get reviewed.
             </p>
             <div class="button-row">
                 <a class="btn-main" href="#submit-form-top">Send For Verification</a>
@@ -33,7 +33,6 @@
                     <span class="muted">proof review</span>
                 </div>
             </div>
-            <p class="muted" style="margin-top: 12px;">Anonymous submissions are capped at 40 reps.</p>
         </div>
 
         <div class="stack" id="submit-form-top">
@@ -54,7 +53,7 @@
                         <span class="status-pill {{ active_submission.status }}">{{ active_submission.public_status_label }}</span>
                         <p class="muted" style="margin: 12px 0 0;">
                             {% if active_submission.status == "unverified" %}
-                                You already have an unverified submission without proof. Open your profile dashboard, add a video or link, and it will move back into pending review.
+                                You already have an unverified submission without proof. Open your dashboard and upload a video.
                             {% else %}
                                 You already have a submission waiting for verification. Please wait until it is reviewed before submitting again.
                             {% endif %}
@@ -110,21 +109,9 @@
                         </div>
 
                         <div>
-                            <label class="field-label" for="video_link">Public video link</label>
-                            <input
-                                id="video_link"
-                                class="input"
-                                type="url"
-                                name="video_link"
-                                placeholder="https://youtube.com/watch?v=your-video"
-                                value="{{ form_data.video_link|default:'' }}"
-                            >
-                            <div class="hint">YouTube, Drive, TikTok, or similar.</div>
-                        </div>
-
-                        <div>
-                            <label class="field-label" for="video_file">Upload video file</label>
+                            <label class="field-label" for="video_file">Proof video</label>
                             <input id="video_file" class="input" type="file" name="video_file" accept="video/*">
+                            <div class="hint">Upload the original set video. Clear side angle, full range, no cuts.</div>
                         </div>
 
                         <button type="submit" class="btn-main">Send For Verification</button>
@@ -146,8 +133,8 @@
                 <div class="step-item">
                     <span class="step-number">2</span>
                     <div>
-                        <strong>Add proof</strong>
-                        <div class="muted">Link or upload sends it into review.</div>
+                        <strong>Upload proof</strong>
+                        <div class="muted">Video sends it into review.</div>
                     </div>
                 </div>
                 <div class="step-item">
@@ -161,13 +148,9 @@
                     <span class="step-number">!</span>
                     <div>
                         <strong>Submission limits</strong>
-                        <div class="muted">Anonymous: max 40. Logged-in 60+: proof required.</div>
+                        <div class="muted">Anonymous max 40. Logged-in scores above 60 need upload.</div>
                     </div>
                 </div>
-            <div class="mini-card" style="margin-top: 12px;">
-                <h4>Submission rules</h4>
-                <p style="margin-bottom: 0;">No proof saves as unverified. Add proof later from your dashboard.</p>
-            </div>
             </div>
         </div>
     </div>
@@ -206,60 +189,6 @@
     {% else %}
         <p class="muted">No scores yet. The first verified results will define the board.</p>
     {% endif %}
-</section>
-
-<section class="grid-2">
-    <div class="card-dark">
-        <h2>Strict Push-up Rules</h2>
-        <ul class="rule-list">
-            <li>Start in a full plank with locked elbows.</li>
-            <li>Lower until your chest clearly reaches the bottom position.</li>
-            <li>Press back to full lockout for every counted rep.</li>
-            <li>No extended resting in the top position.</li>
-            <li>No knee reps, half reps, or camera cuts during the set.</li>
-        </ul>
-    </div>
-
-    <div class="card-dark">
-        <h2>How To Record The Video</h2>
-        <ul class="rule-list">
-            <li>Use a side angle or diagonal angle that shows both depth and lockout.</li>
-            <li>Keep the whole set visible from start to finish.</li>
-            <li>Use normal speed, not slowed footage.</li>
-            <li>Upload to YouTube, TikTok, Google Drive, or another public link.</li>
-            <li>Test the link before submitting it so reviewers can open it immediately.</li>
-        </ul>
-    </div>
-</section>
-
-<section class="grid-2">
-    <div class="card-dark">
-        <h2>Verification Notes</h2>
-        <p>
-            The current system is manual on purpose. If your reps are unclear or questionable, your entry will not be ranked until it can be verified.
-        </p>
-        <p class="muted" style="margin-bottom: 0;">
-            This protects the credibility of future rank-based products, plans, and public status.
-        </p>
-    </div>
-
-    <div class="stack">
-        <div class="card-dark">
-            <h2>Before You Submit</h2>
-            <ul class="rule-list">
-                <li>Open the video link in a private browser tab.</li>
-                <li>Make sure viewers do not need permission.</li>
-                <li>Check your final rep count once more.</li>
-                <li>Use the name you want the public to see.</li>
-            </ul>
-        </div>
-
-        <div class="card-dark">
-            <h2>Need Help?</h2>
-            <p class="muted">If you are unsure whether your proof will verify, submit and reviewers will guide you, or use the calculators to prepare.</p>
-            <a class="btn-secondary" href="/calculators/">Use The Calculators</a>
-        </div>
-    </div>
 </section>
 
 <section class="card-dark">

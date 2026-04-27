@@ -21,12 +21,18 @@
 </section>
 
 <section class="grid-3">
-    {% for template in recommended_templates %}
+    {% for card in recommended_templates %}
         <article class="feature-card">
-            <div class="eyebrow">{{ template.get_difficulty_display }}</div>
-            <h3>{{ template.name }}</h3>
-            <p class="muted">{{ template.notes }}</p>
-            <button class="btn-main" type="button" data-template-id="{{ template.id }}" data-template-name="{{ template.name }}">Use Plan</button>
+            <div class="eyebrow">{{ card.template.get_difficulty_display }} - {{ card.minutes }} min</div>
+            <h3>{{ card.template.name }}</h3>
+            <p class="muted">{{ card.template.notes }}</p>
+            <details class="score-details">
+                <summary>Preview</summary>
+                {% for name, sets, reps, seconds in card.exercises %}
+                    <div class="submission-meta">{{ name }} - {{ sets }} set(s){% if reps %}, {{ reps }} reps{% endif %}{% if seconds %}, {{ seconds }} sec{% endif %}</div>
+                {% endfor %}
+            </details>
+            <button class="btn-main" type="button" data-template-id="{{ card.template.id }}" data-template-name="{{ card.template.name }}" data-template-minutes="{{ card.minutes }}">Use Plan</button>
         </article>
     {% empty %}
         <article class="feature-card">
@@ -36,12 +42,6 @@
             <a class="btn-main" href="#builder">Build It</a>
         </article>
     {% endfor %}
-    <article class="feature-card">
-        <div class="eyebrow">Running plans</div>
-        <h3>EnduroBuddy.cz</h3>
-        <p class="muted">Running-only training plans for athletes who want structured endurance work next to strength.</p>
-        <a class="btn-secondary" href="https://endurobuddy.cz" target="_blank" rel="noopener noreferrer">Open EnduroBuddy</a>
-    </article>
 </section>
 
 <section class="grid-2">
@@ -95,17 +95,18 @@
                 </select>
             </div>
             <div class="grid-2">
-                <input class="input" type="number" min="1" name="duration_minutes" placeholder="Minutes">
+                <input class="input" type="number" min="1" name="duration_minutes" data-workout-minutes placeholder="Minutes">
                 <div>
-                    <label class="tag-pill"><input type="checkbox" name="is_public"> Public link</label>
+                    <label class="tag-pill"><input type="checkbox" name="is_public"> Public</label>
                     <label class="tag-pill"><input type="checkbox" name="highlighted_on_profile"> Highlight</label>
                     <label class="tag-pill"><input type="checkbox" name="save_as_template"> Save template</label>
                 </div>
             </div>
-            <details class="score-details" open>
-                <summary>Exercises</summary>
+            <details class="score-details">
+                <summary>Exercises +</summary>
+                <div class="hint" data-template-preview style="margin-top: 10px;"></div>
                 {% for i in "1234" %}
-                    <div class="feature-card" style="margin-top: 10px;">
+                    <div class="feature-card{% if not forloop.first %} hidden-panel{% endif %}" style="margin-top: 10px;" data-exercise-row>
                         <div class="grid-2">
                             <select class="select" name="body_part" data-builder-body>
                                 <option value="">Body part</option>
@@ -128,6 +129,7 @@
                         </div>
                     </div>
                 {% endfor %}
+                <button class="btn-secondary" type="button" data-add-exercise style="margin-top: 10px;">+ Exercise</button>
             </details>
             <textarea class="textarea" name="notes" placeholder="Notes"></textarea>
             <button class="btn-main" type="submit">Save Workout</button>
@@ -163,7 +165,20 @@
     {% endfor %}
 </section>
 
+<section class="card-dark">
+    <div class="section-spread">
+        <div>
+            <div class="eyebrow">Running plans</div>
+            <h2>EnduroBuddy.cz</h2>
+            <p class="muted">Running-only training plans for athletes who want structured endurance work next to strength.</p>
+        </div>
+        <a class="btn-secondary" href="https://endurobuddy.cz" target="_blank" rel="noopener noreferrer">Open EnduroBuddy</a>
+    </div>
+</section>
+
+{{ template_payload|json_script:"template-data" }}
 <script>
+    const templateData = JSON.parse(document.getElementById("template-data").textContent);
     const filterExerciseSelect = (select, body, type) => {
         Array.from(select.options).forEach((option) => {
             if (!option.value) {
@@ -205,12 +220,37 @@
         });
     });
 
+    document.querySelector("[data-add-exercise]")?.addEventListener("click", () => {
+        const next = Array.from(document.querySelectorAll("[data-exercise-row]")).find((row) => row.classList.contains("hidden-panel"));
+        if (next) {
+            next.classList.remove("hidden-panel");
+            next.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        }
+    });
+
     document.querySelectorAll("[data-template-id]").forEach((button) => {
         button.addEventListener("click", () => {
             document.querySelector("[data-template-select]").value = button.dataset.templateId;
             document.querySelector("[data-workout-title]").value = button.dataset.templateName;
+            document.querySelector("[data-workout-minutes]").value = button.dataset.templateMinutes || "";
+            const template = templateData.find((item) => String(item.id) === String(button.dataset.templateId));
+            const preview = document.querySelector("[data-template-preview]");
+            if (template && preview) {
+                preview.innerHTML = template.exercises.map((exercise) => {
+                    const reps = exercise.reps ? `, ${exercise.reps} reps` : "";
+                    const seconds = exercise.seconds ? `, ${exercise.seconds} sec` : "";
+                    return `<div>${exercise.name} - ${exercise.sets} set(s)${reps}${seconds}</div>`;
+                }).join("");
+            }
             document.getElementById("builder")?.scrollIntoView({ behavior: "smooth", block: "start" });
         });
+    });
+
+    document.querySelector("[data-template-select]")?.addEventListener("change", (event) => {
+        const template = templateData.find((item) => String(item.id) === String(event.target.value));
+        if (!template) return;
+        document.querySelector("[data-workout-title]").value = template.name;
+        document.querySelector("[data-workout-minutes]").value = template.minutes;
     });
 </script>
 {% endblock %}

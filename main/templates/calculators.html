@@ -106,7 +106,12 @@
         const result = document.getElementById("pace-result");
         if (!distance || !minutes) return result.textContent = "Add distance and time.";
         const pace = minutes / distance;
-        result.textContent = `Pace ${pace.toFixed(2)} min/km. Estimated 5K: ${(pace * 5).toFixed(1)} min.`;
+        const paceMinutes = Math.floor(pace);
+        const paceSeconds = Math.round((pace - paceMinutes) * 60);
+        const normalizedMinutes = paceSeconds === 60 ? paceMinutes + 1 : paceMinutes;
+        const normalizedSeconds = paceSeconds === 60 ? 0 : paceSeconds;
+        const fiveK = pace * 5;
+        result.textContent = `Pace ${normalizedMinutes}:${String(normalizedSeconds).padStart(2, "0")}/km. Estimated 5K: ${fiveK.toFixed(1)} min.`;
     }
     function calculateRank() {
         const reps = parseInt(document.getElementById("current-reps").value, 10);

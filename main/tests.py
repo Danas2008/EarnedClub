@@ -609,6 +609,7 @@ class SubmissionFlowTests(TestCase):
         self.assertContains(response, "<urlset", html=False)
         self.assertIn("https://earnedclub.club/leaderboard/", locs)
         self.assertIn("https://earnedclub.club/challenge/", locs)
+        self.assertNotIn("https://earnedclub.club/test/", locs)
         self.assertIn("https://earnedclub.club/sitemap.xsl", response.content.decode())
 
     def test_sitemap_xml_lists_public_athlete_profiles(self):
@@ -630,6 +631,19 @@ class SubmissionFlowTests(TestCase):
         self.assertEqual(len(profile_nodes), 1)
         self.assertRegex(profile_nodes[0].find("s:lastmod", namespace).text, r"^\d{4}-\d{2}-\d{2}$")
         self.assertEqual(profile_nodes[0].find("s:changefreq", namespace).text, "weekly")
+
+    def test_sitemap_xml_lists_public_workouts(self):
+        user = User.objects.create_user(username="sitemap-workout", password="StrongPass12345")
+        public_workout = Workout.objects.create(user=user, title="Public Push", is_public=True)
+        private_workout = Workout.objects.create(user=user, title="Private Push", is_public=False)
+
+        response = self.client.get(reverse("sitemap_xml"))
+        namespace = {"s": "http://www.sitemaps.org/schemas/sitemap/0.9"}
+        root = ElementTree.fromstring(response.content)
+        locs = [node.text for node in root.findall("s:url/s:loc", namespace)]
+
+        self.assertIn(f"https://earnedclub.club{reverse('workout_detail', args=[public_workout.slug])}", locs)
+        self.assertNotIn(f"https://earnedclub.club{reverse('workout_detail', args=[private_workout.slug])}", locs)
 
     def test_sitemap_xsl_renders_browser_stylesheet(self):
         response = self.client.get(reverse("sitemap_xsl"))

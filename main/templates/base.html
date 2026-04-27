@@ -406,10 +406,14 @@
         .progress-chart {
             width: 100%;
             min-height: 320px;
+            max-width: 100%;
             background: rgba(255, 255, 255, 0.035);
             border: 1px solid rgba(255, 255, 255, 0.08);
             border-radius: var(--radius-md);
             padding: 22px;
+            overflow-x: auto;
+            overscroll-behavior-x: contain;
+            -webkit-overflow-scrolling: touch;
         }
 
         .progress-chart-large {
@@ -1361,8 +1365,34 @@
 
             .hero-card,
             .card-dark {
-                padding: 18px;
+                padding: 14px;
                 border-radius: var(--radius-lg);
+            }
+
+            .progress-chart {
+                min-height: 260px;
+                padding: 12px;
+                margin-left: -4px;
+                margin-right: -4px;
+            }
+
+            .progress-chart-large {
+                min-height: 300px;
+            }
+
+            .progress-chart-large .chart-area {
+                min-height: 260px;
+            }
+
+            .comparison-side {
+                min-height: 44vh;
+                padding: 20px;
+                border-right: 0;
+                border-bottom: 1px solid rgba(255,255,255,.08);
+            }
+
+            .comparison-side h1 {
+                font-size: clamp(2rem, 11vw, 3rem);
             }
 
             .brand-logo {

@@ -1,4 +1,5 @@
 import json
+import random
 from datetime import timedelta
 from xml.etree.ElementTree import Element, SubElement, indent, register_namespace, tostring
 from xml.sax.saxutils import quoteattr
@@ -48,24 +49,33 @@ from .media_utils import store_profile_image, store_submission_video
 DEFAULT_EXERCISES = [
     {"name": "Push-ups", "type": "strength", "body_part": "Chest"},
     {"name": "Bench press", "type": "strength", "body_part": "Chest"},
+    {"name": "Dumbbell press", "type": "strength", "body_part": "Chest"},
+    {"name": "Chest fly", "type": "strength", "body_part": "Chest"},
     {"name": "Incline dumbbell press", "type": "strength", "body_part": "Chest"},
     {"name": "Pull-ups", "type": "strength", "body_part": "Back"},
+    {"name": "Chin-ups", "type": "strength", "body_part": "Back"},
     {"name": "Lat pulldown", "type": "strength", "body_part": "Back"},
     {"name": "Seated row", "type": "strength", "body_part": "Back"},
     {"name": "Dips", "type": "strength", "body_part": "Triceps"},
     {"name": "Triceps pushdown", "type": "strength", "body_part": "Triceps"},
+    {"name": "Skull crushers", "type": "strength", "body_part": "Triceps"},
     {"name": "Squats", "type": "strength", "body_part": "Legs"},
+    {"name": "Deadlift", "type": "strength", "body_part": "Legs"},
+    {"name": "Bulgarian split squat", "type": "strength", "body_part": "Legs"},
     {"name": "Leg press", "type": "strength", "body_part": "Legs"},
     {"name": "Romanian deadlift", "type": "strength", "body_part": "Legs"},
     {"name": "Lunges", "type": "strength", "body_part": "Legs"},
     {"name": "Plank", "type": "strength", "body_part": "Core"},
     {"name": "Hanging knee raise", "type": "strength", "body_part": "Core"},
+    {"name": "Sit-ups", "type": "strength", "body_part": "Core"},
     {"name": "Burpees", "type": "cardio", "body_part": "Full body"},
     {"name": "Running", "type": "cardio", "body_part": "Cardio"},
     {"name": "Cycling", "type": "cardio", "body_part": "Cardio"},
     {"name": "Jump rope", "type": "cardio", "body_part": "Cardio"},
+    {"name": "Rowing machine", "type": "cardio", "body_part": "Cardio"},
     {"name": "Shoulder press", "type": "strength", "body_part": "Shoulders"},
     {"name": "Lateral raise", "type": "strength", "body_part": "Shoulders"},
+    {"name": "Rear delt raise", "type": "strength", "body_part": "Shoulders"},
     {"name": "Rows", "type": "strength", "body_part": "Back"},
     {"name": "Dead bug", "type": "mobility", "body_part": "Core"},
     {"name": "Hip mobility flow", "type": "mobility", "body_part": "Legs"},
@@ -88,10 +98,28 @@ SYSTEM_WORKOUT_TEMPLATES = [
         "exercises": [("Squats", 4, 15, None), ("Lunges", 3, 12, None), ("Plank", 3, None, 40)],
     },
     {
+        "name": "Pull Strength",
+        "difficulty": WorkoutTemplate.DIFFICULTY_INTERMEDIATE,
+        "notes": "Back and biceps work to balance push-up volume.",
+        "exercises": [("Pull-ups", 4, 6, None), ("Rows", 4, 10, None), ("Dead bug", 3, None, 45)],
+    },
+    {
+        "name": "Full Body Base",
+        "difficulty": WorkoutTemplate.DIFFICULTY_INTERMEDIATE,
+        "notes": "A practical whole-body session for steady weekly training.",
+        "exercises": [("Push-ups", 4, 15, None), ("Squats", 4, 15, None), ("Rows", 3, 12, None), ("Jump rope", 1, None, 300)],
+    },
+    {
         "name": "Elite Push Builder",
         "difficulty": WorkoutTemplate.DIFFICULTY_ADVANCED,
         "notes": "Higher volume for athletes chasing 60+ strict push-ups.",
         "exercises": [("Push-ups", 6, 18, None), ("Dips", 4, 10, None), ("Burpees", 4, 12, None)],
+    },
+    {
+        "name": "Legend Density",
+        "difficulty": WorkoutTemplate.DIFFICULTY_ADVANCED,
+        "notes": "Dense push volume with conditioning for high-rep athletes.",
+        "exercises": [("Push-ups", 8, 15, None), ("Burpees", 5, 10, None), ("Plank", 4, None, 60)],
     },
 ]
 
@@ -101,7 +129,6 @@ register_namespace("", SITEMAP_NAMESPACE)
 
 SITEMAP_STATIC_PAGES = [
     {"view_name": "home", "changefreq": "daily", "priority": "1.0"},
-    {"view_name": "level_test", "changefreq": "weekly", "priority": "0.9"},
     {"view_name": "challenge", "changefreq": "weekly", "priority": "0.9"},
     {"view_name": "leaderboard", "changefreq": "daily", "priority": "0.9"},
     {"view_name": "profiles", "changefreq": "daily", "priority": "0.8"},
@@ -185,6 +212,48 @@ def get_template_exercises(template):
     return [("Push-ups", 3, 10, None)]
 
 
+def estimate_workout_minutes(exercises):
+    total_seconds = 0
+    for _name, sets, reps, seconds in exercises:
+        set_count = sets or 1
+        if seconds:
+            work_seconds = seconds
+        else:
+            work_seconds = (reps or 10) * 3
+        total_seconds += set_count * work_seconds
+        total_seconds += max(0, set_count - 1) * 60
+    return max(8, round(total_seconds / 60) + 3)
+
+
+def build_template_cards(templates):
+    cards = []
+    for template in templates:
+        exercises = get_template_exercises(template)
+        cards.append(
+            {
+                "template": template,
+                "exercises": exercises,
+                "minutes": estimate_workout_minutes(exercises),
+            }
+        )
+    return cards
+
+
+def build_template_payload(cards):
+    return [
+        {
+            "id": card["template"].id,
+            "name": card["template"].name,
+            "minutes": card["minutes"],
+            "exercises": [
+                {"name": name, "sets": sets or "", "reps": reps or "", "seconds": seconds or ""}
+                for name, sets, reps, seconds in card["exercises"]
+            ],
+        }
+        for card in cards
+    ]
+
+
 def notify_user_email(user, subject, message):
     if not user or not user.email:
         return
@@ -207,16 +276,19 @@ def get_daily_suggestion(profile, verified_count, workout_count):
         "Make today's set clean enough to count.",
         "Consistency is the quiet part of status.",
         "Train the rep you want verified.",
+        "Good training is boring until the numbers move.",
+        "Win today's clean set.",
     ]
-    quote = quotes[(profile.user_id + workout_count + verified_count) % len(quotes)]
     if profile.personal_best_reps >= 60:
-        task = "Film a controlled submax set or recover with core work."
+        tasks = ["Film a controlled submax set.", "Do core work and keep elbows fresh.", "Repeat an elite push session."]
     elif profile.personal_best_reps >= 40:
-        task = "Do 4 push-up sets at 60-70% of your PR."
+        tasks = ["Do 4 push-up sets at 60-70% of your PR.", "Add one pull exercise today.", "Try a clean 40-rep pace set."]
     elif workout_count:
-        task = "Repeat your last workout and add one clean rep."
+        tasks = ["Repeat your last workout and add one clean rep.", "Quick log one exercise now.", "Do push-ups, rows, and core."]
     else:
-        task = "Test push-ups today, then log a short workout."
+        tasks = ["Test push-ups today.", "Start with Push Day.", "Log one honest set."]
+    task = random.choice(tasks)
+    quote = random.choice(quotes)
     return f"{task} {quote}"
 
 
@@ -434,7 +506,7 @@ def find_proof_link_blocker(video_link, exclude_pk=None):
     if exclude_pk:
         proof_matches = proof_matches.exclude(pk=exclude_pk)
     if proof_matches.exists():
-        return "This proof link is already attached to a submission. Use a different public proof link or update your existing entry."
+        return "This proof is already attached to a submission."
     return ""
 
 
@@ -508,6 +580,8 @@ def create_workout_from_request(request):
         template = WorkoutTemplate.objects.filter(Q(user=request.user) | Q(is_system=True), pk=template_id).first()
     if not title and template:
         title = template.name
+    if not duration_value and template:
+        duration_value = estimate_workout_minutes(get_template_exercises(template))
     if not title:
         return None, "Workout title is required."
     workout = Workout.objects.create(
@@ -584,6 +658,15 @@ def build_sitemap_entries(request):
             "priority": "0.7",
         }
         for profile in Profile.objects.filter(personal_best_reps__gt=0).only("slug", "updated_at").order_by("slug")
+    )
+    entries.extend(
+        {
+            "loc": build_absolute_url(request, "workout_detail", workout.slug),
+            "lastmod": format_sitemap_date(workout.created_at),
+            "changefreq": "monthly",
+            "priority": "0.5",
+        }
+        for workout in Workout.objects.filter(is_public=True).only("slug", "created_at").order_by("slug")
     )
     return entries
 
@@ -777,7 +860,7 @@ def dashboard(request):
 
         username = (request.POST.get("username") or "").strip()
         email = (request.POST.get("email") or "").strip().lower()
-        profile_photo = (request.POST.get("profile_photo") or "").strip()
+        profile_photo = (request.POST.get("profile_photo") or profile.profile_photo or "").strip()
         profile_image = request.FILES.get("profile_image")
         country = (request.POST.get("country") or "").strip()
         age = (request.POST.get("age") or "").strip()
@@ -877,7 +960,14 @@ def dashboard(request):
         "following_count": request.user.following_links.count(),
         "workouts": workouts[:5],
         "active_goals": request.user.goals.filter(is_active=True)[:5],
-        "rank_goal_options": list(range(1, 51)),
+        "rank_goal_options": [
+            {
+                "value": tier["min_reps"],
+                "label": tier["name"],
+                "distance": max(0, tier["min_reps"] - (best_submission.reps if best_submission else 0)),
+            }
+            for tier in RANK_TIERS
+        ],
         "daily_suggestion": recommendation,
         "profile_share_message": get_profile_share_message(profile, request),
         "pr_share_message": get_pr_share_message(profile, request),
@@ -1056,7 +1146,7 @@ def challenge(request):
             return render(request, "challenge.html", context)
 
         if request.user.is_authenticated and reps_value > 60 and not (video_link or video_file):
-            messages.error(request, "Scores above 60 need video proof. Add a public link or upload a video file.")
+            messages.error(request, "Scores above 60 need video proof.")
             context["form_data"] = request.POST
             return render(request, "challenge.html", context)
 
@@ -1074,7 +1164,6 @@ def challenge(request):
                     context["form_data"] = request.POST
                     context["active_submission"] = active_submission
                     return render(request, "challenge.html", context)
-
                 active_submission.name = name
                 active_submission.email = email
                 active_submission.reps = reps_value
@@ -1158,7 +1247,7 @@ def challenge(request):
                 + (
                     f"It is waiting for verification and would currently rank #{estimated_position} if approved."
                     if submission.has_proof else
-                    "Add a public proof link from your profile dashboard to move it into review."
+                    "Upload proof from your profile dashboard to move it into review."
                 )
             ),
         )
@@ -1177,7 +1266,7 @@ def challenge(request):
             (
                 f"Submission received. If verified, this result would currently rank #{estimated_position} on the verified leaderboard."
                 if submission.has_proof else
-                "Submission saved as unverified. Add a video or link from your profile to move it into pending review."
+                "Submission saved as unverified. Upload a proof video from your profile to move it into pending review."
             ),
         )
         return redirect("challenge")
@@ -1201,7 +1290,7 @@ def add_submission_proof(request, submission_id):
         return redirect("dashboard")
 
     if not video_link and not video_file:
-        messages.error(request, "Add a public proof link or upload a video file.")
+        messages.error(request, "Upload a proof video file.")
         return redirect("dashboard")
 
     proof_blocker = find_proof_link_blocker(video_link, exclude_pk=submission.pk)
@@ -1221,7 +1310,7 @@ def add_submission_proof(request, submission_id):
     send_submission_notification(
         submission,
         "Earned Club proof received",
-        f"Your proof link for {submission.reps} reps was added. The submission is now waiting for review.",
+        f"Your proof video for {submission.reps} reps was added. The submission is now waiting for review.",
     )
     messages.success(request, "Proof added. Your submission is back in pending review.")
     return redirect("dashboard")
@@ -1245,15 +1334,11 @@ def is_app_admin(user):
 
 @user_passes_test(is_app_admin, login_url="login")
 def admin_review(request):
-    status_filter = (request.GET.get("status") or Submission.STATUS_PENDING).strip()
     proof_filter = (request.GET.get("proof") or "all").strip()
     order_filter = (request.GET.get("order") or "newest").strip()
     query = (request.GET.get("q") or "").strip()
 
-    submissions = Submission.objects.select_related("user", "user__profile").prefetch_related("verification_events")
-    if status_filter != "all":
-        allowed_statuses = {key for key, _ in Submission.STATUS_CHOICES}
-        submissions = submissions.filter(status=status_filter if status_filter in allowed_statuses else Submission.STATUS_PENDING)
+    submissions = pending_submission_queryset().select_related("user", "user__profile").prefetch_related("verification_events")
     if proof_filter == "with-proof":
         submissions = submissions.filter(Q(video_link__gt="") | Q(video_storage_path__gt="") | Q(video_file__gt=""))
     elif proof_filter == "needs-proof":
@@ -1277,13 +1362,12 @@ def admin_review(request):
         {
             "review_submissions": review_submissions,
             "reviewed_submissions": reviewed_submissions,
-            "status_filter": status_filter,
+            "status_filter": Submission.STATUS_PENDING,
             "proof_filter": proof_filter,
             "order_filter": order_filter,
             "query": query,
             "pending_count": pending_submission_queryset().count(),
             "review_count": submissions.count(),
-            "status_options": [("all", "All statuses"), *Submission.STATUS_CHOICES],
         },
     )
 
@@ -1440,13 +1524,17 @@ def workouts(request):
         recommended_difficulty = WorkoutTemplate.DIFFICULTY_ADVANCED
     elif user_reps >= 20:
         recommended_difficulty = WorkoutTemplate.DIFFICULTY_INTERMEDIATE
+    recommended_cards = build_template_cards(templates.filter(is_system=True, difficulty=recommended_difficulty))
+    template_cards = build_template_cards(templates.filter(is_system=True))
     return render(
         request,
         "workouts.html",
         {
             "workouts": workouts_qs,
             "workout_templates": templates,
-            "recommended_templates": templates.filter(is_system=True, difficulty=recommended_difficulty),
+            "recommended_templates": recommended_cards,
+            "template_cards": template_cards,
+            "template_payload": build_template_payload(template_cards),
             "recommended_difficulty": recommended_difficulty,
             "default_exercises": DEFAULT_EXERCISES,
             "body_parts": BODY_PARTS,

@@ -8,7 +8,7 @@
         <div>
             <div class="eyebrow">Admin Review</div>
             <h1>Verify scores.</h1>
-            <p class="muted">Filter the queue, open proof quickly, leave a short note, and keep an audit trail for every decision.</p>
+            <p class="muted">Only pending submissions appear in the decision queue.</p>
         </div>
         <div class="stat-grid">
             <div class="stat-card">
@@ -37,14 +37,6 @@
     </div>
 
     <form class="review-filter-form filter-row" method="GET">
-        <div>
-            <label class="field-label" for="status">Status</label>
-            <select class="select" id="status" name="status">
-                {% for value, label in status_options %}
-                    <option value="{{ value }}"{% if status_filter == value %} selected{% endif %}>{{ label }}</option>
-                {% endfor %}
-            </select>
-        </div>
         <div>
             <label class="field-label" for="proof">Proof</label>
             <select class="select" id="proof" name="proof">
@@ -107,7 +99,7 @@
                     <input type="hidden" name="order_filter" value="{{ order_filter }}">
                     <input type="hidden" name="q" value="{{ query }}">
                     <label class="field-label" for="review-note-{{ submission.id }}">Review note</label>
-                    <textarea id="review-note-{{ submission.id }}" class="textarea textarea-sm" name="review_note" placeholder="Optional note for audit history and rejection email"></textarea>
+                    <textarea id="review-note-{{ submission.id }}" class="textarea textarea-sm" name="review_note" placeholder="Optional note"></textarea>
                     <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;">
                         <span class="status-pill {{ submission.status }}">{{ submission.public_status_label }}</span>
                         <div class="review-actions">
@@ -136,6 +128,14 @@
                 <div class="submission-meta">{{ submission.reps }} reps - {{ submission.created_at|date:"M j, Y" }}</div>
             </div>
             <span class="status-pill {{ submission.status }}">{{ submission.public_status_label }}</span>
+            <form method="POST" action="{% url 'review_submission' submission.id %}">
+                {% csrf_token %}
+                <input type="hidden" name="status_filter" value="pending">
+                <input type="hidden" name="proof_filter" value="{{ proof_filter }}">
+                <input type="hidden" name="order_filter" value="{{ order_filter }}">
+                <input type="hidden" name="q" value="{{ query }}">
+                <button class="btn-secondary" type="submit" name="action" value="delete">Delete</button>
+            </form>
         </div>
     {% empty %}
         <p class="muted">Nothing reviewed yet.</p>
