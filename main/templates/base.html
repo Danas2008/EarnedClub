@@ -412,9 +412,17 @@
             padding: 22px;
         }
 
+        .progress-chart-large {
+            min-height: 430px;
+        }
+
         .chart-area {
             width: 100%;
             min-height: 270px;
+        }
+
+        .progress-chart-large .chart-area {
+            min-height: 380px;
         }
 
         .status-pill {
@@ -967,6 +975,11 @@
             outline: none;
         }
 
+        .select option {
+            background: #121922;
+            color: #f5f7fb;
+        }
+
         .input::placeholder,
         .textarea::placeholder {
             color: rgba(245, 247, 251, 0.45);
@@ -996,6 +1009,16 @@
 
         .hidden-panel.is-open {
             display: grid;
+        }
+
+        .quiz-result-card {
+            transition: transform 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
+        }
+
+        .quiz-result-card.pulse-result {
+            transform: translateY(-4px) scale(1.01);
+            border-color: rgba(247, 183, 51, 0.75);
+            box-shadow: 0 0 0 5px rgba(247, 183, 51, 0.14), var(--shadow);
         }
 
         .settings-inline-panel {
@@ -1403,6 +1426,9 @@
                                     <a class="nav-link" href="{% url 'home' %}">Home</a>
                                 </li>
                                 <li class="nav-item">
+                                    <a class="nav-link" href="{% url 'level_test' %}">Test</a>
+                                </li>
+                                <li class="nav-item">
                                     <a class="nav-link" href="{% url 'challenge' %}">Challenge</a>
                                 </li>
                                 <li class="nav-item">
@@ -1414,6 +1440,9 @@
                                 {% if request.user.is_authenticated %}
                                     <li class="nav-item">
                                         <a class="nav-link" href="{% url 'dashboard' %}">Profile</a>
+                                    </li>
+                                    <li class="nav-item">
+                                        <a class="nav-link" href="{% url 'workouts' %}">Workouts</a>
                                     </li>
                                     {% if request.user.is_staff %}
                                         <li class="nav-item">
@@ -1467,7 +1496,7 @@
                             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7.8 2h8.4A5.8 5.8 0 0 1 22 7.8v8.4a5.8 5.8 0 0 1-5.8 5.8H7.8A5.8 5.8 0 0 1 2 16.2V7.8A5.8 5.8 0 0 1 7.8 2Zm0 2A3.8 3.8 0 0 0 4 7.8v8.4A3.8 3.8 0 0 0 7.8 20h8.4a3.8 3.8 0 0 0 3.8-3.8V7.8A3.8 3.8 0 0 0 16.2 4H7.8Zm4.2 3.3a4.7 4.7 0 1 1 0 9.4 4.7 4.7 0 0 1 0-9.4Zm0 2a2.7 2.7 0 1 0 0 5.4 2.7 2.7 0 0 0 0-5.4Zm5-2.4a1.1 1.1 0 1 1 0 2.2 1.1 1.1 0 0 1 0-2.2Z"/></svg>
                             Instagram
                         </a>
-                        <a class="social-link" href="https://www.tiktok.com/@EarnedClub" target="_blank" rel="noopener noreferrer" aria-label="EarnedClub TikTok">
+                        <a class="social-link" href="https://www.tiktok.com/@earnedclub" target="_blank" rel="noopener noreferrer" aria-label="EarnedClub TikTok">
                             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15.3 2c.4 3 2.1 4.8 5 5v3.3a8.4 8.4 0 0 1-5-1.6v6.6c0 4.1-2.7 6.7-6.5 6.7A6.3 6.3 0 0 1 2.4 16c0-3.8 3-6.5 6.9-6.2v3.5c-1.8-.3-3.3.7-3.3 2.6 0 1.5 1.2 2.6 2.8 2.6 1.7 0 2.8-1 2.8-3.1V2h3.7Z"/></svg>
                             TikTok
                         </a>

@@ -1,123 +1,44 @@
 {% extends "base.html" %}
 
 {% block title %}Leaderboard{% endblock %}
-{% block meta_description %}See the Earned Club push-up leaderboard, compare verified rankings, track weekly movers, and find the athletes setting the standard.{% endblock %}
+{% block meta_description %}Compare Earned Club push-up scores across all, verified, weekly, monthly, pending, and unverified views without reloading.{% endblock %}
 
 {% block content %}
 <section class="hero-card" style="margin-bottom: 24px;">
     <div class="content-split">
-        <div class="stack">
-            <div class="eyebrow">Open board with verification status</div>
+        <div>
+            <div class="eyebrow">Leaderboard</div>
             <h1>Chase the board.</h1>
-            <p class="muted">
-                Browse verified ranks, fresh weekly attempts, and pending performances waiting for review. The fastest path onto the board is simple: submit a clean set with clear proof.
-            </p>
-            <p>
-                Elite is treated as a top 10% style benchmark. Earned Legend is the top 1% style benchmark.
-                These are the standards you are competing against.
-            </p>
+            <p class="muted">Verified ranks, pending attempts, weekly heat, and monthly momentum in one view.</p>
             <div class="button-row">
-                <a class="btn-main" href="/challenge/#submit-form-top">Submit A Score</a>
-                <a class="btn-secondary" href="/calculators/">Check Your Target Tier</a>
+                <a class="btn-main" href="{% url 'challenge' %}#submit-form-top">Submit</a>
+                <a class="btn-secondary" href="{% url 'level_test' %}">Take Test</a>
             </div>
         </div>
-
-        <div class="stack">
-            <div class="stat-grid">
-                <div class="stat-card">
-                    <span class="kicker">Verified entries</span>
-                    <span class="stat-value">{{ verified_count }}</span>
-                    <div class="muted">Official ranked scores.</div>
-                </div>
-                <div class="stat-card">
-                    <span class="kicker">All submissions</span>
-                    <span class="stat-value">{{ submission_count }}</span>
-                    <div class="muted">Shown in this view.</div>
-                </div>
-                <div class="stat-card">
-                    <span class="kicker">Pending review</span>
-                    <span class="stat-value">{{ pending_count }}</span>
-                    <div class="muted">Waiting for approval.</div>
-                </div>
-            </div>
+        <div class="stat-grid">
+            <div class="stat-card"><span class="kicker">Verified</span><span class="stat-value">{{ verified_count }}</span></div>
+            <div class="stat-card"><span class="kicker">Shown</span><span class="stat-value">{{ submission_count }}</span></div>
+            <div class="stat-card"><span class="kicker">Pending</span><span class="stat-value">{{ pending_count }}</span></div>
         </div>
     </div>
-</section>
-
-<section class="card-dark">
-    <h2>Top 5 This Week</h2>
-    <p class="muted">The top submitted performances of the past 7 days, with verification status shown.</p>
-
-    {% if weekly_rows %}
-        <div>
-            {% for row in weekly_rows %}
-                <div class="athlete-row">
-                    {% if row.profile and row.profile.profile_image_url %}
-                        <img class="avatar" src="{{ row.profile.profile_image_url }}" alt="{{ row.profile.display_name }} profile picture">
-                    {% elif row.profile %}
-                        <span class="avatar">{{ row.profile.display_name|first|upper }}</span>
-                    {% else %}
-                        <span class="avatar">{{ row.submission.name|first|upper }}</span>
-                    {% endif %}
-                    <div class="row-title">
-                        <div class="submission-name">
-                            {% if row.profile %}
-                                <a href="{% url 'athlete_profile' row.profile.slug %}">{{ row.submission.name }}</a>
-                            {% else %}
-                                {{ row.submission.name }}
-                            {% endif %}
-                        </div>
-                        <div class="submission-meta">{{ row.submission.reps }} reps - {{ row.submission.benchmark_label }}</div>
-                    </div>
-                    
-                    {% if row.profile %}
-                        <a class="btn-secondary hide-mobile" style="min-height: 34px; padding: 6px 10px;" href="{% url 'athlete_profile' row.profile.slug %}">View Public Profile</a>
-                    {% endif %}
-
-                    <div class="position-pill hide-mobile">
-                        {% if row.medal_place == 1 %}<span class="medal">&#129351;</span>{% endif %}
-                        {% if row.medal_place == 2 %}<span class="medal">&#129352;</span>{% endif %}
-                        {% if row.medal_place == 3 %}<span class="medal">&#129353;</span>{% endif %}
-                        #{{ row.position }}
-                    </div>
-                    <span class="status-pill {{ row.submission.status }}">{{ row.submission.public_status_label }}</span>
-                </div>
-            {% endfor %}
-        </div>
-    {% else %}
-        <p>No submissions from the last 7 days yet.</p>
-    {% endif %}
 </section>
 
 <section id="full-leaderboard" class="card-dark full-leaderboard-section">
     <div class="section-spread">
         <div>
-            <h2>{{ active_mode.label }}</h2>
-            <p class="muted">
-                {{ active_mode.description }} Use the tabs and search to quickly compare the exact slice you care about.
-            </p>
+            <h2>Results</h2>
+            <p class="muted">Filter instantly. No page reload.</p>
         </div>
-        <a class="btn-main" href="/challenge/#submit-form-top">Submit Score</a>
-    </div>
-    <div class="mode-tabs" role="list" aria-label="Leaderboard views">
-        {% for mode in leaderboard_modes %}
-            <a class="mode-tab{% if mode.is_active %} is-active{% endif %}" href="{{ mode.url }}" role="listitem">
-                <strong>{{ mode.label }}</strong>
-                <span>{{ mode.description }}</span>
-            </a>
-        {% endfor %}
     </div>
     <form class="search-row" method="GET" action="{% url 'leaderboard' %}#full-leaderboard">
-        <input type="hidden" name="mode" value="{{ active_mode.key }}">
-        <div>
-            <label class="field-label" for="leaderboard-search">Search by athlete name</label>
-            <input id="leaderboard-search" class="input" type="search" name="q" value="{{ query }}" placeholder="Search athletes">
-        </div>
+        <input id="leaderboard-search" class="input" type="search" name="q" value="{{ query }}" placeholder="Search athletes">
         <button class="btn-secondary" type="submit">Search</button>
     </form>
     <div class="button-row" style="margin-top: 0; margin-bottom: 16px;">
         <button class="btn-main" type="button" data-board-filter="all">All</button>
         <button class="btn-secondary" type="button" data-board-filter="verified">Verified</button>
+        <button class="btn-secondary" type="button" data-board-filter="week">Weekly</button>
+        <button class="btn-secondary" type="button" data-board-filter="month">Monthly</button>
         <button class="btn-secondary" type="button" data-board-filter="pending">Pending</button>
         <button class="btn-secondary" type="button" data-board-filter="unverified">Unverified</button>
     </div>
@@ -126,57 +47,38 @@
         <table class="leaderboard-table">
             <thead>
                 <tr>
-                    <th>Open position</th>
+                    <th>#</th>
                     <th>Athlete</th>
                     <th>Reps</th>
                     <th>Tier</th>
                     <th>Status</th>
-                    <th>Official rank</th>
-                    <th>Benchmark</th>
+                    <th>Rank</th>
                 </tr>
             </thead>
             <tbody>
                 {% for row in leaderboard_rows %}
-                    <tr data-board-row data-status="{{ row.submission.status }}" data-name="{{ row.submission.name|lower }}">
-                        <td>
-                            <span class="position-pill">
-                                {% if row.medal_place == 1 %}<span class="medal">&#129351;</span>{% endif %}
-                                {% if row.medal_place == 2 %}<span class="medal">&#129352;</span>{% endif %}
-                                {% if row.medal_place == 3 %}<span class="medal">&#129353;</span>{% endif %}
-                                #{{ row.position }}
-                            </span>
-                        </td>
+                    <tr data-board-row data-status="{{ row.submission.status }}" data-created="{{ row.submission.created_at|date:'c' }}">
+                        <td><span class="position-pill">#{{ row.position }}</span></td>
                         <td>
                             <div class="submission-name">
                                 {% if row.profile %}
                                     <a href="{% url 'athlete_profile' row.profile.slug %}" style="display: inline-flex; align-items: center; gap: 10px;">
-                                        {% if row.profile.profile_image_url %}
-                                            <img class="avatar" src="{{ row.profile.profile_image_url }}" alt="{{ row.profile.display_name }} profile picture">
-                                        {% else %}
-                                            <span class="avatar">{{ row.profile.display_name|first|upper }}</span>
-                                        {% endif %}
+                                        {% if row.profile.profile_image_url %}<img class="avatar" src="{{ row.profile.profile_image_url }}" alt="{{ row.profile.display_name }} profile picture">{% else %}<span class="avatar">{{ row.profile.display_name|first|upper }}</span>{% endif %}
                                         {{ row.submission.name }}
                                     </a>
                                 {% else %}
                                     {{ row.submission.name }}
                                 {% endif %}
                             </div>
-                            <div class="submission-meta">
-                                {% if row.verified_position %}
-                                    Official rank #{{ row.verified_position }}
-                                {% else %}
-                                    Waiting for verification
-                                {% endif %}
-                            </div>
                         </td>
                         <td><span class="score">{{ row.submission.reps }}</span></td>
                         <td><span class="tag-pill">{{ row.submission.rank_name }}</span></td>
                         <td><span class="status-pill {{ row.submission.status }}">{{ row.submission.public_status_label }}</span></td>
-                        <td>{% if row.verified_position %}#{{ row.verified_position }}{% else %}-{% endif %}</td>
                         <td>
-                            {{ row.submission.benchmark_label }}
+                            {% if row.verified_position %}Official rank #{{ row.verified_position }}{% else %}-{% endif %}
+                            {% if not row.verified_position %}<div class="submission-meta">Waiting for verification</div>{% endif %}
                             {% if request.user.is_authenticated and row.profile and row.profile.user != request.user %}
-                                <div style="margin-top: 8px;"><a class="btn-secondary" style="min-height: 34px; padding: 6px 10px;" href="{% url 'athlete_profile' row.profile.slug %}">Compare 1v1</a></div>
+                                <a class="btn-secondary" style="margin-top: 8px; min-height: 34px; padding: 6px 10px;" href="{% url 'comparison' request.user.profile.slug row.profile.slug %}">1v1</a>
                             {% endif %}
                         </td>
                     </tr>
@@ -186,7 +88,7 @@
 
         <div class="mobile-cards compact-board">
             {% for row in leaderboard_rows %}
-                <div class="score-row" data-board-row data-status="{{ row.submission.status }}" data-name="{{ row.submission.name|lower }}">
+                <div class="score-row" data-board-row data-status="{{ row.submission.status }}" data-created="{{ row.submission.created_at|date:'c' }}">
                     {% if row.profile and row.profile.profile_image_url %}
                         <img class="avatar" src="{{ row.profile.profile_image_url }}" alt="{{ row.profile.display_name }} profile picture">
                     {% elif row.profile %}
@@ -195,73 +97,37 @@
                         <span class="avatar">{{ row.submission.name|first|upper }}</span>
                     {% endif %}
                     <div class="score-row-main">
-                        <div class="submission-name">
-                            {% if row.profile %}
-                                <a href="{% url 'athlete_profile' row.profile.slug %}">{{ row.submission.name }}</a>
-                            {% else %}
-                                {{ row.submission.name }}
-                            {% endif %}
-                        </div>
-                        <div class="submission-meta">{{ row.submission.rank_name }} - {{ row.submission.benchmark_label }}</div>
+                        <div class="submission-name">{% if row.profile %}<a href="{% url 'athlete_profile' row.profile.slug %}">{{ row.submission.name }}</a>{% else %}{{ row.submission.name }}{% endif %}</div>
+                        <div class="submission-meta">{{ row.submission.rank_name }} - {{ row.submission.public_status_label }}</div>
                     </div>
                     <div class="score-row-score">
-                        <span class="position-pill">
-                            {% if row.medal_place == 1 %}<span class="medal">&#129351;</span>{% endif %}
-                            {% if row.medal_place == 2 %}<span class="medal">&#129352;</span>{% endif %}
-                            {% if row.medal_place == 3 %}<span class="medal">&#129353;</span>{% endif %}
-                            #{{ row.position }}
-                        </span>
+                        <span class="position-pill">#{{ row.position }}</span>
                         <div class="score">{{ row.submission.reps }}</div>
-                    </div>
-                    <div class="score-details" style="grid-column: 1 / -1; border-top: 0; padding-top: 0;">
-                        <div style="display: flex; justify-content: space-between; gap: 10px; align-items: center; flex-wrap: wrap;">
-                            <span class="status-pill {{ row.submission.status }}">{{ row.submission.public_status_label }}</span>
-                            {% if row.profile %}
-                                <a class="btn-secondary" style="min-height: 34px; padding: 6px 10px;" href="{% url 'athlete_profile' row.profile.slug %}">View Public Profile</a>
-                            {% endif %}
-                        </div>
-                        <div class="submission-meta" style="margin-top: 8px;">
-                            {% if row.verified_position %}
-                                Official rank #{{ row.verified_position }}
-                            {% else %}
-                                Waiting for verification
-                            {% endif %}
-                        </div>
                     </div>
                 </div>
             {% endfor %}
         </div>
-        <div class="pagination-row">
-            <div class="muted">Page {{ leaderboard_rows.number }} of {{ leaderboard_rows.paginator.num_pages }}</div>
-            <div class="button-row" style="margin-top: 0;">
-                {% if leaderboard_rows.has_previous %}
-                    <a class="btn-secondary" href="?{{ leaderboard_querystring }}&page={{ leaderboard_rows.previous_page_number }}#full-leaderboard">Previous 10</a>
-                {% endif %}
-                {% if leaderboard_rows.has_next %}
-                    <a class="btn-main" href="?{{ leaderboard_querystring }}&page={{ leaderboard_rows.next_page_number }}#full-leaderboard">Next 10</a>
-                {% endif %}
-            </div>
-        </div>
     {% else %}
-        <p>No submissions yet. The first athletes will shape the culture of the board.</p>
+        <p class="muted">No submissions yet.</p>
     {% endif %}
 </section>
 
-<section class="card-dark">
-    <div class="section-spread">
-        <div>
-            <h2>Rank Framework</h2>
-            <p class="muted">Use the arrows to move between tiers. Each card shows the next target to chase.</p>
-        </div>
-    </div>
-    {% include "includes/rank_benchmark_carousel.html" %}
-</section>
 <script>
+    const weekCutoff = new Date("{{ weekly_cutoff }}");
+    const monthCutoff = new Date("{{ monthly_cutoff }}");
+    function rowMatches(row, filter) {
+        const status = row.dataset.status;
+        const created = new Date(row.dataset.created);
+        if (filter === "all") return true;
+        if (filter === "week") return created >= weekCutoff;
+        if (filter === "month") return created >= monthCutoff;
+        return status === filter;
+    }
     for (const button of document.querySelectorAll("[data-board-filter]")) {
         button.addEventListener("click", () => {
             const filter = button.dataset.boardFilter;
             for (const row of document.querySelectorAll("[data-board-row]")) {
-                row.style.display = filter === "all" || row.dataset.status === filter ? "" : "none";
+                row.style.display = rowMatches(row, filter) ? "" : "none";
             }
             for (const item of document.querySelectorAll("[data-board-filter]")) {
                 item.classList.toggle("btn-main", item === button);

@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 
 {% block title %}Challenge - Submit for Verification{% endblock %}
-{% block meta_description %}Submit your strict push-up result to the Earned Club challenge, add your public proof link, and earn a verified public leaderboard rank.{% endblock %}
+{% block meta_description %}Submit your strict push-up result to Earned Club, add video proof, and earn a verified public leaderboard rank.{% endblock %}
 
 {% block content %}
 <section class="hero-card" style="margin-bottom: 24px;">
@@ -10,7 +10,7 @@
             <div class="eyebrow">Submit Your Result</div>
             <h1>Put your best set on the board.</h1>
             <p class="muted">
-                Submit one strict max set, attach a public proof link, and claim a place on the Earned Club leaderboard after review.
+                Submit one strict max set, add video proof, and claim a place on the Earned Club leaderboard after review.
             </p>
             <p>
                 The flow is simple on purpose: your result stays visible with a clear status, and verified scores become official ranked performances.
@@ -33,7 +33,7 @@
                     <span class="muted">proof review</span>
                 </div>
             </div>
-            <p class="muted" style="margin-top: 12px;">Tip: use a public proof link or upload a video file directly. Anonymous submissions are capped at 40 reps.</p>
+            <p class="muted" style="margin-top: 12px;">Anonymous submissions are capped at 40 reps.</p>
         </div>
 
         <div class="stack" id="submit-form-top">
@@ -119,18 +119,17 @@
                                 placeholder="https://youtube.com/watch?v=your-video"
                                 value="{{ form_data.video_link|default:'' }}"
                             >
-                            <div class="hint">Use a public YouTube, Drive, TikTok, or similar proof link.</div>
+                            <div class="hint">YouTube, Drive, TikTok, or similar.</div>
                         </div>
 
                         <div>
                             <label class="field-label" for="video_file">Upload video file</label>
                             <input id="video_file" class="input" type="file" name="video_file" accept="video/*">
-                            <div class="hint">Logged-in scores above 60 need a proof link or uploaded video. Anonymous scores above 40 require login.</div>
                         </div>
 
                         <button type="submit" class="btn-main">Send For Verification</button>
                         <div class="result-note">
-                            Clear proof moves fastest: side angle, full range, no cuts, and a link reviewers can open without permission.
+                            Clear side angle, full range, no cuts.
                         </div>
                     </form>
                 {% endif %}
@@ -148,7 +147,7 @@
                     <span class="step-number">2</span>
                     <div>
                         <strong>Add proof</strong>
-                        <div class="muted">A public video link sends it into review.</div>
+                        <div class="muted">Link or upload sends it into review.</div>
                     </div>
                 </div>
                 <div class="step-item">
@@ -162,12 +161,12 @@
                     <span class="step-number">!</span>
                     <div>
                         <strong>Submission limits</strong>
-                        <div class="muted">Anonymous scores stop at 40. Logged-in scores above 60 need a proof link or uploaded video.</div>
+                        <div class="muted">Anonymous: max 40. Logged-in 60+: proof required.</div>
                     </div>
                 </div>
             <div class="mini-card" style="margin-top: 12px;">
                 <h4>Submission rules</h4>
-                <p style="margin-bottom: 0;">If you submit without a video or proof link, the entry is saved as unverified. Add proof later from your profile dashboard to send it into pending review. Scores above 60 need proof when logged in; anonymous scores stop at 40.</p>
+                <p style="margin-bottom: 0;">No proof saves as unverified. Add proof later from your dashboard.</p>
             </div>
             </div>
         </div>

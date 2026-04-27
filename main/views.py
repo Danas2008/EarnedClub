@@ -46,15 +46,22 @@ from .media_utils import store_profile_image, store_submission_video
 
 
 DEFAULT_EXERCISES = [
-    "Push-ups",
-    "Pull-ups",
-    "Squats",
-    "Plank",
-    "Burpees",
-    "Lunges",
-    "Dips",
-    "Running",
+    {"name": "Push-ups", "type": "strength", "body_part": "Chest"},
+    {"name": "Pull-ups", "type": "strength", "body_part": "Back"},
+    {"name": "Dips", "type": "strength", "body_part": "Triceps"},
+    {"name": "Squats", "type": "strength", "body_part": "Legs"},
+    {"name": "Lunges", "type": "strength", "body_part": "Legs"},
+    {"name": "Plank", "type": "strength", "body_part": "Core"},
+    {"name": "Burpees", "type": "cardio", "body_part": "Full body"},
+    {"name": "Running", "type": "cardio", "body_part": "Cardio"},
+    {"name": "Cycling", "type": "cardio", "body_part": "Cardio"},
+    {"name": "Jump rope", "type": "cardio", "body_part": "Cardio"},
+    {"name": "Shoulder press", "type": "strength", "body_part": "Shoulders"},
+    {"name": "Rows", "type": "strength", "body_part": "Back"},
+    {"name": "Dead bug", "type": "mobility", "body_part": "Core"},
 ]
+
+BODY_PARTS = sorted({exercise["body_part"] for exercise in DEFAULT_EXERCISES})
 
 SYSTEM_WORKOUT_TEMPLATES = [
     {
@@ -83,6 +90,7 @@ register_namespace("", SITEMAP_NAMESPACE)
 
 SITEMAP_STATIC_PAGES = [
     {"view_name": "home", "changefreq": "daily", "priority": "1.0"},
+    {"view_name": "level_test", "changefreq": "weekly", "priority": "0.9"},
     {"view_name": "challenge", "changefreq": "weekly", "priority": "0.9"},
     {"view_name": "leaderboard", "changefreq": "daily", "priority": "0.9"},
     {"view_name": "profiles", "changefreq": "daily", "priority": "0.8"},
@@ -182,6 +190,25 @@ def get_pr_share_message(profile, request):
     return f"Hey, I just did {profile.personal_best_reps} push-ups on earnedclub.club. Can you beat it? {url}"
 
 
+def get_daily_suggestion(profile, verified_count, workout_count):
+    quotes = [
+        "Small proof beats loud claims.",
+        "Make today's set clean enough to count.",
+        "Consistency is the quiet part of status.",
+        "Train the rep you want verified.",
+    ]
+    quote = quotes[(profile.user_id + workout_count + verified_count) % len(quotes)]
+    if profile.personal_best_reps >= 60:
+        task = "Film a controlled submax set or recover with core work."
+    elif profile.personal_best_reps >= 40:
+        task = "Do 4 push-up sets at 60-70% of your PR."
+    elif workout_count:
+        task = "Repeat your last workout and add one clean rep."
+    else:
+        task = "Test push-ups today, then log a short workout."
+    return f"{task} {quote}"
+
+
 def verified_submission_queryset():
     return Submission.objects.filter(status=Submission.STATUS_VERIFIED)
 
@@ -226,6 +253,14 @@ def active_submission_queryset():
     return Submission.objects.filter(status__in=[Submission.STATUS_UNVERIFIED, Submission.STATUS_PENDING])
 
 
+def blocking_submission_queryset():
+    recent_cutoff = timezone.now() - timedelta(minutes=1)
+    return Submission.objects.filter(
+        Q(status=Submission.STATUS_PENDING) |
+        Q(status=Submission.STATUS_UNVERIFIED, created_at__gte=recent_cutoff)
+    )
+
+
 def estimate_verified_position(reps):
     equal_or_better = sum(1 for item in get_official_verified_submissions() if item.reps >= reps)
     return equal_or_better + 1
@@ -239,15 +274,37 @@ def user_display_name(user):
 
 
 def get_progress_data(submissions):
-    return [
+    ordered = list(submissions.order_by("created_at", "id"))
+    best_so_far = 0
+    data = []
+    for submission in ordered:
+        previous_best = best_so_far
+        best_so_far = max(best_so_far, submission.reps)
+        data.append(
         {
             "date": submission.created_at.strftime("%Y-%m-%d"),
             "time": submission.created_at.strftime("%H:%M"),
             "label": submission.created_at.strftime("%b %d, %H:%M"),
             "reps": submission.reps,
+            "best": best_so_far,
+            "gain": submission.reps - previous_best if previous_best else 0,
         }
-        for submission in submissions.order_by("created_at", "id")
-    ]
+        )
+    return data
+
+
+def get_progress_summary(submissions):
+    data = get_progress_data(submissions)
+    if not data:
+        return {"attempts": 0, "best": 0, "first": 0, "gain": 0, "average": 0}
+    reps = [point["reps"] for point in data]
+    return {
+        "attempts": len(data),
+        "best": max(reps),
+        "first": reps[0],
+        "gain": max(reps) - reps[0],
+        "average": round(sum(reps) / len(reps), 1),
+    }
 
 
 def paginate_items(request, items, per_page=10):
@@ -378,7 +435,7 @@ def find_submission_blocker(request, name, email, reps, video_link):
     if proof_blocker:
         return proof_blocker
 
-    cooldown = timezone.now() - timedelta(minutes=10)
+    cooldown = timezone.now() - timedelta(minutes=1)
     recent_duplicate = Submission.objects.filter(created_at__gte=cooldown, reps=reps)
     if request.user.is_authenticated:
         recent_duplicate = recent_duplicate.filter(user=request.user)
@@ -417,6 +474,73 @@ def build_profile_schema(profile, best_submission):
             f"Earned Club rank tier: {best_submission.rank_name}",
         ]
     return schema
+
+
+def parse_positive_int(value):
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError):
+        return None
+    return parsed if parsed > 0 else None
+
+
+def create_workout_from_request(request):
+    title = (request.POST.get("title") or "").strip()
+    duration_value = parse_positive_int(request.POST.get("duration_minutes"))
+    notes = (request.POST.get("notes") or "").strip()
+    is_public = request.POST.get("is_public") == "on"
+    highlighted = request.POST.get("highlighted_on_profile") == "on"
+    save_as_template = request.POST.get("save_as_template") == "on"
+    template_id = request.POST.get("template_id")
+    if not title:
+        return None, "Workout title is required."
+
+    template = None
+    if template_id:
+        template = WorkoutTemplate.objects.filter(Q(user=request.user) | Q(is_system=True), pk=template_id).first()
+    workout = Workout.objects.create(
+        user=request.user,
+        template=template,
+        title=title,
+        duration_minutes=duration_value,
+        notes=notes,
+        is_public=is_public,
+        highlighted_on_profile=highlighted and is_public,
+    )
+    names = request.POST.getlist("exercise_name")
+    types = request.POST.getlist("exercise_type")
+    body_parts = request.POST.getlist("body_part")
+    sets_values = request.POST.getlist("exercise_sets")
+    reps_values = request.POST.getlist("exercise_reps")
+    seconds_values = request.POST.getlist("exercise_seconds")
+    exercise_created = False
+    for index, exercise_name in enumerate(names):
+        exercise_name = (exercise_name or "").strip()
+        if not exercise_name:
+            continue
+        exercise_type = types[index] if index < len(types) and types[index] else WorkoutExercise.TYPE_STRENGTH
+        WorkoutExercise.objects.create(
+            workout=workout,
+            name=exercise_name,
+            exercise_type=exercise_type,
+            body_part=(body_parts[index] if index < len(body_parts) else "").strip(),
+            sets=parse_positive_int(sets_values[index] if index < len(sets_values) else "") or 1,
+            reps=parse_positive_int(reps_values[index] if index < len(reps_values) else ""),
+            seconds=parse_positive_int(seconds_values[index] if index < len(seconds_values) else ""),
+            order=index,
+        )
+        exercise_created = True
+    if not exercise_created and template:
+        for index, (name, sets, reps, seconds) in enumerate(get_template_exercises(template)):
+            WorkoutExercise.objects.create(workout=workout, name=name, sets=sets, reps=reps, seconds=seconds, order=index)
+    if save_as_template:
+        template_difficulty = WorkoutTemplate.DIFFICULTY_BEGINNER
+        if request.user.profile.personal_best_reps >= 60:
+            template_difficulty = WorkoutTemplate.DIFFICULTY_ADVANCED
+        elif request.user.profile.personal_best_reps >= 20:
+            template_difficulty = WorkoutTemplate.DIFFICULTY_INTERMEDIATE
+        WorkoutTemplate.objects.create(user=request.user, name=title, difficulty=template_difficulty, notes=notes)
+    return workout, ""
 
 
 def format_sitemap_date(value):
@@ -488,6 +612,19 @@ def home(request):
     return render(request, "home.html", context)
 
 
+def level_test(request):
+    verified_submissions = get_official_verified_submissions()
+    return render(
+        request,
+        "test_landing.html",
+        {
+            "rank_tiers": RANK_TIERS,
+            "total_verified": len(verified_submissions),
+            "total_submissions": len(public_submission_queryset()),
+        },
+    )
+
+
 def sitemap_xml(request):
     xml = build_sitemap_xml(
         build_sitemap_entries(request),
@@ -518,24 +655,15 @@ def leaderboard(request):
     public_submissions = list(get_leaderboard_submissions(active_mode["key"]))
     public_submissions = search_submissions(public_submissions, query)
     weekly_cutoff = get_weekly_window()
-    weekly_submissions = search_submissions(public_submission_queryset(since=weekly_cutoff), query)
+    monthly_cutoff = get_monthly_window()
 
     leaderboard_rows = build_leaderboard_rows(public_submissions)
-    leaderboard_modes = [
-        {
-            **mode,
-            "url": f"{reverse('leaderboard')}?{build_querystring(mode=mode['key'], q=query)}#full-leaderboard",
-            "is_active": mode["key"] == active_mode["key"],
-        }
-        for mode in LEADERBOARD_MODES
-    ]
 
     context = {
-        "leaderboard_rows": paginate_items(request, leaderboard_rows),
-        "weekly_rows": build_leaderboard_rows(weekly_submissions)[:5],
-        "leaderboard_modes": leaderboard_modes,
+        "leaderboard_rows": paginate_items(request, leaderboard_rows, per_page=100),
         "active_mode": active_mode,
-        "leaderboard_querystring": build_querystring(mode=active_mode["key"], q=query),
+        "weekly_cutoff": weekly_cutoff.isoformat(),
+        "monthly_cutoff": monthly_cutoff.isoformat(),
         "rank_tiers": RANK_TIERS,
         "verified_count": len(verified_submissions),
         "submission_count": len(public_submissions),
@@ -613,99 +741,23 @@ def dashboard(request):
             return redirect("dashboard")
 
         if form_type == "workout":
-            title = (request.POST.get("title") or "").strip()
-            duration = (request.POST.get("duration_minutes") or "").strip()
-            notes = (request.POST.get("notes") or "").strip()
-            is_public = request.POST.get("is_public") == "on"
-            save_as_template = request.POST.get("save_as_template") == "on"
-            template_id = request.POST.get("template_id")
-            if not title:
-                messages.error(request, "Workout title is required.")
-                return redirect("dashboard")
-            duration_value = None
-            if duration:
-                try:
-                    duration_value = int(duration)
-                except ValueError:
-                    messages.error(request, "Workout time must be a whole number of minutes.")
-                    return redirect("dashboard")
-                if duration_value <= 0:
-                    messages.error(request, "Workout time must be greater than zero.")
-                    return redirect("dashboard")
-            template = None
-            if template_id:
-                template = WorkoutTemplate.objects.filter(Q(user=request.user) | Q(is_system=True), pk=template_id).first()
-            workout = Workout.objects.create(
-                user=request.user,
-                template=template,
-                title=title,
-                duration_minutes=duration_value,
-                notes=notes,
-                is_public=is_public,
-            )
-            names = request.POST.getlist("exercise_name")
-            sets_values = request.POST.getlist("exercise_sets")
-            reps_values = request.POST.getlist("exercise_reps")
-            seconds_values = request.POST.getlist("exercise_seconds")
-            exercise_created = False
-            for index, exercise_name in enumerate(names):
-                exercise_name = (exercise_name or "").strip()
-                if not exercise_name:
-                    continue
-                def as_positive(value):
-                    try:
-                        parsed = int(value)
-                    except (TypeError, ValueError):
-                        return None
-                    return parsed if parsed > 0 else None
-
-                WorkoutExercise.objects.create(
-                    workout=workout,
-                    name=exercise_name,
-                    sets=as_positive(sets_values[index] if index < len(sets_values) else "") or 1,
-                    reps=as_positive(reps_values[index] if index < len(reps_values) else ""),
-                    seconds=as_positive(seconds_values[index] if index < len(seconds_values) else ""),
-                    order=index,
-                )
-                exercise_created = True
-            if not exercise_created and template:
-                for index, (name, sets, reps, seconds) in enumerate(get_template_exercises(template)):
-                    WorkoutExercise.objects.create(workout=workout, name=name, sets=sets, reps=reps, seconds=seconds, order=index)
-            if save_as_template:
-                template_difficulty = WorkoutTemplate.DIFFICULTY_BEGINNER
-                if profile.personal_best_reps >= 60:
-                    template_difficulty = WorkoutTemplate.DIFFICULTY_ADVANCED
-                elif profile.personal_best_reps >= 20:
-                    template_difficulty = WorkoutTemplate.DIFFICULTY_INTERMEDIATE
-                WorkoutTemplate.objects.create(
-                    user=request.user,
-                    name=title,
-                    difficulty=template_difficulty,
-                    notes=notes,
-                )
-            messages.success(request, "Workout logged.")
+            workout, error = create_workout_from_request(request)
+            if error:
+                messages.error(request, error)
+            else:
+                messages.success(request, "Workout saved.")
             return redirect("dashboard")
 
         if form_type == "quick_result":
-            reps = (request.POST.get("quick_reps") or "").strip()
-            seconds = (request.POST.get("quick_seconds") or "").strip()
-            title_bits = []
-            if reps:
-                title_bits.append(f"{reps} reps")
-            if seconds:
-                title_bits.append(f"{seconds}s")
-            if not title_bits:
+            exercise_name = (request.POST.get("quick_exercise") or "Quick result").strip()
+            reps = parse_positive_int(request.POST.get("quick_reps"))
+            seconds = parse_positive_int(request.POST.get("quick_seconds"))
+            if not reps and not seconds:
                 messages.error(request, "Add reps or time for quick log.")
                 return redirect("dashboard")
-            workout = Workout.objects.create(user=request.user, title="Quick log result", notes="Quick private result.", is_public=False)
-            WorkoutExercise.objects.create(
-                workout=workout,
-                name="Quick result",
-                sets=1,
-                reps=int(reps) if reps.isdigit() else None,
-                seconds=int(seconds) if seconds.isdigit() else None,
-            )
-            messages.success(request, "Quick result logged.")
+            workout = Workout.objects.create(user=request.user, title=f"Quick log - {exercise_name}")
+            WorkoutExercise.objects.create(workout=workout, name=exercise_name, reps=reps, seconds=seconds)
+            messages.success(request, "Quick log saved.")
             return redirect("dashboard")
 
         username = (request.POST.get("username") or "").strip()
@@ -781,13 +833,8 @@ def dashboard(request):
 
     ensure_system_workout_templates()
     workouts = request.user.workouts.prefetch_related("exercises").order_by("-created_at")
-    templates = WorkoutTemplate.objects.filter(Q(user=request.user) | Q(is_system=True)).order_by("-is_system", "difficulty", "name")
-    last_workout = workouts.first()
-    recommendation = "Today: test your push-ups."
-    if best_submission and best_submission.reps < 40:
-        recommendation = "Today: build your base with 3 clean push-up sets."
-    elif best_submission and best_submission.reps >= 60:
-        recommendation = "Today: protect your Elite score with controlled volume and a form check."
+    progress_summary = get_progress_summary(verified_submissions)
+    recommendation = get_daily_suggestion(profile, verified_submissions.count(), workouts.count())
 
     context = {
         "profile": profile,
@@ -808,14 +855,12 @@ def dashboard(request):
         "history_submissions": request.user.submission_set.order_by("-created_at"),
         "rejected_count": rejected_submissions.count(),
         "progress_data": get_progress_data(verified_submissions),
+        "progress_summary": progress_summary,
         "country_choices": COUNTRY_CHOICES,
         "badges": profile.earned_badges,
         "followers_count": request.user.follower_links.count(),
         "following_count": request.user.following_links.count(),
-        "workouts": workouts[:8],
-        "last_workout": last_workout,
-        "workout_templates": templates,
-        "default_exercises": DEFAULT_EXERCISES,
+        "workouts": workouts[:5],
         "active_goals": request.user.goals.filter(is_active=True)[:5],
         "daily_suggestion": recommendation,
         "profile_share_message": get_profile_share_message(profile, request),
@@ -880,9 +925,12 @@ def athlete_profile(request, slug):
         "progress_data": get_progress_data(verified_submissions),
         "profile_description": profile_description,
         "profile_schema_json": json_ld(build_profile_schema(profile, best_submission)),
+        "profile_og_image": build_public_url(profile.profile_image_url) if profile.profile_image_url and profile.profile_image_url.startswith("/") else (profile.profile_image_url or ""),
         "badges": profile.earned_badges,
         "followers_count": profile.user.follower_links.count(),
         "following_count": profile.user.following_links.count(),
+        "public_workouts": profile.user.workouts.filter(is_public=True).prefetch_related("exercises")[:4],
+        "highlighted_workout": profile.user.workouts.filter(is_public=True, highlighted_on_profile=True).prefetch_related("exercises").first(),
         "is_following": is_following,
         "compare_profile": compare_profile,
         "comparison": comparison,
@@ -890,6 +938,26 @@ def athlete_profile(request, slug):
         "pr_share_message": get_pr_share_message(profile, request),
     }
     return render(request, "athlete_profile.html", context)
+
+
+def comparison(request, left, right):
+    left_profile = get_object_or_404(Profile, slug=left)
+    right_profile = get_object_or_404(Profile, slug=right)
+    left_best = get_best_verified_submission_for_user(left_profile.user)
+    right_best = get_best_verified_submission_for_user(right_profile.user)
+    return render(
+        request,
+        "comparison.html",
+        {
+            "left_profile": left_profile,
+            "right_profile": right_profile,
+            "left_best": left_best,
+            "right_best": right_best,
+            "left_tier": left_best.rank_tier if left_best else get_rank_tier(0),
+            "right_tier": right_best.rank_tier if right_best else get_rank_tier(0),
+            "rep_delta": left_profile.personal_best_reps - right_profile.personal_best_reps,
+        },
+    )
 
 
 @require_POST
@@ -918,7 +986,7 @@ def challenge(request):
     }
     if request.user.is_authenticated:
         context["profile"] = request.user.profile
-        context["active_submission"] = active_submission_queryset().filter(user=request.user).order_by("-created_at").first()
+        context["active_submission"] = blocking_submission_queryset().filter(user=request.user).order_by("-created_at").first()
 
     if request.method == "POST":
         name = (request.POST.get("name") or "").strip()
@@ -962,14 +1030,14 @@ def challenge(request):
             context["form_data"] = request.POST
             return render(request, "challenge.html", context)
 
-        active_filter = active_submission_queryset()
+        active_filter = blocking_submission_queryset()
         if request.user.is_authenticated:
             active_submission = active_filter.filter(user=request.user).first()
         else:
             active_submission = active_filter.filter(email=email).first()
 
         if active_submission:
-            if active_submission.status == Submission.STATUS_UNVERIFIED and video_link:
+            if active_submission.status == Submission.STATUS_UNVERIFIED and (video_link or video_file):
                 proof_blocker = find_proof_link_blocker(video_link, exclude_pk=active_submission.pk)
                 if proof_blocker:
                     messages.error(request, proof_blocker)
@@ -981,8 +1049,13 @@ def challenge(request):
                 active_submission.email = email
                 active_submission.reps = reps_value
                 active_submission.video_link = video_link
-                active_submission.video_storage_path = ""
-                active_submission.video_file = ""
+                if video_file:
+                    stored_video = store_submission_video(active_submission, video_file)
+                    active_submission.video_storage_path = stored_video["storage_path"]
+                    active_submission.video_file = stored_video["local_file"] or ""
+                else:
+                    active_submission.video_storage_path = ""
+                    active_submission.video_file = ""
                 active_submission.status = Submission.STATUS_PENDING
                 active_submission.verified = False
                 active_submission.save(
@@ -1124,6 +1197,18 @@ def add_submission_proof(request, submission_id):
     return redirect("dashboard")
 
 
+@require_POST
+@login_required
+def delete_submission(request, submission_id):
+    submission = get_object_or_404(Submission, pk=submission_id, user=request.user)
+    if submission.status == Submission.STATUS_VERIFIED:
+        messages.error(request, "Verified attempts stay in the official record. Ask admin if something is wrong.")
+        return redirect("dashboard")
+    submission.delete()
+    messages.success(request, "Attempt deleted.")
+    return redirect("dashboard")
+
+
 def is_app_admin(user):
     return user.is_authenticated and user.is_staff
 
@@ -1228,6 +1313,9 @@ def review_submission(request, submission_id):
                 "Your latest result was not verified. Check the rules and submit a clearer proof video when you are ready.",
             )
         messages.info(request, f"{submission.name} was rejected.")
+    elif action == "delete":
+        submission.delete()
+        messages.info(request, f"{submission.name}'s submission was deleted.")
     else:
         messages.error(request, "Unknown review action.")
 
@@ -1277,6 +1365,58 @@ def workout_detail(request, slug):
     return render(request, "workout_detail.html", {"workout": workout})
 
 
+@login_required
+def workouts(request):
+    ensure_system_workout_templates()
+    if request.method == "POST":
+        form_type = request.POST.get("form_type", "workout")
+        if form_type == "quick_result":
+            exercise_name = (request.POST.get("quick_exercise") or "Quick result").strip()
+            exercise_type = request.POST.get("quick_type") or WorkoutExercise.TYPE_STRENGTH
+            reps = parse_positive_int(request.POST.get("quick_reps"))
+            sets = parse_positive_int(request.POST.get("quick_sets")) or 1
+            seconds = parse_positive_int(request.POST.get("quick_seconds"))
+            if exercise_type == WorkoutExercise.TYPE_CARDIO and not seconds:
+                messages.error(request, "Cardio quick logs need a time.")
+                return redirect("workouts")
+            if exercise_type != WorkoutExercise.TYPE_CARDIO and not reps:
+                messages.error(request, "Strength quick logs need reps.")
+                return redirect("workouts")
+            workout = Workout.objects.create(user=request.user, title=f"Quick log - {exercise_name}")
+            WorkoutExercise.objects.create(
+                workout=workout,
+                name=exercise_name,
+                exercise_type=exercise_type,
+                body_part=(request.POST.get("quick_body_part") or "").strip(),
+                sets=sets,
+                reps=reps,
+                seconds=seconds,
+            )
+            messages.success(request, "Quick log saved.")
+            return redirect("workouts")
+
+        workout, error = create_workout_from_request(request)
+        if error:
+            messages.error(request, error)
+        else:
+            messages.success(request, "Workout saved.")
+        return redirect("workouts")
+
+    workouts_qs = request.user.workouts.prefetch_related("exercises").order_by("-created_at")
+    templates = WorkoutTemplate.objects.filter(Q(user=request.user) | Q(is_system=True)).order_by("-is_system", "difficulty", "name")
+    return render(
+        request,
+        "workouts.html",
+        {
+            "workouts": workouts_qs,
+            "workout_templates": templates,
+            "default_exercises": DEFAULT_EXERCISES,
+            "body_parts": BODY_PARTS,
+            "exercise_types": WorkoutExercise.TYPE_CHOICES,
+        },
+    )
+
+
 @require_POST
 @login_required
 def duplicate_workout(request, workout_id):
@@ -1300,7 +1440,7 @@ def duplicate_workout(request, workout_id):
             order=exercise.order,
         )
     messages.success(request, "Workout duplicated.")
-    return redirect("dashboard")
+    return redirect("workouts")
 
 
 @require_POST
@@ -1329,7 +1469,30 @@ def quick_add_last_workout(request):
             order=exercise.order,
         )
     messages.success(request, "Last workout added again.")
-    return redirect("dashboard")
+    return redirect("workouts")
+
+
+@require_POST
+@login_required
+def delete_workout(request, workout_id):
+    workout = get_object_or_404(Workout, pk=workout_id, user=request.user)
+    workout.delete()
+    messages.success(request, "Workout deleted.")
+    return redirect(request.POST.get("next") or "workouts")
+
+
+@require_POST
+@login_required
+def toggle_highlight_workout(request, workout_id):
+    workout = get_object_or_404(Workout, pk=workout_id, user=request.user)
+    if not workout.is_public:
+        messages.error(request, "Only public workouts can be highlighted.")
+        return redirect("workouts")
+    request.user.workouts.update(highlighted_on_profile=False)
+    workout.highlighted_on_profile = True
+    workout.save(update_fields=["highlighted_on_profile"])
+    messages.success(request, "Workout highlighted on your profile.")
+    return redirect("workouts")
 
 
 @user_passes_test(is_app_admin, login_url="login")

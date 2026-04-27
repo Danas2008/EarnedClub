@@ -5,406 +5,189 @@
 {% block content %}
 <section class="hero-card profile-header">
     <div class="profile-hero-meta">
-        {% if profile.profile_image_url %}
-            <img class="avatar avatar-lg" src="{{ profile.profile_image_url }}" alt="{{ profile.display_name }} profile picture">
-        {% else %}
-            <span class="avatar avatar-lg">{{ profile.display_name|first|upper }}</span>
-        {% endif %}
+        {% if profile.profile_image_url %}<img class="avatar avatar-lg" src="{{ profile.profile_image_url }}" alt="{{ profile.display_name }} profile picture">{% else %}<span class="avatar avatar-lg">{{ profile.display_name|first|upper }}</span>{% endif %}
         <div>
-            <div class="eyebrow">Athlete Profile</div>
+            <div class="eyebrow">Dashboard</div>
             <h1>{{ profile.display_name }}</h1>
-            <p class="muted">Your private dashboard and public profile settings live in one place.</p>
+            <p class="muted">{{ followers_count }} followers - {{ following_count }} following</p>
         </div>
     </div>
     <div class="button-row">
-        <a class="btn-main" href="{% url 'challenge' %}#submit-form-top">Submit New Result</a>
-        <a class="btn-secondary" href="{% url 'athlete_profile' profile.slug %}">View Public Profile</a>
+        <a class="btn-main" href="{% url 'challenge' %}#submit-form-top">Submit</a>
+        <a class="btn-secondary" href="{% url 'workouts' %}">Workouts</a>
+        <a class="btn-secondary" href="{% url 'athlete_profile' profile.slug %}">Public Profile</a>
         <button class="btn-secondary" type="button" data-share-text="{{ profile_share_message }}">Share Profile</button>
-        <button class="btn-secondary" type="button" data-share-text="{{ pr_share_message }}">Share PR</button>
         <button class="btn-secondary" type="button" data-toggle-panel="profile-edit" aria-expanded="false" aria-controls="profile-edit">&#9881; Settings</button>
     </div>
     <form id="profile-edit" class="submission-form hidden-panel settings-inline-panel" method="POST" enctype="multipart/form-data">
         {% csrf_token %}
         <input type="hidden" name="form_type" value="profile">
         <div class="grid-2">
-            <div>
-                <label class="field-label" for="username">Username</label>
-                <input id="username" class="input" type="text" name="username" value="{{ request.user.username }}" required>
-            </div>
-            <div>
-                <label class="field-label" for="email">Email</label>
-                <input id="email" class="input" type="email" name="email" value="{{ request.user.email }}">
-            </div>
+            <input class="input" type="text" name="username" value="{{ request.user.username }}" required>
+            <input class="input" type="email" name="email" value="{{ request.user.email }}" placeholder="Email">
         </div>
         <div class="grid-2">
-            <div>
-                <label class="field-label" for="country">Country</label>
-                <input id="country" class="input" type="text" name="country" value="{{ profile.country }}" list="country-options" placeholder="Czech Republic" autocomplete="off">
-                <datalist id="country-options">
-                    {% for country in country_choices %}
-                        <option value="{{ country }}"></option>
-                    {% endfor %}
-                </datalist>
-            </div>
-            <div>
-                <label class="field-label" for="age">Age</label>
-                <input id="age" class="input" type="number" name="age" min="13" max="100" value="{{ profile.age|default:'' }}">
-            </div>
+            <input class="input" type="text" name="country" value="{{ profile.country }}" list="country-options" placeholder="Country" autocomplete="off">
+            <input class="input" type="number" name="age" min="13" max="100" value="{{ profile.age|default:'' }}" placeholder="Age">
         </div>
-        <div>
-            <label class="field-label" for="profile_photo">Profile picture URL</label>
-            <input id="profile_photo" class="input" type="url" name="profile_photo" value="{{ profile.profile_photo }}" placeholder="https://example.com/photo.jpg">
-            <div class="hint">Use a public image URL, or upload a file below.</div>
-        </div>
-        <div>
-            <label class="field-label" for="profile_image">Upload profile picture</label>
-            <input id="profile_image" class="input" type="file" name="profile_image" accept="image/*">
-        </div>
-        <div>
-            <label class="field-label" for="bio">Bio</label>
-            <textarea id="bio" class="textarea" name="bio" placeholder="Short public profile note">{{ profile.bio }}</textarea>
-        </div>
-        <button class="btn-main" type="submit">Save Profile</button>
+        <datalist id="country-options">{% for country in country_choices %}<option value="{{ country }}"></option>{% endfor %}</datalist>
+        <input class="input" type="url" name="profile_photo" value="{{ profile.profile_photo }}" placeholder="Profile picture URL">
+        <input class="input" type="file" name="profile_image" accept="image/*">
+        <textarea class="textarea" name="bio" placeholder="Bio">{{ profile.bio }}</textarea>
+        <button class="btn-main" type="submit">Save</button>
     </form>
 </section>
 
 <section class="grid-4">
-    <div class="metric-card">
-        <span class="kicker">Current PR</span>
-        <span class="stat-value">{{ current_pr }}</span>
-        <div class="muted">{{ current_tier.name }}</div>
-    </div>
-    <div class="metric-card">
-        <span class="kicker">Current Rank</span>
-        <span class="stat-value">{% if current_rank %}#{{ current_rank }}{% else %}-{% endif %}</span>
-        <div class="muted">{{ rank_movement }}</div>
-    </div>
-    <div class="metric-card">
-        <span class="kicker">Submissions</span>
-        <span class="stat-value">{{ total_submissions }}</span>
-        <div class="muted">{{ total_verified }} verified, {{ total_pending }} pending, {{ total_unverified }} unverified, {{ rejected_count }} rejected.</div>
-    </div>
-    <div class="metric-card">
-        <span class="kicker">Pending</span>
-        <span class="stat-value">{{ total_pending }}</span>
-        <div class="muted">
-            {% if total_pending %}
-                One submission can wait at a time. Your next score unlocks after review.
-            {% elif total_unverified %}
-                You have a score waiting for proof before it can enter review.
-            {% else %}
-                Nothing is waiting for review.
-            {% endif %}
-        </div>
-    </div>
-</section>
-
-<section class="grid-2">
-    <div class="card-dark">
-        <h2>Social</h2>
-        <div class="grid-2">
-            <div class="feature-card">
-                <span class="kicker">Followers</span>
-                <span class="stat-value">{{ followers_count }}</span>
-            </div>
-            <div class="feature-card">
-                <span class="kicker">Following</span>
-                <span class="stat-value">{{ following_count }}</span>
-            </div>
-        </div>
-    </div>
-    <div class="card-dark">
-        <h2>Badges</h2>
-        {% if badges %}
-            <div class="button-row" style="margin-top: 0;">
-                {% for badge in badges %}
-                    <span class="tag-pill" title="{{ badge.description }}">{{ badge.name }}</span>
-                {% endfor %}
-            </div>
-        {% else %}
-            <p class="muted">Your first badges unlock from verified results, consistency, and leaderboard rank.</p>
-        {% endif %}
-    </div>
+    <div class="metric-card"><span class="kicker">PR</span><span class="stat-value">{{ current_pr }}</span><div class="muted">{{ current_tier.name }}</div></div>
+    <div class="metric-card"><span class="kicker">Rank</span><span class="stat-value">{% if current_rank %}#{{ current_rank }}{% else %}-{% endif %}</span><div class="muted">{{ rank_movement }}</div></div>
+    <div class="metric-card"><span class="kicker">Submissions</span><span class="stat-value">{{ total_submissions }}</span><div class="muted">{{ total_verified }} verified</div></div>
+    <div class="metric-card"><span class="kicker">Suggestion</span><p class="muted">{{ daily_suggestion }}</p></div>
 </section>
 
 <section class="grid-2">
     <div class="card-dark">
         <h2>Progress</h2>
-        <p class="muted">Best verified performance by date. The graph is zoomed tighter so the movement is easier to read.</p>
-        <div class="progress-chart">
+        <div class="grid-4" style="margin-bottom: 14px;">
+            <div class="feature-card"><span class="kicker">Attempts</span><span class="stat-value">{{ progress_summary.attempts }}</span></div>
+            <div class="feature-card"><span class="kicker">Best</span><span class="stat-value">{{ progress_summary.best }}</span></div>
+            <div class="feature-card"><span class="kicker">Gain</span><span class="stat-value">{{ progress_summary.gain }}</span></div>
+            <div class="feature-card"><span class="kicker">Avg</span><span class="stat-value">{{ progress_summary.average }}</span></div>
+        </div>
+        <div class="progress-chart progress-chart-large">
             <svg id="progress-chart" class="chart-area" role="img" aria-label="Verified push-up progress chart"></svg>
         </div>
     </div>
 
     <div class="card-dark">
-        <h2>Account Snapshot</h2>
-        <div class="grid-2">
-            <div class="feature-card">
-                <h3>Official Rank</h3>
-                <p class="muted">Only verified submissions affect your public rank, tier, and graph.</p>
+        <h2>Goals</h2>
+        <form class="submission-form" method="POST">
+            {% csrf_token %}
+            <input type="hidden" name="form_type" value="goal">
+            <select class="select" name="goal_type" data-goal-type>
+                <option value="pushups">Push-up target</option>
+                <option value="rank">Rank target</option>
+            </select>
+            <input class="input" type="number" min="1" name="target_value" data-goal-target placeholder="Target reps">
+            <input class="input" name="note" placeholder="Note">
+            <button class="btn-secondary" type="submit">Save Goal</button>
+        </form>
+        {% for goal in active_goals %}
+            <div class="score-row" style="margin-top: 10px;">
+                <div class="score-row-main">
+                    <div class="submission-name">{{ goal.get_goal_type_display }}: {% if goal.goal_type == "rank" %}#{{ goal.target_value }}{% else %}{{ goal.target_value }} reps{% endif %}</div>
+                    <div class="submission-meta">{{ goal.note|default:"No note." }}</div>
+                </div>
             </div>
-            <div class="feature-card">
-                <h3>Submission Flow</h3>
-                <p class="muted">Use a public proof link or upload your video directly. Scores above 60 need proof.</p>
-            </div>
-            <div class="feature-card">
-                <h3>Daily Suggestion</h3>
-                <p class="muted">{{ daily_suggestion }}</p>
-            </div>
-            <div class="feature-card">
-                <h3>Progress Signal</h3>
-                <p class="muted">Your verified graph tracks improvement over time; your private workouts help explain the trend.</p>
-            </div>
-        </div>
+        {% empty %}
+            <p class="muted">No active goals.</p>
+        {% endfor %}
     </div>
 </section>
 
 <section class="grid-2">
     <div class="card-dark">
-        <div class="section-spread">
-            <div>
-                <h2>Workout Log</h2>
-                <p class="muted">Build private sessions, share the good ones, duplicate templates, or quick-log a result in seconds.</p>
-            </div>
-            <form method="POST" action="{% url 'quick_add_last_workout' %}">
-                {% csrf_token %}
-                <button class="btn-secondary" type="submit">Quick Add Last</button>
-            </form>
-        </div>
-        <form class="submission-form" method="POST">
-            {% csrf_token %}
-            <input type="hidden" name="form_type" value="workout">
-            <div class="grid-2">
-                <div>
-                    <label class="field-label" for="workout-title">Workout title</label>
-                    <input id="workout-title" class="input" name="title" placeholder="Push day">
-                </div>
-                <div>
-                    <label class="field-label" for="template_id">Template</label>
-                    <select id="template_id" class="select" name="template_id">
-                        <option value="">Custom workout</option>
-                        {% for template in workout_templates %}
-                            <option value="{{ template.id }}">{{ template.name }} - {{ template.get_difficulty_display }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-            </div>
-            <div class="grid-2">
-                <div>
-                    <label class="field-label" for="duration_minutes">Time (minutes)</label>
-                    <input id="duration_minutes" class="input" type="number" min="1" name="duration_minutes" placeholder="35">
-                </div>
-                <div>
-                    <label class="field-label" for="is_public">Shareable</label>
-                    <label class="tag-pill" style="width: fit-content;">
-                        <input id="is_public" type="checkbox" name="is_public"> Public workout link
-                    </label>
-                    <label class="tag-pill" style="width: fit-content; margin-top: 8px;">
-                        <input type="checkbox" name="save_as_template"> Save as template
-                    </label>
-                </div>
-            </div>
-            <div class="grid-3">
-                {% for i in "123" %}
-                    <div class="feature-card">
-                        <label class="field-label" for="exercise-name-{{ forloop.counter }}">Exercise</label>
-                        <input id="exercise-name-{{ forloop.counter }}" class="input" name="exercise_name" list="exercise-options" placeholder="Push-ups">
-                        <div class="grid-3" style="margin-top: 10px;">
-                            <input class="input" type="number" min="1" name="exercise_sets" placeholder="Sets">
-                            <input class="input" type="number" min="1" name="exercise_reps" placeholder="Reps">
-                            <input class="input" type="number" min="1" name="exercise_seconds" placeholder="Sec">
-                        </div>
-                    </div>
-                {% endfor %}
-            </div>
-            <datalist id="exercise-options">
-                {% for exercise in default_exercises %}
-                    <option value="{{ exercise }}"></option>
-                {% endfor %}
-            </datalist>
-            <div>
-                <label class="field-label" for="workout-notes">Notes</label>
-                <textarea id="workout-notes" class="textarea" name="notes" placeholder="How it felt, form notes, rest time"></textarea>
-            </div>
-            <button class="btn-main" type="submit">Save Workout</button>
-        </form>
+        <h2>Badges</h2>
+        {% if badges %}
+            <div class="button-row" style="margin-top: 0;">{% for badge in badges %}<span class="tag-pill" title="{{ badge.description }}">{{ badge.name }}</span>{% endfor %}</div>
+        {% else %}<p class="muted">Badges unlock from verified results.</p>{% endif %}
     </div>
+    <div class="card-dark">
+        <h2>Recent Workouts</h2>
+        {% for workout in workouts %}
+            <div class="score-row">
+                <div class="score-row-main"><div class="submission-name">{{ workout.title }}</div><div class="submission-meta">{{ workout.created_at|date:"M j" }}{% if workout.is_public %} - Public{% endif %}</div></div>
+                <a class="btn-secondary" href="{% url 'workouts' %}">Manage</a>
+            </div>
+        {% empty %}<p class="muted">No workouts yet.</p>{% endfor %}
+    </div>
+</section>
 
-    <div class="stack">
-        <div class="card-dark">
-            <h2>Quick Log Result</h2>
-            <form class="submission-form" method="POST">
-                {% csrf_token %}
-                <input type="hidden" name="form_type" value="quick_result">
-                <div class="grid-2">
-                    <input class="input" type="number" min="1" name="quick_reps" placeholder="Reps">
-                    <input class="input" type="number" min="1" name="quick_seconds" placeholder="Seconds">
-                </div>
-                <button class="btn-main" type="submit">Done</button>
-            </form>
-        </div>
-        <div class="card-dark">
-            <h2>Goals</h2>
-            <form class="submission-form" method="POST">
-                {% csrf_token %}
-                <input type="hidden" name="form_type" value="goal">
-                <div class="grid-2">
-                    <select class="select" name="goal_type">
-                        <option value="pushups">Push-up target</option>
-                        <option value="rank">Rank target</option>
-                    </select>
-                    <input class="input" type="number" min="1" name="target_value" placeholder="60">
-                </div>
-                <input class="input" name="note" placeholder="Why this matters">
-                <button class="btn-secondary" type="submit">Save Goal</button>
-            </form>
-            {% if active_goals %}
-                <div class="compact-board" style="margin-top: 14px;">
-                    {% for goal in active_goals %}
-                        <div class="score-row">
-                            <div class="score-row-main">
-                                <div class="submission-name">{{ goal.get_goal_type_display }}: {{ goal.target_value }}</div>
-                                <div class="submission-meta">{{ goal.note|default:"No note yet." }}</div>
-                            </div>
-                        </div>
-                    {% endfor %}
-                </div>
+<section class="card-dark">
+    <h2>Attempts</h2>
+    {% for submission in history_submissions %}
+        <div class="athlete-row">
+            <span class="status-pill {{ submission.status }}">{{ submission.public_status_label }}</span>
+            <div class="row-title">
+                <div class="submission-name">{{ submission.reps }} reps</div>
+                <div class="submission-meta">{{ submission.rank_name }}{% if submission.has_proof %} - Proof attached{% endif %}</div>
+                {% if submission.status == "unverified" %}
+                    <details class="score-details" style="margin-top: 10px;">
+                        <summary>Add proof</summary>
+                        <form class="submission-form" method="POST" action="{% url 'add_submission_proof' submission.id %}" enctype="multipart/form-data" style="margin-top: 12px;">
+                            {% csrf_token %}
+                            <input class="input" type="url" name="video_link" placeholder="Public video link">
+                            <input class="input" type="file" name="video_file" accept="video/*">
+                            <button class="btn-main" type="submit">Submit Proof</button>
+                        </form>
+                    </details>
+                {% endif %}
+            </div>
+            {% if submission.status != "verified" %}
+                <form method="POST" action="{% url 'delete_submission' submission.id %}">
+                    {% csrf_token %}
+                    <button class="btn-secondary" type="submit">Delete</button>
+                </form>
+            {% else %}
+                <div class="submission-meta">{{ submission.created_at|date:"M j, Y" }}</div>
             {% endif %}
         </div>
-    </div>
-</section>
-
-<section class="card-dark">
-    <h2>Recent Workouts</h2>
-    {% if workouts %}
-        <div class="compact-board">
-            {% for workout in workouts %}
-                <div class="score-row">
-                    <div class="score-row-main">
-                        <div class="submission-name">{{ workout.title }}</div>
-                        <div class="submission-meta">{{ workout.created_at|date:"M j, Y" }}{% if workout.duration_minutes %} | {{ workout.duration_minutes }} min{% endif %}{% if workout.is_public %} | Public{% endif %}</div>
-                    </div>
-                    <div class="button-row" style="margin-top: 0;">
-                        {% if workout.is_public %}<a class="btn-secondary" href="{% url 'workout_detail' workout.slug %}">Open</a>{% endif %}
-                        <form method="POST" action="{% url 'duplicate_workout' workout.id %}">
-                            {% csrf_token %}
-                            <button class="btn-secondary" type="submit">Duplicate</button>
-                        </form>
-                    </div>
-                    <details class="score-details">
-                        <summary>Exercises</summary>
-                        {% for exercise in workout.exercises.all %}
-                            <div class="submission-meta">{{ exercise.name }} - {{ exercise.sets }} set(s){% if exercise.reps %}, {{ exercise.reps }} reps{% endif %}{% if exercise.seconds %}, {{ exercise.seconds }} sec{% endif %}</div>
-                        {% empty %}
-                            <div class="submission-meta">No exercises saved.</div>
-                        {% endfor %}
-                    </details>
-                </div>
-            {% endfor %}
-        </div>
-    {% else %}
-        <p class="muted">No workouts yet. Start with Push Day, Leg Day, or quick log today’s result.</p>
-    {% endif %}
-</section>
-
-<section class="card-dark">
-    <h2>History</h2>
-    <p class="muted">Everything you have submitted, including pending, unverified, and rejected attempts.</p>
-    {% if history_submissions %}
-        <div>
-            {% for submission in history_submissions %}
-                <div class="athlete-row">
-                    <span class="status-pill {{ submission.status }}">{{ submission.public_status_label }}</span>
-                    <div class="row-title">
-                        <div class="submission-name">{{ submission.reps }} reps</div>
-                        <div class="submission-meta">
-                            {{ submission.rank_name }}
-                            {% if submission.has_proof %}| Proof attached{% else %}| No proof yet{% endif %}
-                        </div>
-                        {% if submission.status == "unverified" %}
-                            <details class="score-details" style="margin-top: 10px;">
-                                <summary>Add proof</summary>
-                                <form class="submission-form" method="POST" action="{% url 'add_submission_proof' submission.id %}" enctype="multipart/form-data" style="margin-top: 12px;">
-                                    {% csrf_token %}
-                                    <div>
-                                        <label class="field-label" for="dashboard-video-link-{{ submission.id }}">Public video link</label>
-                                        <input id="dashboard-video-link-{{ submission.id }}" class="input" type="url" name="video_link" placeholder="https://youtube.com/watch?v=your-video">
-                                    </div>
-                                    <div>
-                                        <label class="field-label" for="dashboard-video-file-{{ submission.id }}">Upload video file</label>
-                                        <input id="dashboard-video-file-{{ submission.id }}" class="input" type="file" name="video_file" accept="video/*">
-                                    </div>
-                                    <button class="btn-main" type="submit">Submit Proof</button>
-                                </form>
-                            </details>
-                        {% endif %}
-                    </div>
-                    <div class="submission-meta">{{ submission.created_at|date:"M j, Y" }}</div>
-                </div>
-            {% endfor %}
-        </div>
-    {% else %}
-        <p class="muted">No submissions yet.</p>
-    {% endif %}
+    {% empty %}
+        <p class="muted">No attempts yet.</p>
+    {% endfor %}
 </section>
 
 {{ progress_data|json_script:"progress-data" }}
 <script>
     const progressData = JSON.parse(document.getElementById("progress-data").textContent);
     const svg = document.getElementById("progress-chart");
-    const width = 760;
-    const height = 280;
-    const pad = 46;
+    const width = 920;
+    const height = 390;
+    const pad = 58;
     svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
-
     if (!progressData.length) {
         svg.innerHTML = `<text x="${pad}" y="${height / 2}" fill="rgba(245,247,251,.72)" font-size="18">No verified data yet.</text>`;
     } else {
         const repsValues = progressData.map((point) => point.reps);
-        const minReps = Math.max(0, Math.min.apply(null, repsValues) - 4);
-        const maxReps = Math.max.apply(null, repsValues.concat([60])) + 4;
+        const minReps = Math.max(0, Math.min(...repsValues) - 5);
+        const maxReps = Math.max(...repsValues, 60) + 5;
         const step = progressData.length > 1 ? (width - pad * 2) / (progressData.length - 1) : 0;
-        const yTicks = 4;
         const points = progressData.map((point, index) => {
             const x = progressData.length > 1 ? pad + index * step : width / 2;
             const y = height - pad - ((point.reps - minReps) / Math.max(1, maxReps - minReps)) * (height - pad * 2);
-            return { x, y, reps: point.reps, date: point.date, label: point.label };
+            return { ...point, x, y };
         });
         const path = points.map((point, index) => `${index === 0 ? "M" : "L"} ${point.x} ${point.y}`).join(" ");
-        const yGuides = Array.from({ length: yTicks + 1 }, (_, index) => {
-            const value = minReps + ((maxReps - minReps) / yTicks) * index;
-            const y = height - pad - ((value - minReps) / Math.max(1, maxReps - minReps)) * (height - pad * 2);
-            return { value: Math.round(value), y };
+        const guides = [0, .25, .5, .75, 1].map((ratio) => {
+            const value = Math.round(minReps + (maxReps - minReps) * ratio);
+            const y = height - pad - ratio * (height - pad * 2);
+            return { value, y };
         });
         svg.innerHTML = `
-            ${yGuides.map((guide) => `<g><line x1="${pad}" y1="${guide.y}" x2="${width - pad}" y2="${guide.y}" stroke="rgba(255,255,255,.08)" /><text x="${pad - 10}" y="${guide.y + 4}" text-anchor="end" fill="rgba(245,247,251,.64)" font-size="13">${guide.value}</text></g>`).join("")}
-            <line x1="${pad}" y1="${height - pad}" x2="${width - pad}" y2="${height - pad}" stroke="rgba(255,255,255,.2)" />
-            <line x1="${pad}" y1="${pad}" x2="${pad}" y2="${height - pad}" stroke="rgba(255,255,255,.2)" />
-            <text x="${width / 2}" y="${height - 8}" text-anchor="middle" fill="rgba(245,247,251,.68)" font-size="13">Date</text>
-            <text x="16" y="${height / 2}" transform="rotate(-90 16 ${height / 2})" text-anchor="middle" fill="rgba(245,247,251,.68)" font-size="13">Reps</text>
-            ${points.map((point, index) => index % Math.max(1, Math.ceil(points.length / 4)) === 0 ? `<text x="${point.x}" y="${height - pad + 20}" text-anchor="middle" fill="rgba(245,247,251,.58)" font-size="12">${point.date.slice(5)}</text>` : "").join("")}
-            <path d="${path}" fill="none" stroke="#f7b733" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" />
-            ${points.map((point, index) => `<g><circle cx="${point.x}" cy="${point.y}" r="7" fill="#ffd77b" stroke="#111" stroke-width="2.5"><title>${point.label}: ${point.reps} reps</title></circle><text x="${point.x}" y="${point.y - 14}" text-anchor="middle" fill="#f5f7fb" font-size="14" font-weight="700">${point.reps}</text>${index > 0 ? `<text x="${(points[index - 1].x + point.x) / 2}" y="${Math.min(points[index - 1].y, point.y) - 18}" text-anchor="middle" fill="#8df0c9" font-size="12">${point.reps - points[index - 1].reps >= 0 ? "+" : ""}${point.reps - points[index - 1].reps}</text>` : ""}</g>`).join("")}
+            ${guides.map((guide) => `<g><line x1="${pad}" y1="${guide.y}" x2="${width - pad}" y2="${guide.y}" stroke="rgba(255,255,255,.1)" /><text x="${pad - 12}" y="${guide.y + 5}" text-anchor="end" fill="rgba(245,247,251,.75)" font-size="14">${guide.value}</text></g>`).join("")}
+            <path d="${path}" fill="none" stroke="#f7b733" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" />
+            ${points.map((point, index) => `<g><circle cx="${point.x}" cy="${point.y}" r="8" fill="#ffd77b" stroke="#111" stroke-width="3"><title>${point.label}: ${point.reps} reps</title></circle><text x="${point.x}" y="${point.y - 16}" text-anchor="middle" fill="#f5f7fb" font-size="15" font-weight="700">${point.reps}</text><text x="${point.x}" y="${height - pad + 24}" text-anchor="middle" fill="rgba(245,247,251,.65)" font-size="12">${point.date.slice(5)}</text>${index > 0 ? `<text x="${(points[index - 1].x + point.x) / 2}" y="${Math.min(points[index - 1].y, point.y) - 26}" text-anchor="middle" fill="#8df0c9" font-size="13">${point.reps - points[index - 1].reps >= 0 ? "+" : ""}${point.reps - points[index - 1].reps}</text>` : ""}</g>`).join("")}
         `;
     }
-
     for (const trigger of document.querySelectorAll("[data-toggle-panel]")) {
         trigger.addEventListener("click", () => {
             const panel = document.getElementById(trigger.dataset.togglePanel);
             const isOpen = panel.classList.toggle("is-open");
             trigger.setAttribute("aria-expanded", isOpen ? "true" : "false");
-            trigger.innerHTML = isOpen ? "Close Settings" : "&#9881; Settings";
+            trigger.textContent = isOpen ? "Close Settings" : "Settings";
         });
     }
+    document.querySelector("[data-goal-type]")?.addEventListener("change", (event) => {
+        document.querySelector("[data-goal-target]").placeholder = event.target.value === "rank" ? "Target rank number" : "Target reps";
+    });
     for (const shareButton of document.querySelectorAll("[data-share-text]")) {
         shareButton.addEventListener("click", async () => {
             const text = shareButton.dataset.shareText;
-            if (navigator.share) {
-                await navigator.share({ text });
-            } else {
+            if (navigator.share) await navigator.share({ text });
+            else {
                 await navigator.clipboard.writeText(text);
                 shareButton.textContent = "Copied";
-                setTimeout(() => shareButton.textContent = shareButton.dataset.shareText.includes("push-ups") ? "Share PR" : "Share Profile", 1400);
+                setTimeout(() => shareButton.textContent = "Share Profile", 1200);
             }
         });
     }

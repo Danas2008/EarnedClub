@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+
+{% block title %}Workouts{% endblock %}
+
+{% block content %}
+<section class="hero-card" style="margin-bottom: 24px;">
+    <div class="content-split">
+        <div>
+            <div class="eyebrow">Training</div>
+            <h1>Workouts.</h1>
+            <p class="muted">Log private training, make selected workouts public, and highlight one on your profile.</p>
+        </div>
+        <form method="POST" action="{% url 'quick_add_last_workout' %}">
+            {% csrf_token %}
+            <button class="btn-secondary" type="submit">Quick Add Last</button>
+        </form>
+    </div>
+</section>
+
+<section class="grid-2">
+    <div class="card-dark">
+        <h2>Build Workout</h2>
+        <form class="submission-form" method="POST">
+            {% csrf_token %}
+            <input type="hidden" name="form_type" value="workout">
+            <div class="grid-2">
+                <input class="input" name="title" placeholder="Push day">
+                <select class="select" name="template_id">
+                    <option value="">Custom</option>
+                    {% for template in workout_templates %}<option value="{{ template.id }}">{{ template.name }} - {{ template.get_difficulty_display }}</option>{% endfor %}
+                </select>
+            </div>
+            <div class="grid-2">
+                <input class="input" type="number" min="1" name="duration_minutes" placeholder="Minutes">
+                <div>
+                    <label class="tag-pill"><input type="checkbox" name="is_public"> Public</label>
+                    <label class="tag-pill"><input type="checkbox" name="highlighted_on_profile"> Highlight</label>
+                    <label class="tag-pill"><input type="checkbox" name="save_as_template"> Template</label>
+                </div>
+            </div>
+            {% for i in "1234" %}
+                <div class="feature-card">
+                    <div class="grid-2">
+                        <select class="select" name="body_part">
+                            <option value="">Body part</option>
+                            {% for part in body_parts %}<option value="{{ part }}">{{ part }}</option>{% endfor %}
+                        </select>
+                        <select class="select" name="exercise_type">
+                            {% for value, label in exercise_types %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <input class="input" name="exercise_name" list="exercise-options" placeholder="Exercise" style="margin-top: 10px;">
+                    <div class="grid-3" style="margin-top: 10px;">
+                        <input class="input" type="number" min="1" name="exercise_sets" placeholder="Sets">
+                        <input class="input" type="number" min="1" name="exercise_reps" placeholder="Reps">
+                        <input class="input" type="number" min="1" name="exercise_seconds" placeholder="Seconds">
+                    </div>
+                </div>
+            {% endfor %}
+            <datalist id="exercise-options">{% for exercise in default_exercises %}<option value="{{ exercise.name }}"></option>{% endfor %}</datalist>
+            <textarea class="textarea" name="notes" placeholder="Notes"></textarea>
+            <button class="btn-main" type="submit">Save Workout</button>
+        </form>
+    </div>
+
+    <div class="card-dark">
+        <h2>Quick Log</h2>
+        <form class="submission-form" method="POST">
+            {% csrf_token %}
+            <input type="hidden" name="form_type" value="quick_result">
+            <select class="select" name="quick_body_part">
+                <option value="">Body part</option>
+                {% for part in body_parts %}<option value="{{ part }}">{{ part }}</option>{% endfor %}
+            </select>
+            <select class="select" name="quick_type" data-quick-type>
+                <option value="strength">Strength</option>
+                <option value="cardio">Cardio</option>
+                <option value="mobility">Mobility</option>
+            </select>
+            <input class="input" name="quick_exercise" list="exercise-options" placeholder="Exercise">
+            <div class="grid-3">
+                <input class="input" type="number" min="1" name="quick_sets" placeholder="Sets">
+                <input class="input" type="number" min="1" name="quick_reps" data-quick-reps placeholder="Reps">
+                <input class="input" type="number" min="1" name="quick_seconds" data-quick-seconds placeholder="Seconds">
+            </div>
+            <button class="btn-main" type="submit">Done</button>
+        </form>
+    </div>
+</section>
+
+<section class="card-dark">
+    <h2>Your Workouts</h2>
+    {% for workout in workouts %}
+        <div class="score-row">
+            <div class="score-row-main">
+                <div class="submission-name">{{ workout.title }}</div>
+                <div class="submission-meta">{{ workout.created_at|date:"M j" }}{% if workout.duration_minutes %} - {{ workout.duration_minutes }} min{% endif %}{% if workout.is_public %} - Public{% endif %}{% if workout.highlighted_on_profile %} - Highlighted{% endif %}</div>
+            </div>
+            <div class="button-row" style="margin-top: 0;">
+                {% if workout.is_public %}<a class="btn-secondary" href="{% url 'workout_detail' workout.slug %}">Open</a>{% endif %}
+                {% if workout.is_public %}
+                    <form method="POST" action="{% url 'toggle_highlight_workout' workout.id %}">{% csrf_token %}<button class="btn-secondary" type="submit">Highlight</button></form>
+                {% endif %}
+                <form method="POST" action="{% url 'duplicate_workout' workout.id %}">{% csrf_token %}<button class="btn-secondary" type="submit">Duplicate</button></form>
+                <form method="POST" action="{% url 'delete_workout' workout.id %}">{% csrf_token %}<button class="btn-secondary" type="submit">Delete</button></form>
+            </div>
+            <details class="score-details">
+                <summary>Exercises</summary>
+                {% for exercise in workout.exercises.all %}
+                    <div class="submission-meta">{{ exercise.name }}{% if exercise.body_part %} - {{ exercise.body_part }}{% endif %}: {{ exercise.sets }} set(s){% if exercise.reps %}, {{ exercise.reps }} reps{% endif %}{% if exercise.seconds %}, {{ exercise.seconds }} sec{% endif %}</div>
+                {% empty %}<div class="submission-meta">No exercises.</div>{% endfor %}
+            </details>
+        </div>
+    {% empty %}
+        <p class="muted">No workouts yet.</p>
+    {% endfor %}
+</section>
+
+<script>
+    document.querySelector("[data-quick-type]")?.addEventListener("change", (event) => {
+        const cardio = event.target.value === "cardio";
+        document.querySelector("[data-quick-reps]").placeholder = cardio ? "Optional reps" : "Reps";
+        document.querySelector("[data-quick-seconds]").placeholder = cardio ? "Seconds required" : "Seconds";
+    });
+</script>
+{% endblock %}

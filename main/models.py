@@ -367,6 +367,7 @@ class Workout(models.Model):
     notes = models.TextField(blank=True)
     duration_minutes = models.PositiveIntegerField(null=True, blank=True)
     is_public = models.BooleanField(default=False)
+    highlighted_on_profile = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -395,8 +396,19 @@ class Workout(models.Model):
 
 
 class WorkoutExercise(models.Model):
+    TYPE_STRENGTH = "strength"
+    TYPE_CARDIO = "cardio"
+    TYPE_MOBILITY = "mobility"
+    TYPE_CHOICES = [
+        (TYPE_STRENGTH, "Strength"),
+        (TYPE_CARDIO, "Cardio"),
+        (TYPE_MOBILITY, "Mobility"),
+    ]
+
     workout = models.ForeignKey(Workout, related_name="exercises", on_delete=models.CASCADE)
     name = models.CharField(max_length=120)
+    exercise_type = models.CharField(max_length=24, choices=TYPE_CHOICES, default=TYPE_STRENGTH)
+    body_part = models.CharField(max_length=80, blank=True)
     sets = models.PositiveIntegerField(default=1)
     reps = models.PositiveIntegerField(null=True, blank=True)
     seconds = models.PositiveIntegerField(null=True, blank=True)

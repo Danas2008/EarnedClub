@@ -84,7 +84,8 @@
                 </div>
                 <div class="review-proof-actions">
                     {% if submission.proof_url %}
-                        <a class="btn-secondary" style="min-height: 34px; padding: 6px 10px;" href="{{ submission.proof_url }}" target="_blank" rel="noopener noreferrer">{{ submission.proof_label|default:"Open Proof" }}</a>
+                        <a class="btn-secondary" style="min-height: 34px; padding: 6px 10px;" href="{{ submission.proof_url }}" target="_blank" rel="noopener noreferrer" title="{{ submission.proof_url }}">{{ submission.proof_label|default:"Open Proof" }}</a>
+                        <span class="tag-pill" title="{{ submission.proof_url }}">{{ submission.proof_url|slice:":38" }}</span>
                     {% else %}
                         <span class="tag-pill">No proof yet</span>
                     {% endif %}
@@ -110,8 +111,11 @@
                     <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;">
                         <span class="status-pill {{ submission.status }}">{{ submission.public_status_label }}</span>
                         <div class="review-actions">
-                            <button class="btn-main" type="submit" name="action" value="approve">Approve</button>
-                            <button class="btn-secondary" type="submit" name="action" value="reject">Reject</button>
+                            {% if submission.status == "pending" %}
+                                <button class="btn-main" type="submit" name="action" value="approve">Approve</button>
+                                <button class="btn-secondary" type="submit" name="action" value="reject">Reject</button>
+                            {% endif %}
+                            <button class="btn-secondary" type="submit" name="action" value="delete">Delete</button>
                         </div>
                     </div>
                 </form>
