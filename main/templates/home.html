@@ -1,73 +1,155 @@
 {% extends "base.html" %}
 
 {% block title %}Earned Club{% endblock %}
-{% block meta_description %}Earned Club is a push-up leaderboard where athletes test, prove, and track real strict-rep performance.{% endblock %}
+{% block meta_description %}Earned Club is a performance-first push-up leaderboard with athlete profiles, verified rankings, weekly movement, and public proof of strict reps.{% endblock %}
 
 {% block content %}
 <section class="hero-card" style="margin-bottom: 24px;">
     <div class="hero-grid">
         <div class="stack">
-            <div class="eyebrow">Test. Prove. Rank.</div>
+            <div class="eyebrow">Performance-first challenge platform</div>
             <h1>Earned Club</h1>
-            <p class="muted">A performance platform for strict push-ups, verified ranks, public profiles, and private training logs.</p>
+            <p class="muted">
+                Submit one strict push-up set, get reviewed, and turn your best verified result into a public rank.
+            </p>
+            <p>
+                Your pending score appears fast. Your official rank is earned after verification.
+            </p>
             <div class="hero-actions">
-                <a class="btn-main" href="{% url 'level_test' %}">Take The Test</a>
-                <a class="btn-secondary" href="{% url 'leaderboard' %}#full-leaderboard">Leaderboard</a>
+                <a class="btn-main" href="/challenge/#submit-form-top">Submit Your Push-up Test</a>
+                <a class="btn-secondary" href="/leaderboard/#full-leaderboard">See the Leaderboard</a>
             </div>
+
             <div class="stat-grid">
                 <div class="stat-card">
-                    <span class="kicker">Submissions</span>
+                    <span class="kicker">All submissions</span>
                     <span class="stat-value">{{ total_submissions }}</span>
+                    <div class="muted">Every entry is visible with status.</div>
                 </div>
                 <div class="stat-card">
-                    <span class="kicker">Elite</span>
+                    <span class="kicker">Elite target</span>
                     <span class="stat-value">60+</span>
+                    <div class="muted">This is the first true status tier.</div>
                 </div>
                 <div class="stat-card">
-                    <span class="kicker">Legend</span>
+                    <span class="kicker">Legend target</span>
                     <span class="stat-value">80+</span>
+                    <div class="muted">Built as a top 1% style benchmark.</div>
                 </div>
             </div>
         </div>
 
-        <div class="newsletter-card">
-            <h3>Follow the movement.</h3>
-            <p class="muted">Rank changes, new challenges, and top verified scores.</p>
-            <form class="newsletter-form" method="POST" action="{% url 'newsletter_signup' %}">
-                {% csrf_token %}
-                <input class="input" type="email" name="email" placeholder="you@example.com" required>
-                <button class="btn-main" type="submit">Join</button>
-            </form>
+        <div class="stack">
+            <div class="newsletter-card">
+                <h4>Newsletter</h4>
+                <h3>Watch your rank move.</h3>
+                <p class="muted">
+                    Get leaderboard movement, approved scores, new features, and top performances delivered to your inbox.
+                </p>
+                <form class="newsletter-form" method="POST" action="{% url 'newsletter_signup' %}">
+                    {% csrf_token %}
+                    <div>
+                        <label class="field-label" for="newsletter-email">Email</label>
+                        <input
+                            id="newsletter-email"
+                            class="input"
+                            type="email"
+                            name="email"
+                            placeholder="you@example.com"
+                            required
+                        >
+                    </div>
+                    <button class="btn-main" type="submit">Join the Newsletter</button>
+                </form>
+            </div>
+
+            <div class="mini-card">
+                <h4>Your achievement becomes your story.</h4>
+                <p><strong>Share your rank</strong> everywhere.</p>
+                <p class="muted" style="margin-bottom: 0;">
+                    Submit your score and watch it spread. Your verified performance becomes proof. The stronger you are, the bigger your moment.
+                </p>
+            </div>
         </div>
     </div>
 </section>
 
+<section class="card-dark" id="level-test">
+    <div class="content-split">
+        <div>
+            <div class="eyebrow">What's your level?</div>
+            <h2>How many push-ups can you do?</h2>
+            <p class="muted">Answer in a few seconds, see your level, then prove it with a submission. Do not just say it, prove it.</p>
+            <form class="calculator-form" onsubmit="return false;">
+                <div class="grid-2">
+                    <div>
+                        <label class="field-label" for="home-reps">Push-ups</label>
+                        <input id="home-reps" class="input" type="number" min="0" placeholder="42">
+                    </div>
+                    <div>
+                        <label class="field-label" for="home-age">Age</label>
+                        <input id="home-age" class="input" type="number" min="13" max="100" placeholder="18">
+                    </div>
+                </div>
+                <button class="btn-main" type="button" onclick="runHomeLevelTest()">Show My Result</button>
+            </form>
+        </div>
+        <div class="mini-card">
+            <h4>Result</h4>
+            <p id="home-level-result" class="muted">Most people never test clean reps. Your score will show where you stand, then challenge you to verify it.</p>
+            <div class="button-row">
+                <a id="home-proof-link" class="btn-main" href="/challenge/#submit-form-top">Prove It</a>
+                <a class="btn-secondary" href="/leaderboard/#full-leaderboard">Compare To Others</a>
+            </div>
+            <p class="muted" style="margin-top: 12px;">{{ total_submissions }} people already tested themselves here. Verified results carry the most status.</p>
+        </div>
+    </div>
+</section>
+
+<section class="card-dark">
+    <div class="section-spread">
+        <div>
+            <h2>Status Benchmarks</h2>
+            <p class="muted">
+                These are performance brackets, with Elite and Earned Legend designed as aspirational
+                top-tier public benchmarks.
+            </p>
+        </div>
+        <a class="btn-secondary" href="/calculators/">Open Calculators</a>
+    </div>
+
+    {% include "includes/rank_benchmark_carousel.html" %}
+</section>
+
 <section class="grid-2">
     <div class="card-dark">
-        <h2>How it works</h2>
+        <h2>How The Challenge Works</h2>
         <ul class="rule-list">
-            <li>Take the quick level test.</li>
-            <li>Submit your strict push-up result.</li>
-            <li>Add a video link or upload a video file.</li>
-            <li>Get reviewed and earn public rank.</li>
+            <li>Record one continuous set of strict push-ups from a visible angle.</li>
+            <li>Show your full body or at least your chest lockout and bottom position clearly.</li>
+            <li>Upload the video to YouTube, TikTok, Google Drive, or another public link.</li>
+            <li>Submit your score and link on the challenge page.</li>
+            <li>Your score appears on the open leaderboard immediately and shows as verified after manual review.</li>
         </ul>
         <div class="button-row">
-            <a class="btn-main" href="{% url 'challenge' %}#submit-form-top">Submit</a>
-            <a class="btn-secondary" href="{% url 'calculators' %}">Tools</a>
+            <a class="btn-main" href="/challenge/#submit-form-top">Submit a Score</a>
+            <a class="btn-secondary" href="/leaderboard/#full-leaderboard">See Rankings</a>
         </div>
     </div>
 
     <div class="card-dark">
-        <h2>What comes next</h2>
-        <p class="muted">The system grows through participation and consistency. As the community grows, Earned Club can add training plans, ranked gear, and more ways to show real status.</p>
+        <h2>What Comes Next</h2>
+        <p>
+           The system grows through participation and consistency. The more people submit real scores, the more the leaderboard becomes a respected destination for performance recognition. As the community grows, we'll introduce training plans, ranked gear, and more ways to engage with your status.
+        </p>
         <div class="grid-2">
             <div class="feature-card">
                 <h3>Training Plans</h3>
-                <p class="muted">Programs built around rank progress.</p>
+                <p class="muted">Structured programs to help you progress through the ranks.</p>
             </div>
             <div class="feature-card">
                 <h3>Ranked Clothing</h3>
-                <p class="muted">Gear tied to earned status.</p>
+                <p class="muted">Gear that reflects your status and achievements.</p>
             </div>
         </div>
     </div>
@@ -76,11 +158,207 @@
 <section class="card-dark">
     <div class="section-spread">
         <div>
-            <h2>Useful Tools And Motivation</h2>
-            <p class="muted">Check your tier, estimate progress, then prove the result.</p>
+            <h2>Social Content Engine</h2>
+            <p class="muted">Everything you do here feeds your position. Everything you see is based on real performance.</p>
         </div>
-        <a class="btn-main" href="{% url 'calculators' %}">Open Tools</a>
     </div>
-    {% include "includes/rank_benchmark_carousel.html" %}
+
+    <div class="grid-3">
+        <div class="feature-card">
+            <h3>Top 5 Overall</h3>
+            <p class="muted">The strongest athletes in the system. If you are here, you have built consistent performance over time.</p>
+        </div>
+        <div class="feature-card">
+            <h3>Top 5 This Week</h3>
+            <p class="muted">This week's competition. If you are improving fast, this is where you can break through.</p>
+        </div>
+        <div class="feature-card">
+            <h3>Challenge Clips</h3>
+            <p class="muted">Real people. Real sets. Real results. Watch what clean performance actually looks like, then match it.</p>
+        </div>
+    </div>
 </section>
+
+<section class="grid-2">
+    <div class="card-dark">
+        <div class="section-spread">
+            <div>
+                <h2>Top 5 Overall</h2>
+                <p class="muted">The strongest athletes in the system. If you are here, you have built consistent performance over time.</p>
+            </div>
+        </div>
+
+        {% if overall_top_five %}
+            <div class="compact-board">
+                {% for row in overall_top_five %}
+                    <div class="score-row">
+                        {% if row.profile and row.profile.profile_image_url %}
+                            <img class="avatar" src="{{ row.profile.profile_image_url }}" alt="{{ row.profile.display_name }} profile picture">
+                        {% elif row.profile %}
+                            <span class="avatar">{{ row.profile.display_name|first|upper }}</span>
+                        {% else %}
+                            <span class="avatar">{{ row.submission.name|first|upper }}</span>
+                        {% endif %}
+                        <div class="score-row-main">
+                            <div class="submission-name">
+                                {% if row.profile %}
+                                    <a href="{% url 'athlete_profile' row.profile.slug %}">{{ row.submission.name }}</a>
+                                {% else %}
+                                    {{ row.submission.name }}
+                                {% endif %}
+                            </div>
+                            <div class="submission-meta">{{ row.submission.rank_name }} | {{ row.submission.benchmark_label }}</div>
+                        </div>
+                        <div class="score-row-score">
+                            <span class="position-pill">
+                                {% if row.medal_place == 1 %}<span class="medal">&#129351;</span>{% endif %}
+                                {% if row.medal_place == 2 %}<span class="medal">&#129352;</span>{% endif %}
+                                {% if row.medal_place == 3 %}<span class="medal">&#129353;</span>{% endif %}
+                                #{{ row.position }}
+                            </span>
+                            <span class="score">{{ row.submission.reps }}</span>
+                        </div>
+                        <details class="score-details">
+                            <summary>Details</summary>
+                            <div class="submission-meta" style="margin-top: 8px;">{{ row.submission.reps }} reps | {{ row.submission.public_status_label }}{% if row.verified_position %} | Official rank #{{ row.verified_position }}{% endif %}</div>
+                            {% if row.profile %}
+                                <a class="btn-secondary" style="margin-top: 10px; min-height: 34px; padding: 6px 10px;" href="{% url 'athlete_profile' row.profile.slug %}">View Public Profile</a>
+                            {% endif %}
+                        </details>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p>No verified submissions yet. Your first verified athletes will define the culture here.</p>
+        {% endif %}
+    </div>
+
+    <div class="card-dark">
+        <div class="section-spread">
+            <div>
+                <h2>Top 5 This Week</h2>
+                <p class="muted">Who's leading right now. If you submit today, this is the competition you enter.</p>
+            </div>
+        </div>
+
+        {% if weekly_top_five %}
+            <div class="compact-board">
+                {% for row in weekly_top_five %}
+                    <div class="score-row">
+                        {% if row.profile and row.profile.profile_image_url %}
+                            <img class="avatar" src="{{ row.profile.profile_image_url }}" alt="{{ row.profile.display_name }} profile picture">
+                        {% elif row.profile %}
+                            <span class="avatar">{{ row.profile.display_name|first|upper }}</span>
+                        {% else %}
+                            <span class="avatar">{{ row.submission.name|first|upper }}</span>
+                        {% endif %}
+                        <div class="score-row-main">
+                            <div class="submission-name">
+                                {% if row.profile %}
+                                    <a href="{% url 'athlete_profile' row.profile.slug %}">{{ row.submission.name }}</a>
+                                {% else %}
+                                    {{ row.submission.name }}
+                                {% endif %}
+                            </div>
+                            <div class="submission-meta">{{ row.submission.rank_name }} | {{ row.submission.benchmark_label }}</div>
+                        </div>
+                        <div class="score-row-score">
+                            <span class="position-pill">
+                                {% if row.medal_place == 1 %}<span class="medal">&#129351;</span>{% endif %}
+                                {% if row.medal_place == 2 %}<span class="medal">&#129352;</span>{% endif %}
+                                {% if row.medal_place == 3 %}<span class="medal">&#129353;</span>{% endif %}
+                                #{{ row.position }}
+                            </span>
+                            <span class="score">{{ row.submission.reps }}</span>
+                        </div>
+                        <details class="score-details">
+                            <summary>Details</summary>
+                            <div class="submission-meta" style="margin-top: 8px;">{{ row.submission.reps }} reps | {{ row.submission.public_status_label }}{% if row.verified_position %} | Official rank #{{ row.verified_position }}{% endif %}</div>
+                            {% if row.profile %}
+                                <a class="btn-secondary" style="margin-top: 10px; min-height: 34px; padding: 6px 10px;" href="{% url 'athlete_profile' row.profile.slug %}">View Public Profile</a>
+                            {% endif %}
+                        </details>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p>No verified scores from the last 7 days yet. This is a perfect format to activate once submissions start coming in.</p>
+        {% endif %}
+    </div>
+</section>
+
+<section class="card-dark">
+    <div class="section-spread">
+        <div>
+            <h2>Useful Tools And Motivation</h2>
+            <p class="muted">Tools that show you exactly where you stand and how far you are from the top.</p>
+        </div>
+        <a class="btn-main" href="/calculators/">Open Calculators</a>
+    </div>
+
+    <div class="video-grid">
+        <a
+            class="video-card"
+            href="https://www.youtube.com/watch?v=mgmVOuLgFB0"
+            target="_blank"
+            rel="noopener noreferrer"
+        >
+            <img
+                class="video-thumb"
+                src="https://img.youtube.com/vi/mgmVOuLgFB0/hqdefault.jpg"
+                alt="Discipline video thumbnail"
+            >
+            <div class="video-body">
+                <div class="video-title">Discipline</div>
+                <p class="muted">A reminder of what consistency looks like when no one is watching.</p>
+            </div>
+        </a>
+
+        <a
+            class="video-card"
+            href="https://www.youtube.com/watch?v=wnHW6o8WMas"
+            target="_blank"
+            rel="noopener noreferrer"
+        >
+            <img
+                class="video-thumb"
+                src="https://img.youtube.com/vi/wnHW6o8WMas/hqdefault.jpg"
+                alt="No Comfort Zone video thumbnail"
+            >
+            <div class="video-body">
+                <div class="video-title">No Comfort Zone</div>
+                <p class="muted">If you want progress, this is what you are stepping into.</p>
+            </div>
+        </a>
+    </div>
+</section>
+<script>
+    function runHomeLevelTest() {
+        const reps = parseInt(document.getElementById("home-reps").value, 10);
+        const age = parseInt(document.getElementById("home-age").value, 10);
+        const result = document.getElementById("home-level-result");
+        const proofLink = document.getElementById("home-proof-link");
+        if (Number.isNaN(reps) || reps < 0 || Number.isNaN(age) || age < 13) {
+            result.textContent = "Add your age and a valid strict push-up number.";
+            return;
+        }
+        let label = "below average";
+        let challenge = 20;
+        if (reps >= 80) {
+            label = "Earned Legend level";
+            challenge = reps + 1;
+        } else if (reps >= 60) {
+            label = "Elite level";
+            challenge = 80;
+        } else if (reps >= 40) {
+            label = "advanced";
+            challenge = 60;
+        } else if (reps >= 20) {
+            label = "rising";
+            challenge = 40;
+        }
+        result.textContent = `${reps} strict push-ups at age ${age} puts you at ${label}. Your next challenge is ${challenge}.`;
+        proofLink.href = `/challenge/?reps=${encodeURIComponent(reps)}#submit-form-top`;
+    }
+</script>
 {% endblock %}
