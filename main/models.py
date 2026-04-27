@@ -3,6 +3,7 @@ from django.conf import settings
 from django.db import models
 from django.db.models.signals import post_save
 from django.dispatch import receiver
+from django.urls import reverse
 from django.utils.text import slugify
 
 
@@ -282,6 +283,157 @@ class Profile(models.Model):
         if self.profile_image:
             return self.profile_image.url
         return self.profile_photo
+
+    @property
+    def earned_badges(self):
+        badges = []
+        if self.personal_best_reps >= 40:
+            badges.append({"name": "40 Club", "description": "Hit at least 40 verified strict push-ups."})
+        if self.personal_best_reps >= 60:
+            badges.append({"name": "Elite Line", "description": "Reached the Elite benchmark."})
+        if self.personal_best_reps >= 80:
+            badges.append({"name": "Earned Legend", "description": "Reached the top public benchmark."})
+        if self.current_rank and self.current_rank <= 10:
+            badges.append({"name": "Top 10", "description": "Ranked inside the verified top 10."})
+        if self.user.submission_set.filter(status=Submission.STATUS_VERIFIED).count() >= 3:
+            badges.append({"name": "Consistent", "description": "Built a verified history."})
+        return badges
+
+
+class Follow(models.Model):
+    follower = models.ForeignKey(User, related_name="following_links", on_delete=models.CASCADE)
+    following = models.ForeignKey(User, related_name="follower_links", on_delete=models.CASCADE)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ("follower", "following")
+        ordering = ("-created_at",)
+
+    def __str__(self):
+        return f"{self.follower} follows {self.following}"
+
+
+class Goal(models.Model):
+    GOAL_PUSHUPS = "pushups"
+    GOAL_RANK = "rank"
+    GOAL_CHOICES = [
+        (GOAL_PUSHUPS, "Push-up target"),
+        (GOAL_RANK, "Rank target"),
+    ]
+
+    user = models.ForeignKey(User, related_name="goals", on_delete=models.CASCADE)
+    goal_type = models.CharField(max_length=16, choices=GOAL_CHOICES, default=GOAL_PUSHUPS)
+    target_value = models.PositiveIntegerField()
+    note = models.CharField(max_length=180, blank=True)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ("-is_active", "-created_at")
+
+    def __str__(self):
+        return f"{self.user} goal {self.target_value}"
+
+
+class WorkoutTemplate(models.Model):
+    DIFFICULTY_BEGINNER = "beginner"
+    DIFFICULTY_INTERMEDIATE = "intermediate"
+    DIFFICULTY_ADVANCED = "advanced"
+    DIFFICULTY_CHOICES = [
+        (DIFFICULTY_BEGINNER, "Beginner"),
+        (DIFFICULTY_INTERMEDIATE, "Intermediate"),
+        (DIFFICULTY_ADVANCED, "Advanced"),
+    ]
+
+    user = models.ForeignKey(User, null=True, blank=True, related_name="workout_templates", on_delete=models.CASCADE)
+    name = models.CharField(max_length=120)
+    difficulty = models.CharField(max_length=24, choices=DIFFICULTY_CHOICES, default=DIFFICULTY_BEGINNER)
+    notes = models.TextField(blank=True)
+    is_system = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ("is_system", "difficulty", "name")
+
+    def __str__(self):
+        return self.name
+
+
+class Workout(models.Model):
+    user = models.ForeignKey(User, related_name="workouts", on_delete=models.CASCADE)
+    template = models.ForeignKey(WorkoutTemplate, null=True, blank=True, on_delete=models.SET_NULL)
+    title = models.CharField(max_length=120)
+    slug = models.SlugField(max_length=140, unique=True, blank=True)
+    notes = models.TextField(blank=True)
+    duration_minutes = models.PositiveIntegerField(null=True, blank=True)
+    is_public = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ("-created_at",)
+
+    def __str__(self):
+        return self.title
+
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            self.slug = self._build_unique_slug()
+        super().save(*args, **kwargs)
+
+    def _build_unique_slug(self):
+        owner = getattr(getattr(self.user, "profile", None), "slug", self.user.username if self.user_id else "athlete")
+        base_slug = slugify(f"{owner}-{self.title}") or "workout"
+        candidate = base_slug
+        suffix = 2
+        while Workout.objects.filter(slug=candidate).exclude(pk=self.pk).exists():
+            candidate = f"{base_slug}-{suffix}"
+            suffix += 1
+        return candidate
+
+    def get_absolute_url(self):
+        return reverse("workout_detail", args=[self.slug])
+
+
+class WorkoutExercise(models.Model):
+    workout = models.ForeignKey(Workout, related_name="exercises", on_delete=models.CASCADE)
+    name = models.CharField(max_length=120)
+    sets = models.PositiveIntegerField(default=1)
+    reps = models.PositiveIntegerField(null=True, blank=True)
+    seconds = models.PositiveIntegerField(null=True, blank=True)
+    notes = models.CharField(max_length=180, blank=True)
+    order = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ("order", "id")
+
+    def __str__(self):
+        return self.name
+
+
+class ContentEnginePrompt(models.Model):
+    ENGINE_LEVEL = "level"
+    ENGINE_CHALLENGE = "challenge"
+    ENGINE_COMPARE = "compare"
+    ENGINE_PROGRESS = "progress"
+    ENGINE_CHOICES = [
+        (ENGINE_LEVEL, "What's your level?"),
+        (ENGINE_CHALLENGE, "Can you beat this?"),
+        (ENGINE_COMPARE, "Rank comparison"),
+        (ENGINE_PROGRESS, "Fake vs real progress"),
+    ]
+
+    title = models.CharField(max_length=120)
+    engine_type = models.CharField(max_length=24, choices=ENGINE_CHOICES)
+    prompt = models.TextField()
+    cta = models.CharField(max_length=180, blank=True)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ("engine_type", "-created_at")
+
+    def __str__(self):
+        return self.title
 
 
 @receiver(post_save, sender=User)

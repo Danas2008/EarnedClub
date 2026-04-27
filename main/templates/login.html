@@ -25,7 +25,10 @@
 
         <div>
             <label class="field-label" for="{{ form.password.id_for_label }}">Password</label>
-            {{ form.password }}
+            <div style="display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px;">
+                {{ form.password }}
+                <button class="btn-secondary" type="button" data-password-toggle>Show</button>
+            </div>
         </div>
 
         <button class="btn-main" type="submit">Login</button>
@@ -36,6 +39,15 @@
 <script>
     for (const field of document.querySelectorAll("input")) {
         field.classList.add("input");
+    }
+    const passwordToggle = document.querySelector("[data-password-toggle]");
+    const passwordField = document.querySelector("input[type='password']");
+    if (passwordToggle && passwordField) {
+        passwordToggle.addEventListener("click", () => {
+            const visible = passwordField.type === "text";
+            passwordField.type = visible ? "password" : "text";
+            passwordToggle.textContent = visible ? "Show" : "Hide";
+        });
     }
 </script>
 {% endblock %}

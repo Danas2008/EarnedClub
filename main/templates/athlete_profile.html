@@ -47,6 +47,18 @@
             <span class="stat-value">{{ current_tier.name }}</span>
         </div>
     </div>
+    <div class="button-row">
+        {% if request.user.is_authenticated and request.user != profile.user %}
+            <form method="POST" action="{% url 'toggle_follow' profile.slug %}">
+                {% csrf_token %}
+                <button class="btn-main" type="submit">{% if is_following %}Unfollow{% else %}Follow{% endif %}</button>
+            </form>
+        {% endif %}
+        <button class="btn-secondary" type="button" data-share-text="{{ profile_share_message }}">Share Profile</button>
+        {% if profile.personal_best_reps %}
+            <button class="btn-secondary" type="button" data-share-text="{{ pr_share_message }}">Share PR</button>
+        {% endif %}
+    </div>
 </section>
 
 <section class="grid-2">
@@ -78,6 +90,62 @@
         {% endif %}
     </div>
 </section>
+
+<section class="grid-2">
+    <div class="card-dark">
+        <h2>Social</h2>
+        <div class="grid-2">
+            <div class="feature-card">
+                <span class="kicker">Followers</span>
+                <span class="stat-value">{{ followers_count }}</span>
+            </div>
+            <div class="feature-card">
+                <span class="kicker">Following</span>
+                <span class="stat-value">{{ following_count }}</span>
+            </div>
+        </div>
+    </div>
+    <div class="card-dark">
+        <h2>Badges</h2>
+        {% if badges %}
+            <div class="button-row" style="margin-top: 0;">
+                {% for badge in badges %}
+                    <span class="tag-pill" title="{{ badge.description }}">{{ badge.name }}</span>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p class="muted">No badges yet.</p>
+        {% endif %}
+    </div>
+</section>
+
+{% if comparison %}
+    <section class="card-dark">
+        <h2>1v1 Compare</h2>
+        <div class="grid-4">
+            <div class="metric-card">
+                <span class="kicker">You</span>
+                <span class="stat-value">{{ comparison.my_reps }}</span>
+                <div class="muted">{% if comparison.my_rank %}Rank #{{ comparison.my_rank }}{% else %}No verified rank{% endif %}</div>
+            </div>
+            <div class="metric-card">
+                <span class="kicker">{{ profile.display_name }}</span>
+                <span class="stat-value">{{ comparison.their_reps }}</span>
+                <div class="muted">{% if comparison.their_rank %}Rank #{{ comparison.their_rank }}{% else %}No verified rank{% endif %}</div>
+            </div>
+            <div class="metric-card">
+                <span class="kicker">Rep Difference</span>
+                <span class="stat-value">{{ comparison.rep_delta }}</span>
+                <div class="muted">Positive means you are ahead.</div>
+            </div>
+            <div class="metric-card">
+                <span class="kicker">Challenge</span>
+                <span class="stat-value">{{ profile.personal_best_reps|add:"1" }}</span>
+                <div class="muted">Beat their current PR by one.</div>
+            </div>
+        </div>
+    </section>
+{% endif %}
 
 {{ progress_data|json_script:"progress-data" }}
 <script>
@@ -117,6 +185,17 @@
             <path d="${path}" fill="none" stroke="#f7b733" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" />
             ${points.map((point, index) => `<g><circle cx="${point.x}" cy="${point.y}" r="7" fill="#ffd77b" stroke="#111" stroke-width="2.5"><title>${point.label}: ${point.reps} reps</title></circle><text x="${point.x}" y="${point.y - 14}" text-anchor="middle" fill="#f5f7fb" font-size="14" font-weight="700">${point.reps}</text>${index > 0 ? `<text x="${(points[index - 1].x + point.x) / 2}" y="${Math.min(points[index - 1].y, point.y) - 18}" text-anchor="middle" fill="#8df0c9" font-size="12">${point.reps - points[index - 1].reps >= 0 ? "+" : ""}${point.reps - points[index - 1].reps}</text>` : ""}</g>`).join("")}
         `;
+    }
+    for (const shareButton of document.querySelectorAll("[data-share-text]")) {
+        shareButton.addEventListener("click", async () => {
+            const text = shareButton.dataset.shareText;
+            if (navigator.share) {
+                await navigator.share({ text });
+            } else {
+                await navigator.clipboard.writeText(text);
+                shareButton.textContent = "Copied";
+            }
+        });
     }
 </script>
 {% endblock %}

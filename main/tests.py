@@ -8,7 +8,16 @@ from django.test import TestCase
 from django.test import override_settings
 from django.urls import reverse
 
-from .models import NewsletterSubscriber, Profile, Submission, VerificationEvent, get_rank_tier
+from .models import (
+    ContentEnginePrompt,
+    Follow,
+    NewsletterSubscriber,
+    Profile,
+    Submission,
+    VerificationEvent,
+    Workout,
+    get_rank_tier,
+)
 
 
 class SubmissionFlowTests(TestCase):
@@ -26,17 +35,40 @@ class SubmissionFlowTests(TestCase):
             {
                 "name": "Alex",
                 "email": "alex@example.com",
-                "reps": 42,
+                "reps": 40,
                 "video_link": "https://example.com/video",
             },
         )
 
         self.assertRedirects(response, reverse("challenge"))
         submission = Submission.objects.get(name="Alex")
-        self.assertEqual(submission.reps, 42)
+        self.assertEqual(submission.reps, 40)
         self.assertFalse(submission.verified)
         self.assertEqual(submission.status, Submission.STATUS_PENDING)
         self.assertEqual(submission.email, "alex@example.com")
+
+    def test_anonymous_submission_above_40_is_blocked(self):
+        response = self.client.post(
+            reverse("challenge"),
+            {
+                "name": "Too High",
+                "email": "high@example.com",
+                "reps": 41,
+            },
+            follow=True,
+        )
+
+        self.assertEqual(Submission.objects.filter(email="high@example.com").count(), 0)
+        self.assertContains(response, "Anonymous submissions are capped at 40")
+
+    def test_logged_in_submission_above_60_requires_proof(self):
+        user = User.objects.create_user(username="elite-no-proof", password="StrongPass12345")
+        self.client.force_login(user)
+
+        response = self.client.post(reverse("challenge"), {"reps": 61}, follow=True)
+
+        self.assertEqual(Submission.objects.filter(user=user).count(), 0)
+        self.assertContains(response, "Scores above 60 need video proof")
 
     def test_challenge_submission_without_proof_becomes_unverified(self):
         response = self.client.post(
@@ -183,7 +215,7 @@ class SubmissionFlowTests(TestCase):
             {
                 "name": "Copy",
                 "email": "copy@example.com",
-                "reps": 41,
+                "reps": 40,
                 "video_link": "https://example.com/shared-proof",
             },
             follow=True,
@@ -515,6 +547,55 @@ class SubmissionFlowTests(TestCase):
         submission.refresh_from_db()
         self.assertEqual(submission.status, Submission.STATUS_PENDING)
         self.assertEqual(submission.video_link, "https://example.com/new-proof")
+
+    def test_dashboard_can_log_workout(self):
+        user = User.objects.create_user(username="workout-user", password="StrongPass12345")
+        self.client.force_login(user)
+
+        response = self.client.post(
+            reverse("dashboard"),
+            {
+                "form_type": "workout",
+                "title": "Push Day",
+                "duration_minutes": "30",
+                "exercise_name": ["Push-ups"],
+                "exercise_sets": ["3"],
+                "exercise_reps": ["15"],
+                "exercise_seconds": [""],
+            },
+        )
+
+        self.assertRedirects(response, reverse("dashboard"))
+        workout = Workout.objects.get(user=user)
+        self.assertEqual(workout.title, "Push Day")
+        self.assertEqual(workout.exercises.first().reps, 15)
+
+    def test_follow_toggle_creates_follow(self):
+        follower = User.objects.create_user(username="follower", password="StrongPass12345")
+        target = User.objects.create_user(username="target", password="StrongPass12345")
+        self.client.force_login(follower)
+
+        response = self.client.post(reverse("toggle_follow", args=[target.profile.slug]))
+
+        self.assertRedirects(response, reverse("athlete_profile", args=[target.profile.slug]))
+        self.assertTrue(Follow.objects.filter(follower=follower, following=target).exists())
+
+    def test_staff_can_create_content_engine_prompt(self):
+        staff = User.objects.create_user(username="content-staff", password="StrongPass12345", is_staff=True)
+        self.client.force_login(staff)
+
+        response = self.client.post(
+            reverse("content_engine_admin"),
+            {
+                "title": "Can you beat this?",
+                "engine_type": "challenge",
+                "prompt": "Film a 40 push-up challenge.",
+                "cta": "Prove it.",
+            },
+        )
+
+        self.assertRedirects(response, reverse("content_engine_admin"))
+        self.assertTrue(ContentEnginePrompt.objects.filter(title="Can you beat this?").exists())
 
     def test_sitemap_xml_lists_core_pages(self):
         response = self.client.get(reverse("sitemap_xml"))

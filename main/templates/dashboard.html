@@ -19,10 +19,13 @@
     <div class="button-row">
         <a class="btn-main" href="{% url 'challenge' %}#submit-form-top">Submit New Result</a>
         <a class="btn-secondary" href="{% url 'athlete_profile' profile.slug %}">View Public Profile</a>
+        <button class="btn-secondary" type="button" data-share-text="{{ profile_share_message }}">Share Profile</button>
+        <button class="btn-secondary" type="button" data-share-text="{{ pr_share_message }}">Share PR</button>
         <button class="btn-secondary" type="button" data-toggle-panel="profile-edit" aria-expanded="false" aria-controls="profile-edit">&#9881; Settings</button>
     </div>
-    <form id="profile-edit" class="submission-form hidden-panel settings-inline-panel" method="POST">
+    <form id="profile-edit" class="submission-form hidden-panel settings-inline-panel" method="POST" enctype="multipart/form-data">
         {% csrf_token %}
+        <input type="hidden" name="form_type" value="profile">
         <div class="grid-2">
             <div>
                 <label class="field-label" for="username">Username</label>
@@ -51,7 +54,11 @@
         <div>
             <label class="field-label" for="profile_photo">Profile picture URL</label>
             <input id="profile_photo" class="input" type="url" name="profile_photo" value="{{ profile.profile_photo }}" placeholder="https://example.com/photo.jpg">
-            <div class="hint">Direct file photo uploads are temporarily disabled on this branch. Paste a public image URL instead.</div>
+            <div class="hint">Use a public image URL, or upload a file below.</div>
+        </div>
+        <div>
+            <label class="field-label" for="profile_image">Upload profile picture</label>
+            <input id="profile_image" class="input" type="file" name="profile_image" accept="image/*">
         </div>
         <div>
             <label class="field-label" for="bio">Bio</label>
@@ -94,6 +101,34 @@
 
 <section class="grid-2">
     <div class="card-dark">
+        <h2>Social</h2>
+        <div class="grid-2">
+            <div class="feature-card">
+                <span class="kicker">Followers</span>
+                <span class="stat-value">{{ followers_count }}</span>
+            </div>
+            <div class="feature-card">
+                <span class="kicker">Following</span>
+                <span class="stat-value">{{ following_count }}</span>
+            </div>
+        </div>
+    </div>
+    <div class="card-dark">
+        <h2>Badges</h2>
+        {% if badges %}
+            <div class="button-row" style="margin-top: 0;">
+                {% for badge in badges %}
+                    <span class="tag-pill" title="{{ badge.description }}">{{ badge.name }}</span>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p class="muted">Your first badges unlock from verified results, consistency, and leaderboard rank.</p>
+        {% endif %}
+    </div>
+</section>
+
+<section class="grid-2">
+    <div class="card-dark">
         <h2>Progress</h2>
         <p class="muted">Best verified performance by date. The graph is zoomed tighter so the movement is easier to read.</p>
         <div class="progress-chart">
@@ -110,10 +145,166 @@
             </div>
             <div class="feature-card">
                 <h3>Submission Flow</h3>
-                <p class="muted">Use public proof links for submissions while direct video and photo uploads stay disabled on this stable branch.</p>
+                <p class="muted">Use a public proof link or upload your video directly. Scores above 60 need proof.</p>
+            </div>
+            <div class="feature-card">
+                <h3>Daily Suggestion</h3>
+                <p class="muted">{{ daily_suggestion }}</p>
+            </div>
+            <div class="feature-card">
+                <h3>Progress Signal</h3>
+                <p class="muted">Your verified graph tracks improvement over time; your private workouts help explain the trend.</p>
             </div>
         </div>
     </div>
+</section>
+
+<section class="grid-2">
+    <div class="card-dark">
+        <div class="section-spread">
+            <div>
+                <h2>Workout Log</h2>
+                <p class="muted">Build private sessions, share the good ones, duplicate templates, or quick-log a result in seconds.</p>
+            </div>
+            <form method="POST" action="{% url 'quick_add_last_workout' %}">
+                {% csrf_token %}
+                <button class="btn-secondary" type="submit">Quick Add Last</button>
+            </form>
+        </div>
+        <form class="submission-form" method="POST">
+            {% csrf_token %}
+            <input type="hidden" name="form_type" value="workout">
+            <div class="grid-2">
+                <div>
+                    <label class="field-label" for="workout-title">Workout title</label>
+                    <input id="workout-title" class="input" name="title" placeholder="Push day">
+                </div>
+                <div>
+                    <label class="field-label" for="template_id">Template</label>
+                    <select id="template_id" class="select" name="template_id">
+                        <option value="">Custom workout</option>
+                        {% for template in workout_templates %}
+                            <option value="{{ template.id }}">{{ template.name }} - {{ template.get_difficulty_display }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <div class="grid-2">
+                <div>
+                    <label class="field-label" for="duration_minutes">Time (minutes)</label>
+                    <input id="duration_minutes" class="input" type="number" min="1" name="duration_minutes" placeholder="35">
+                </div>
+                <div>
+                    <label class="field-label" for="is_public">Shareable</label>
+                    <label class="tag-pill" style="width: fit-content;">
+                        <input id="is_public" type="checkbox" name="is_public"> Public workout link
+                    </label>
+                    <label class="tag-pill" style="width: fit-content; margin-top: 8px;">
+                        <input type="checkbox" name="save_as_template"> Save as template
+                    </label>
+                </div>
+            </div>
+            <div class="grid-3">
+                {% for i in "123" %}
+                    <div class="feature-card">
+                        <label class="field-label" for="exercise-name-{{ forloop.counter }}">Exercise</label>
+                        <input id="exercise-name-{{ forloop.counter }}" class="input" name="exercise_name" list="exercise-options" placeholder="Push-ups">
+                        <div class="grid-3" style="margin-top: 10px;">
+                            <input class="input" type="number" min="1" name="exercise_sets" placeholder="Sets">
+                            <input class="input" type="number" min="1" name="exercise_reps" placeholder="Reps">
+                            <input class="input" type="number" min="1" name="exercise_seconds" placeholder="Sec">
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+            <datalist id="exercise-options">
+                {% for exercise in default_exercises %}
+                    <option value="{{ exercise }}"></option>
+                {% endfor %}
+            </datalist>
+            <div>
+                <label class="field-label" for="workout-notes">Notes</label>
+                <textarea id="workout-notes" class="textarea" name="notes" placeholder="How it felt, form notes, rest time"></textarea>
+            </div>
+            <button class="btn-main" type="submit">Save Workout</button>
+        </form>
+    </div>
+
+    <div class="stack">
+        <div class="card-dark">
+            <h2>Quick Log Result</h2>
+            <form class="submission-form" method="POST">
+                {% csrf_token %}
+                <input type="hidden" name="form_type" value="quick_result">
+                <div class="grid-2">
+                    <input class="input" type="number" min="1" name="quick_reps" placeholder="Reps">
+                    <input class="input" type="number" min="1" name="quick_seconds" placeholder="Seconds">
+                </div>
+                <button class="btn-main" type="submit">Done</button>
+            </form>
+        </div>
+        <div class="card-dark">
+            <h2>Goals</h2>
+            <form class="submission-form" method="POST">
+                {% csrf_token %}
+                <input type="hidden" name="form_type" value="goal">
+                <div class="grid-2">
+                    <select class="select" name="goal_type">
+                        <option value="pushups">Push-up target</option>
+                        <option value="rank">Rank target</option>
+                    </select>
+                    <input class="input" type="number" min="1" name="target_value" placeholder="60">
+                </div>
+                <input class="input" name="note" placeholder="Why this matters">
+                <button class="btn-secondary" type="submit">Save Goal</button>
+            </form>
+            {% if active_goals %}
+                <div class="compact-board" style="margin-top: 14px;">
+                    {% for goal in active_goals %}
+                        <div class="score-row">
+                            <div class="score-row-main">
+                                <div class="submission-name">{{ goal.get_goal_type_display }}: {{ goal.target_value }}</div>
+                                <div class="submission-meta">{{ goal.note|default:"No note yet." }}</div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</section>
+
+<section class="card-dark">
+    <h2>Recent Workouts</h2>
+    {% if workouts %}
+        <div class="compact-board">
+            {% for workout in workouts %}
+                <div class="score-row">
+                    <div class="score-row-main">
+                        <div class="submission-name">{{ workout.title }}</div>
+                        <div class="submission-meta">{{ workout.created_at|date:"M j, Y" }}{% if workout.duration_minutes %} | {{ workout.duration_minutes }} min{% endif %}{% if workout.is_public %} | Public{% endif %}</div>
+                    </div>
+                    <div class="button-row" style="margin-top: 0;">
+                        {% if workout.is_public %}<a class="btn-secondary" href="{% url 'workout_detail' workout.slug %}">Open</a>{% endif %}
+                        <form method="POST" action="{% url 'duplicate_workout' workout.id %}">
+                            {% csrf_token %}
+                            <button class="btn-secondary" type="submit">Duplicate</button>
+                        </form>
+                    </div>
+                    <details class="score-details">
+                        <summary>Exercises</summary>
+                        {% for exercise in workout.exercises.all %}
+                            <div class="submission-meta">{{ exercise.name }} - {{ exercise.sets }} set(s){% if exercise.reps %}, {{ exercise.reps }} reps{% endif %}{% if exercise.seconds %}, {{ exercise.seconds }} sec{% endif %}</div>
+                        {% empty %}
+                            <div class="submission-meta">No exercises saved.</div>
+                        {% endfor %}
+                    </details>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <p class="muted">No workouts yet. Start with Push Day, Leg Day, or quick log today’s result.</p>
+    {% endif %}
 </section>
 
 <section class="card-dark">
@@ -133,11 +324,15 @@
                         {% if submission.status == "unverified" %}
                             <details class="score-details" style="margin-top: 10px;">
                                 <summary>Add proof</summary>
-                                <form class="submission-form" method="POST" action="{% url 'add_submission_proof' submission.id %}" style="margin-top: 12px;">
+                                <form class="submission-form" method="POST" action="{% url 'add_submission_proof' submission.id %}" enctype="multipart/form-data" style="margin-top: 12px;">
                                     {% csrf_token %}
                                     <div>
                                         <label class="field-label" for="dashboard-video-link-{{ submission.id }}">Public video link</label>
                                         <input id="dashboard-video-link-{{ submission.id }}" class="input" type="url" name="video_link" placeholder="https://youtube.com/watch?v=your-video">
+                                    </div>
+                                    <div>
+                                        <label class="field-label" for="dashboard-video-file-{{ submission.id }}">Upload video file</label>
+                                        <input id="dashboard-video-file-{{ submission.id }}" class="input" type="file" name="video_file" accept="video/*">
                                     </div>
                                     <button class="btn-main" type="submit">Submit Proof</button>
                                 </form>
@@ -199,6 +394,18 @@
             const isOpen = panel.classList.toggle("is-open");
             trigger.setAttribute("aria-expanded", isOpen ? "true" : "false");
             trigger.innerHTML = isOpen ? "Close Settings" : "&#9881; Settings";
+        });
+    }
+    for (const shareButton of document.querySelectorAll("[data-share-text]")) {
+        shareButton.addEventListener("click", async () => {
+            const text = shareButton.dataset.shareText;
+            if (navigator.share) {
+                await navigator.share({ text });
+            } else {
+                await navigator.clipboard.writeText(text);
+                shareButton.textContent = "Copied";
+                setTimeout(() => shareButton.textContent = shareButton.dataset.shareText.includes("push-ups") ? "Share PR" : "Share Profile", 1400);
+            }
         });
     }
 </script>

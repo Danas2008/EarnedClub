@@ -115,6 +115,12 @@
         </div>
         <button class="btn-secondary" type="submit">Search</button>
     </form>
+    <div class="button-row" style="margin-top: 0; margin-bottom: 16px;">
+        <button class="btn-main" type="button" data-board-filter="all">All</button>
+        <button class="btn-secondary" type="button" data-board-filter="verified">Verified</button>
+        <button class="btn-secondary" type="button" data-board-filter="pending">Pending</button>
+        <button class="btn-secondary" type="button" data-board-filter="unverified">Unverified</button>
+    </div>
 
     {% if leaderboard_rows %}
         <table class="leaderboard-table">
@@ -131,7 +137,7 @@
             </thead>
             <tbody>
                 {% for row in leaderboard_rows %}
-                    <tr>
+                    <tr data-board-row data-status="{{ row.submission.status }}" data-name="{{ row.submission.name|lower }}">
                         <td>
                             <span class="position-pill">
                                 {% if row.medal_place == 1 %}<span class="medal">&#129351;</span>{% endif %}
@@ -167,7 +173,12 @@
                         <td><span class="tag-pill">{{ row.submission.rank_name }}</span></td>
                         <td><span class="status-pill {{ row.submission.status }}">{{ row.submission.public_status_label }}</span></td>
                         <td>{% if row.verified_position %}#{{ row.verified_position }}{% else %}-{% endif %}</td>
-                        <td>{{ row.submission.benchmark_label }}</td>
+                        <td>
+                            {{ row.submission.benchmark_label }}
+                            {% if request.user.is_authenticated and row.profile and row.profile.user != request.user %}
+                                <div style="margin-top: 8px;"><a class="btn-secondary" style="min-height: 34px; padding: 6px 10px;" href="{% url 'athlete_profile' row.profile.slug %}">Compare 1v1</a></div>
+                            {% endif %}
+                        </td>
                     </tr>
                 {% endfor %}
             </tbody>
@@ -175,7 +186,7 @@
 
         <div class="mobile-cards compact-board">
             {% for row in leaderboard_rows %}
-                <div class="score-row">
+                <div class="score-row" data-board-row data-status="{{ row.submission.status }}" data-name="{{ row.submission.name|lower }}">
                     {% if row.profile and row.profile.profile_image_url %}
                         <img class="avatar" src="{{ row.profile.profile_image_url }}" alt="{{ row.profile.display_name }} profile picture">
                     {% elif row.profile %}
@@ -245,4 +256,18 @@
     </div>
     {% include "includes/rank_benchmark_carousel.html" %}
 </section>
+<script>
+    for (const button of document.querySelectorAll("[data-board-filter]")) {
+        button.addEventListener("click", () => {
+            const filter = button.dataset.boardFilter;
+            for (const row of document.querySelectorAll("[data-board-row]")) {
+                row.style.display = filter === "all" || row.dataset.status === filter ? "" : "none";
+            }
+            for (const item of document.querySelectorAll("[data-board-filter]")) {
+                item.classList.toggle("btn-main", item === button);
+                item.classList.toggle("btn-secondary", item !== button);
+            }
+        });
+    }
+</script>
 {% endblock %}

@@ -74,6 +74,38 @@
     </div>
 </section>
 
+<section class="card-dark" id="level-test">
+    <div class="content-split">
+        <div>
+            <div class="eyebrow">What's your level?</div>
+            <h2>How many push-ups can you do?</h2>
+            <p class="muted">Answer in a few seconds, see your level, then prove it with a submission. Do not just say it, prove it.</p>
+            <form class="calculator-form" onsubmit="return false;">
+                <div class="grid-2">
+                    <div>
+                        <label class="field-label" for="home-reps">Push-ups</label>
+                        <input id="home-reps" class="input" type="number" min="0" placeholder="42">
+                    </div>
+                    <div>
+                        <label class="field-label" for="home-age">Age</label>
+                        <input id="home-age" class="input" type="number" min="13" max="100" placeholder="18">
+                    </div>
+                </div>
+                <button class="btn-main" type="button" onclick="runHomeLevelTest()">Show My Result</button>
+            </form>
+        </div>
+        <div class="mini-card">
+            <h4>Result</h4>
+            <p id="home-level-result" class="muted">Most people never test clean reps. Your score will show where you stand, then challenge you to verify it.</p>
+            <div class="button-row">
+                <a id="home-proof-link" class="btn-main" href="/challenge/#submit-form-top">Prove It</a>
+                <a class="btn-secondary" href="/leaderboard/#full-leaderboard">Compare To Others</a>
+            </div>
+            <p class="muted" style="margin-top: 12px;">{{ total_submissions }} people already tested themselves here. Verified results carry the most status.</p>
+        </div>
+    </div>
+</section>
+
 <section class="card-dark">
     <div class="section-spread">
         <div>
@@ -300,4 +332,33 @@
         </a>
     </div>
 </section>
+<script>
+    function runHomeLevelTest() {
+        const reps = parseInt(document.getElementById("home-reps").value, 10);
+        const age = parseInt(document.getElementById("home-age").value, 10);
+        const result = document.getElementById("home-level-result");
+        const proofLink = document.getElementById("home-proof-link");
+        if (Number.isNaN(reps) || reps < 0 || Number.isNaN(age) || age < 13) {
+            result.textContent = "Add your age and a valid strict push-up number.";
+            return;
+        }
+        let label = "below average";
+        let challenge = 20;
+        if (reps >= 80) {
+            label = "Earned Legend level";
+            challenge = reps + 1;
+        } else if (reps >= 60) {
+            label = "Elite level";
+            challenge = 80;
+        } else if (reps >= 40) {
+            label = "advanced";
+            challenge = 60;
+        } else if (reps >= 20) {
+            label = "rising";
+            challenge = 40;
+        }
+        result.textContent = `${reps} strict push-ups at age ${age} puts you at ${label}. Your next challenge is ${challenge}.`;
+        proofLink.href = `/challenge/?reps=${encodeURIComponent(reps)}#submit-form-top`;
+    }
+</script>
 {% endblock %}

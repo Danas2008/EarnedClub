@@ -28,6 +28,70 @@
     </div>
 </section>
 
+<section class="grid-2" id="level-generator">
+    <div class="card-dark calculator-card">
+        <h2>What's Your Level?</h2>
+        <form class="calculator-form" onsubmit="return false;">
+            <div class="grid-2">
+                <input id="level-age" class="input" type="number" min="13" placeholder="Age">
+                <input id="level-pushups" class="input" type="number" min="0" placeholder="Push-ups">
+            </div>
+            <div class="grid-2">
+                <input id="level-pullups" class="input" type="number" min="0" placeholder="Pull-ups">
+                <input id="level-run" class="input" type="number" min="0" step="0.1" placeholder="1 km run minutes">
+            </div>
+            <button class="btn-main" type="button" onclick="calculateLevel()">Generate Level</button>
+            <div id="level-result" class="hint">Get a shareable performance verdict.</div>
+        </form>
+    </div>
+
+    <div class="card-dark calculator-card" id="beat-this">
+        <h2>Can You Beat This?</h2>
+        <form class="calculator-form" onsubmit="return false;">
+            <input id="beat-reps" class="input" type="number" min="0" placeholder="Your result">
+            <button class="btn-main" type="button" onclick="calculateBeatThis()">Check Challenge</button>
+            <div id="beat-result" class="hint">Today's target: 40 clean push-ups.</div>
+        </form>
+    </div>
+
+    <div class="card-dark calculator-card" id="rank-comparison">
+        <h2>Rank Comparison Tool</h2>
+        <form class="calculator-form" onsubmit="return false;">
+            <input id="compare-reps" class="input" type="number" min="0" placeholder="Your strict reps">
+            <button class="btn-main" type="button" onclick="calculateRankCompare()">Compare Rank</button>
+            <div id="compare-result" class="hint">See where you would sit on the platform tiers.</div>
+        </form>
+    </div>
+
+    <div class="card-dark calculator-card" id="progress-checker">
+        <h2>Fake vs Real Progress Checker</h2>
+        <form class="calculator-form" onsubmit="return false;">
+            <div class="grid-2">
+                <input id="progress-workouts" class="input" type="number" min="0" placeholder="Workouts/week">
+                <input id="progress-gain" class="input" type="number" placeholder="Rep gain/month">
+            </div>
+            <button class="btn-main" type="button" onclick="calculateProgressTruth()">Check Progress</button>
+            <div id="progress-truth-result" class="hint">Find out if your training is moving or just busy.</div>
+        </form>
+    </div>
+</section>
+
+{% if content_prompts %}
+    <section class="card-dark">
+        <h2>Content Prompts</h2>
+        <div class="grid-3">
+            {% for prompt in content_prompts %}
+                <div class="feature-card">
+                    <span class="kicker">{{ prompt.get_engine_type_display }}</span>
+                    <h3>{{ prompt.title }}</h3>
+                    <p class="muted">{{ prompt.prompt }}</p>
+                    {% if prompt.cta %}<p>{{ prompt.cta }}</p>{% endif %}
+                </div>
+            {% endfor %}
+        </div>
+    </section>
+{% endif %}
+
 <section class="grid-3">
     <div class="card-dark calculator-card">
         <h2>BMI Calculator</h2>
@@ -168,6 +232,59 @@
         const eliteWeeks = Math.ceil(toElite / gain);
         const legendWeeks = Math.ceil(toLegend / gain);
         result.textContent = `Current tier: ${tier.name}. At +${gain} reps per week, Elite could take about ${eliteWeeks} week(s) and Earned Legend about ${legendWeeks} week(s).`;
+    }
+
+    function calculateLevel() {
+        const age = parseInt(document.getElementById("level-age").value, 10);
+        const pushups = parseInt(document.getElementById("level-pushups").value, 10);
+        const pullups = parseInt(document.getElementById("level-pullups").value, 10) || 0;
+        const run = parseFloat(document.getElementById("level-run").value) || 0;
+        const result = document.getElementById("level-result");
+        if (Number.isNaN(age) || Number.isNaN(pushups)) {
+            result.textContent = "Add age and push-ups.";
+            return;
+        }
+        const tier = getTier(pushups);
+        const bonus = pullups >= 10 || (run > 0 && run <= 5) ? " Your extra metrics make the result stronger." : "";
+        result.textContent = `Age ${age}, ${pushups} push-ups: ${tier.name}. ${tier.benchmark}.${bonus} Share it, then prove it.`;
+    }
+
+    function calculateBeatThis() {
+        const reps = parseInt(document.getElementById("beat-reps").value, 10);
+        const result = document.getElementById("beat-result");
+        if (Number.isNaN(reps)) {
+            result.textContent = "Add your result.";
+            return;
+        }
+        result.textContent = reps >= 40 ? `You beat today's 40-rep challenge by ${reps - 40}. Submit it.` : `You are ${40 - reps} rep(s) away from today's challenge.`;
+    }
+
+    function calculateRankCompare() {
+        const reps = parseInt(document.getElementById("compare-reps").value, 10);
+        const result = document.getElementById("compare-result");
+        if (Number.isNaN(reps)) {
+            result.textContent = "Add strict reps.";
+            return;
+        }
+        const tier = getTier(reps);
+        result.textContent = `${reps} reps would show as ${tier.name}. ${Math.max(0, 60 - reps)} reps to reach Elite.`;
+    }
+
+    function calculateProgressTruth() {
+        const workouts = parseInt(document.getElementById("progress-workouts").value, 10);
+        const gain = parseInt(document.getElementById("progress-gain").value, 10);
+        const result = document.getElementById("progress-truth-result");
+        if (Number.isNaN(workouts) || Number.isNaN(gain)) {
+            result.textContent = "Add workouts per week and your monthly rep gain.";
+            return;
+        }
+        if (workouts >= 3 && gain > 0) {
+            result.textContent = "Real progress. Keep logging and raise the target.";
+        } else if (workouts >= 3 && gain <= 0) {
+            result.textContent = "Busy, not better. Your training needs clearer overload.";
+        } else {
+            result.textContent = "Inconsistent signal. Start with repeatable weeks before judging your level.";
+        }
     }
 </script>
 {% endblock %}

@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+
+{% block title %}{{ workout.title }}{% endblock %}
+{% block meta_description %}View a shared EarnedClub workout from {{ workout.user.profile.display_name }}.{% endblock %}
+
+{% block content %}
+<section class="hero-card profile-header">
+    <div class="eyebrow">Shared Workout</div>
+    <h1>{{ workout.title }}</h1>
+    <p class="muted">
+        By <a href="{% url 'athlete_profile' workout.user.profile.slug %}">{{ workout.user.profile.display_name }}</a>
+        {% if workout.duration_minutes %} - {{ workout.duration_minutes }} minutes{% endif %}
+        - {{ workout.created_at|date:"M j, Y" }}
+    </p>
+    {% if workout.notes %}<p>{{ workout.notes }}</p>{% endif %}
+    <div class="button-row">
+        <button class="btn-secondary" type="button" data-share-text="Try {{ workout.title }} on EarnedClub: {{ request.build_absolute_uri }}">Share Workout</button>
+        <a class="btn-main" href="{% url 'register' %}">Create Your Own</a>
+    </div>
+</section>
+
+<section class="card-dark">
+    <h2>Exercises</h2>
+    {% if workout.exercises.all %}
+        <div class="compact-board">
+            {% for exercise in workout.exercises.all %}
+                <div class="score-row">
+                    <div class="score-row-main">
+                        <div class="submission-name">{{ exercise.name }}</div>
+                        <div class="submission-meta">
+                            {{ exercise.sets }} set(s)
+                            {% if exercise.reps %} - {{ exercise.reps }} reps{% endif %}
+                            {% if exercise.seconds %} - {{ exercise.seconds }} seconds{% endif %}
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <p class="muted">No exercises saved for this workout.</p>
+    {% endif %}
+</section>
+
+<script>
+    for (const shareButton of document.querySelectorAll("[data-share-text]")) {
+        shareButton.addEventListener("click", async () => {
+            const text = shareButton.dataset.shareText;
+            if (navigator.share) {
+                await navigator.share({ text });
+            } else {
+                await navigator.clipboard.writeText(text);
+                shareButton.textContent = "Copied";
+            }
+        });
+    }
+</script>
+{% endblock %}

@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+
+{% block title %}Content Engine Admin{% endblock %}
+
+{% block content %}
+<section class="hero-card" style="margin-bottom: 24px;">
+    <div class="content-split">
+        <div>
+            <div class="eyebrow">Staff only</div>
+            <h1>Content engines.</h1>
+            <p class="muted">Create prompts for viral calculators and challenge pages without opening the default Django admin.</p>
+        </div>
+        <form class="submission-form" method="POST">
+            {% csrf_token %}
+            <div>
+                <label class="field-label" for="title">Title</label>
+                <input id="title" class="input" name="title" placeholder="Most people cannot do this">
+            </div>
+            <div>
+                <label class="field-label" for="engine_type">Engine</label>
+                <select id="engine_type" class="select" name="engine_type">
+                    {% for value, label in engine_choices %}
+                        <option value="{{ value }}">{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label class="field-label" for="prompt">Prompt</label>
+                <textarea id="prompt" class="textarea" name="prompt" placeholder="Film this reaction, ask for age and reps, then reveal their level."></textarea>
+            </div>
+            <div>
+                <label class="field-label" for="cta">CTA</label>
+                <input id="cta" class="input" name="cta" placeholder="Test yourself on EarnedClub">
+            </div>
+            <button class="btn-main" type="submit">Create Prompt</button>
+        </form>
+    </div>
+</section>
+
+<section class="card-dark">
+    <h2>Existing Prompts</h2>
+    {% if prompts %}
+        <div class="grid-3">
+            {% for prompt in prompts %}
+                <div class="feature-card">
+                    <span class="kicker">{{ prompt.get_engine_type_display }}</span>
+                    <h3>{{ prompt.title }}</h3>
+                    <p class="muted">{{ prompt.prompt }}</p>
+                    {% if prompt.cta %}<p>{{ prompt.cta }}</p>{% endif %}
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <p class="muted">No prompts yet.</p>
+    {% endif %}
+</section>
+{% endblock %}

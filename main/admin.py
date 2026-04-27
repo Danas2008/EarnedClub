@@ -1,7 +1,18 @@
 from django.contrib import admin
 from django.utils.html import format_html
 
-from .models import NewsletterSubscriber, Profile, Submission, VerificationEvent
+from .models import (
+    ContentEnginePrompt,
+    Follow,
+    Goal,
+    NewsletterSubscriber,
+    Profile,
+    Submission,
+    VerificationEvent,
+    Workout,
+    WorkoutExercise,
+    WorkoutTemplate,
+)
 
 
 @admin.register(Submission)
@@ -41,3 +52,42 @@ class VerificationEventAdmin(admin.ModelAdmin):
     search_fields = ("submission__name", "submission__email", "note")
     readonly_fields = ("submission", "reviewer", "action", "note", "created_at")
     ordering = ("-created_at",)
+
+
+class WorkoutExerciseInline(admin.TabularInline):
+    model = WorkoutExercise
+    extra = 0
+
+
+@admin.register(Workout)
+class WorkoutAdmin(admin.ModelAdmin):
+    list_display = ("title", "user", "is_public", "duration_minutes", "created_at")
+    search_fields = ("title", "user__username")
+    prepopulated_fields = {"slug": ("title",)}
+    inlines = [WorkoutExerciseInline]
+
+
+@admin.register(WorkoutTemplate)
+class WorkoutTemplateAdmin(admin.ModelAdmin):
+    list_display = ("name", "difficulty", "is_system", "user", "created_at")
+    list_filter = ("difficulty", "is_system")
+    search_fields = ("name", "notes")
+
+
+@admin.register(Follow)
+class FollowAdmin(admin.ModelAdmin):
+    list_display = ("follower", "following", "created_at")
+    search_fields = ("follower__username", "following__username")
+
+
+@admin.register(Goal)
+class GoalAdmin(admin.ModelAdmin):
+    list_display = ("user", "goal_type", "target_value", "is_active", "created_at")
+    list_filter = ("goal_type", "is_active")
+
+
+@admin.register(ContentEnginePrompt)
+class ContentEnginePromptAdmin(admin.ModelAdmin):
+    list_display = ("title", "engine_type", "is_active", "created_at")
+    list_filter = ("engine_type", "is_active")
+    search_fields = ("title", "prompt")
