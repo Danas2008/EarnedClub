@@ -28,7 +28,11 @@
                 {% if profile.age %}{% if profile.country %} - {% endif %}{{ profile.age }} years old{% endif %}
             </p>
             {% if profile.bio %}<p>{{ profile.bio }}</p>{% endif %}
-            <p class="muted">{{ followers_count }} followers - {{ following_count }} following</p>
+            <p class="muted">
+                <a href="{% url 'social_list' profile.slug 'followers' %}">{{ followers_count }} followers</a>
+                -
+                <a href="{% url 'social_list' profile.slug 'following' %}">{{ following_count }} following</a>
+            </p>
             <div class="button-row">
                 <a class="btn-main" href="{% url 'challenge' %}#submit-form-top">Submit Your Score</a>
                 <a class="btn-secondary" href="{% url 'leaderboard' %}#full-leaderboard">Leaderboard</a>
@@ -107,6 +111,17 @@
             </div>
         {% else %}
             <p class="muted">No badges yet.</p>
+        {% endif %}
+        {% if public_goals %}
+            <h2 style="margin-top: 18px;">Goals</h2>
+            {% for goal in public_goals %}
+                <div class="score-row">
+                    <div class="score-row-main">
+                        <div class="submission-name">{% if goal.goal_type == "rank" %}Reach rank #{{ goal.target_value }}{% else %}Hit {{ goal.target_value }} reps{% endif %}</div>
+                        <div class="submission-meta">{{ goal.note|default:"Public target" }}</div>
+                    </div>
+                </div>
+            {% endfor %}
         {% endif %}
     </div>
     <div class="card-dark">

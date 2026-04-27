@@ -8,24 +8,88 @@
         <div>
             <div class="eyebrow">Training</div>
             <h1>Workouts.</h1>
-            <p class="muted">Log private training, make selected workouts public, and highlight one on your profile.</p>
+            <p class="muted">Pick a plan, log the work, and share only the sessions you want public.</p>
         </div>
-        <form method="POST" action="{% url 'quick_add_last_workout' %}">
-            {% csrf_token %}
-            <button class="btn-secondary" type="submit">Quick Add Last</button>
-        </form>
+        <div class="button-row">
+            <form method="POST" action="{% url 'quick_add_last_workout' %}">
+                {% csrf_token %}
+                <button class="btn-secondary" type="submit">Repeat Last</button>
+            </form>
+            <a class="btn-main" href="#quick-log">Quick Log</a>
+        </div>
     </div>
 </section>
 
+<section class="grid-3">
+    {% for template in recommended_templates %}
+        <article class="feature-card">
+            <div class="eyebrow">{{ template.get_difficulty_display }}</div>
+            <h3>{{ template.name }}</h3>
+            <p class="muted">{{ template.notes }}</p>
+            <button class="btn-main" type="button" data-template-id="{{ template.id }}" data-template-name="{{ template.name }}">Use Plan</button>
+        </article>
+    {% empty %}
+        <article class="feature-card">
+            <div class="eyebrow">Recommended</div>
+            <h3>Push Day</h3>
+            <p class="muted">A simple strength session for building strict reps.</p>
+            <a class="btn-main" href="#builder">Build It</a>
+        </article>
+    {% endfor %}
+    <article class="feature-card">
+        <div class="eyebrow">Running plans</div>
+        <h3>EnduroBuddy.cz</h3>
+        <p class="muted">Running-only training plans for athletes who want structured endurance work next to strength.</p>
+        <a class="btn-secondary" href="https://endurobuddy.cz" target="_blank" rel="noopener noreferrer">Open EnduroBuddy</a>
+    </article>
+</section>
+
 <section class="grid-2">
-    <div class="card-dark">
-        <h2>Build Workout</h2>
+    <div class="card-dark" id="quick-log">
+        <div class="section-spread">
+            <div>
+                <h2>Quick Log</h2>
+                <p class="muted">One exercise. Done in seconds.</p>
+            </div>
+        </div>
         <form class="submission-form" method="POST">
+            {% csrf_token %}
+            <input type="hidden" name="form_type" value="quick_result">
+            <div class="grid-2">
+                <select class="select" name="quick_body_part" data-body-select>
+                    <option value="">Body part</option>
+                    {% for part in body_parts %}<option value="{{ part }}">{{ part }}</option>{% endfor %}
+                </select>
+                <select class="select" name="quick_type" data-quick-type>
+                    <option value="strength">Strength</option>
+                    <option value="cardio">Cardio</option>
+                    <option value="mobility">Mobility</option>
+                </select>
+            </div>
+            <select class="select" name="quick_exercise" data-exercise-select>
+                <option value="">Exercise</option>
+                {% for exercise in default_exercises %}
+                    <option value="{{ exercise.name }}" data-body="{{ exercise.body_part }}" data-type="{{ exercise.type }}">{{ exercise.name }}</option>
+                {% endfor %}
+            </select>
+            <div class="grid-3" data-quick-fields>
+                <input class="input" type="number" min="1" name="quick_sets" data-strength-field placeholder="Sets">
+                <input class="input" type="number" min="1" name="quick_reps" data-strength-field placeholder="Reps">
+                <input class="input" type="number" min="1" name="quick_seconds" data-time-field placeholder="Seconds">
+            </div>
+            <p class="hint" data-quick-hint>Strength logs need reps. Cardio logs need time.</p>
+            <button class="btn-main" type="submit">Save Quick Log</button>
+        </form>
+    </div>
+
+    <div class="card-dark" id="builder">
+        <h2>Build Workout</h2>
+        <form class="submission-form" method="POST" data-workout-builder>
             {% csrf_token %}
             <input type="hidden" name="form_type" value="workout">
             <div class="grid-2">
-                <input class="input" name="title" placeholder="Push day">
-                <select class="select" name="template_id">
+                <input class="input" name="title" data-workout-title placeholder="Push day">
+                <select class="select" name="template_id" data-template-select>
                     <option value="">Custom</option>
                     {% for template in workout_templates %}<option value="{{ template.id }}">{{ template.name }} - {{ template.get_difficulty_display }}</option>{% endfor %}
                 </select>
@@ -33,57 +97,40 @@
             <div class="grid-2">
                 <input class="input" type="number" min="1" name="duration_minutes" placeholder="Minutes">
                 <div>
-                    <label class="tag-pill"><input type="checkbox" name="is_public"> Public</label>
+                    <label class="tag-pill"><input type="checkbox" name="is_public"> Public link</label>
                     <label class="tag-pill"><input type="checkbox" name="highlighted_on_profile"> Highlight</label>
-                    <label class="tag-pill"><input type="checkbox" name="save_as_template"> Template</label>
+                    <label class="tag-pill"><input type="checkbox" name="save_as_template"> Save template</label>
                 </div>
             </div>
-            {% for i in "1234" %}
-                <div class="feature-card">
-                    <div class="grid-2">
-                        <select class="select" name="body_part">
-                            <option value="">Body part</option>
-                            {% for part in body_parts %}<option value="{{ part }}">{{ part }}</option>{% endfor %}
+            <details class="score-details" open>
+                <summary>Exercises</summary>
+                {% for i in "1234" %}
+                    <div class="feature-card" style="margin-top: 10px;">
+                        <div class="grid-2">
+                            <select class="select" name="body_part" data-builder-body>
+                                <option value="">Body part</option>
+                                {% for part in body_parts %}<option value="{{ part }}">{{ part }}</option>{% endfor %}
+                            </select>
+                            <select class="select" name="exercise_type" data-builder-type>
+                                {% for value, label in exercise_types %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
+                            </select>
+                        </div>
+                        <select class="select" name="exercise_name" data-builder-exercise style="margin-top: 10px;">
+                            <option value="">Exercise</option>
+                            {% for exercise in default_exercises %}
+                                <option value="{{ exercise.name }}" data-body="{{ exercise.body_part }}" data-type="{{ exercise.type }}">{{ exercise.name }}</option>
+                            {% endfor %}
                         </select>
-                        <select class="select" name="exercise_type">
-                            {% for value, label in exercise_types %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
-                        </select>
+                        <div class="grid-3" style="margin-top: 10px;">
+                            <input class="input" type="number" min="1" name="exercise_sets" placeholder="Sets">
+                            <input class="input" type="number" min="1" name="exercise_reps" placeholder="Reps">
+                            <input class="input" type="number" min="1" name="exercise_seconds" placeholder="Seconds">
+                        </div>
                     </div>
-                    <input class="input" name="exercise_name" list="exercise-options" placeholder="Exercise" style="margin-top: 10px;">
-                    <div class="grid-3" style="margin-top: 10px;">
-                        <input class="input" type="number" min="1" name="exercise_sets" placeholder="Sets">
-                        <input class="input" type="number" min="1" name="exercise_reps" placeholder="Reps">
-                        <input class="input" type="number" min="1" name="exercise_seconds" placeholder="Seconds">
-                    </div>
-                </div>
-            {% endfor %}
-            <datalist id="exercise-options">{% for exercise in default_exercises %}<option value="{{ exercise.name }}"></option>{% endfor %}</datalist>
+                {% endfor %}
+            </details>
             <textarea class="textarea" name="notes" placeholder="Notes"></textarea>
             <button class="btn-main" type="submit">Save Workout</button>
-        </form>
-    </div>
-
-    <div class="card-dark">
-        <h2>Quick Log</h2>
-        <form class="submission-form" method="POST">
-            {% csrf_token %}
-            <input type="hidden" name="form_type" value="quick_result">
-            <select class="select" name="quick_body_part">
-                <option value="">Body part</option>
-                {% for part in body_parts %}<option value="{{ part }}">{{ part }}</option>{% endfor %}
-            </select>
-            <select class="select" name="quick_type" data-quick-type>
-                <option value="strength">Strength</option>
-                <option value="cardio">Cardio</option>
-                <option value="mobility">Mobility</option>
-            </select>
-            <input class="input" name="quick_exercise" list="exercise-options" placeholder="Exercise">
-            <div class="grid-3">
-                <input class="input" type="number" min="1" name="quick_sets" placeholder="Sets">
-                <input class="input" type="number" min="1" name="quick_reps" data-quick-reps placeholder="Reps">
-                <input class="input" type="number" min="1" name="quick_seconds" data-quick-seconds placeholder="Seconds">
-            </div>
-            <button class="btn-main" type="submit">Done</button>
         </form>
     </div>
 </section>
@@ -101,7 +148,7 @@
                 {% if workout.is_public %}
                     <form method="POST" action="{% url 'toggle_highlight_workout' workout.id %}">{% csrf_token %}<button class="btn-secondary" type="submit">Highlight</button></form>
                 {% endif %}
-                <form method="POST" action="{% url 'duplicate_workout' workout.id %}">{% csrf_token %}<button class="btn-secondary" type="submit">Duplicate</button></form>
+                <form method="POST" action="{% url 'duplicate_workout' workout.id %}">{% csrf_token %}<button class="btn-secondary" type="submit">Start Again</button></form>
                 <form method="POST" action="{% url 'delete_workout' workout.id %}">{% csrf_token %}<button class="btn-secondary" type="submit">Delete</button></form>
             </div>
             <details class="score-details">
@@ -117,10 +164,53 @@
 </section>
 
 <script>
-    document.querySelector("[data-quick-type]")?.addEventListener("change", (event) => {
-        const cardio = event.target.value === "cardio";
-        document.querySelector("[data-quick-reps]").placeholder = cardio ? "Optional reps" : "Reps";
-        document.querySelector("[data-quick-seconds]").placeholder = cardio ? "Seconds required" : "Seconds";
+    const filterExerciseSelect = (select, body, type) => {
+        Array.from(select.options).forEach((option) => {
+            if (!option.value) {
+                option.hidden = false;
+                return;
+            }
+            const bodyMatch = !body || option.dataset.body === body;
+            const typeMatch = !type || option.dataset.type === type;
+            option.hidden = !(bodyMatch && typeMatch);
+        });
+        if (select.selectedOptions[0]?.hidden) select.value = "";
+    };
+
+    const syncQuickLog = () => {
+        const body = document.querySelector("[data-body-select]")?.value || "";
+        const type = document.querySelector("[data-quick-type]")?.value || "strength";
+        const exercise = document.querySelector("[data-exercise-select]");
+        if (exercise) filterExerciseSelect(exercise, body, type);
+        document.querySelectorAll("[data-strength-field]").forEach((field) => {
+            field.style.display = type === "cardio" ? "none" : "";
+            field.disabled = type === "cardio";
+        });
+        document.querySelectorAll("[data-time-field]").forEach((field) => {
+            field.placeholder = type === "cardio" ? "Seconds required" : "Seconds";
+            field.disabled = false;
+        });
+        const hint = document.querySelector("[data-quick-hint]");
+        if (hint) hint.textContent = type === "cardio" ? "Cardio logs need time. Reps are hidden so it stays fast." : "Strength logs need reps. Add seconds only when useful.";
+    };
+
+    document.querySelector("[data-body-select]")?.addEventListener("change", syncQuickLog);
+    document.querySelector("[data-quick-type]")?.addEventListener("change", syncQuickLog);
+    syncQuickLog();
+
+    document.querySelectorAll("[data-builder-body], [data-builder-type]").forEach((control) => {
+        control.addEventListener("change", () => {
+            const card = control.closest(".feature-card");
+            filterExerciseSelect(card.querySelector("[data-builder-exercise]"), card.querySelector("[data-builder-body]").value, card.querySelector("[data-builder-type]").value);
+        });
+    });
+
+    document.querySelectorAll("[data-template-id]").forEach((button) => {
+        button.addEventListener("click", () => {
+            document.querySelector("[data-template-select]").value = button.dataset.templateId;
+            document.querySelector("[data-workout-title]").value = button.dataset.templateName;
+            document.getElementById("builder")?.scrollIntoView({ behavior: "smooth", block: "start" });
+        });
     });
 </script>
 {% endblock %}

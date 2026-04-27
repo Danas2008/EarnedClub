@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<section class="hero-card profile-header">
+    <div class="eyebrow">Social</div>
+    <h1>{{ title }}</h1>
+    <a class="btn-secondary" href="{% url 'athlete_profile' profile.slug %}">Back to profile</a>
+</section>
+
+<section class="card-dark">
+    {% for user in users %}
+        <a class="athlete-row" href="{% url 'athlete_profile' user.profile.slug %}">
+            {% if user.profile.profile_image_url %}
+                <img class="avatar" src="{{ user.profile.profile_image_url }}" alt="{{ user.profile.display_name }} profile picture">
+            {% else %}
+                <span class="avatar">{{ user.profile.display_name|first|upper }}</span>
+            {% endif %}
+            <div class="row-title">
+                <div class="submission-name">{{ user.profile.display_name }}</div>
+                <div class="submission-meta">{{ user.profile.personal_best_reps }} PR{% if user.profile.current_rank %} - Rank #{{ user.profile.current_rank }}{% endif %}</div>
+            </div>
+        </a>
+    {% empty %}
+        <p class="muted">No athletes here yet.</p>
+    {% endfor %}
+</section>
+{% endblock %}

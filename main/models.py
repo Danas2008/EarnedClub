@@ -326,6 +326,7 @@ class Goal(models.Model):
     target_value = models.PositiveIntegerField()
     note = models.CharField(max_length=180, blank=True)
     is_active = models.BooleanField(default=True)
+    is_public = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

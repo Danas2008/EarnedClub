@@ -1,57 +1,89 @@
 {% extends "base.html" %}
 
-{% block title %}Content Engine Admin{% endblock %}
+{% block title %}Content Engine{% endblock %}
 
 {% block content %}
 <section class="hero-card" style="margin-bottom: 24px;">
     <div class="content-split">
         <div>
-            <div class="eyebrow">Staff only</div>
-            <h1>Content engines.</h1>
-            <p class="muted">Create prompts for viral calculators and challenge pages without opening the default Django admin.</p>
+            <div class="eyebrow">Staff content engine</div>
+            <h1>TikTok factory.</h1>
+            <p class="muted">Generate hooks, scripts, captions, and CTAs that push people to /test.</p>
         </div>
+        <div class="mini-card">
+            <h4>Output</h4>
+            <p id="engine-output" class="muted">Choose a format and generate.</p>
+            <button class="btn-secondary" type="button" onclick="copyEngineOutput()">Copy</button>
+        </div>
+    </div>
+</section>
+
+<section class="grid-2">
+    <div class="card-dark">
+        <h2>Generator</h2>
+        <form class="submission-form" onsubmit="return false;">
+            <select id="engine-format" class="select">
+                <option value="street">Street interview</option>
+                <option value="duet">Can you beat this?</option>
+                <option value="reaction">Level reveal reaction</option>
+                <option value="controversy">Fake progress callout</option>
+            </select>
+            <div class="grid-2">
+                <input id="engine-age" class="input" type="number" placeholder="Age e.g. 17">
+                <input id="engine-reps" class="input" type="number" placeholder="Push-ups e.g. 42">
+            </div>
+            <input id="engine-angle" class="input" placeholder="Angle e.g. school athletes, runners, gym guys">
+            <button class="btn-main" type="button" onclick="generateContent()">Generate Script</button>
+        </form>
+    </div>
+
+    <div class="card-dark">
+        <h2>Saved Ideas</h2>
         <form class="submission-form" method="POST">
             {% csrf_token %}
-            <div>
-                <label class="field-label" for="title">Title</label>
-                <input id="title" class="input" name="title" placeholder="Most people cannot do this">
-            </div>
-            <div>
-                <label class="field-label" for="engine_type">Engine</label>
-                <select id="engine_type" class="select" name="engine_type">
-                    {% for value, label in engine_choices %}
-                        <option value="{{ value }}">{{ label }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div>
-                <label class="field-label" for="prompt">Prompt</label>
-                <textarea id="prompt" class="textarea" name="prompt" placeholder="Film this reaction, ask for age and reps, then reveal their level."></textarea>
-            </div>
-            <div>
-                <label class="field-label" for="cta">CTA</label>
-                <input id="cta" class="input" name="cta" placeholder="Test yourself on EarnedClub">
-            </div>
-            <button class="btn-main" type="submit">Create Prompt</button>
+            <input class="input" name="title" placeholder="Idea title">
+            <select class="select" name="engine_type">
+                {% for value, label in engine_choices %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
+            </select>
+            <textarea class="textarea" name="prompt" placeholder="Paste the generated script or your own idea"></textarea>
+            <input class="input" name="cta" placeholder="CTA">
+            <button class="btn-secondary" type="submit">Save Idea</button>
         </form>
     </div>
 </section>
 
+{% if prompts %}
 <section class="card-dark">
-    <h2>Existing Prompts</h2>
-    {% if prompts %}
-        <div class="grid-3">
-            {% for prompt in prompts %}
-                <div class="feature-card">
-                    <span class="kicker">{{ prompt.get_engine_type_display }}</span>
-                    <h3>{{ prompt.title }}</h3>
-                    <p class="muted">{{ prompt.prompt }}</p>
-                    {% if prompt.cta %}<p>{{ prompt.cta }}</p>{% endif %}
-                </div>
-            {% endfor %}
-        </div>
-    {% else %}
-        <p class="muted">No prompts yet.</p>
-    {% endif %}
+    <h2>Saved</h2>
+    <div class="grid-3">
+        {% for prompt in prompts %}
+            <div class="feature-card">
+                <span class="kicker">{{ prompt.get_engine_type_display }}</span>
+                <h3>{{ prompt.title }}</h3>
+                <p class="muted">{{ prompt.prompt }}</p>
+                {% if prompt.cta %}<p>{{ prompt.cta }}</p>{% endif %}
+            </div>
+        {% endfor %}
+    </div>
 </section>
+{% endif %}
+
+<script>
+    function generateContent() {
+        const format = document.getElementById("engine-format").value;
+        const age = document.getElementById("engine-age").value || "your age";
+        const reps = document.getElementById("engine-reps").value || "your max";
+        const angle = document.getElementById("engine-angle").value || "random athletes";
+        const hooks = {
+            street: `Ask ${angle}: "How many strict push-ups can you do?" Then test them on earnedclub.club/test. Reveal: "At ${age}, ${reps} reps is not what most people think." CTA: Don't claim it. Prove it.`,
+            duet: `Hook: "Can you beat ${reps} clean push-ups?" Show timer, rules, then point to /test. Caption: Most people overestimate by 20 reps.`,
+            reaction: `Film the quiz result reveal. Ask age, push-ups, pull-ups, training days, then show level. CTA: Send this to someone who says they are strong.`,
+            controversy: `Hook: "If you train 4x/week but your reps don't move, you're not progressing." Ask workouts/week and rep gain. CTA: test your level, then prove your rank.`
+        };
+        document.getElementById("engine-output").textContent = hooks[format];
+    }
+    async function copyEngineOutput() {
+        await navigator.clipboard.writeText(document.getElementById("engine-output").textContent);
+    }
+</script>
 {% endblock %}

@@ -12,7 +12,6 @@
             <p class="muted">Verified ranks, pending attempts, weekly heat, and monthly momentum in one view.</p>
             <div class="button-row">
                 <a class="btn-main" href="{% url 'challenge' %}#submit-form-top">Submit</a>
-                <a class="btn-secondary" href="{% url 'level_test' %}">Take Test</a>
             </div>
         </div>
         <div class="stat-grid">
@@ -67,7 +66,7 @@
                                         {{ row.submission.name }}
                                     </a>
                                 {% else %}
-                                    {{ row.submission.name }}
+                                    <span style="display: inline-flex; align-items: center; gap: 10px;"><span class="avatar">{{ row.submission.name|first|upper }}</span>{{ row.submission.name }}</span>
                                 {% endif %}
                             </div>
                         </td>

@@ -47,18 +47,29 @@ from .media_utils import store_profile_image, store_submission_video
 
 DEFAULT_EXERCISES = [
     {"name": "Push-ups", "type": "strength", "body_part": "Chest"},
+    {"name": "Bench press", "type": "strength", "body_part": "Chest"},
+    {"name": "Incline dumbbell press", "type": "strength", "body_part": "Chest"},
     {"name": "Pull-ups", "type": "strength", "body_part": "Back"},
+    {"name": "Lat pulldown", "type": "strength", "body_part": "Back"},
+    {"name": "Seated row", "type": "strength", "body_part": "Back"},
     {"name": "Dips", "type": "strength", "body_part": "Triceps"},
+    {"name": "Triceps pushdown", "type": "strength", "body_part": "Triceps"},
     {"name": "Squats", "type": "strength", "body_part": "Legs"},
+    {"name": "Leg press", "type": "strength", "body_part": "Legs"},
+    {"name": "Romanian deadlift", "type": "strength", "body_part": "Legs"},
     {"name": "Lunges", "type": "strength", "body_part": "Legs"},
     {"name": "Plank", "type": "strength", "body_part": "Core"},
+    {"name": "Hanging knee raise", "type": "strength", "body_part": "Core"},
     {"name": "Burpees", "type": "cardio", "body_part": "Full body"},
     {"name": "Running", "type": "cardio", "body_part": "Cardio"},
     {"name": "Cycling", "type": "cardio", "body_part": "Cardio"},
     {"name": "Jump rope", "type": "cardio", "body_part": "Cardio"},
     {"name": "Shoulder press", "type": "strength", "body_part": "Shoulders"},
+    {"name": "Lateral raise", "type": "strength", "body_part": "Shoulders"},
     {"name": "Rows", "type": "strength", "body_part": "Back"},
     {"name": "Dead bug", "type": "mobility", "body_part": "Core"},
+    {"name": "Hip mobility flow", "type": "mobility", "body_part": "Legs"},
+    {"name": "Shoulder mobility flow", "type": "mobility", "body_part": "Shoulders"},
 ]
 
 BODY_PARTS = sorted({exercise["body_part"] for exercise in DEFAULT_EXERCISES})
@@ -492,12 +503,13 @@ def create_workout_from_request(request):
     highlighted = request.POST.get("highlighted_on_profile") == "on"
     save_as_template = request.POST.get("save_as_template") == "on"
     template_id = request.POST.get("template_id")
-    if not title:
-        return None, "Workout title is required."
-
     template = None
     if template_id:
         template = WorkoutTemplate.objects.filter(Q(user=request.user) | Q(is_system=True), pk=template_id).first()
+    if not title and template:
+        title = template.name
+    if not title:
+        return None, "Workout title is required."
     workout = Workout.objects.create(
         user=request.user,
         template=template,
@@ -533,6 +545,8 @@ def create_workout_from_request(request):
     if not exercise_created and template:
         for index, (name, sets, reps, seconds) in enumerate(get_template_exercises(template)):
             WorkoutExercise.objects.create(workout=workout, name=name, sets=sets, reps=reps, seconds=seconds, order=index)
+    if workout.highlighted_on_profile:
+        request.user.workouts.exclude(pk=workout.pk).update(highlighted_on_profile=False)
     if save_as_template:
         template_difficulty = WorkoutTemplate.DIFFICULTY_BEGINNER
         if request.user.profile.personal_best_reps >= 60:
@@ -728,6 +742,7 @@ def dashboard(request):
             goal_type = request.POST.get("goal_type") or Goal.GOAL_PUSHUPS
             target_value = request.POST.get("target_value")
             note = (request.POST.get("note") or "").strip()
+            is_public = request.POST.get("is_public") == "on"
             try:
                 target_value = int(target_value)
             except (TypeError, ValueError):
@@ -736,7 +751,7 @@ def dashboard(request):
             if target_value <= 0:
                 messages.error(request, "Goal target must be greater than zero.")
                 return redirect("dashboard")
-            Goal.objects.create(user=request.user, goal_type=goal_type, target_value=target_value, note=note)
+            Goal.objects.create(user=request.user, goal_type=goal_type, target_value=target_value, note=note, is_public=is_public)
             messages.success(request, "Goal saved.")
             return redirect("dashboard")
 
@@ -862,6 +877,7 @@ def dashboard(request):
         "following_count": request.user.following_links.count(),
         "workouts": workouts[:5],
         "active_goals": request.user.goals.filter(is_active=True)[:5],
+        "rank_goal_options": list(range(1, 51)),
         "daily_suggestion": recommendation,
         "profile_share_message": get_profile_share_message(profile, request),
         "pr_share_message": get_pr_share_message(profile, request),
@@ -931,6 +947,7 @@ def athlete_profile(request, slug):
         "following_count": profile.user.following_links.count(),
         "public_workouts": profile.user.workouts.filter(is_public=True).prefetch_related("exercises")[:4],
         "highlighted_workout": profile.user.workouts.filter(is_public=True, highlighted_on_profile=True).prefetch_related("exercises").first(),
+        "public_goals": profile.user.goals.filter(is_active=True, is_public=True)[:3],
         "is_following": is_following,
         "compare_profile": compare_profile,
         "comparison": comparison,
@@ -938,6 +955,19 @@ def athlete_profile(request, slug):
         "pr_share_message": get_pr_share_message(profile, request),
     }
     return render(request, "athlete_profile.html", context)
+
+
+def social_list(request, slug, kind):
+    profile = get_object_or_404(Profile, slug=slug)
+    if kind == "following":
+        users = User.objects.filter(follower_links__follower=profile.user).select_related("profile").order_by("profile__display_name")
+        title = f"{profile.display_name} follows"
+    elif kind == "followers":
+        users = User.objects.filter(following_links__following=profile.user).select_related("profile").order_by("profile__display_name")
+        title = f"{profile.display_name}'s followers"
+    else:
+        return redirect("athlete_profile", slug=profile.slug)
+    return render(request, "social_list.html", {"profile": profile, "users": users, "kind": kind, "title": title})
 
 
 def comparison(request, left, right):
@@ -1404,12 +1434,20 @@ def workouts(request):
 
     workouts_qs = request.user.workouts.prefetch_related("exercises").order_by("-created_at")
     templates = WorkoutTemplate.objects.filter(Q(user=request.user) | Q(is_system=True)).order_by("-is_system", "difficulty", "name")
+    user_reps = request.user.profile.personal_best_reps
+    recommended_difficulty = WorkoutTemplate.DIFFICULTY_BEGINNER
+    if user_reps >= 60:
+        recommended_difficulty = WorkoutTemplate.DIFFICULTY_ADVANCED
+    elif user_reps >= 20:
+        recommended_difficulty = WorkoutTemplate.DIFFICULTY_INTERMEDIATE
     return render(
         request,
         "workouts.html",
         {
             "workouts": workouts_qs,
             "workout_templates": templates,
+            "recommended_templates": templates.filter(is_system=True, difficulty=recommended_difficulty),
+            "recommended_difficulty": recommended_difficulty,
             "default_exercises": DEFAULT_EXERCISES,
             "body_parts": BODY_PARTS,
             "exercise_types": WorkoutExercise.TYPE_CHOICES,
@@ -1433,6 +1471,8 @@ def duplicate_workout(request, workout_id):
         WorkoutExercise.objects.create(
             workout=workout,
             name=exercise.name,
+            exercise_type=exercise.exercise_type,
+            body_part=exercise.body_part,
             sets=exercise.sets,
             reps=exercise.reps,
             seconds=exercise.seconds,
@@ -1449,7 +1489,7 @@ def quick_add_last_workout(request):
     source = request.user.workouts.prefetch_related("exercises").first()
     if not source:
         messages.error(request, "You do not have a previous workout to quick add yet.")
-        return redirect("dashboard")
+        return redirect("workouts")
     workout = Workout.objects.create(
         user=request.user,
         template=source.template,
@@ -1462,6 +1502,8 @@ def quick_add_last_workout(request):
         WorkoutExercise.objects.create(
             workout=workout,
             name=exercise.name,
+            exercise_type=exercise.exercise_type,
+            body_part=exercise.body_part,
             sets=exercise.sets,
             reps=exercise.reps,
             seconds=exercise.seconds,

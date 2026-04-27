@@ -54,9 +54,16 @@
             <div class="feature-card"><span class="kicker">Gain</span><span class="stat-value">{{ progress_summary.gain }}</span></div>
             <div class="feature-card"><span class="kicker">Avg</span><span class="stat-value">{{ progress_summary.average }}</span></div>
         </div>
-        <div class="progress-chart progress-chart-large">
+        <div class="button-row" style="margin: 0 0 12px;">
+            <button class="btn-secondary" type="button" data-zoom="-1">-</button>
+            <button class="btn-secondary" type="button" data-zoom="1">+</button>
+            <button class="btn-secondary" type="button" data-pan="-1">Left</button>
+            <button class="btn-secondary" type="button" data-pan="1">Right</button>
+        </div>
+        <div class="progress-chart progress-chart-large" style="overflow-x: auto;">
             <svg id="progress-chart" class="chart-area" role="img" aria-label="Verified push-up progress chart"></svg>
         </div>
+        <div id="progress-detail" class="hint" style="margin-top: 10px;">Tap a point for details.</div>
     </div>
 
     <div class="card-dark">
@@ -68,8 +75,12 @@
                 <option value="pushups">Push-up target</option>
                 <option value="rank">Rank target</option>
             </select>
-            <input class="input" type="number" min="1" name="target_value" data-goal-target placeholder="Target reps">
+            <input class="input" type="number" min="1" name="target_value" data-goal-reps placeholder="Target reps">
+            <select class="select" name="target_value" data-goal-rank disabled hidden>
+                {% for option in rank_goal_options %}<option value="{{ option }}">Rank #{{ option }}</option>{% endfor %}
+            </select>
             <input class="input" name="note" placeholder="Note">
+            <label class="tag-pill"><input type="checkbox" name="is_public" checked> Public</label>
             <button class="btn-secondary" type="submit">Save Goal</button>
         </form>
         {% for goal in active_goals %}
@@ -141,13 +152,20 @@
 <script>
     const progressData = JSON.parse(document.getElementById("progress-data").textContent);
     const svg = document.getElementById("progress-chart");
-    const width = 920;
+    let zoom = 1;
+    let offset = 0;
+    const baseWidth = 1100;
     const height = 390;
     const pad = 58;
-    svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
-    if (!progressData.length) {
-        svg.innerHTML = `<text x="${pad}" y="${height / 2}" fill="rgba(245,247,251,.72)" font-size="18">No verified data yet.</text>`;
-    } else {
+    const detail = document.getElementById("progress-detail");
+    function renderChart() {
+        const width = Math.round(baseWidth * zoom);
+        svg.style.minWidth = `${width}px`;
+        svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+        if (!progressData.length) {
+            svg.innerHTML = `<text x="${pad}" y="${height / 2}" fill="rgba(245,247,251,.72)" font-size="18">No verified data yet.</text>`;
+            return;
+        }
         const repsValues = progressData.map((point) => point.reps);
         const minReps = Math.max(0, Math.min(...repsValues) - 5);
         const maxReps = Math.max(...repsValues, 60) + 5;
@@ -166,9 +184,24 @@
         svg.innerHTML = `
             ${guides.map((guide) => `<g><line x1="${pad}" y1="${guide.y}" x2="${width - pad}" y2="${guide.y}" stroke="rgba(255,255,255,.1)" /><text x="${pad - 12}" y="${guide.y + 5}" text-anchor="end" fill="rgba(245,247,251,.75)" font-size="14">${guide.value}</text></g>`).join("")}
             <path d="${path}" fill="none" stroke="#f7b733" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" />
-            ${points.map((point, index) => `<g><circle cx="${point.x}" cy="${point.y}" r="8" fill="#ffd77b" stroke="#111" stroke-width="3"><title>${point.label}: ${point.reps} reps</title></circle><text x="${point.x}" y="${point.y - 16}" text-anchor="middle" fill="#f5f7fb" font-size="15" font-weight="700">${point.reps}</text><text x="${point.x}" y="${height - pad + 24}" text-anchor="middle" fill="rgba(245,247,251,.65)" font-size="12">${point.date.slice(5)}</text>${index > 0 ? `<text x="${(points[index - 1].x + point.x) / 2}" y="${Math.min(points[index - 1].y, point.y) - 26}" text-anchor="middle" fill="#8df0c9" font-size="13">${point.reps - points[index - 1].reps >= 0 ? "+" : ""}${point.reps - points[index - 1].reps}</text>` : ""}</g>`).join("")}
+            ${points.map((point, index) => `<g data-point="${index}" style="cursor:pointer"><circle cx="${point.x}" cy="${point.y}" r="11" fill="#ffd77b" stroke="#111" stroke-width="3"><title>${point.label}: ${point.reps} reps</title></circle><text x="${point.x}" y="${point.y - 18}" text-anchor="middle" fill="#f5f7fb" font-size="15" font-weight="700">${point.reps}</text><text x="${point.x}" y="${height - pad + 24}" text-anchor="middle" fill="rgba(245,247,251,.65)" font-size="12">${point.date.slice(5)}</text>${index > 0 ? `<text x="${(points[index - 1].x + point.x) / 2}" y="${Math.min(points[index - 1].y, point.y) - 30}" text-anchor="middle" fill="#8df0c9" font-size="13">${point.reps - points[index - 1].reps >= 0 ? "+" : ""}${point.reps - points[index - 1].reps}</text>` : ""}</g>`).join("")}
         `;
+        svg.querySelectorAll("[data-point]").forEach((node) => {
+            node.addEventListener("click", () => {
+                const point = points[parseInt(node.dataset.point, 10)];
+                detail.textContent = `${point.label}: ${point.reps} reps. Best so far ${point.best}. Gain ${point.gain >= 0 ? "+" : ""}${point.gain}.`;
+            });
+        });
     }
+    renderChart();
+    document.querySelectorAll("[data-zoom]").forEach((button) => button.addEventListener("click", () => {
+        zoom = Math.max(1, Math.min(2.8, zoom + Number(button.dataset.zoom) * 0.25));
+        renderChart();
+    }));
+    document.querySelectorAll("[data-pan]").forEach((button) => button.addEventListener("click", () => {
+        const shell = svg.closest(".progress-chart");
+        shell.scrollLeft += Number(button.dataset.pan) * 180;
+    }));
     for (const trigger of document.querySelectorAll("[data-toggle-panel]")) {
         trigger.addEventListener("click", () => {
             const panel = document.getElementById(trigger.dataset.togglePanel);
@@ -177,9 +210,17 @@
             trigger.textContent = isOpen ? "Close Settings" : "Settings";
         });
     }
-    document.querySelector("[data-goal-type]")?.addEventListener("change", (event) => {
-        document.querySelector("[data-goal-target]").placeholder = event.target.value === "rank" ? "Target rank number" : "Target reps";
-    });
+    function syncGoalTarget() {
+        const rank = document.querySelector("[data-goal-type]")?.value === "rank";
+        const repsInput = document.querySelector("[data-goal-reps]");
+        const rankSelect = document.querySelector("[data-goal-rank]");
+        repsInput.hidden = rank;
+        repsInput.disabled = rank;
+        rankSelect.hidden = !rank;
+        rankSelect.disabled = !rank;
+    }
+    document.querySelector("[data-goal-type]")?.addEventListener("change", syncGoalTarget);
+    syncGoalTarget();
     for (const shareButton of document.querySelectorAll("[data-share-text]")) {
         shareButton.addEventListener("click", async () => {
             const text = shareButton.dataset.shareText;

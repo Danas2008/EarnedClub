@@ -1,290 +1,119 @@
 {% extends "base.html" %}
 
 {% block title %}Calculators{% endblock %}
-{% block meta_description %}Use Earned Club calculators to estimate your push-up rank, pace to Elite, and current standing inside the public performance tiers.{% endblock %}
+{% block meta_description %}Useful fitness calculators for one-rep max, BMI, running pace, and Earned Club push-up tier targets.{% endblock %}
 
 {% block content %}
 <section class="hero-card" style="margin-bottom: 24px;">
     <div class="content-split">
-        <div class="stack">
+        <div>
             <div class="eyebrow">Useful tools</div>
             <h1>Calculators.</h1>
-            <p class="muted">
-                These tools help you understand where you stand right now.
-                They give you a clear picture of your level, your rank, and how close you are to the next tier.
-            </p>
-            <p>
-                Use them before you submit, or to track your progress between attempts.
-            </p>
+            <p class="muted">Simple numbers you can use in training today.</p>
         </div>
-
-        <div class="mini-card">
-            <h4>Best use</h4>
-            <p style="margin-bottom: 0;">
-                Most people guess their level. You do not need to.
-                These calculators show you exactly where you are in the system and what it takes to move up.
-            </p>
-        </div>
+        <a class="btn-main" href="{% url 'challenge' %}#submit-form-top">Submit Push-ups</a>
     </div>
 </section>
 
-<section class="grid-2" id="level-generator">
+<section class="grid-2">
     <div class="card-dark calculator-card">
-        <h2>What's Your Level?</h2>
+        <h2>One Rep Max</h2>
+        <form class="calculator-form" onsubmit="return false;">
+            <select id="orm-exercise" class="select">
+                <option>Bench press</option>
+                <option>Squat</option>
+                <option>Deadlift</option>
+                <option>Overhead press</option>
+                <option>Weighted pull-up</option>
+            </select>
+            <div class="grid-2">
+                <input id="orm-weight" class="input" type="number" min="1" step="0.5" placeholder="Weight kg">
+                <input id="orm-reps" class="input" type="number" min="1" max="20" placeholder="Reps">
+            </div>
+            <button class="btn-main" type="button" onclick="calculateOneRepMax()">Calculate</button>
+            <div id="orm-result" class="hint">Works best with 2-10 reps.</div>
+        </form>
+    </div>
+
+    <div class="card-dark calculator-card">
+        <h2>BMI</h2>
         <form class="calculator-form" onsubmit="return false;">
             <div class="grid-2">
-                <input id="level-age" class="input" type="number" min="13" placeholder="Age">
-                <input id="level-pushups" class="input" type="number" min="0" placeholder="Push-ups">
+                <input id="weight" class="input" type="number" min="1" step="0.1" placeholder="Weight kg">
+                <input id="height" class="input" type="number" min="1" step="0.1" placeholder="Height cm">
             </div>
-            <div class="grid-2">
-                <input id="level-pullups" class="input" type="number" min="0" placeholder="Pull-ups">
-                <input id="level-run" class="input" type="number" min="0" step="0.1" placeholder="1 km run minutes">
-            </div>
-            <button class="btn-main" type="button" onclick="calculateLevel()">Generate Level</button>
-            <div id="level-result" class="hint">Get a shareable performance verdict.</div>
+            <button class="btn-main" type="button" onclick="calculateBmi()">Calculate</button>
+            <div id="bmi-result" class="hint">General body-size context, not a performance verdict.</div>
         </form>
     </div>
 
-    <div class="card-dark calculator-card" id="beat-this">
-        <h2>Can You Beat This?</h2>
-        <form class="calculator-form" onsubmit="return false;">
-            <input id="beat-reps" class="input" type="number" min="0" placeholder="Your result">
-            <button class="btn-main" type="button" onclick="calculateBeatThis()">Check Challenge</button>
-            <div id="beat-result" class="hint">Today's target: 40 clean push-ups.</div>
-        </form>
-    </div>
-
-    <div class="card-dark calculator-card" id="rank-comparison">
-        <h2>Rank Comparison Tool</h2>
-        <form class="calculator-form" onsubmit="return false;">
-            <input id="compare-reps" class="input" type="number" min="0" placeholder="Your strict reps">
-            <button class="btn-main" type="button" onclick="calculateRankCompare()">Compare Rank</button>
-            <div id="compare-result" class="hint">See where you would sit on the platform tiers.</div>
-        </form>
-    </div>
-
-    <div class="card-dark calculator-card" id="progress-checker">
-        <h2>Fake vs Real Progress Checker</h2>
+    <div class="card-dark calculator-card">
+        <h2>Running Pace</h2>
         <form class="calculator-form" onsubmit="return false;">
             <div class="grid-2">
-                <input id="progress-workouts" class="input" type="number" min="0" placeholder="Workouts/week">
-                <input id="progress-gain" class="input" type="number" placeholder="Rep gain/month">
+                <input id="run-distance" class="input" type="number" min="0.1" step="0.1" placeholder="Distance km">
+                <input id="run-minutes" class="input" type="number" min="1" step="0.1" placeholder="Time minutes">
             </div>
-            <button class="btn-main" type="button" onclick="calculateProgressTruth()">Check Progress</button>
-            <div id="progress-truth-result" class="hint">Find out if your training is moving or just busy.</div>
-        </form>
-    </div>
-</section>
-
-{% if content_prompts %}
-    <section class="card-dark">
-        <h2>Content Prompts</h2>
-        <div class="grid-3">
-            {% for prompt in content_prompts %}
-                <div class="feature-card">
-                    <span class="kicker">{{ prompt.get_engine_type_display }}</span>
-                    <h3>{{ prompt.title }}</h3>
-                    <p class="muted">{{ prompt.prompt }}</p>
-                    {% if prompt.cta %}<p>{{ prompt.cta }}</p>{% endif %}
-                </div>
-            {% endfor %}
-        </div>
-    </section>
-{% endif %}
-
-<section class="grid-3">
-    <div class="card-dark calculator-card">
-        <h2>BMI Calculator</h2>
-        <form class="calculator-form" onsubmit="return false;">
-            <div>
-                <label class="field-label" for="weight">Weight (kg)</label>
-                <input id="weight" class="input" type="number" min="1" step="0.1" placeholder="75">
-            </div>
-            <div>
-                <label class="field-label" for="height">Height (cm)</label>
-                <input id="height" class="input" type="number" min="1" step="0.1" placeholder="180">
-            </div>
-            <button class="btn-main" type="button" onclick="calculateBmi()">Calculate BMI</button>
-            <div id="bmi-result" class="hint">Enter your data to calculate BMI.</div>
+            <button class="btn-main" type="button" onclick="calculatePace()">Calculate</button>
+            <div id="pace-result" class="hint">Get pace per km and estimated 5K time.</div>
         </form>
     </div>
 
     <div class="card-dark calculator-card">
-        <h2>Push-up Rank Finder</h2>
+        <h2>Push-up Tier</h2>
         <form class="calculator-form" onsubmit="return false;">
-            <div>
-                <label class="field-label" for="current-reps">Current strict reps</label>
-                <input id="current-reps" class="input" type="number" min="0" step="1" placeholder="42">
-            </div>
-            <button class="btn-main" type="button" onclick="calculateRank()">Show My Tier</button>
-            <div id="rank-result" class="hint">See where your current set places you.</div>
-        </form>
-    </div>
-
-    <div class="card-dark calculator-card">
-        <h2>Goal Pace Calculator</h2>
-        <form class="calculator-form" onsubmit="return false;">
-            <div>
-                <label class="field-label" for="pace-current">Current strict reps</label>
-                <input id="pace-current" class="input" type="number" min="0" step="1" placeholder="38">
-            </div>
-            <div>
-                <label class="field-label" for="pace-gain">Weekly improvement goal</label>
-                <input id="pace-gain" class="input" type="number" min="0" step="1" placeholder="2">
-            </div>
-            <button class="btn-main" type="button" onclick="calculatePace()">Estimate Time To Elite</button>
-            <div id="pace-result" class="hint">Estimate how many weeks you need to reach Elite or Legend.</div>
+            <input id="current-reps" class="input" type="number" min="0" step="1" placeholder="Strict push-ups">
+            <button class="btn-main" type="button" onclick="calculateRank()">Show Tier</button>
+            <div id="rank-result" class="hint">Check your Earned Club tier.</div>
         </form>
     </div>
 </section>
 
 <section class="card-dark">
-    <div class="section-spread">
-        <div>
-            <h2>Current Benchmark Tiers</h2>
-            <p class="muted">These are the current thresholds for each performance tier.</p>
-        </div>
-        <a class="btn-secondary" href="/challenge/">Go To Challenge</a>
-    </div>
-
+    <h2>Benchmarks</h2>
     {% include "includes/rank_benchmark_carousel.html" %}
 </section>
 
 {{ rank_tiers|json_script:"rank-tier-data" }}
-
 <script>
     const tiers = JSON.parse(document.getElementById("rank-tier-data").textContent).map((tier) => ({
-        name: tier.name,
-        min: tier.min_reps,
-        max: tier.max_reps,
-        benchmark: tier.benchmark
+        name: tier.name, min: tier.min_reps, max: tier.max_reps, benchmark: tier.benchmark
     }));
-    const eliteTarget = 60;
-    const legendTarget = 80;
-
     function getTier(reps) {
-        for (const tier of tiers) {
-            if (reps >= tier.min && (tier.max === null || reps <= tier.max)) {
-                return tier;
-            }
-        }
-        return tiers[0];
+        return tiers.find((tier) => reps >= tier.min && (tier.max === null || reps <= tier.max)) || tiers[0];
     }
-
+    function calculateOneRepMax() {
+        const exercise = document.getElementById("orm-exercise").value;
+        const weight = parseFloat(document.getElementById("orm-weight").value);
+        const reps = parseInt(document.getElementById("orm-reps").value, 10);
+        const result = document.getElementById("orm-result");
+        if (!weight || !reps) return result.textContent = "Add weight and reps.";
+        const epley = weight * (1 + reps / 30);
+        result.textContent = `${exercise}: estimated 1RM ${epley.toFixed(1)} kg. 80% working weight: ${(epley * .8).toFixed(1)} kg.`;
+    }
     function calculateBmi() {
         const weight = parseFloat(document.getElementById("weight").value);
         const heightCm = parseFloat(document.getElementById("height").value);
         const result = document.getElementById("bmi-result");
-
-        if (!weight || !heightCm) {
-            result.textContent = "Enter both weight and height.";
-            return;
-        }
-
-        const heightM = heightCm / 100;
-        const bmi = weight / (heightM * heightM);
-        let label = "Balanced";
-
-        if (bmi < 18.5) {
-            label = "Below standard range";
-        } else if (bmi >= 25 && bmi < 30) {
-            label = "Above standard range";
-        } else if (bmi >= 30) {
-            label = "High range";
-        }
-
-        result.textContent = `BMI: ${bmi.toFixed(1)} (${label}). This is general context, not a performance verdict.`;
+        if (!weight || !heightCm) return result.textContent = "Enter both weight and height.";
+        const bmi = weight / ((heightCm / 100) ** 2);
+        let label = bmi < 18.5 ? "low" : bmi < 25 ? "standard" : bmi < 30 ? "above standard" : "high";
+        result.textContent = `BMI ${bmi.toFixed(1)} (${label}).`;
     }
-
+    function calculatePace() {
+        const distance = parseFloat(document.getElementById("run-distance").value);
+        const minutes = parseFloat(document.getElementById("run-minutes").value);
+        const result = document.getElementById("pace-result");
+        if (!distance || !minutes) return result.textContent = "Add distance and time.";
+        const pace = minutes / distance;
+        result.textContent = `Pace ${pace.toFixed(2)} min/km. Estimated 5K: ${(pace * 5).toFixed(1)} min.`;
+    }
     function calculateRank() {
         const reps = parseInt(document.getElementById("current-reps").value, 10);
         const result = document.getElementById("rank-result");
-
-        if (Number.isNaN(reps) || reps < 0) {
-            result.textContent = "Enter a valid rep count.";
-            return;
-        }
-
+        if (Number.isNaN(reps) || reps < 0) return result.textContent = "Enter strict reps.";
         const tier = getTier(reps);
-        const toElite = Math.max(0, eliteTarget - reps);
-        const toLegend = Math.max(0, legendTarget - reps);
-        result.textContent = `${reps} reps places you in ${tier.name} (${tier.benchmark}). Elite needs ${toElite} more rep(s); Earned Legend needs ${toLegend} more.`;
-    }
-
-    function calculatePace() {
-        const current = parseInt(document.getElementById("pace-current").value, 10);
-        const gain = parseInt(document.getElementById("pace-gain").value, 10);
-        const result = document.getElementById("pace-result");
-
-        if (Number.isNaN(current) || Number.isNaN(gain) || current < 0 || gain < 0) {
-            result.textContent = "Enter a valid current rep count and weekly gain.";
-            return;
-        }
-
-        const tier = getTier(current);
-        const toElite = Math.max(0, eliteTarget - current);
-        const toLegend = Math.max(0, legendTarget - current);
-        if (gain === 0) {
-            result.textContent = `Current tier: ${tier.name}. You need ${toElite} rep(s) for Elite and ${toLegend} for Earned Legend. Add weekly improvement to estimate time.`;
-            return;
-        }
-
-        const eliteWeeks = Math.ceil(toElite / gain);
-        const legendWeeks = Math.ceil(toLegend / gain);
-        result.textContent = `Current tier: ${tier.name}. At +${gain} reps per week, Elite could take about ${eliteWeeks} week(s) and Earned Legend about ${legendWeeks} week(s).`;
-    }
-
-    function calculateLevel() {
-        const age = parseInt(document.getElementById("level-age").value, 10);
-        const pushups = parseInt(document.getElementById("level-pushups").value, 10);
-        const pullups = parseInt(document.getElementById("level-pullups").value, 10) || 0;
-        const run = parseFloat(document.getElementById("level-run").value) || 0;
-        const result = document.getElementById("level-result");
-        if (Number.isNaN(age) || Number.isNaN(pushups)) {
-            result.textContent = "Add age and push-ups.";
-            return;
-        }
-        const tier = getTier(pushups);
-        const bonus = pullups >= 10 || (run > 0 && run <= 5) ? " Your extra metrics make the result stronger." : "";
-        result.textContent = `Age ${age}, ${pushups} push-ups: ${tier.name}. ${tier.benchmark}.${bonus} Share it, then prove it.`;
-    }
-
-    function calculateBeatThis() {
-        const reps = parseInt(document.getElementById("beat-reps").value, 10);
-        const result = document.getElementById("beat-result");
-        if (Number.isNaN(reps)) {
-            result.textContent = "Add your result.";
-            return;
-        }
-        result.textContent = reps >= 40 ? `You beat today's 40-rep challenge by ${reps - 40}. Submit it.` : `You are ${40 - reps} rep(s) away from today's challenge.`;
-    }
-
-    function calculateRankCompare() {
-        const reps = parseInt(document.getElementById("compare-reps").value, 10);
-        const result = document.getElementById("compare-result");
-        if (Number.isNaN(reps)) {
-            result.textContent = "Add strict reps.";
-            return;
-        }
-        const tier = getTier(reps);
-        result.textContent = `${reps} reps would show as ${tier.name}. ${Math.max(0, 60 - reps)} reps to reach Elite.`;
-    }
-
-    function calculateProgressTruth() {
-        const workouts = parseInt(document.getElementById("progress-workouts").value, 10);
-        const gain = parseInt(document.getElementById("progress-gain").value, 10);
-        const result = document.getElementById("progress-truth-result");
-        if (Number.isNaN(workouts) || Number.isNaN(gain)) {
-            result.textContent = "Add workouts per week and your monthly rep gain.";
-            return;
-        }
-        if (workouts >= 3 && gain > 0) {
-            result.textContent = "Real progress. Keep logging and raise the target.";
-        } else if (workouts >= 3 && gain <= 0) {
-            result.textContent = "Busy, not better. Your training needs clearer overload.";
-        } else {
-            result.textContent = "Inconsistent signal. Start with repeatable weeks before judging your level.";
-        }
+        result.textContent = `${reps} reps: ${tier.name}. ${Math.max(0, 60 - reps)} reps to Elite.`;
     }
 </script>
 {% endblock %}

@@ -1,62 +1,83 @@
 {% extends "base.html" %}
 
 {% block title %}Push-up Level Test{% endblock %}
-{% block meta_description %}Take the Earned Club push-up level test, compare your score, and submit proof for the leaderboard.{% endblock %}
+{% block meta_description %}Take the Earned Club quiz, reveal your push-up level, and submit proof for the leaderboard.{% endblock %}
 
 {% block content %}
-<section class="hero-card">
-    <div class="content-split">
-        <div class="stack">
-            <div class="eyebrow">Quick test</div>
-            <h1>What's your level?</h1>
-            <p class="muted">Answer three questions. Get your result. Then prove it.</p>
-            <form class="submission-form" onsubmit="return false;">
-                <div class="grid-2">
-                    <input id="test-age" class="input" type="number" min="13" max="100" placeholder="Age">
-                    <input id="test-reps" class="input" type="number" min="0" placeholder="Strict push-ups">
-                </div>
-                <input id="test-pullups" class="input" type="number" min="0" placeholder="Pull-ups optional">
-                <button class="btn-main" type="button" onclick="runLevelQuiz()">Reveal Result</button>
-            </form>
+<section class="hero-card quiz-shell">
+    <div class="quiz-progress"><span data-quiz-progress></span></div>
+    <div class="quiz-step is-active" data-step="0">
+        <div class="eyebrow">Question 1 / 5</div>
+        <h1>How old are you?</h1>
+        <input id="quiz-age" class="input quiz-input" type="number" min="13" max="100" placeholder="17">
+        <button class="btn-main" type="button" data-next>Next</button>
+    </div>
+    <div class="quiz-step" data-step="1">
+        <div class="eyebrow">Question 2 / 5</div>
+        <h1>Strict push-ups?</h1>
+        <input id="quiz-reps" class="input quiz-input" type="number" min="0" placeholder="42">
+        <button class="btn-main" type="button" data-next>Next</button>
+    </div>
+    <div class="quiz-step" data-step="2">
+        <div class="eyebrow">Question 3 / 5</div>
+        <h1>Pull-ups?</h1>
+        <input id="quiz-pullups" class="input quiz-input" type="number" min="0" placeholder="8">
+        <button class="btn-main" type="button" data-next>Next</button>
+    </div>
+    <div class="quiz-step" data-step="3">
+        <div class="eyebrow">Question 4 / 5</div>
+        <h1>Training days/week?</h1>
+        <input id="quiz-days" class="input quiz-input" type="number" min="0" max="14" placeholder="4">
+        <button class="btn-main" type="button" data-next>Next</button>
+    </div>
+    <div class="quiz-step" data-step="4">
+        <div class="eyebrow">Question 5 / 5</div>
+        <h1>1 km run time?</h1>
+        <input id="quiz-run" class="input quiz-input" type="number" min="2" step="0.1" placeholder="Optional minutes">
+        <button class="btn-main" type="button" data-next>Reveal</button>
+    </div>
+    <div class="quiz-step quiz-result-card" data-step="5">
+        <div class="eyebrow">Your result</div>
+        <h1 id="quiz-title">Level ready.</h1>
+        <p id="quiz-result" class="muted"></p>
+        <div class="hero-actions">
+            <a id="quiz-submit" class="btn-main" href="{% url 'challenge' %}#submit-form-top">Submit Proof</a>
+            <a class="btn-secondary" href="{% url 'register' %}">Create Account</a>
         </div>
-        <div id="quiz-result-card" class="mini-card quiz-result-card">
-            <h4>Result</h4>
-            <p id="quiz-result" class="muted">Your result appears here.</p>
-            <div class="button-row">
-                <a id="quiz-proof-link" class="btn-main" href="{% url 'challenge' %}#submit-form-top">Prove It</a>
-                <a class="btn-secondary" href="{% url 'leaderboard' %}#full-leaderboard">Compare</a>
-            </div>
-            <p class="muted" style="margin-top: 12px;">{{ total_submissions }} tested. {{ total_verified }} verified.</p>
-        </div>
+        <p class="muted">{{ total_submissions }} tested. {{ total_verified }} verified.</p>
     </div>
 </section>
 
 {{ rank_tiers|json_script:"rank-tier-data" }}
 <script>
     const tiers = JSON.parse(document.getElementById("rank-tier-data").textContent);
-    function getTier(reps) {
+    const steps = Array.from(document.querySelectorAll("[data-step]"));
+    const bar = document.querySelector("[data-quiz-progress]");
+    let active = 0;
+    function showStep(index) {
+        active = index;
+        steps.forEach((step) => step.classList.toggle("is-active", parseInt(step.dataset.step, 10) === index));
+        bar.style.width = `${Math.min(100, (index / 5) * 100)}%`;
+    }
+    function tierFor(reps) {
         return tiers.find((tier) => reps >= tier.min_reps && (tier.max_reps === null || reps <= tier.max_reps)) || tiers[0];
     }
-    function runLevelQuiz() {
-        const age = parseInt(document.getElementById("test-age").value, 10);
-        const reps = parseInt(document.getElementById("test-reps").value, 10);
-        const pullups = parseInt(document.getElementById("test-pullups").value, 10) || 0;
-        const result = document.getElementById("quiz-result");
-        const card = document.getElementById("quiz-result-card");
-        if (Number.isNaN(age) || age < 13 || Number.isNaN(reps) || reps < 0) {
-            result.textContent = "Add age and push-ups.";
-            card.classList.add("pulse-result");
-            setTimeout(() => card.classList.remove("pulse-result"), 700);
-            return;
-        }
-        const tier = getTier(reps);
-        const bonus = pullups >= 10 ? " Pull-ups make the score stronger." : "";
-        const nextTarget = reps >= 80 ? reps + 1 : reps >= 60 ? 80 : reps >= 40 ? 60 : reps >= 20 ? 40 : 20;
-        result.textContent = `${reps} reps at age ${age}: ${tier.name}. Next target: ${nextTarget}.${bonus}`;
-        document.getElementById("quiz-proof-link").href = `{% url 'challenge' %}?reps=${encodeURIComponent(reps)}#submit-form-top`;
-        card.scrollIntoView({ behavior: "smooth", block: "center" });
-        card.classList.add("pulse-result");
-        setTimeout(() => card.classList.remove("pulse-result"), 900);
+    function reveal() {
+        const age = parseInt(document.getElementById("quiz-age").value, 10) || 0;
+        const reps = parseInt(document.getElementById("quiz-reps").value, 10) || 0;
+        const pullups = parseInt(document.getElementById("quiz-pullups").value, 10) || 0;
+        const days = parseInt(document.getElementById("quiz-days").value, 10) || 0;
+        const run = parseFloat(document.getElementById("quiz-run").value) || 0;
+        const tier = tierFor(reps);
+        const bonus = pullups >= 10 ? " Strong pull-up base." : days >= 4 ? " Good consistency." : " More weekly training will move this fastest.";
+        document.getElementById("quiz-title").textContent = `${tier.name} level`;
+        document.getElementById("quiz-result").textContent = `${age || "Your age"}, ${reps} strict reps. ${tier.benchmark}.${bonus}${run ? ` 1 km pace: ${run} min.` : ""}`;
+        document.getElementById("quiz-submit").href = `{% url 'challenge' %}?reps=${encodeURIComponent(reps)}#submit-form-top`;
+        showStep(5);
     }
+    document.querySelectorAll("[data-next]").forEach((button) => {
+        button.addEventListener("click", () => active >= 4 ? reveal() : showStep(active + 1));
+    });
+    showStep(0);
 </script>
 {% endblock %}

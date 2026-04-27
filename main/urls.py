@@ -25,6 +25,7 @@ urlpatterns = [
     path("profiles/", views.profiles, name="profiles"),
     path("athlete/<slug:slug>/", views.athlete_profile, name="athlete_profile"),
     path("athlete/<slug:slug>/follow/", views.toggle_follow, name="toggle_follow"),
+    path("athlete/<slug:slug>/<str:kind>/", views.social_list, name="social_list"),
     path("comparison/<slug:left>vs<slug:right>/", views.comparison, name="comparison"),
     path("workout/<slug:slug>/", views.workout_detail, name="workout_detail"),
     path("challenge/", views.challenge, name="challenge"),

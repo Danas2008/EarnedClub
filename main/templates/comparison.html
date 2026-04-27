@@ -3,43 +3,35 @@
 {% block title %}{{ left_profile.display_name }} vs {{ right_profile.display_name }}{% endblock %}
 
 {% block content %}
-<section class="hero-card">
-    <div class="eyebrow">Head to head</div>
-    <h1>{{ left_profile.display_name }} vs {{ right_profile.display_name }}</h1>
-    <div class="grid-4">
-        <div class="metric-card">
-            <span class="kicker">{{ left_profile.display_name }}</span>
+<section class="hero-card" style="padding: 0;">
+    <div class="comparison-split">
+        <div class="comparison-side">
+            {% if left_profile.profile_image_url %}<img class="avatar avatar-lg" src="{{ left_profile.profile_image_url }}" alt="{{ left_profile.display_name }} profile picture">{% else %}<span class="avatar avatar-lg">{{ left_profile.display_name|first|upper }}</span>{% endif %}
+            <div class="eyebrow">Left side</div>
+            <h1>{{ left_profile.display_name }}</h1>
             <span class="stat-value">{{ left_profile.personal_best_reps }}</span>
-            <div class="muted">{% if left_profile.current_rank %}Rank #{{ left_profile.current_rank }}{% else %}No rank{% endif %}</div>
+            <p class="muted">{{ left_tier.name }} - {% if left_profile.current_rank %}Rank #{{ left_profile.current_rank }}{% else %}No rank{% endif %}</p>
+            <a class="btn-secondary" href="{% url 'athlete_profile' left_profile.slug %}">Profile</a>
         </div>
-        <div class="metric-card">
-            <span class="kicker">{{ right_profile.display_name }}</span>
+        <div class="comparison-side">
+            {% if right_profile.profile_image_url %}<img class="avatar avatar-lg" src="{{ right_profile.profile_image_url }}" alt="{{ right_profile.display_name }} profile picture">{% else %}<span class="avatar avatar-lg">{{ right_profile.display_name|first|upper }}</span>{% endif %}
+            <div class="eyebrow">Right side</div>
+            <h1>{{ right_profile.display_name }}</h1>
             <span class="stat-value">{{ right_profile.personal_best_reps }}</span>
-            <div class="muted">{% if right_profile.current_rank %}Rank #{{ right_profile.current_rank }}{% else %}No rank{% endif %}</div>
-        </div>
-        <div class="metric-card">
-            <span class="kicker">Difference</span>
-            <span class="stat-value">{{ rep_delta }}</span>
-            <div class="muted">Positive means {{ left_profile.display_name }} leads.</div>
-        </div>
-        <div class="metric-card">
-            <span class="kicker">Challenge</span>
-            <span class="stat-value">{{ right_profile.personal_best_reps|add:"1" }}</span>
-            <div class="muted">Beat by one rep.</div>
+            <p class="muted">{{ right_tier.name }} - {% if right_profile.current_rank %}Rank #{{ right_profile.current_rank }}{% else %}No rank{% endif %}</p>
+            <a class="btn-secondary" href="{% url 'athlete_profile' right_profile.slug %}">Profile</a>
         </div>
     </div>
 </section>
 
 <section class="grid-2">
-    <div class="card-dark">
-        <h2>{{ left_profile.display_name }}</h2>
-        <p class="muted">{{ left_tier.name }} - {{ left_tier.benchmark }}</p>
-        <a class="btn-secondary" href="{% url 'athlete_profile' left_profile.slug %}">Profile</a>
+    <div class="metric-card">
+        <span class="kicker">Difference</span>
+        <span class="stat-value">{{ rep_delta }}</span>
     </div>
-    <div class="card-dark">
-        <h2>{{ right_profile.display_name }}</h2>
-        <p class="muted">{{ right_tier.name }} - {{ right_tier.benchmark }}</p>
-        <a class="btn-secondary" href="{% url 'athlete_profile' right_profile.slug %}">Profile</a>
+    <div class="metric-card">
+        <span class="kicker">Challenge</span>
+        <span class="stat-value">{{ right_profile.personal_best_reps|add:"1" }}</span>
     </div>
 </section>
 {% endblock %}

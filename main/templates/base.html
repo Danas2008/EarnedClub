@@ -1021,6 +1021,69 @@
             box-shadow: 0 0 0 5px rgba(247, 183, 51, 0.14), var(--shadow);
         }
 
+        .quiz-shell {
+            min-height: min(720px, calc(100vh - 180px));
+            display: grid;
+            align-content: center;
+        }
+
+        .quiz-progress {
+            height: 8px;
+            overflow: hidden;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.08);
+            margin-bottom: 28px;
+        }
+
+        .quiz-progress span {
+            display: block;
+            width: 0;
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent), var(--accent-2));
+            transition: width 0.35s ease;
+        }
+
+        .quiz-step {
+            display: none;
+            gap: 18px;
+            animation: quizIn 0.28s ease both;
+        }
+
+        .quiz-step.is-active {
+            display: grid;
+        }
+
+        .quiz-input {
+            max-width: 420px;
+            font-size: 1.35rem;
+            padding: 18px 20px;
+        }
+
+        @keyframes quizIn {
+            from { opacity: 0; transform: translateY(12px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .comparison-split {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            min-height: 520px;
+            gap: 0;
+            overflow: hidden;
+        }
+
+        .comparison-side {
+            padding: 28px;
+            display: grid;
+            align-content: center;
+            gap: 16px;
+            border-right: 1px solid rgba(255,255,255,.08);
+        }
+
+        .comparison-side:last-child {
+            border-right: 0;
+        }
+
         .settings-inline-panel {
             margin-top: 18px;
         }
@@ -1244,6 +1307,7 @@
             .grid-2,
             .grid-3,
             .grid-4,
+            .comparison-split,
             .content-split,
             .video-grid,
             .trust-strip,
@@ -1424,9 +1488,6 @@
                             <ul class="navbar-nav align-items-lg-center">
                                 <li class="nav-item">
                                     <a class="nav-link" href="{% url 'home' %}">Home</a>
-                                </li>
-                                <li class="nav-item">
-                                    <a class="nav-link" href="{% url 'level_test' %}">Test</a>
                                 </li>
                                 <li class="nav-item">
                                     <a class="nav-link" href="{% url 'challenge' %}">Challenge</a>
