@@ -644,8 +644,8 @@ class SubmissionFlowTests(TestCase):
         self.assertContains(response, "<urlset", html=False)
         self.assertIn("https://earnedclub.club/leaderboard/", locs)
         self.assertIn("https://earnedclub.club/challenge/", locs)
-        self.assertNotIn("https://earnedclub.club/test/", locs)
-        self.assertIn("https://earnedclub.club/sitemap.xsl", response.content.decode())
+        self.assertIn("https://earnedclub.club/test/", locs)
+        self.assertIn('href="/sitemap.xsl"', response.content.decode())
 
     def test_sitemap_xml_lists_public_athlete_profiles(self):
         user = User.objects.create_user(username="sitemap-athlete", password="StrongPass12345")

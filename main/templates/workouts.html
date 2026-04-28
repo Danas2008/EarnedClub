@@ -148,7 +148,16 @@
 </section>
 
 <section class="card-dark">
-    <h2>Your Workouts</h2>
+    <div class="section-spread">
+        <div>
+            <h2>Your Workouts</h2>
+            <p class="muted">Showing the 5 most recent matches.</p>
+        </div>
+    </div>
+    <form class="search-row" method="GET" action="{% url 'workouts' %}">
+        <input class="input" type="search" name="q" value="{{ workout_query }}" placeholder="Search workouts or exercises">
+        <button class="btn-secondary" type="submit">Search</button>
+    </form>
     {% for workout in workouts %}
         <div class="score-row">
             <div class="score-row-main">
@@ -174,6 +183,28 @@
     {% empty %}
         <p class="muted">No workouts yet.</p>
     {% endfor %}
+    {% if workouts.paginator.num_pages > 1 %}
+        <div class="pagination-row">
+            <div class="muted">Page {{ workouts.number }} of {{ workouts.paginator.num_pages }}</div>
+            <div class="button-row" style="margin-top: 0;">
+                {% if workouts.has_previous %}
+                    <a class="btn-secondary" href="?{% if workout_query %}q={{ workout_query|urlencode }}&{% endif %}page={{ workouts.previous_page_number }}">&lt;-</a>
+                {% endif %}
+                {% for page_number in workout_pages %}
+                    {% if page_number == workouts.paginator.ELLIPSIS %}
+                        <span class="tag-pill">{{ page_number }}</span>
+                    {% elif page_number == workouts.number %}
+                        <span class="btn-main">{{ page_number }}</span>
+                    {% else %}
+                        <a class="btn-secondary" href="?{% if workout_query %}q={{ workout_query|urlencode }}&{% endif %}page={{ page_number }}">{{ page_number }}</a>
+                    {% endif %}
+                {% endfor %}
+                {% if workouts.has_next %}
+                    <a class="btn-secondary" href="?{% if workout_query %}q={{ workout_query|urlencode }}&{% endif %}page={{ workouts.next_page_number }}">-&gt;</a>
+                {% endif %}
+            </div>
+        </div>
+    {% endif %}
 </section>
 
 <section class="card-dark">
@@ -262,11 +293,6 @@
             row.querySelector("input[name='exercise_reps']").value = exercise.reps || "";
             row.querySelector("input[name='exercise_seconds']").value = exercise.seconds || "";
         });
-        const extra = exerciseRows()[template.exercises.length];
-        if (extra) {
-            extra.classList.remove("hidden-panel");
-            clearExerciseRow(extra);
-        }
     };
 
     document.querySelector("[data-add-exercise]")?.addEventListener("click", showNextExerciseRow);

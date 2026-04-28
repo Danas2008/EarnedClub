@@ -81,6 +81,22 @@
 
     <div class="card-dark">
         <h2>Goals</h2>
+        {% for goal in completed_goals %}
+            <div class="mini-card" style="margin-bottom: 12px;">
+                <span class="status-pill verified">Goal completed</span>
+                <div class="submission-name" style="margin-top: 10px;">
+                    {% if goal.goal_type == "rank" %}Reached {{ goal.target_value }}+ reps{% else %}Hit {{ goal.target_value }} reps{% endif %}
+                </div>
+                <p class="muted">You completed this goal with your current {{ current_pr }}-rep PR.</p>
+                <div class="button-row" style="margin-top: 0;">
+                    <button class="btn-main" type="button" data-share-text="I completed my EarnedClub goal: {% if goal.goal_type == 'rank' %}{{ goal.target_value }}+ reps{% else %}{{ goal.target_value }} push-ups{% endif %}. {{ profile_share_message }}">Share Goal</button>
+                    <form method="POST" action="{% url 'delete_goal' goal.id %}">
+                        {% csrf_token %}
+                        <button class="btn-secondary" type="submit">Delete</button>
+                    </form>
+                </div>
+            </div>
+        {% endfor %}
         <form class="submission-form" method="POST">
             {% csrf_token %}
             <input type="hidden" name="form_type" value="goal">
@@ -100,8 +116,14 @@
             <div class="score-row" style="margin-top: 10px;">
                 <div class="score-row-main">
                     <div class="submission-name">{{ goal.get_goal_type_display }}: {% if goal.goal_type == "rank" %}{{ goal.target_value }}+ reps{% else %}{{ goal.target_value }} reps{% endif %}</div>
-                    <div class="submission-meta">{{ goal.note|default:"No note." }}</div>
+                    <div class="submission-meta">
+                        {% if goal in completed_goals %}Completed{% else %}{{ goal.note|default:"No note." }}{% endif %}
+                    </div>
                 </div>
+                <form method="POST" action="{% url 'delete_goal' goal.id %}">
+                    {% csrf_token %}
+                    <button class="btn-secondary" type="submit">Delete</button>
+                </form>
             </div>
         {% empty %}
             <p class="muted">No active goals.</p>
@@ -265,13 +287,14 @@
     document.querySelector("[data-goal-type]")?.addEventListener("change", syncGoalTarget);
     syncGoalTarget();
     for (const shareButton of document.querySelectorAll("[data-share-text]")) {
+        const originalLabel = shareButton.textContent;
         shareButton.addEventListener("click", async () => {
             const text = shareButton.dataset.shareText;
             if (navigator.share) await navigator.share({ text });
             else {
                 await navigator.clipboard.writeText(text);
                 shareButton.textContent = "Copied";
-                setTimeout(() => shareButton.textContent = "Share Profile", 1200);
+                setTimeout(() => shareButton.textContent = originalLabel, 1200);
             }
         });
     }

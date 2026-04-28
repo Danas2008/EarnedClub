@@ -14,6 +14,7 @@ urlpatterns = [
     path("dashboard/", views.dashboard, name="dashboard"),
     path("dashboard/submissions/<int:submission_id>/proof/", views.add_submission_proof, name="add_submission_proof"),
     path("dashboard/submissions/<int:submission_id>/delete/", views.delete_submission, name="delete_submission"),
+    path("dashboard/goals/<int:goal_id>/delete/", views.delete_goal, name="delete_goal"),
     path("dashboard/workouts/<int:workout_id>/duplicate/", views.duplicate_workout, name="duplicate_workout"),
     path("dashboard/workouts/quick-add-last/", views.quick_add_last_workout, name="quick_add_last_workout"),
     path("workouts/", views.workouts, name="workouts"),

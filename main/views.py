@@ -132,6 +132,7 @@ register_namespace("", SITEMAP_NAMESPACE)
 
 SITEMAP_STATIC_PAGES = [
     {"view_name": "home", "changefreq": "daily", "priority": "1.0"},
+    {"view_name": "level_test", "changefreq": "weekly", "priority": "0.9"},
     {"view_name": "challenge", "changefreq": "weekly", "priority": "0.9"},
     {"view_name": "leaderboard", "changefreq": "daily", "priority": "0.9"},
     {"view_name": "profiles", "changefreq": "daily", "priority": "0.8"},
@@ -838,13 +839,13 @@ def level_test(request):
 def sitemap_xml(request):
     xml = build_sitemap_xml(
         build_sitemap_entries(request),
-        build_public_url(reverse("sitemap_xsl")),
+        reverse("sitemap_xsl"),
     )
-    return HttpResponse(xml, content_type="application/xml")
+    return HttpResponse(xml, content_type="application/xml; charset=utf-8")
 
 
 def sitemap_xsl(request):
-    return render(request, "sitemap.xsl", content_type="text/xsl")
+    return render(request, "sitemap.xsl", content_type="text/xsl; charset=utf-8")
 
 
 
@@ -1062,12 +1063,22 @@ def dashboard(request):
     active_workout_session = request.user.workout_sessions.filter(status=WorkoutSession.STATUS_ACTIVE).select_related("workout").prefetch_related("exercise_sessions").first()
     progress_summary = get_progress_summary(verified_submissions)
     recommendation = get_daily_suggestion(profile, verified_submissions.count(), workouts.count())
+    active_goals = request.user.goals.filter(is_active=True)[:5]
+    current_pr = best_submission.reps if best_submission else 0
+    completed_goals = [
+        goal
+        for goal in active_goals
+        if (
+            (goal.goal_type == Goal.GOAL_PUSHUPS and current_pr >= goal.target_value)
+            or (goal.goal_type == Goal.GOAL_RANK and current_pr >= goal.target_value)
+        )
+    ]
 
     context = {
         "profile": profile,
         "best_submission": best_submission,
-        "current_pr": best_submission.reps if best_submission else 0,
-        "all_time_pr": best_submission.reps if best_submission else 0,
+        "current_pr": current_pr,
+        "all_time_pr": current_pr,
         "current_rank": current_rank,
         "current_tier": current_tier,
         "rank_movement": "New season baseline",
@@ -1089,7 +1100,8 @@ def dashboard(request):
         "following_count": request.user.following_links.count(),
         "workouts": workouts[:5],
         "active_workout_session": active_workout_session,
-        "active_goals": request.user.goals.filter(is_active=True)[:5],
+        "active_goals": active_goals,
+        "completed_goals": completed_goals,
         "rank_goal_options": [
             {
                 "value": tier["min_reps"],
@@ -1103,6 +1115,15 @@ def dashboard(request):
         "pr_share_message": get_pr_share_message(profile, request),
     }
     return render(request, "dashboard.html", context)
+
+
+@require_POST
+@login_required
+def delete_goal(request, goal_id):
+    goal = get_object_or_404(Goal, pk=goal_id, user=request.user)
+    goal.delete()
+    messages.success(request, "Goal deleted.")
+    return redirect("dashboard")
 
 
 def profiles(request):
@@ -1678,7 +1699,16 @@ def workouts(request):
             messages.success(request, "Workout saved.")
         return redirect("workouts")
 
+    workout_query = (request.GET.get("q") or "").strip()
     workouts_qs = request.user.workouts.prefetch_related("exercises").order_by("-created_at")
+    if workout_query:
+        workouts_qs = workouts_qs.filter(
+            Q(title__icontains=workout_query)
+            | Q(notes__icontains=workout_query)
+            | Q(exercises__name__icontains=workout_query)
+            | Q(exercises__body_part__icontains=workout_query)
+        ).distinct()
+    workout_page = paginate_items(request, workouts_qs, per_page=5)
     templates = WorkoutTemplate.objects.filter(Q(user=request.user) | Q(is_system=True)).order_by("-is_system", "difficulty", "name")
     user_reps = request.user.profile.personal_best_reps
     recommended_difficulty = WorkoutTemplate.DIFFICULTY_BEGINNER
@@ -1695,7 +1725,13 @@ def workouts(request):
         request,
         "workouts.html",
         {
-            "workouts": workouts_qs,
+            "workouts": workout_page,
+            "workout_query": workout_query,
+            "workout_pages": workout_page.paginator.get_elided_page_range(
+                number=workout_page.number,
+                on_each_side=1,
+                on_ends=1,
+            ),
             "workout_templates": templates,
             "recommended_templates": recommended_cards,
             "template_cards": template_cards,

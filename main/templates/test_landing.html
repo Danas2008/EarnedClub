@@ -37,8 +37,8 @@
     </div>
     <div class="quiz-step" data-step="4">
         <div class="eyebrow">Question 5 / 6</div>
-        <h1>What is your goal?</h1>
-        <input id="quiz-goal" class="input quiz-input" type="text" placeholder="Hit 50 reps, build consistency, reach Elite">
+        <h1>Push-up goal?</h1>
+        <input id="quiz-goal" class="input quiz-input" type="number" min="1" placeholder="50" inputmode="numeric">
         <button class="btn-main" type="button" data-next>Next</button>
     </div>
     <div class="quiz-step" data-step="5">
@@ -79,12 +79,18 @@
         const days = parseInt(document.getElementById("quiz-days").value, 10) || 0;
         const level = document.getElementById("quiz-level").value;
         const reps = parseInt(document.getElementById("quiz-reps").value, 10) || 0;
-        const goal = (document.getElementById("quiz-goal").value || "").trim();
+        const goal = parseInt(document.getElementById("quiz-goal").value, 10) || 0;
         const displayName = (document.getElementById("quiz-display-name").value || "").trim();
         const tier = tierFor(reps);
         const consistency = days >= 4 ? "Your training frequency is strong enough to push for a real jump." : "A little more weekly consistency would move this faster.";
-        document.getElementById("quiz-title").textContent = `Hey ${displayName || "Athlete"}, ${tier.name}`;
-        document.getElementById("quiz-result").textContent = `${reps} strict reps puts you in ${tier.name}. ${tier.benchmark}. ${consistency}`;
+        const gap = Math.max(0, goal - reps);
+        const weeklyPace = Math.max(2, Math.min(10, Math.round((days || 2) * 1.5)));
+        const weeks = gap ? Math.max(1, Math.ceil(gap / weeklyPace)) : 0;
+        const goalLine = goal
+            ? (gap ? `You are ${gap} push-ups away from ${goal}. With our workouts, that is roughly ${weeks} week${weeks === 1 ? "" : "s"} of focused training.` : `You already reached your ${goal}-rep goal. Set the next one and keep building.`)
+            : "Set a rep goal and the workouts can give you a clear target.";
+        document.getElementById("quiz-title").textContent = `Hello, ${displayName || "Athlete"}`;
+        document.getElementById("quiz-result").textContent = `${reps} strict reps puts you in ${tier.name}. ${tier.benchmark}. ${consistency} ${goalLine}`;
         const summary = document.getElementById("quiz-summary");
         summary.replaceChildren();
         [
@@ -93,7 +99,8 @@
             `Training days/week: ${days || 0}`,
             `Your level: ${level}`,
             `Max reps: ${reps}`,
-            `Goal: ${goal || "Build momentum"}`,
+            `Goal: ${goal ? `${goal} push-ups` : "Not set"}`,
+            goalLine,
         ].forEach((line) => {
             const item = document.createElement("div");
             item.className = "submission-meta";
