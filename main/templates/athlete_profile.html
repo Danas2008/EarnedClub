@@ -94,6 +94,28 @@
                     </div>
                 {% endfor %}
             </div>
+            {% if verified_submissions.paginator.num_pages > 1 %}
+                <div class="pagination-row">
+                    <div class="muted">Page {{ verified_submissions.number }} of {{ verified_submissions.paginator.num_pages }}</div>
+                    <div class="button-row" style="margin-top: 0;">
+                        {% if verified_submissions.has_previous %}
+                            <a class="btn-secondary" href="?page={{ verified_submissions.previous_page_number }}">&lt;-</a>
+                        {% endif %}
+                        {% for page_number in verified_history_pages %}
+                            {% if page_number == verified_submissions.paginator.ELLIPSIS %}
+                                <span class="tag-pill">{{ page_number }}</span>
+                            {% elif page_number == verified_submissions.number %}
+                                <span class="btn-main">{{ page_number }}</span>
+                            {% else %}
+                                <a class="btn-secondary" href="?page={{ page_number }}">{{ page_number }}</a>
+                            {% endif %}
+                        {% endfor %}
+                        {% if verified_submissions.has_next %}
+                            <a class="btn-secondary" href="?page={{ verified_submissions.next_page_number }}">-&gt;</a>
+                        {% endif %}
+                    </div>
+                </div>
+            {% endif %}
         {% else %}
             <p class="muted">No verified submissions yet.</p>
         {% endif %}
@@ -124,7 +146,7 @@
             {% endfor %}
         {% endif %}
     </div>
-    <div class="card-dark">
+    <div class="card-dark profile-public-workouts">
         <h2>Public Workouts</h2>
         {% if highlighted_workout %}
             <div class="feature-card">

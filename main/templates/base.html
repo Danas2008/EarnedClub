@@ -1032,6 +1032,7 @@
             min-height: min(720px, calc(100vh - 180px));
             display: grid;
             align-content: center;
+            scroll-margin-top: 96px;
         }
 
         .quiz-progress {
@@ -1268,6 +1269,12 @@
             color: var(--muted);
         }
 
+        .profile-public-workouts {
+            position: relative;
+            z-index: 1;
+            margin-bottom: 24px;
+        }
+
         .footer-brand {
             color: var(--text);
             font-family: "Archivo", sans-serif;
@@ -1371,6 +1378,24 @@
             .card-dark {
                 padding: 14px;
                 border-radius: var(--radius-lg);
+            }
+
+            .quiz-shell {
+                min-height: calc(100svh - 116px);
+                align-content: start;
+                padding-top: 22px;
+                padding-bottom: 22px;
+            }
+
+            .quiz-step h1 {
+                font-size: clamp(2rem, 10vw, 3rem);
+                line-height: 1;
+            }
+
+            .quiz-input {
+                max-width: 100%;
+                font-size: 1.15rem;
+                padding: 14px 16px;
             }
 
             .progress-chart {

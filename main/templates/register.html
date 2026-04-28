@@ -20,7 +20,7 @@
 
         <div>
             <label class="field-label" for="email">Email</label>
-            <input id="email" class="input" type="email" name="email" placeholder="you@example.com">
+            <input id="email" class="input" type="email" name="email" value="{{ prefill_email }}" placeholder="you@example.com">
         </div>
 
         <div>
@@ -50,6 +50,10 @@
 <script>
     for (const field of document.querySelectorAll("input")) {
         field.classList.add("input");
+    }
+    const username = document.getElementById("{{ form.username.id_for_label }}");
+    if (username && !username.value && "{{ prefill_username|escapejs }}") {
+        username.value = "{{ prefill_username|escapejs }}";
     }
 </script>
 {% endblock %}

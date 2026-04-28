@@ -9,13 +9,13 @@
     <div class="quiz-step is-active" data-step="0">
         <div class="eyebrow">Question 1 / 6</div>
         <h1>How old are you?</h1>
-        <input id="quiz-age" class="input quiz-input" type="number" min="13" max="100" placeholder="17">
+        <input id="quiz-age" class="input quiz-input" type="number" min="13" max="100" placeholder="17" inputmode="numeric">
         <button class="btn-main" type="button" data-next>Next</button>
     </div>
     <div class="quiz-step" data-step="1">
         <div class="eyebrow">Question 2 / 6</div>
         <h1>Training days per week?</h1>
-        <input id="quiz-days" class="input quiz-input" type="number" min="0" max="14" placeholder="4">
+        <input id="quiz-days" class="input quiz-input" type="number" min="0" max="14" placeholder="4" inputmode="numeric">
         <button class="btn-main" type="button" data-next>Next</button>
     </div>
     <div class="quiz-step" data-step="2">
@@ -32,7 +32,7 @@
     <div class="quiz-step" data-step="3">
         <div class="eyebrow">Question 4 / 6</div>
         <h1>Max reps in one clean set?</h1>
-        <input id="quiz-reps" class="input quiz-input" type="number" min="0" placeholder="42">
+        <input id="quiz-reps" class="input quiz-input" type="number" min="0" placeholder="42" inputmode="numeric">
         <button class="btn-main" type="button" data-next>Next</button>
     </div>
     <div class="quiz-step" data-step="4">
@@ -54,7 +54,7 @@
         <div id="quiz-summary" class="submit-panel" style="margin-bottom: 16px;"></div>
         <div class="hero-actions">
             <a id="quiz-submit" class="btn-main" href="{% url 'challenge' %}#submit-form-top">Submit Proof</a>
-            <a class="btn-secondary" href="{% url 'register' %}">Create Account</a>
+            <a id="quiz-register" class="btn-secondary" href="{% url 'register' %}">Create Account</a>
         </div>
         <p class="muted">{{ total_submissions }} tested. {{ total_verified }} verified.</p>
     </div>
@@ -83,21 +83,39 @@
         const displayName = (document.getElementById("quiz-display-name").value || "").trim();
         const tier = tierFor(reps);
         const consistency = days >= 4 ? "Your training frequency is strong enough to push for a real jump." : "A little more weekly consistency would move this faster.";
-        document.getElementById("quiz-title").textContent = `${displayName || "Athlete"}: ${tier.name}`;
+        document.getElementById("quiz-title").textContent = `Hey ${displayName || "Athlete"}, ${tier.name}`;
         document.getElementById("quiz-result").textContent = `${reps} strict reps puts you in ${tier.name}. ${tier.benchmark}. ${consistency}`;
-        document.getElementById("quiz-summary").innerHTML = `
-            <div class="submission-meta">Display name: ${displayName || "Not set"}</div>
-            <div class="submission-meta">Age: ${age || "Not set"}</div>
-            <div class="submission-meta">Training days/week: ${days || 0}</div>
-            <div class="submission-meta">Your level: ${level}</div>
-            <div class="submission-meta">Max reps: ${reps}</div>
-            <div class="submission-meta">Goal: ${goal || "Build momentum"}</div>
-        `;
-        document.getElementById("quiz-submit").href = `{% url 'challenge' %}?reps=${encodeURIComponent(reps)}#submit-form-top`;
+        const summary = document.getElementById("quiz-summary");
+        summary.replaceChildren();
+        [
+            `Display name: ${displayName || "Not set"}`,
+            `Age: ${age || "Not set"}`,
+            `Training days/week: ${days || 0}`,
+            `Your level: ${level}`,
+            `Max reps: ${reps}`,
+            `Goal: ${goal || "Build momentum"}`,
+        ].forEach((line) => {
+            const item = document.createElement("div");
+            item.className = "submission-meta";
+            item.textContent = line;
+            summary.appendChild(item);
+        });
+        const params = new URLSearchParams();
+        params.set("reps", reps);
+        if (displayName) params.set("name", displayName);
+        document.getElementById("quiz-submit").href = `{% url 'challenge' %}?${params.toString()}#submit-form-top`;
+        document.getElementById("quiz-register").href = `{% url 'register' %}?${params.toString()}`;
         showStep(6);
     }
     document.querySelectorAll("[data-next]").forEach((button) => {
         button.addEventListener("click", () => active >= 5 ? reveal() : showStep(active + 1));
+    });
+    document.querySelectorAll(".quiz-input").forEach((field) => {
+        field.addEventListener("keydown", (event) => {
+            if (event.key !== "Enter") return;
+            event.preventDefault();
+            active >= 5 ? reveal() : showStep(active + 1);
+        });
     });
     showStep(0);
 </script>

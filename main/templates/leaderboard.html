@@ -34,12 +34,9 @@
         <button class="btn-secondary" type="submit">Search</button>
     </form>
     <div class="button-row" style="margin-top: 0; margin-bottom: 16px;">
-        <button class="btn-main" type="button" data-board-filter="all">All</button>
-        <button class="btn-secondary" type="button" data-board-filter="verified">Verified</button>
-        <button class="btn-secondary" type="button" data-board-filter="week">Weekly</button>
-        <button class="btn-secondary" type="button" data-board-filter="month">Monthly</button>
-        <button class="btn-secondary" type="button" data-board-filter="pending">Pending</button>
-        <button class="btn-secondary" type="button" data-board-filter="unverified">Unverified</button>
+        {% for mode in leaderboard_modes %}
+            <a class="{% if mode.key == active_mode.key %}btn-main{% else %}btn-secondary{% endif %}" href="?mode={{ mode.key }}{% if query %}&q={{ query|urlencode }}{% endif %}#full-leaderboard">{{ mode.label }}</a>
+        {% endfor %}
     </div>
 
     {% if leaderboard_rows %}
@@ -109,30 +106,28 @@
     {% else %}
         <p class="muted">No submissions yet.</p>
     {% endif %}
-</section>
 
-<script>
-    const weekCutoff = new Date("{{ weekly_cutoff }}");
-    const monthCutoff = new Date("{{ monthly_cutoff }}");
-    function rowMatches(row, filter) {
-        const status = row.dataset.status;
-        const created = new Date(row.dataset.created);
-        if (filter === "all") return true;
-        if (filter === "week") return created >= weekCutoff;
-        if (filter === "month") return created >= monthCutoff;
-        return status === filter;
-    }
-    for (const button of document.querySelectorAll("[data-board-filter]")) {
-        button.addEventListener("click", () => {
-            const filter = button.dataset.boardFilter;
-            for (const row of document.querySelectorAll("[data-board-row]")) {
-                row.style.display = rowMatches(row, filter) ? "" : "none";
-            }
-            for (const item of document.querySelectorAll("[data-board-filter]")) {
-                item.classList.toggle("btn-main", item === button);
-                item.classList.toggle("btn-secondary", item !== button);
-            }
-        });
-    }
-</script>
+    {% if leaderboard_rows.paginator.num_pages > 1 %}
+        <div class="pagination-row">
+            <div class="muted">Page {{ leaderboard_rows.number }} of {{ leaderboard_rows.paginator.num_pages }}</div>
+            <div class="button-row" style="margin-top: 0;">
+                {% if leaderboard_rows.has_previous %}
+                    <a class="btn-secondary" href="?mode={{ active_mode.key }}{% if query %}&q={{ query|urlencode }}{% endif %}&page={{ leaderboard_rows.previous_page_number }}#full-leaderboard">&lt;-</a>
+                {% endif %}
+                {% for page_number in leaderboard_pages %}
+                    {% if page_number == leaderboard_rows.paginator.ELLIPSIS %}
+                        <span class="tag-pill">{{ page_number }}</span>
+                    {% elif page_number == leaderboard_rows.number %}
+                        <span class="btn-main">{{ page_number }}</span>
+                    {% else %}
+                        <a class="btn-secondary" href="?mode={{ active_mode.key }}{% if query %}&q={{ query|urlencode }}{% endif %}&page={{ page_number }}#full-leaderboard">{{ page_number }}</a>
+                    {% endif %}
+                {% endfor %}
+                {% if leaderboard_rows.has_next %}
+                    <a class="btn-secondary" href="?mode={{ active_mode.key }}{% if query %}&q={{ query|urlencode }}{% endif %}&page={{ leaderboard_rows.next_page_number }}#full-leaderboard">-&gt;</a>
+                {% endif %}
+            </div>
+        </div>
+    {% endif %}
+</section>
 {% endblock %}

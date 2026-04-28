@@ -38,7 +38,7 @@
             <div class="eyebrow">{{ card.template.get_difficulty_display }} - {{ card.minutes }} min</div>
             <h3>{{ card.template.name }}</h3>
             <p class="muted">{{ card.template.notes }}</p>
-            <details class="score-details">
+            <details class="score-details" data-exercise-details>
                 <summary>Preview</summary>
                 {% for name, sets, reps, seconds in card.exercises %}
                     <div class="submission-meta">{{ name }} - {{ sets }} set(s){% if reps %}, {{ reps }} reps{% endif %}{% if seconds %}, {{ seconds }} sec{% endif %}</div>
@@ -231,13 +231,45 @@
         });
     });
 
-    document.querySelector("[data-add-exercise]")?.addEventListener("click", () => {
+    const exerciseRows = () => Array.from(document.querySelectorAll("[data-exercise-row]"));
+    const clearExerciseRow = (row) => {
+        row.querySelector("[data-builder-body]").value = "";
+        row.querySelector("[data-builder-exercise]").value = "";
+        row.querySelector("input[name='exercise_sets']").value = "";
+        row.querySelector("input[name='exercise_reps']").value = "";
+        row.querySelector("input[name='exercise_seconds']").value = "";
+    };
+    const showNextExerciseRow = () => {
         const next = Array.from(document.querySelectorAll("[data-exercise-row]")).find((row) => row.classList.contains("hidden-panel"));
         if (next) {
             next.classList.remove("hidden-panel");
             next.scrollIntoView({ behavior: "smooth", block: "nearest" });
         }
-    });
+        return next;
+    };
+    const fillExerciseRowsFromTemplate = (template) => {
+        if (!template) return;
+        document.querySelector("[data-exercise-details]").open = true;
+        exerciseRows().forEach((row, index) => {
+            clearExerciseRow(row);
+            const exercise = template.exercises[index];
+            row.classList.toggle("hidden-panel", !exercise && index > 0);
+            if (!exercise) return;
+            row.querySelector("[data-builder-body]").value = exercise.body_part || "";
+            filterExerciseSelect(row.querySelector("[data-builder-exercise]"), exercise.body_part || "", "");
+            row.querySelector("[data-builder-exercise]").value = exercise.name || "";
+            row.querySelector("input[name='exercise_sets']").value = exercise.sets || "";
+            row.querySelector("input[name='exercise_reps']").value = exercise.reps || "";
+            row.querySelector("input[name='exercise_seconds']").value = exercise.seconds || "";
+        });
+        const extra = exerciseRows()[template.exercises.length];
+        if (extra) {
+            extra.classList.remove("hidden-panel");
+            clearExerciseRow(extra);
+        }
+    };
+
+    document.querySelector("[data-add-exercise]")?.addEventListener("click", showNextExerciseRow);
 
     document.querySelectorAll("[data-template-id]").forEach((button) => {
         button.addEventListener("click", () => {
@@ -252,6 +284,7 @@
                     const seconds = exercise.seconds ? `, ${exercise.seconds} sec` : "";
                     return `<div>${exercise.name} - ${exercise.sets} set(s)${reps}${seconds}</div>`;
                 }).join("");
+                fillExerciseRowsFromTemplate(template);
             }
             document.getElementById("builder")?.scrollIntoView({ behavior: "smooth", block: "start" });
         });
@@ -262,6 +295,15 @@
         if (!template) return;
         document.querySelector("[data-workout-title]").value = template.name;
         document.querySelector("[data-workout-minutes]").value = template.minutes;
+        fillExerciseRowsFromTemplate(template);
+        const preview = document.querySelector("[data-template-preview]");
+        if (preview) {
+            preview.innerHTML = template.exercises.map((exercise) => {
+                const reps = exercise.reps ? `, ${exercise.reps} reps` : "";
+                const seconds = exercise.seconds ? `, ${exercise.seconds} sec` : "";
+                return `<div>${exercise.name} - ${exercise.sets} set(s)${reps}${seconds}</div>`;
+            }).join("");
+        }
     });
 </script>
 {% endblock %}

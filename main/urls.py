@@ -19,6 +19,7 @@ urlpatterns = [
     path("workouts/", views.workouts, name="workouts"),
     path("workouts/start/", views.start_workout, name="start_workout"),
     path("workouts/sessions/<int:session_id>/", views.workout_session_detail, name="workout_session_detail"),
+    path("workouts/sessions/<int:session_id>/finish/", views.finish_workout_session, name="finish_workout_session"),
     path("workouts/sessions/<int:session_id>/exercise/<int:exercise_id>/", views.update_workout_session, name="update_workout_session"),
     path("workouts/<int:workout_id>/delete/", views.delete_workout, name="delete_workout"),
     path("workouts/<int:workout_id>/highlight/", views.toggle_highlight_workout, name="toggle_highlight_workout"),

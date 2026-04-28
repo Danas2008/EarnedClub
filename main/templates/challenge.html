@@ -122,36 +122,38 @@
                 {% endif %}
             </div>
 
-            <div class="step-list">
-                <div class="step-item">
-                    <span class="step-number">1</span>
-                    <div>
-                        <strong>Submit reps</strong>
-                        <div class="muted">Your score appears with a review status.</div>
+            {% if show_submit_help %}
+                <div class="step-list">
+                    <div class="step-item">
+                        <span class="step-number">1</span>
+                        <div>
+                            <strong>Submit reps</strong>
+                            <div class="muted">Your score appears with a review status.</div>
+                        </div>
+                    </div>
+                    <div class="step-item">
+                        <span class="step-number">2</span>
+                        <div>
+                            <strong>Upload proof</strong>
+                            <div class="muted">Video sends it into review.</div>
+                        </div>
+                    </div>
+                    <div class="step-item">
+                        <span class="step-number">3</span>
+                        <div>
+                            <strong>Earn rank</strong>
+                            <div class="muted">Approved scores become official leaderboard ranks.</div>
+                        </div>
+                    </div>
+                    <div class="step-item">
+                        <span class="step-number">!</span>
+                        <div>
+                            <strong>Submission limits</strong>
+                            <div class="muted">Anonymous max 40. Logged-in scores above 60 need upload.</div>
+                        </div>
                     </div>
                 </div>
-                <div class="step-item">
-                    <span class="step-number">2</span>
-                    <div>
-                        <strong>Upload proof</strong>
-                        <div class="muted">Video sends it into review.</div>
-                    </div>
-                </div>
-                <div class="step-item">
-                    <span class="step-number">3</span>
-                    <div>
-                        <strong>Earn rank</strong>
-                        <div class="muted">Approved scores become official leaderboard ranks.</div>
-                    </div>
-                </div>
-                <div class="step-item">
-                    <span class="step-number">!</span>
-                    <div>
-                        <strong>Submission limits</strong>
-                        <div class="muted">Anonymous max 40. Logged-in scores above 60 need upload.</div>
-                    </div>
-                </div>
-            </div>
+            {% endif %}
         </div>
     </div>
 </section>

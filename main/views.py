@@ -168,6 +168,11 @@ LEADERBOARD_MODES = [
         "label": "Pending",
         "description": "Strong attempts waiting for review.",
     },
+    {
+        "key": "unverified",
+        "label": "Unverified",
+        "description": "Saved attempts that still need proof.",
+    },
 ]
 LEADERBOARD_MODE_LOOKUP = {mode["key"]: mode for mode in LEADERBOARD_MODES}
 
@@ -249,7 +254,14 @@ def build_template_payload(cards):
             "name": card["template"].name,
             "minutes": card["minutes"],
             "exercises": [
-                {"name": name, "sets": sets or "", "reps": reps or "", "seconds": seconds or ""}
+                {
+                    "name": name,
+                    "sets": sets or "",
+                    "reps": reps or "",
+                    "seconds": seconds or "",
+                    "type": get_default_exercise(name).get("type", WorkoutExercise.TYPE_STRENGTH),
+                    "body_part": get_default_exercise(name).get("body_part", ""),
+                }
                 for name, sets, reps, seconds in card["exercises"]
             ],
         }
@@ -479,6 +491,8 @@ def get_leaderboard_submissions(mode_key):
         return public_submission_queryset(since=get_monthly_window())
     if mode_key == "pending":
         return pending_submission_queryset().select_related("user", "user__profile").order_by("-reps", "created_at")
+    if mode_key == "unverified":
+        return Submission.objects.filter(status=Submission.STATUS_UNVERIFIED).select_related("user", "user__profile").order_by("-reps", "created_at")
     return public_submission_queryset()
 
 
@@ -854,9 +868,16 @@ def leaderboard(request):
     monthly_cutoff = get_monthly_window()
 
     leaderboard_rows = build_leaderboard_rows(public_submissions)
+    leaderboard_page = paginate_items(request, leaderboard_rows, per_page=10)
 
     context = {
-        "leaderboard_rows": paginate_items(request, leaderboard_rows, per_page=100),
+        "leaderboard_rows": leaderboard_page,
+        "leaderboard_pages": leaderboard_page.paginator.get_elided_page_range(
+            number=leaderboard_page.number,
+            on_each_side=1,
+            on_ends=1,
+        ),
+        "leaderboard_modes": LEADERBOARD_MODES,
         "active_mode": active_mode,
         "weekly_cutoff": weekly_cutoff.isoformat(),
         "monthly_cutoff": monthly_cutoff.isoformat(),
@@ -891,7 +912,15 @@ def register(request):
     else:
         form = UserCreationForm()
 
-    return render(request, "register.html", {"form": form})
+    return render(
+        request,
+        "register.html",
+        {
+            "form": form,
+            "prefill_username": (request.GET.get("name") or "").strip(),
+            "prefill_email": (request.GET.get("email") or "").strip(),
+        },
+    )
 
 
 def login_view(request):
@@ -1078,8 +1107,8 @@ def dashboard(request):
 
 def profiles(request):
     query = (request.GET.get("q") or "").strip()
-    profiles_with_scores = Profile.objects.filter(personal_best_reps__gt=0).order_by(
-        "current_rank", "-personal_best_reps", "display_name"
+    profiles_with_scores = Profile.objects.all().order_by(
+        F("current_rank").asc(nulls_last=True), "-personal_best_reps", "display_name"
     )
     if query:
         profiles_with_scores = profiles_with_scores.filter(
@@ -1124,11 +1153,17 @@ def athlete_profile(request, slug):
                 "my_rank": get_official_rank_for_submission(my_best) if my_best else None,
                 "their_rank": profile.current_rank,
             }
+    verified_history = paginate_items(request, verified_submissions.order_by("-created_at"), per_page=5)
     context = {
         "profile": profile,
         "best_submission": best_submission,
         "current_tier": best_submission.rank_tier if best_submission else get_rank_tier(0),
-        "verified_submissions": verified_submissions.order_by("-created_at"),
+        "verified_submissions": verified_history,
+        "verified_history_pages": verified_history.paginator.get_elided_page_range(
+            number=verified_history.number,
+            on_each_side=1,
+            on_ends=1,
+        ),
         "progress_data": get_progress_data(verified_submissions),
         "profile_description": profile_description,
         "profile_schema_json": json_ld(build_profile_schema(profile, best_submission)),
@@ -1204,6 +1239,7 @@ def challenge(request):
         "verified_count": len(verified_submissions),
         "leaderboard_preview": build_leaderboard_rows(list(public_submission_queryset())[:3]),
         "form_data": request.GET,
+        "show_submit_help": False,
     }
     if request.user.is_authenticated:
         context["profile"] = request.user.profile
@@ -1227,6 +1263,7 @@ def challenge(request):
         if not name or not reps or (not request.user.is_authenticated and not email):
             messages.error(request, "Please fill in your name, email, and reps before submitting.")
             context["form_data"] = request.POST
+            context["show_submit_help"] = True
             return render(request, "challenge.html", context)
 
         try:
@@ -1234,21 +1271,25 @@ def challenge(request):
         except ValueError:
             messages.error(request, "Reps must be a whole number.")
             context["form_data"] = request.POST
+            context["show_submit_help"] = True
             return render(request, "challenge.html", context)
 
         if reps_value <= 0:
             messages.error(request, "Reps must be greater than zero.")
             context["form_data"] = request.POST
+            context["show_submit_help"] = True
             return render(request, "challenge.html", context)
 
         if not request.user.is_authenticated and reps_value > 40:
             messages.error(request, "Anonymous submissions are capped at 40 push-ups. Log in and add video proof to submit more.")
             context["form_data"] = request.POST
+            context["show_submit_help"] = True
             return render(request, "challenge.html", context)
 
         if request.user.is_authenticated and reps_value > 60 and not (video_link or video_file):
             messages.error(request, "Scores above 60 need video proof.")
             context["form_data"] = request.POST
+            context["show_submit_help"] = True
             return render(request, "challenge.html", context)
 
         active_filter = blocking_submission_queryset()
@@ -1264,6 +1305,7 @@ def challenge(request):
                     messages.error(request, proof_blocker)
                     context["form_data"] = request.POST
                     context["active_submission"] = active_submission
+                    context["show_submit_help"] = True
                     return render(request, "challenge.html", context)
                 active_submission.name = name
                 active_submission.email = email
@@ -1312,6 +1354,7 @@ def challenge(request):
             )
             context["form_data"] = request.POST
             context["active_submission"] = active_submission
+            context["show_submit_help"] = True
             return render(request, "challenge.html", context)
 
         blocker = find_submission_blocker(request, name, email, reps_value, video_link)
@@ -1321,6 +1364,7 @@ def challenge(request):
         if blocker:
             messages.error(request, blocker)
             context["form_data"] = request.POST
+            context["show_submit_help"] = True
             return render(request, "challenge.html", context)
 
         estimated_position = estimate_verified_position(reps_value)
@@ -1702,7 +1746,39 @@ def workout_session_detail(request, session_id):
         pk=session_id,
         user=request.user,
     )
-    return render(request, "workout_session.html", {"session": session})
+    exercises = list(session.exercise_sessions.all())
+    completed_sets = sum(exercise.completed_sets for exercise in exercises)
+    target_sets = sum(exercise.target_sets for exercise in exercises)
+    target_reps = sum((exercise.target_reps or 0) * exercise.completed_sets for exercise in exercises)
+    target_seconds = sum((exercise.target_seconds or 0) * exercise.completed_sets for exercise in exercises)
+    body_parts = sorted({exercise.body_part for exercise in exercises if exercise.body_part})
+    return render(
+        request,
+        "workout_session.html",
+        {
+            "session": session,
+            "completed_sets": completed_sets,
+            "target_sets": target_sets,
+            "session_reps": target_reps,
+            "session_seconds": target_seconds,
+            "trained_body_parts": body_parts,
+        },
+    )
+
+
+@require_POST
+@login_required
+def finish_workout_session(request, session_id):
+    session = get_object_or_404(WorkoutSession.objects.prefetch_related("exercise_sessions"), pk=session_id, user=request.user)
+    if session.status == WorkoutSession.STATUS_ACTIVE:
+        session.exercise_sessions.update(completed_sets=F("target_sets"))
+        session.status = WorkoutSession.STATUS_COMPLETED
+        session.completed_at = timezone.now()
+        session.save(update_fields=["status", "completed_at"])
+        messages.success(request, f"{session.workout.title} completed.")
+    else:
+        messages.info(request, "This workout is already completed.")
+    return redirect("workout_session_detail", session_id=session.id)
 
 
 @require_POST

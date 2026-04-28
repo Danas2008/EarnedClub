@@ -5,9 +5,9 @@
 
 {% block content %}
 <section class="hero-card" style="margin-bottom: 24px;">
-    <div class="eyebrow">Verified Athletes</div>
+    <div class="eyebrow">Athlete Directory</div>
     <h1>Profiles.</h1>
-    <p class="muted">Find verified athletes, compare ranks, and open public progress profiles.</p>
+    <p class="muted">Find athletes, compare ranks, and open public progress profiles.</p>
 </section>
 
 <section class="card-dark">
@@ -29,10 +29,10 @@
             <div class="row-title">
                 <div class="submission-name">{{ profile.display_name }}</div>
                 <div class="submission-meta">
-                    {% if profile.country %}{{ profile.country }}{% else %}Verified athlete{% endif %}
+                    {% if profile.country %}{{ profile.country }}{% elif profile.personal_best_reps %}Verified athlete{% else %}Building profile{% endif %}
                 </div>
             </div>
-            <span class="tag-pill hide-mobile">{{ profile.personal_best_reps }} reps</span>
+            <span class="tag-pill hide-mobile">{% if profile.personal_best_reps %}{{ profile.personal_best_reps }} reps{% else %}No verified PR{% endif %}</span>
             <span class="position-pill">{% if profile.current_rank %}#{{ profile.current_rank }}{% else %}-{% endif %}</span>
             <span class="btn-secondary hide-mobile" style="min-height: 36px; padding: 7px 11px;">View</span>
         </a>
