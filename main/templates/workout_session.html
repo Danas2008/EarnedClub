@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+
+{% block title %}{{ session.workout.title }} Session{% endblock %}
+
+{% block content %}
+<section class="hero-card profile-header">
+    <div class="eyebrow">Workout In Progress</div>
+    <h1>{{ session.workout.title }}</h1>
+    <p class="muted">
+        Started {{ session.started_at|date:"M j, Y H:i" }}
+        {% if session.workout.duration_minutes %} - {{ session.workout.duration_minutes }} min target{% endif %}
+    </p>
+    {% if session.workout.notes %}<p>{{ session.workout.notes }}</p>{% endif %}
+    <div class="stat-grid">
+        <div class="stat-card">
+            <span class="kicker">Progress</span>
+            <span class="stat-value">{{ session.completed_exercise_count }}/{{ session.total_exercise_count }}</span>
+            <div class="muted">Exercises completed</div>
+        </div>
+        <div class="stat-card">
+            <span class="kicker">Status</span>
+            <span class="stat-value">{{ session.get_status_display }}</span>
+            <div class="muted">
+                {% if session.completed_at %}Finished {{ session.completed_at|date:"M j, H:i" }}{% else %}Keep marking sets as you go{% endif %}
+            </div>
+        </div>
+        <div class="stat-card">
+            <span class="kicker">Source</span>
+            <span class="stat-value">Workout</span>
+            <div class="muted"><a href="{% url 'workout_detail' session.workout.slug %}">Open saved workout</a></div>
+        </div>
+    </div>
+</section>
+
+<section class="card-dark">
+    <h2>Session Overview</h2>
+    {% for exercise in session.exercise_sessions.all %}
+        <div class="score-row">
+            <div class="score-row-main">
+                <div class="submission-name">{{ exercise.name }}</div>
+                <div class="submission-meta">
+                    {{ exercise.completed_sets }}/{{ exercise.target_sets }} sets complete
+                    {% if exercise.target_reps %} - {{ exercise.target_reps }} reps{% endif %}
+                    {% if exercise.target_seconds %} - {{ exercise.target_seconds }} sec{% endif %}
+                    {% if exercise.body_part %} - {{ exercise.body_part }}{% endif %}
+                </div>
+            </div>
+            <div class="button-row" style="margin-top: 0;">
+                <form method="POST" action="{% url 'update_workout_session' session.id exercise.id %}">
+                    {% csrf_token %}
+                    <button class="btn-secondary" type="submit" name="action" value="undo_set" {% if exercise.completed_sets == 0 or session.status != "active" %}disabled{% endif %}>Undo</button>
+                </form>
+                <form method="POST" action="{% url 'update_workout_session' session.id exercise.id %}">
+                    {% csrf_token %}
+                    <button class="btn-main" type="submit" name="action" value="complete_set" {% if exercise.is_complete or session.status != "active" %}disabled{% endif %}>Complete Set</button>
+                </form>
+            </div>
+        </div>
+    {% empty %}
+        <p class="muted">No exercises saved for this workout.</p>
+    {% endfor %}
+</section>
+{% endblock %}

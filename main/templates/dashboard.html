@@ -9,7 +9,11 @@
         <div>
             <div class="eyebrow">Dashboard</div>
             <h1>{{ profile.display_name }}</h1>
-            <p class="muted">{{ followers_count }} followers - {{ following_count }} following</p>
+            <p class="muted">
+                <a href="{% url 'social_list' profile.slug 'followers' %}">{{ followers_count }} followers</a>
+                -
+                <a href="{% url 'social_list' profile.slug 'following' %}">{{ following_count }} following</a>
+            </p>
         </div>
     </div>
     <div class="button-row">
@@ -37,6 +41,18 @@
     </form>
 </section>
 
+{% if active_workout_session %}
+<section class="card-dark">
+    <div class="section-spread">
+        <div>
+            <h2>Resume Workout</h2>
+            <p class="muted">{{ active_workout_session.workout.title }} is still active.</p>
+        </div>
+        <a class="btn-main" href="{% url 'workout_session_detail' active_workout_session.id %}">Open Session</a>
+    </div>
+</section>
+{% endif %}
+
 <section class="grid-4">
     <div class="metric-card"><span class="kicker">PR</span><span class="stat-value">{{ current_pr }}</span><div class="muted">{{ current_tier.name }}</div></div>
     <div class="metric-card"><span class="kicker">Rank</span><span class="stat-value">{% if current_rank %}#{{ current_rank }}{% else %}-{% endif %}</span><div class="muted">{{ rank_movement }}</div></div>
@@ -53,7 +69,7 @@
             <div class="feature-card"><span class="kicker">Gain</span><span class="stat-value">{{ progress_summary.gain }}</span></div>
             <div class="feature-card"><span class="kicker">Avg</span><span class="stat-value">{{ progress_summary.average }}</span></div>
         </div>
-        <div class="button-row" style="margin: 0 0 12px;">
+        <div class="button-row chart-zoom-controls" style="margin: 0 0 12px;">
             <button class="btn-secondary" type="button" data-zoom="-1">-</button>
             <button class="btn-secondary" type="button" data-zoom="1">+</button>
         </div>
@@ -105,7 +121,14 @@
         {% for workout in workouts %}
             <div class="score-row">
                 <div class="score-row-main"><div class="submission-name">{{ workout.title }}</div><div class="submission-meta">{{ workout.created_at|date:"M j" }}{% if workout.is_public %} - Public{% endif %}</div></div>
-                <a class="btn-secondary" href="{% url 'workouts' %}">Manage</a>
+                <div class="button-row" style="margin-top: 0;">
+                    <form method="POST" action="{% url 'start_workout' %}">
+                        {% csrf_token %}
+                        <input type="hidden" name="workout_id" value="{{ workout.id }}">
+                        <button class="btn-main" type="submit">Start</button>
+                    </form>
+                    <a class="btn-secondary" href="{% url 'workouts' %}">Manage</a>
+                </div>
             </div>
         {% empty %}<p class="muted">No workouts yet.</p>{% endfor %}
     </div>
@@ -148,8 +171,8 @@
 <script>
     const progressData = JSON.parse(document.getElementById("progress-data").textContent);
     const svg = document.getElementById("progress-chart");
+    const chartWrapper = svg?.closest(".progress-chart");
     let zoom = 1;
-    let offset = 0;
     const isMobileChart = window.matchMedia("(max-width: 768px)").matches;
     const baseWidth = isMobileChart ? 760 : 1100;
     const height = isMobileChart ? 280 : 390;
@@ -195,6 +218,33 @@
         zoom = Math.max(1, Math.min(2.8, zoom + Number(button.dataset.zoom) * 0.25));
         renderChart();
     }));
+    if (chartWrapper && isMobileChart) {
+        let pinchDistance = null;
+        chartWrapper.addEventListener("touchstart", (event) => {
+            if (event.touches.length === 2) {
+                pinchDistance = Math.hypot(
+                    event.touches[0].clientX - event.touches[1].clientX,
+                    event.touches[0].clientY - event.touches[1].clientY
+                );
+            }
+        }, { passive: true });
+        chartWrapper.addEventListener("touchmove", (event) => {
+            if (event.touches.length !== 2 || pinchDistance === null) return;
+            const nextDistance = Math.hypot(
+                event.touches[0].clientX - event.touches[1].clientX,
+                event.touches[0].clientY - event.touches[1].clientY
+            );
+            const delta = (nextDistance - pinchDistance) / 160;
+            if (Math.abs(delta) > 0.03) {
+                zoom = Math.max(1, Math.min(2.8, zoom + delta));
+                pinchDistance = nextDistance;
+                renderChart();
+            }
+        }, { passive: true });
+        chartWrapper.addEventListener("touchend", () => {
+            pinchDistance = null;
+        }, { passive: true });
+    }
     for (const trigger of document.querySelectorAll("[data-toggle-panel]")) {
         trigger.addEventListener("click", () => {
             const panel = document.getElementById(trigger.dataset.togglePanel);

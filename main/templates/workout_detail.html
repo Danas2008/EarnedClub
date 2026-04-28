@@ -14,8 +14,17 @@
     </p>
     {% if workout.notes %}<p>{{ workout.notes }}</p>{% endif %}
     <div class="button-row">
+        {% if request.user.is_authenticated %}
+            <form method="POST" action="{% url 'start_workout' %}">
+                {% csrf_token %}
+                <input type="hidden" name="workout_id" value="{{ workout.id }}">
+                <button class="btn-main" type="submit">Start Workout</button>
+            </form>
+        {% endif %}
         <button class="btn-secondary" type="button" data-share-text="Try {{ workout.title }} on EarnedClub: {{ request.build_absolute_uri }}">Share Workout</button>
-        <a class="btn-main" href="{% url 'register' %}">Create Your Own</a>
+        {% if not request.user.is_authenticated %}
+            <a class="btn-main" href="{% url 'register' %}">Create Your Own</a>
+        {% endif %}
     </div>
 </section>
 

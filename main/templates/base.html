@@ -219,6 +219,7 @@
         .card-dark {
             padding: 20px;
             margin-bottom: 18px;
+            min-width: 0;
         }
 
         #submit-form-top {
@@ -297,6 +298,7 @@
         .grid-4 {
             display: grid;
             gap: 22px;
+            min-width: 0;
         }
 
         .hero-grid,
@@ -414,6 +416,7 @@
             overflow-x: auto;
             overscroll-behavior-x: contain;
             -webkit-overflow-scrolling: touch;
+            touch-action: pan-x pan-y pinch-zoom;
         }
 
         .progress-chart-large {
@@ -651,7 +654,7 @@
 
         .filter-row,
         .review-filter-form {
-            grid-template-columns: repeat(4, minmax(0, 1fr)) auto;
+            grid-template-columns: repeat(5, minmax(0, 1fr)) auto;
             align-items: end;
             margin-bottom: 18px;
         }
@@ -1250,6 +1253,7 @@
             padding: 0 20px 34px;
             position: relative;
             z-index: 1;
+            clear: both;
         }
 
         .footer-card {
@@ -1382,6 +1386,10 @@
 
             .progress-chart-large .chart-area {
                 min-height: 260px;
+            }
+
+            .chart-zoom-controls {
+                display: none;
             }
 
             .comparison-side {

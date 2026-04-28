@@ -17,7 +17,7 @@ from django.core.serializers.json import DjangoJSONEncoder
 from django.http import HttpResponse
 from django.db import IntegrityError
 from django.core.paginator import Paginator
-from django.db.models import Q
+from django.db.models import F, Q
 from django.views.decorators.http import require_POST
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -36,6 +36,8 @@ from .models import (
     VerificationEvent,
     Workout,
     WorkoutExercise,
+    WorkoutSession,
+    WorkoutSessionExercise,
     WorkoutTemplate,
     get_best_verified_submission_for_user,
     get_official_rank_for_submission,
@@ -83,6 +85,7 @@ DEFAULT_EXERCISES = [
 ]
 
 BODY_PARTS = sorted({exercise["body_part"] for exercise in DEFAULT_EXERCISES})
+EXERCISE_LOOKUP = {exercise["name"]: exercise for exercise in DEFAULT_EXERCISES}
 
 SYSTEM_WORKOUT_TEMPLATES = [
     {
@@ -280,13 +283,37 @@ def get_daily_suggestion(profile, verified_count, workout_count):
         "Win today's clean set.",
     ]
     if profile.personal_best_reps >= 60:
-        tasks = ["Film a controlled submax set.", "Do core work and keep elbows fresh.", "Repeat an elite push session."]
+        tasks = [
+            "Film a controlled submax set.",
+            "Do core work and keep elbows fresh.",
+            "Repeat an elite push session.",
+            "Run a shorter density workout and keep every rep clean.",
+            "Retest one strong set only if you feel sharp.",
+        ]
     elif profile.personal_best_reps >= 40:
-        tasks = ["Do 4 push-up sets at 60-70% of your PR.", "Add one pull exercise today.", "Try a clean 40-rep pace set."]
+        tasks = [
+            "Do 4 push-up sets at 60-70% of your PR.",
+            "Add one pull exercise today.",
+            "Try a clean 40-rep pace set.",
+            "Start your highlighted workout and finish every set.",
+            "Use a shorter recovery workout and protect form.",
+        ]
     elif workout_count:
-        tasks = ["Repeat your last workout and add one clean rep.", "Quick log one exercise now.", "Do push-ups, rows, and core."]
+        tasks = [
+            "Repeat your last workout and add one clean rep.",
+            "Quick log one exercise now.",
+            "Do push-ups, rows, and core.",
+            "Start one saved workout and complete every planned set.",
+            "Pick a random recommended session and finish it today.",
+        ]
     else:
-        tasks = ["Test push-ups today.", "Start with Push Day.", "Log one honest set."]
+        tasks = [
+            "Test push-ups today.",
+            "Start with Push Day.",
+            "Log one honest set.",
+            "Open a beginner workout and finish the first round.",
+            "Build one simple 15-minute session and complete it.",
+        ]
     task = random.choice(tasks)
     quote = random.choice(quotes)
     return f"{task} {quote}"
@@ -567,6 +594,10 @@ def parse_positive_int(value):
     return parsed if parsed > 0 else None
 
 
+def get_default_exercise(name):
+    return EXERCISE_LOOKUP.get((name or "").strip(), {})
+
+
 def create_workout_from_request(request):
     title = (request.POST.get("title") or "").strip()
     duration_value = parse_positive_int(request.POST.get("duration_minutes"))
@@ -604,12 +635,15 @@ def create_workout_from_request(request):
         exercise_name = (exercise_name or "").strip()
         if not exercise_name:
             continue
-        exercise_type = types[index] if index < len(types) and types[index] else WorkoutExercise.TYPE_STRENGTH
+        default_exercise = get_default_exercise(exercise_name)
+        exercise_type = default_exercise.get("type") or (
+            types[index] if index < len(types) and types[index] else WorkoutExercise.TYPE_STRENGTH
+        )
         WorkoutExercise.objects.create(
             workout=workout,
             name=exercise_name,
             exercise_type=exercise_type,
-            body_part=(body_parts[index] if index < len(body_parts) else "").strip(),
+            body_part=(body_parts[index] if index < len(body_parts) and body_parts[index] else default_exercise.get("body_part", "")).strip(),
             sets=parse_positive_int(sets_values[index] if index < len(sets_values) else "") or 1,
             reps=parse_positive_int(reps_values[index] if index < len(reps_values) else ""),
             seconds=parse_positive_int(seconds_values[index] if index < len(seconds_values) else ""),
@@ -629,6 +663,71 @@ def create_workout_from_request(request):
             template_difficulty = WorkoutTemplate.DIFFICULTY_INTERMEDIATE
         WorkoutTemplate.objects.create(user=request.user, name=title, difficulty=template_difficulty, notes=notes)
     return workout, ""
+
+
+def clone_workout(source, *, user, title=None, is_public=False):
+    workout = Workout.objects.create(
+        user=user,
+        template=source.template,
+        title=title or source.title,
+        notes=source.notes,
+        duration_minutes=source.duration_minutes,
+        is_public=is_public,
+    )
+    for exercise in source.exercises.all():
+        WorkoutExercise.objects.create(
+            workout=workout,
+            name=exercise.name,
+            exercise_type=exercise.exercise_type,
+            body_part=exercise.body_part,
+            sets=exercise.sets,
+            reps=exercise.reps,
+            seconds=exercise.seconds,
+            notes=exercise.notes,
+            order=exercise.order,
+        )
+    return workout
+
+
+def create_workout_from_template(template, user):
+    workout = Workout.objects.create(
+        user=user,
+        template=template,
+        title=template.name,
+        notes=template.notes,
+        duration_minutes=estimate_workout_minutes(get_template_exercises(template)),
+        is_public=False,
+    )
+    for index, (name, sets, reps, seconds) in enumerate(get_template_exercises(template)):
+        default_exercise = get_default_exercise(name)
+        WorkoutExercise.objects.create(
+            workout=workout,
+            name=name,
+            exercise_type=default_exercise.get("type", WorkoutExercise.TYPE_STRENGTH),
+            body_part=default_exercise.get("body_part", ""),
+            sets=sets,
+            reps=reps,
+            seconds=seconds,
+            order=index,
+        )
+    return workout
+
+
+def start_workout_session_for_user(user, workout):
+    session = WorkoutSession.objects.create(user=user, workout=workout)
+    for exercise in workout.exercises.all():
+        WorkoutSessionExercise.objects.create(
+            session=session,
+            workout_exercise=exercise,
+            name=exercise.name,
+            exercise_type=exercise.exercise_type,
+            body_part=exercise.body_part,
+            target_sets=exercise.sets or 1,
+            target_reps=exercise.reps,
+            target_seconds=exercise.seconds,
+            order=exercise.order,
+        )
+    return session
 
 
 def format_sitemap_date(value):
@@ -931,6 +1030,7 @@ def dashboard(request):
 
     ensure_system_workout_templates()
     workouts = request.user.workouts.prefetch_related("exercises").order_by("-created_at")
+    active_workout_session = request.user.workout_sessions.filter(status=WorkoutSession.STATUS_ACTIVE).select_related("workout").prefetch_related("exercise_sessions").first()
     progress_summary = get_progress_summary(verified_submissions)
     recommendation = get_daily_suggestion(profile, verified_submissions.count(), workouts.count())
 
@@ -959,6 +1059,7 @@ def dashboard(request):
         "followers_count": request.user.follower_links.count(),
         "following_count": request.user.following_links.count(),
         "workouts": workouts[:5],
+        "active_workout_session": active_workout_session,
         "active_goals": request.user.goals.filter(is_active=True)[:5],
         "rank_goal_options": [
             {
@@ -1334,11 +1435,14 @@ def is_app_admin(user):
 
 @user_passes_test(is_app_admin, login_url="login")
 def admin_review(request):
+    status_filter = (request.GET.get("status") or "pending").strip()
     proof_filter = (request.GET.get("proof") or "all").strip()
     order_filter = (request.GET.get("order") or "newest").strip()
     query = (request.GET.get("q") or "").strip()
 
-    submissions = pending_submission_queryset().select_related("user", "user__profile").prefetch_related("verification_events")
+    submissions = Submission.objects.select_related("user", "user__profile").prefetch_related("verification_events")
+    if status_filter != "all":
+        submissions = submissions.filter(status=status_filter)
     if proof_filter == "with-proof":
         submissions = submissions.filter(Q(video_link__gt="") | Q(video_storage_path__gt="") | Q(video_file__gt=""))
     elif proof_filter == "needs-proof":
@@ -1353,16 +1457,12 @@ def admin_review(request):
         "lowest": "reps",
     }.get(order_filter, "-created_at")
     review_submissions = submissions.order_by(ordering, "-created_at")[:50]
-    reviewed_submissions = Submission.objects.exclude(status=Submission.STATUS_PENDING).select_related(
-        "user", "user__profile"
-    ).order_by("-created_at")[:20]
     return render(
         request,
         "admin_review.html",
         {
             "review_submissions": review_submissions,
-            "reviewed_submissions": reviewed_submissions,
-            "status_filter": Submission.STATUS_PENDING,
+            "status_filter": status_filter,
             "proof_filter": proof_filter,
             "order_filter": order_filter,
             "query": query,
@@ -1427,6 +1527,19 @@ def review_submission(request, submission_id):
                 "Your latest result was not verified. Check the rules and submit a clearer proof video when you are ready.",
             )
         messages.info(request, f"{submission.name} was rejected.")
+    elif action == "mark_pending":
+        if not submission.has_proof:
+            messages.error(request, "This submission cannot move to pending without proof.")
+        else:
+            submission.status = Submission.STATUS_PENDING
+            submission.verified = False
+            submission.save(update_fields=["status", "verified"])
+            messages.success(request, f"{submission.name} was moved back to pending review.")
+    elif action == "mark_unverified":
+        submission.status = Submission.STATUS_UNVERIFIED
+        submission.verified = False
+        submission.save(update_fields=["status", "verified"])
+        messages.success(request, f"{submission.name} was marked unverified.")
     elif action == "delete":
         submission.delete()
         messages.info(request, f"{submission.name}'s submission was deleted.")
@@ -1486,7 +1599,8 @@ def workouts(request):
         form_type = request.POST.get("form_type", "workout")
         if form_type == "quick_result":
             exercise_name = (request.POST.get("quick_exercise") or "Quick result").strip()
-            exercise_type = request.POST.get("quick_type") or WorkoutExercise.TYPE_STRENGTH
+            default_exercise = get_default_exercise(exercise_name)
+            exercise_type = default_exercise.get("type", WorkoutExercise.TYPE_STRENGTH)
             reps = parse_positive_int(request.POST.get("quick_reps"))
             sets = parse_positive_int(request.POST.get("quick_sets")) or 1
             seconds = parse_positive_int(request.POST.get("quick_seconds"))
@@ -1501,7 +1615,7 @@ def workouts(request):
                 workout=workout,
                 name=exercise_name,
                 exercise_type=exercise_type,
-                body_part=(request.POST.get("quick_body_part") or "").strip(),
+                body_part=(request.POST.get("quick_body_part") or default_exercise.get("body_part", "")).strip(),
                 sets=sets,
                 reps=reps,
                 seconds=seconds,
@@ -1513,6 +1627,10 @@ def workouts(request):
         if error:
             messages.error(request, error)
         else:
+            if request.POST.get("start_now") == "1":
+                session = start_workout_session_for_user(request.user, workout)
+                messages.success(request, f"{workout.title} started.")
+                return redirect("workout_session_detail", session_id=session.id)
             messages.success(request, "Workout saved.")
         return redirect("workouts")
 
@@ -1524,8 +1642,11 @@ def workouts(request):
         recommended_difficulty = WorkoutTemplate.DIFFICULTY_ADVANCED
     elif user_reps >= 20:
         recommended_difficulty = WorkoutTemplate.DIFFICULTY_INTERMEDIATE
-    recommended_cards = build_template_cards(templates.filter(is_system=True, difficulty=recommended_difficulty))
-    template_cards = build_template_cards(templates.filter(is_system=True))
+    recommended_cards = build_template_cards(list(templates.filter(is_system=True, difficulty=recommended_difficulty)))
+    random.shuffle(recommended_cards)
+    recommended_cards = recommended_cards[:3]
+    template_cards = build_template_cards(list(templates.filter(is_system=True)))
+    random.shuffle(template_cards)
     return render(
         request,
         "workouts.html",
@@ -1538,35 +1659,84 @@ def workouts(request):
             "recommended_difficulty": recommended_difficulty,
             "default_exercises": DEFAULT_EXERCISES,
             "body_parts": BODY_PARTS,
-            "exercise_types": WorkoutExercise.TYPE_CHOICES,
+            "active_workout_session": request.user.workout_sessions.filter(status=WorkoutSession.STATUS_ACTIVE).select_related("workout").first(),
         },
     )
 
 
 @require_POST
 @login_required
+def start_workout(request):
+    workout_id = request.POST.get("workout_id")
+    template_id = request.POST.get("template_id")
+    source_workout = None
+
+    if workout_id:
+        source_workout = get_object_or_404(
+            Workout.objects.prefetch_related("exercises").select_related("user"),
+            pk=workout_id,
+        )
+        if source_workout.user != request.user and not source_workout.is_public:
+            messages.error(request, "You cannot start that private workout.")
+            return redirect("workouts")
+        workout = source_workout if source_workout.user == request.user else clone_workout(source_workout, user=request.user)
+    elif template_id:
+        template = get_object_or_404(
+            WorkoutTemplate.objects.filter(Q(user=request.user) | Q(is_system=True)),
+            pk=template_id,
+        )
+        workout = create_workout_from_template(template, request.user)
+    else:
+        messages.error(request, "Choose a workout to start.")
+        return redirect("workouts")
+
+    session = start_workout_session_for_user(request.user, workout)
+    messages.success(request, f"{workout.title} started.")
+    return redirect("workout_session_detail", session_id=session.id)
+
+
+@login_required
+def workout_session_detail(request, session_id):
+    session = get_object_or_404(
+        WorkoutSession.objects.select_related("workout", "user").prefetch_related("exercise_sessions"),
+        pk=session_id,
+        user=request.user,
+    )
+    return render(request, "workout_session.html", {"session": session})
+
+
+@require_POST
+@login_required
+def update_workout_session(request, session_id, exercise_id):
+    session = get_object_or_404(WorkoutSession, pk=session_id, user=request.user)
+    exercise = get_object_or_404(WorkoutSessionExercise, pk=exercise_id, session=session)
+    action = request.POST.get("action")
+
+    if session.status != WorkoutSession.STATUS_ACTIVE:
+        messages.info(request, "This workout is already completed.")
+        return redirect("workout_session_detail", session_id=session.id)
+
+    if action == "complete_set":
+        exercise.completed_sets = min(exercise.target_sets, exercise.completed_sets + 1)
+        exercise.save(update_fields=["completed_sets"])
+    elif action == "undo_set":
+        exercise.completed_sets = max(0, exercise.completed_sets - 1)
+        exercise.save(update_fields=["completed_sets"])
+
+    if not session.exercise_sessions.filter(completed_sets__lt=F("target_sets")).exists():
+        session.status = WorkoutSession.STATUS_COMPLETED
+        session.completed_at = timezone.now()
+        session.save(update_fields=["status", "completed_at"])
+        messages.success(request, f"{session.workout.title} completed.")
+
+    return redirect("workout_session_detail", session_id=session.id)
+
+
+@require_POST
+@login_required
 def duplicate_workout(request, workout_id):
     source = get_object_or_404(Workout.objects.prefetch_related("exercises"), pk=workout_id, user=request.user)
-    workout = Workout.objects.create(
-        user=request.user,
-        template=source.template,
-        title=f"{source.title} copy",
-        notes=source.notes,
-        duration_minutes=source.duration_minutes,
-        is_public=False,
-    )
-    for exercise in source.exercises.all():
-        WorkoutExercise.objects.create(
-            workout=workout,
-            name=exercise.name,
-            exercise_type=exercise.exercise_type,
-            body_part=exercise.body_part,
-            sets=exercise.sets,
-            reps=exercise.reps,
-            seconds=exercise.seconds,
-            notes=exercise.notes,
-            order=exercise.order,
-        )
+    workout = clone_workout(source, user=request.user, title=f"{source.title} copy", is_public=False)
     messages.success(request, "Workout duplicated.")
     return redirect("workouts")
 
@@ -1578,26 +1748,7 @@ def quick_add_last_workout(request):
     if not source:
         messages.error(request, "You do not have a previous workout to quick add yet.")
         return redirect("workouts")
-    workout = Workout.objects.create(
-        user=request.user,
-        template=source.template,
-        title=source.title,
-        notes=source.notes,
-        duration_minutes=source.duration_minutes,
-        is_public=False,
-    )
-    for exercise in source.exercises.all():
-        WorkoutExercise.objects.create(
-            workout=workout,
-            name=exercise.name,
-            exercise_type=exercise.exercise_type,
-            body_part=exercise.body_part,
-            sets=exercise.sets,
-            reps=exercise.reps,
-            seconds=exercise.seconds,
-            notes=exercise.notes,
-            order=exercise.order,
-        )
+    clone_workout(source, user=request.user, is_public=False)
     messages.success(request, "Last workout added again.")
     return redirect("workouts")
 

@@ -16,6 +16,7 @@ from .models import (
     Submission,
     VerificationEvent,
     Workout,
+    WorkoutSession,
     get_rank_tier,
 )
 
@@ -570,6 +571,40 @@ class SubmissionFlowTests(TestCase):
         self.assertEqual(workout.title, "Push Day")
         self.assertEqual(workout.exercises.first().reps, 15)
 
+    def test_workout_can_be_started_from_history(self):
+        user = User.objects.create_user(username="starter", password="StrongPass12345")
+        workout = Workout.objects.create(user=user, title="Push Builder", duration_minutes=20)
+        workout.exercises.create(name="Push-ups", sets=3, reps=12)
+        self.client.force_login(user)
+
+        response = self.client.post(reverse("start_workout"), {"workout_id": workout.id})
+
+        session = WorkoutSession.objects.get(user=user, workout=workout)
+        self.assertRedirects(response, reverse("workout_session_detail", args=[session.id]))
+        self.assertEqual(session.exercise_sessions.count(), 1)
+
+    def test_workout_session_marks_complete_after_finishing_sets(self):
+        user = User.objects.create_user(username="session-user", password="StrongPass12345")
+        workout = Workout.objects.create(user=user, title="Session Flow")
+        exercise = workout.exercises.create(name="Push-ups", sets=2, reps=10)
+        session = WorkoutSession.objects.create(user=user, workout=workout)
+        session_exercise = session.exercise_sessions.create(
+            workout_exercise=exercise,
+            name=exercise.name,
+            target_sets=2,
+            target_reps=10,
+        )
+        self.client.force_login(user)
+
+        self.client.post(reverse("update_workout_session", args=[session.id, session_exercise.id]), {"action": "complete_set"})
+        response = self.client.post(reverse("update_workout_session", args=[session.id, session_exercise.id]), {"action": "complete_set"}, follow=True)
+
+        session.refresh_from_db()
+        session_exercise.refresh_from_db()
+        self.assertEqual(session_exercise.completed_sets, 2)
+        self.assertEqual(session.status, WorkoutSession.STATUS_COMPLETED)
+        self.assertContains(response, "completed")
+
     def test_follow_toggle_creates_follow(self):
         follower = User.objects.create_user(username="follower", password="StrongPass12345")
         target = User.objects.create_user(username="target", password="StrongPass12345")
@@ -703,3 +738,22 @@ class SubmissionFlowTests(TestCase):
         self.assertContains(response, "Proof Ready")
         self.assertEqual(review_names, ["Proof Ready"])
         self.assertEqual(response.context["review_count"], 1)
+
+    def test_admin_can_change_reviewed_submission_back_to_pending(self):
+        admin = User.objects.create_user(username="review-staff", password="StrongPass12345", is_staff=True)
+        self.client.force_login(admin)
+        submission = Submission.objects.create(
+            name="Reviewed",
+            reps=44,
+            status=Submission.STATUS_REJECTED,
+            video_link="https://example.com/reviewed-proof",
+        )
+
+        response = self.client.post(
+            reverse("review_submission", args=[submission.id]),
+            {"action": "mark_pending", "status_filter": "rejected", "proof_filter": "all", "order_filter": "newest"},
+        )
+
+        self.assertRedirects(response, f"{reverse('admin_review')}?status=rejected&proof=all&order=newest")
+        submission.refresh_from_db()
+        self.assertEqual(submission.status, Submission.STATUS_PENDING)

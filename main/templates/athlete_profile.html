@@ -74,7 +74,7 @@
     <div class="card-dark">
         <h2>Verified Progress</h2>
         <p class="muted">Best verified performance by date. The graph is zoomed tighter so the movement is easier to read.</p>
-        <div class="progress-chart">
+        <div class="progress-chart progress-chart-large">
             <svg id="progress-chart" class="chart-area" role="img" aria-label="Athlete verified progress chart"></svg>
         </div>
     </div>
@@ -178,14 +178,21 @@
 <script>
     const progressData = JSON.parse(document.getElementById("progress-data").textContent);
     const svg = document.getElementById("progress-chart");
-    const width = 760;
-    const height = 280;
-    const pad = 46;
-    svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+    const chartWrapper = svg?.closest(".progress-chart");
+    const isMobileChart = window.matchMedia("(max-width: 768px)").matches;
+    const baseWidth = isMobileChart ? 760 : 1020;
+    const height = isMobileChart ? 280 : 360;
+    const pad = isMobileChart ? 40 : 52;
+    let zoom = 1;
+    function renderChart() {
+        const width = Math.round(baseWidth * zoom);
+        svg.style.minWidth = `${width}px`;
+        svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
 
-    if (!progressData.length) {
-        svg.innerHTML = `<text x="${pad}" y="${height / 2}" fill="rgba(245,247,251,.72)" font-size="18">No verified data yet.</text>`;
-    } else {
+        if (!progressData.length) {
+            svg.innerHTML = `<text x="${pad}" y="${height / 2}" fill="rgba(245,247,251,.72)" font-size="18">No verified data yet.</text>`;
+            return;
+        }
         const repsValues = progressData.map((point) => point.reps);
         const minReps = Math.max(0, Math.min.apply(null, repsValues) - 4);
         const maxReps = Math.max.apply(null, repsValues.concat([60])) + 4;
@@ -210,8 +217,36 @@
             <text x="16" y="${height / 2}" transform="rotate(-90 16 ${height / 2})" text-anchor="middle" fill="rgba(245,247,251,.68)" font-size="13">Reps</text>
             ${points.map((point, index) => index % Math.max(1, Math.ceil(points.length / 4)) === 0 ? `<text x="${point.x}" y="${height - pad + 20}" text-anchor="middle" fill="rgba(245,247,251,.58)" font-size="12">${point.date.slice(5)}</text>` : "").join("")}
             <path d="${path}" fill="none" stroke="#f7b733" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" />
-            ${points.map((point, index) => `<g><circle cx="${point.x}" cy="${point.y}" r="7" fill="#ffd77b" stroke="#111" stroke-width="2.5"><title>${point.label}: ${point.reps} reps</title></circle><text x="${point.x}" y="${point.y - 14}" text-anchor="middle" fill="#f5f7fb" font-size="14" font-weight="700">${point.reps}</text>${index > 0 ? `<text x="${(points[index - 1].x + point.x) / 2}" y="${Math.min(points[index - 1].y, point.y) - 18}" text-anchor="middle" fill="#8df0c9" font-size="12">${point.reps - points[index - 1].reps >= 0 ? "+" : ""}${point.reps - points[index - 1].reps}</text>` : ""}</g>`).join("")}
+            ${points.map((point, index) => `<g><circle cx="${point.x}" cy="${point.y}" r="${isMobileChart ? 8 : 7}" fill="#ffd77b" stroke="#111" stroke-width="2.5"><title>${point.label}: ${point.reps} reps</title></circle><text x="${point.x}" y="${point.y - 14}" text-anchor="middle" fill="#f5f7fb" font-size="14" font-weight="700">${point.reps}</text>${index > 0 && !isMobileChart ? `<text x="${(points[index - 1].x + point.x) / 2}" y="${Math.min(points[index - 1].y, point.y) - 18}" text-anchor="middle" fill="#8df0c9" font-size="12">${point.reps - points[index - 1].reps >= 0 ? "+" : ""}${point.reps - points[index - 1].reps}</text>` : ""}</g>`).join("")}
         `;
+    }
+    renderChart();
+    if (chartWrapper && isMobileChart) {
+        let pinchDistance = null;
+        chartWrapper.addEventListener("touchstart", (event) => {
+            if (event.touches.length === 2) {
+                pinchDistance = Math.hypot(
+                    event.touches[0].clientX - event.touches[1].clientX,
+                    event.touches[0].clientY - event.touches[1].clientY
+                );
+            }
+        }, { passive: true });
+        chartWrapper.addEventListener("touchmove", (event) => {
+            if (event.touches.length !== 2 || pinchDistance === null) return;
+            const nextDistance = Math.hypot(
+                event.touches[0].clientX - event.touches[1].clientX,
+                event.touches[0].clientY - event.touches[1].clientY
+            );
+            const delta = (nextDistance - pinchDistance) / 160;
+            if (Math.abs(delta) > 0.03) {
+                zoom = Math.max(1, Math.min(2.8, zoom + delta));
+                pinchDistance = nextDistance;
+                renderChart();
+            }
+        }, { passive: true });
+        chartWrapper.addEventListener("touchend", () => {
+            pinchDistance = null;
+        }, { passive: true });
     }
     for (const shareButton of document.querySelectorAll("[data-share-text]")) {
         shareButton.addEventListener("click", async () => {

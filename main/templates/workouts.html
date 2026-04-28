@@ -20,6 +20,18 @@
     </div>
 </section>
 
+{% if active_workout_session %}
+<section class="card-dark">
+    <div class="section-spread">
+        <div>
+            <h2>Active Workout</h2>
+            <p class="muted">{{ active_workout_session.workout.title }} is still running. You can jump right back in.</p>
+        </div>
+        <a class="btn-main" href="{% url 'workout_session_detail' active_workout_session.id %}">Resume</a>
+    </div>
+</section>
+{% endif %}
+
 <section class="grid-3">
     {% for card in recommended_templates %}
         <article class="feature-card">
@@ -32,7 +44,14 @@
                     <div class="submission-meta">{{ name }} - {{ sets }} set(s){% if reps %}, {{ reps }} reps{% endif %}{% if seconds %}, {{ seconds }} sec{% endif %}</div>
                 {% endfor %}
             </details>
-            <button class="btn-main" type="button" data-template-id="{{ card.template.id }}" data-template-name="{{ card.template.name }}" data-template-minutes="{{ card.minutes }}">Use Plan</button>
+            <div class="button-row">
+                <form method="POST" action="{% url 'start_workout' %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="template_id" value="{{ card.template.id }}">
+                    <button class="btn-main" type="submit">Start Workout</button>
+                </form>
+                <button class="btn-secondary" type="button" data-template-id="{{ card.template.id }}" data-template-name="{{ card.template.name }}" data-template-minutes="{{ card.minutes }}">Edit First</button>
+            </div>
         </article>
     {% empty %}
         <article class="feature-card">
@@ -55,17 +74,10 @@
         <form class="submission-form" method="POST">
             {% csrf_token %}
             <input type="hidden" name="form_type" value="quick_result">
-            <div class="grid-2">
-                <select class="select" name="quick_body_part" data-body-select>
-                    <option value="">Body part</option>
-                    {% for part in body_parts %}<option value="{{ part }}">{{ part }}</option>{% endfor %}
-                </select>
-                <select class="select" name="quick_type" data-quick-type>
-                    <option value="strength">Strength</option>
-                    <option value="cardio">Cardio</option>
-                    <option value="mobility">Mobility</option>
-                </select>
-            </div>
+            <select class="select" name="quick_body_part" data-body-select>
+                <option value="">Body part</option>
+                {% for part in body_parts %}<option value="{{ part }}">{{ part }}</option>{% endfor %}
+            </select>
             <select class="select" name="quick_exercise" data-exercise-select>
                 <option value="">Exercise</option>
                 {% for exercise in default_exercises %}
@@ -107,15 +119,10 @@
                 <div class="hint" data-template-preview style="margin-top: 10px;"></div>
                 {% for i in "1234" %}
                     <div class="feature-card{% if not forloop.first %} hidden-panel{% endif %}" style="margin-top: 10px;" data-exercise-row>
-                        <div class="grid-2">
-                            <select class="select" name="body_part" data-builder-body>
-                                <option value="">Body part</option>
-                                {% for part in body_parts %}<option value="{{ part }}">{{ part }}</option>{% endfor %}
-                            </select>
-                            <select class="select" name="exercise_type" data-builder-type>
-                                {% for value, label in exercise_types %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
-                            </select>
-                        </div>
+                        <select class="select" name="body_part" data-builder-body>
+                            <option value="">Body part</option>
+                            {% for part in body_parts %}<option value="{{ part }}">{{ part }}</option>{% endfor %}
+                        </select>
                         <select class="select" name="exercise_name" data-builder-exercise style="margin-top: 10px;">
                             <option value="">Exercise</option>
                             {% for exercise in default_exercises %}
@@ -132,7 +139,10 @@
                 <button class="btn-secondary" type="button" data-add-exercise style="margin-top: 10px;">+ Exercise</button>
             </details>
             <textarea class="textarea" name="notes" placeholder="Notes"></textarea>
-            <button class="btn-main" type="submit">Save Workout</button>
+            <div class="button-row">
+                <button class="btn-secondary" type="submit">Save Workout</button>
+                <button class="btn-main" type="submit" name="start_now" value="1">Save And Start</button>
+            </div>
         </form>
     </div>
 </section>
@@ -146,11 +156,12 @@
                 <div class="submission-meta">{{ workout.created_at|date:"M j" }}{% if workout.duration_minutes %} - {{ workout.duration_minutes }} min{% endif %}{% if workout.is_public %} - Public{% endif %}{% if workout.highlighted_on_profile %} - Highlighted{% endif %}</div>
             </div>
             <div class="button-row" style="margin-top: 0;">
+                <form method="POST" action="{% url 'start_workout' %}">{% csrf_token %}<input type="hidden" name="workout_id" value="{{ workout.id }}"><button class="btn-main" type="submit">Start</button></form>
                 {% if workout.is_public %}<a class="btn-secondary" href="{% url 'workout_detail' workout.slug %}">Open</a>{% endif %}
                 {% if workout.is_public %}
                     <form method="POST" action="{% url 'toggle_highlight_workout' workout.id %}">{% csrf_token %}<button class="btn-secondary" type="submit">Highlight</button></form>
                 {% endif %}
-                <form method="POST" action="{% url 'duplicate_workout' workout.id %}">{% csrf_token %}<button class="btn-secondary" type="submit">Start Again</button></form>
+                <form method="POST" action="{% url 'duplicate_workout' workout.id %}">{% csrf_token %}<button class="btn-secondary" type="submit">Duplicate</button></form>
                 <form method="POST" action="{% url 'delete_workout' workout.id %}">{% csrf_token %}<button class="btn-secondary" type="submit">Delete</button></form>
             </div>
             <details class="score-details">
@@ -194,29 +205,29 @@
 
     const syncQuickLog = () => {
         const body = document.querySelector("[data-body-select]")?.value || "";
-        const type = document.querySelector("[data-quick-type]")?.value || "strength";
         const exercise = document.querySelector("[data-exercise-select]");
-        if (exercise) filterExerciseSelect(exercise, body, type);
+        if (exercise) filterExerciseSelect(exercise, body, "");
+        const selectedType = exercise?.selectedOptions[0]?.dataset.type || "strength";
         document.querySelectorAll("[data-strength-field]").forEach((field) => {
-            field.style.display = type === "cardio" ? "none" : "";
-            field.disabled = type === "cardio";
+            field.style.display = selectedType === "cardio" ? "none" : "";
+            field.disabled = selectedType === "cardio";
         });
         document.querySelectorAll("[data-time-field]").forEach((field) => {
-            field.placeholder = type === "cardio" ? "Seconds required" : "Seconds";
+            field.placeholder = selectedType === "cardio" ? "Seconds required" : "Seconds";
             field.disabled = false;
         });
         const hint = document.querySelector("[data-quick-hint]");
-        if (hint) hint.textContent = type === "cardio" ? "Cardio logs need time. Reps are hidden so it stays fast." : "Strength logs need reps. Add seconds only when useful.";
+        if (hint) hint.textContent = selectedType === "cardio" ? "Cardio logs need time. Reps are hidden so it stays fast." : "Strength logs need reps. Add seconds only when useful.";
     };
 
     document.querySelector("[data-body-select]")?.addEventListener("change", syncQuickLog);
-    document.querySelector("[data-quick-type]")?.addEventListener("change", syncQuickLog);
+    document.querySelector("[data-exercise-select]")?.addEventListener("change", syncQuickLog);
     syncQuickLog();
 
-    document.querySelectorAll("[data-builder-body], [data-builder-type]").forEach((control) => {
+    document.querySelectorAll("[data-builder-body]").forEach((control) => {
         control.addEventListener("change", () => {
             const card = control.closest(".feature-card");
-            filterExerciseSelect(card.querySelector("[data-builder-exercise]"), card.querySelector("[data-builder-body]").value, card.querySelector("[data-builder-type]").value);
+            filterExerciseSelect(card.querySelector("[data-builder-exercise]"), card.querySelector("[data-builder-body]").value, "");
         });
     });
 

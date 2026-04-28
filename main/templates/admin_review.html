@@ -21,8 +21,8 @@
             </div>
             <div class="stat-card">
                 <span class="kicker">Decision</span>
-                <span class="stat-value">2</span>
-                <div class="muted">Approve or reject.</div>
+                <span class="stat-value">4</span>
+                <div class="muted">Approve, reject, pending, unverified.</div>
             </div>
         </div>
     </div>
@@ -37,6 +37,16 @@
     </div>
 
     <form class="review-filter-form filter-row" method="GET">
+        <div>
+            <label class="field-label" for="status">Status</label>
+            <select class="select" id="status" name="status">
+                <option value="pending"{% if status_filter == "pending" %} selected{% endif %}>Pending</option>
+                <option value="verified"{% if status_filter == "verified" %} selected{% endif %}>Verified</option>
+                <option value="rejected"{% if status_filter == "rejected" %} selected{% endif %}>Rejected</option>
+                <option value="unverified"{% if status_filter == "unverified" %} selected{% endif %}>Unverified</option>
+                <option value="all"{% if status_filter == "all" %} selected{% endif %}>All</option>
+            </select>
+        </div>
         <div>
             <label class="field-label" for="proof">Proof</label>
             <select class="select" id="proof" name="proof">
@@ -54,10 +64,7 @@
                 <option value="lowest"{% if order_filter == "lowest" %} selected{% endif %}>Lowest reps</option>
             </select>
         </div>
-        <div>
-            <label class="field-label" for="q">Search</label>
-            <input id="q" class="input" type="search" name="q" value="{{ query }}" placeholder="Name, email, username">
-        </div>
+        <div><label class="field-label" for="q">Search</label><input id="q" class="input" type="search" name="q" value="{{ query }}" placeholder="Name, email, username"></div>
         <button class="btn-secondary" type="submit">Filter</button>
     </form>
 
@@ -103,10 +110,10 @@
                     <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;">
                         <span class="status-pill {{ submission.status }}">{{ submission.public_status_label }}</span>
                         <div class="review-actions">
-                            {% if submission.status == "pending" %}
-                                <button class="btn-main" type="submit" name="action" value="approve">Approve</button>
-                                <button class="btn-secondary" type="submit" name="action" value="reject">Reject</button>
-                            {% endif %}
+                            <button class="btn-main" type="submit" name="action" value="approve">Approve</button>
+                            <button class="btn-secondary" type="submit" name="action" value="reject">Reject</button>
+                            <button class="btn-secondary" type="submit" name="action" value="mark_pending" {% if not submission.has_proof %}disabled{% endif %}>Pending</button>
+                            <button class="btn-secondary" type="submit" name="action" value="mark_unverified">Unverified</button>
                             <button class="btn-secondary" type="submit" name="action" value="delete">Delete</button>
                         </div>
                     </div>
@@ -118,27 +125,4 @@
     {% endfor %}
 </section>
 
-<section class="card-dark">
-    <h2>Recently Reviewed</h2>
-    {% for submission in reviewed_submissions %}
-        <div class="athlete-row">
-            <span class="avatar">{{ submission.name|first|upper }}</span>
-            <div class="row-title">
-                <div class="submission-name">{{ submission.name }}</div>
-                <div class="submission-meta">{{ submission.reps }} reps - {{ submission.created_at|date:"M j, Y" }}</div>
-            </div>
-            <span class="status-pill {{ submission.status }}">{{ submission.public_status_label }}</span>
-            <form method="POST" action="{% url 'review_submission' submission.id %}">
-                {% csrf_token %}
-                <input type="hidden" name="status_filter" value="pending">
-                <input type="hidden" name="proof_filter" value="{{ proof_filter }}">
-                <input type="hidden" name="order_filter" value="{{ order_filter }}">
-                <input type="hidden" name="q" value="{{ query }}">
-                <button class="btn-secondary" type="submit" name="action" value="delete">Delete</button>
-            </form>
-        </div>
-    {% empty %}
-        <p class="muted">Nothing reviewed yet.</p>
-    {% endfor %}
-</section>
 {% endblock %}

@@ -423,6 +423,58 @@ class WorkoutExercise(models.Model):
         return self.name
 
 
+class WorkoutSession(models.Model):
+    STATUS_ACTIVE = "active"
+    STATUS_COMPLETED = "completed"
+    STATUS_CHOICES = [
+        (STATUS_ACTIVE, "Active"),
+        (STATUS_COMPLETED, "Completed"),
+    ]
+
+    user = models.ForeignKey(User, related_name="workout_sessions", on_delete=models.CASCADE)
+    workout = models.ForeignKey(Workout, related_name="sessions", on_delete=models.CASCADE)
+    status = models.CharField(max_length=16, choices=STATUS_CHOICES, default=STATUS_ACTIVE)
+    started_at = models.DateTimeField(auto_now_add=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ("-started_at",)
+
+    def __str__(self):
+        return f"{self.user} - {self.workout.title} ({self.status})"
+
+    @property
+    def completed_exercise_count(self):
+        return self.exercise_sessions.filter(completed_sets__gte=models.F("target_sets")).count()
+
+    @property
+    def total_exercise_count(self):
+        return self.exercise_sessions.count()
+
+
+class WorkoutSessionExercise(models.Model):
+    session = models.ForeignKey(WorkoutSession, related_name="exercise_sessions", on_delete=models.CASCADE)
+    workout_exercise = models.ForeignKey(WorkoutExercise, related_name="session_entries", on_delete=models.CASCADE)
+    name = models.CharField(max_length=120)
+    exercise_type = models.CharField(max_length=24, choices=WorkoutExercise.TYPE_CHOICES, default=WorkoutExercise.TYPE_STRENGTH)
+    body_part = models.CharField(max_length=80, blank=True)
+    target_sets = models.PositiveIntegerField(default=1)
+    target_reps = models.PositiveIntegerField(null=True, blank=True)
+    target_seconds = models.PositiveIntegerField(null=True, blank=True)
+    completed_sets = models.PositiveIntegerField(default=0)
+    order = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ("order", "id")
+
+    def __str__(self):
+        return f"{self.name} ({self.completed_sets}/{self.target_sets})"
+
+    @property
+    def is_complete(self):
+        return self.completed_sets >= self.target_sets
+
+
 class ContentEnginePrompt(models.Model):
     ENGINE_LEVEL = "level"
     ENGINE_CHALLENGE = "challenge"
