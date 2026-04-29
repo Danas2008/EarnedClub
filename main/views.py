@@ -469,9 +469,9 @@ def get_progress_summary(submissions):
     }
 
 
-def paginate_items(request, items, per_page=10):
+def paginate_items(request, items, per_page=10, page_param="page"):
     paginator = Paginator(items, per_page)
-    return paginator.get_page(request.GET.get("page"))
+    return paginator.get_page(request.GET.get(page_param))
 
 
 def search_submissions(submissions, query):
@@ -1284,6 +1284,7 @@ def dashboard(request):
         )
     ]
     history_submissions = paginate_items(request, request.user.submission_set.order_by("-created_at"), per_page=5)
+    workout_page = paginate_items(request, workouts, per_page=5, page_param="workout_page")
     profile_completion, profile_completion_percent = profile_completion_items(request.user)
 
     context = {
@@ -1315,7 +1316,12 @@ def dashboard(request):
         "badges": profile.earned_badges,
         "followers_count": request.user.follower_links.count(),
         "following_count": request.user.following_links.count(),
-        "workouts": workouts[:5],
+        "workouts": workout_page,
+        "workout_pages": workout_page.paginator.get_elided_page_range(
+            number=workout_page.number,
+            on_each_side=1,
+            on_ends=1,
+        ),
         "active_workout_session": active_workout_session,
         "active_goals": active_goals,
         "completed_goals": completed_goals,

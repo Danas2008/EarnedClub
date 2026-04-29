@@ -184,9 +184,9 @@
     <div class="card-dark">
         <h2>Recent Workouts</h2>
         {% for workout in workouts %}
-            <div class="score-row">
+            <div class="score-row workout-row">
                 <div class="score-row-main"><div class="submission-name">{{ workout.title }}</div><div class="submission-meta">{{ workout.created_at|date:"M j" }}{% if workout.is_public %} - Public{% endif %}</div></div>
-                <div class="button-row" style="margin-top: 0;">
+                <div class="workout-row-actions">
                     <form method="POST" action="{% url 'start_workout' %}">
                         {% csrf_token %}
                         <input type="hidden" name="workout_id" value="{{ workout.id }}">
@@ -196,6 +196,28 @@
                 </div>
             </div>
         {% empty %}<p class="muted">No workouts yet.</p>{% endfor %}
+        {% if workouts.paginator.num_pages > 1 %}
+            <div class="pagination-row">
+                <div class="muted">Page {{ workouts.number }} of {{ workouts.paginator.num_pages }}</div>
+                <div class="button-row" style="margin-top: 0;">
+                    {% if workouts.has_previous %}
+                        <a class="btn-secondary" href="?workout_page={{ workouts.previous_page_number }}" aria-label="Previous page">&#8592;</a>
+                    {% endif %}
+                    {% for page_number in workout_pages %}
+                        {% if page_number == workouts.paginator.ELLIPSIS %}
+                            <span class="tag-pill">{{ page_number }}</span>
+                        {% elif page_number == workouts.number %}
+                            <span class="btn-main">{{ page_number }}</span>
+                        {% else %}
+                            <a class="btn-secondary" href="?workout_page={{ page_number }}">{{ page_number }}</a>
+                        {% endif %}
+                    {% endfor %}
+                    {% if workouts.has_next %}
+                        <a class="btn-secondary" href="?workout_page={{ workouts.next_page_number }}" aria-label="Next page">&#8594;</a>
+                    {% endif %}
+                </div>
+            </div>
+        {% endif %}
     </div>
 </section>
 
