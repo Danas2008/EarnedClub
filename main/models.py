@@ -381,6 +381,8 @@ class Workout(models.Model):
         if not self.slug:
             self.slug = self._build_unique_slug()
         super().save(*args, **kwargs)
+        if self.highlighted_on_profile:
+            self.user.workouts.exclude(pk=self.pk).update(highlighted_on_profile=False)
 
     def _build_unique_slug(self):
         owner = getattr(getattr(self.user, "profile", None), "slug", self.user.username if self.user_id else "athlete")
@@ -534,3 +536,18 @@ class NewsletterSubscriber(models.Model):
 
     def __str__(self):
         return self.email
+
+
+class NewsletterCampaign(models.Model):
+    week_number = models.PositiveIntegerField()
+    subject = models.CharField(max_length=180)
+    body = models.TextField()
+    sent_at = models.DateTimeField(null=True, blank=True)
+    sent_count = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ("-week_number", "-created_at")
+
+    def __str__(self):
+        return f"Week {self.week_number}: {self.subject}"

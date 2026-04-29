@@ -41,15 +41,15 @@
         <p class="muted">The first registered athletes with verified scores will appear here.</p>
     {% endfor %}
 
-    {% if profiles %}
+    {% if profiles.paginator.num_pages > 1 %}
         <div class="pagination-row">
             <div class="muted">Page {{ profiles.number }} of {{ profiles.paginator.num_pages }}</div>
             <div class="button-row" style="margin-top: 0;">
                 {% if profiles.has_previous %}
-                    <a class="btn-secondary" href="?q={{ query }}&page={{ profiles.previous_page_number }}">Previous 10</a>
+                    <a class="btn-secondary" href="?q={{ query }}&page={{ profiles.previous_page_number }}" aria-label="Previous page">&#8592;</a>
                 {% endif %}
                 {% if profiles.has_next %}
-                    <a class="btn-main" href="?q={{ query }}&page={{ profiles.next_page_number }}">Next 10</a>
+                    <a class="btn-main" href="?q={{ query }}&page={{ profiles.next_page_number }}" aria-label="Next page">&#8594;</a>
                 {% endif %}
             </div>
         </div>

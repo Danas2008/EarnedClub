@@ -77,6 +77,7 @@
         <div class="progress-chart progress-chart-large">
             <svg id="progress-chart" class="chart-area" role="img" aria-label="Athlete verified progress chart"></svg>
         </div>
+        <div id="progress-detail" class="hint" style="margin-top: 10px;">Tap a point for details.</div>
     </div>
 
     <div class="card-dark">
@@ -99,7 +100,7 @@
                     <div class="muted">Page {{ verified_submissions.number }} of {{ verified_submissions.paginator.num_pages }}</div>
                     <div class="button-row" style="margin-top: 0;">
                         {% if verified_submissions.has_previous %}
-                            <a class="btn-secondary" href="?page={{ verified_submissions.previous_page_number }}">&lt;-</a>
+                            <a class="btn-secondary" href="?page={{ verified_submissions.previous_page_number }}" aria-label="Previous page">&#8592;</a>
                         {% endif %}
                         {% for page_number in verified_history_pages %}
                             {% if page_number == verified_submissions.paginator.ELLIPSIS %}
@@ -111,7 +112,7 @@
                             {% endif %}
                         {% endfor %}
                         {% if verified_submissions.has_next %}
-                            <a class="btn-secondary" href="?page={{ verified_submissions.next_page_number }}">-&gt;</a>
+                            <a class="btn-secondary" href="?page={{ verified_submissions.next_page_number }}" aria-label="Next page">&#8594;</a>
                         {% endif %}
                     </div>
                 </div>
@@ -203,6 +204,7 @@
     const progressData = JSON.parse(document.getElementById("progress-data").textContent);
     const svg = document.getElementById("progress-chart");
     const chartWrapper = svg?.closest(".progress-chart");
+    const detail = document.getElementById("progress-detail");
     const isMobileChart = window.matchMedia("(max-width: 768px)").matches;
     const baseWidth = isMobileChart ? 760 : 1020;
     const height = isMobileChart ? 280 : 360;
@@ -241,8 +243,14 @@
             <text x="16" y="${height / 2}" transform="rotate(-90 16 ${height / 2})" text-anchor="middle" fill="rgba(245,247,251,.68)" font-size="13">Reps</text>
             ${points.map((point, index) => index % Math.max(1, Math.ceil(points.length / 4)) === 0 ? `<text x="${point.x}" y="${height - pad + 20}" text-anchor="middle" fill="rgba(245,247,251,.58)" font-size="12">${point.date.slice(5)}</text>` : "").join("")}
             <path d="${path}" fill="none" stroke="#f7b733" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" />
-            ${points.map((point, index) => `<g><circle cx="${point.x}" cy="${point.y}" r="${isMobileChart ? 8 : 7}" fill="#ffd77b" stroke="#111" stroke-width="2.5"><title>${point.label}: ${point.reps} reps</title></circle><text x="${point.x}" y="${point.y - 14}" text-anchor="middle" fill="#f5f7fb" font-size="14" font-weight="700">${point.reps}</text>${index > 0 && !isMobileChart ? `<text x="${(points[index - 1].x + point.x) / 2}" y="${Math.min(points[index - 1].y, point.y) - 18}" text-anchor="middle" fill="#8df0c9" font-size="12">${point.reps - points[index - 1].reps >= 0 ? "+" : ""}${point.reps - points[index - 1].reps}</text>` : ""}</g>`).join("")}
+            ${points.map((point, index) => `<g data-point="${index}" style="cursor:pointer"><circle cx="${point.x}" cy="${point.y}" r="${isMobileChart ? 9 : 8}" fill="#ffd77b" stroke="#111" stroke-width="2.5"><title>${point.label}: ${point.reps} reps</title></circle><text x="${point.x}" y="${point.y - 14}" text-anchor="middle" fill="#f5f7fb" font-size="14" font-weight="700">${point.reps}</text>${index > 0 && !isMobileChart ? `<text x="${(points[index - 1].x + point.x) / 2}" y="${Math.min(points[index - 1].y, point.y) - 18}" text-anchor="middle" fill="#8df0c9" font-size="12">${point.reps - points[index - 1].reps >= 0 ? "+" : ""}${point.reps - points[index - 1].reps}</text>` : ""}</g>`).join("")}
         `;
+        svg.querySelectorAll("[data-point]").forEach((node) => {
+            node.addEventListener("click", () => {
+                const point = points[parseInt(node.dataset.point, 10)];
+                detail.textContent = `${point.label}: ${point.reps} reps.`;
+            });
+        });
     }
     renderChart();
     if (chartWrapper && isMobileChart) {

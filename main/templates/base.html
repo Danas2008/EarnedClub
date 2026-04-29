@@ -178,7 +178,7 @@
             z-index: 1;
             max-width: var(--content-width);
             margin: 0 auto;
-            padding: 34px 20px 80px;
+            padding: 34px 20px 96px;
         }
 
         .alert-stack {
@@ -206,6 +206,7 @@
             overflow: hidden;
             position: relative;
             padding: 28px;
+            margin-bottom: 28px;
         }
 
         .hero-card::after {
@@ -1272,16 +1273,18 @@
         .profile-public-workouts {
             position: relative;
             z-index: 1;
-            margin-bottom: 72px;
+            margin-bottom: 96px;
+            align-self: start;
         }
 
         .profile-lower-section {
-            margin-bottom: 48px;
+            margin-bottom: 64px;
+            align-items: start;
         }
 
         .profile-footer-spacer {
             display: block;
-            height: 96px;
+            height: 128px;
             clear: both;
         }
 
@@ -1559,43 +1562,44 @@
 
                         <div class="collapse navbar-collapse justify-content-end" id="navMenu">
                             <ul class="navbar-nav align-items-lg-center">
-                                <li class="nav-item">
-                                    <a class="nav-link" href="{% url 'home' %}">Home</a>
-                                </li>
-                                <li class="nav-item">
-                                    <a class="nav-link" href="{% url 'challenge' %}">Challenge</a>
-                                </li>
-                                <li class="nav-item">
-                                    <a class="nav-link" href="{% url 'leaderboard' %}">Leaderboard</a>
-                                </li>
-                                <li class="nav-item">
-                                    <a class="nav-link" href="{% url 'profiles' %}">Profiles</a>
-                                </li>
-                                {% if request.user.is_authenticated %}
+                                {% if request.user.is_authenticated and request.user.is_staff %}
+                                    <li class="nav-item">
+                                        <a class="nav-link" href="{% url 'admin_menu' %}">Admin</a>
+                                    </li>
+                                    <li class="nav-item">
+                                        <a class="nav-link" href="{% url 'logout' %}">Logout</a>
+                                    </li>
+                                {% else %}
+                                    <li class="nav-item">
+                                        <a class="nav-link" href="{% url 'home' %}">Home</a>
+                                    </li>
+                                    <li class="nav-item">
+                                        <a class="nav-link" href="{% url 'challenge' %}">Challenge</a>
+                                    </li>
+                                    <li class="nav-item">
+                                        <a class="nav-link" href="{% url 'leaderboard' %}">Leaderboard</a>
+                                    </li>
+                                    <li class="nav-item">
+                                        <a class="nav-link" href="{% url 'profiles' %}">Profiles</a>
+                                    </li>
+                                    {% if request.user.is_authenticated %}
                                     <li class="nav-item">
                                         <a class="nav-link" href="{% url 'dashboard' %}">Profile</a>
                                     </li>
                                     <li class="nav-item">
                                         <a class="nav-link" href="{% url 'workouts' %}">Workouts</a>
                                     </li>
-                                    {% if request.user.is_staff %}
-                                        <li class="nav-item">
-                                            <a class="nav-link" href="{% url 'admin_review' %}">Review</a>
-                                        </li>
-                                        <li class="nav-item">
-                                            <a class="nav-link" href="{% url 'content_engine_admin' %}">Content</a>
-                                        </li>
-                                    {% endif %}
                                     <li class="nav-item">
                                         <a class="nav-link" href="{% url 'logout' %}">Logout</a>
                                     </li>
-                                {% else %}
+                                    {% else %}
                                     <li class="nav-item">
                                         <a class="nav-link" href="{% url 'login' %}">Login</a>
                                     </li>
                                     <li class="nav-item">
                                         <a class="nav-link" href="{% url 'register' %}">Register</a>
                                     </li>
+                                    {% endif %}
                                 {% endif %}
                             </ul>
                         </div>

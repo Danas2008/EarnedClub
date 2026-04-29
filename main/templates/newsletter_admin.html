@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+
+{% block title %}Newsletter Admin{% endblock %}
+
+{% block content %}
+<section class="hero-card">
+    <div class="eyebrow">Newsletter</div>
+    <h1>Weekly builder.</h1>
+    <p class="muted">{{ subscriber_count }} subscriber(s) will receive sends from earnedclub1@gmail.com.</p>
+</section>
+
+<section class="grid-2">
+    <div class="card-dark">
+        <h2>Prebuilt Email</h2>
+        <form class="submission-form" method="POST">
+            {% csrf_token %}
+            <label class="field-label" for="week-number">Week</label>
+            <select id="week-number" class="select" name="week_number" data-week-select>
+                {% for week in week_choices %}
+                    <option value="{{ week }}" {% if week == week_number %}selected{% endif %}>#{{ week }}</option>
+                {% endfor %}
+            </select>
+            <label class="field-label" for="newsletter-subject">Subject</label>
+            <input id="newsletter-subject" class="input" name="subject" value="{{ draft_subject }}" data-newsletter-subject>
+            <label class="field-label" for="newsletter-body">Body</label>
+            <textarea id="newsletter-body" class="textarea" name="body" rows="12" data-newsletter-body>{{ draft_body }}</textarea>
+            <div class="button-row">
+                <button class="btn-secondary" type="submit" name="action" value="save">Save Draft</button>
+                <button class="btn-main" type="submit" name="action" value="send">Send To Subscribers</button>
+            </div>
+        </form>
+    </div>
+
+    <div class="card-dark">
+        <h2>Recent Campaigns</h2>
+        {% for campaign in campaigns %}
+            <div class="score-row">
+                <div class="score-row-main">
+                    <div class="submission-name">Week {{ campaign.week_number }}: {{ campaign.subject }}</div>
+                    <div class="submission-meta">
+                        {% if campaign.sent_at %}Sent {{ campaign.sent_count }} on {{ campaign.sent_at|date:"M j, H:i" }}{% else %}Draft saved{% endif %}
+                    </div>
+                </div>
+            </div>
+        {% empty %}
+            <p class="muted">No campaigns yet.</p>
+        {% endfor %}
+    </div>
+</section>
+
+<script>
+    const weekSelect = document.querySelector("[data-week-select]");
+    const subjectInput = document.querySelector("[data-newsletter-subject]");
+    const bodyInput = document.querySelector("[data-newsletter-body]");
+    weekSelect?.addEventListener("change", () => {
+        const week = weekSelect.value;
+        subjectInput.value = `Earned Club Week ${week}: leaderboard, training, proof`;
+        bodyInput.value = `Week ${week} update from Earned Club\n\n1. Leaderboard movement\nThe board is moving. Submit a clean set if you want your rank to count.\n\n2. Training focus\nKeep this week balanced: push work, one pull movement, legs, and core.\n\n3. Challenge\nFilm one honest attempt or complete one saved workout before the week ends.\n\nEarn it,\nEarned Club`;
+    });
+</script>
+{% endblock %}

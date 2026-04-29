@@ -187,6 +187,28 @@
     {% empty %}
         <p class="muted">No attempts yet.</p>
     {% endfor %}
+    {% if history_submissions.paginator.num_pages > 1 %}
+        <div class="pagination-row">
+            <div class="muted">Page {{ history_submissions.number }} of {{ history_submissions.paginator.num_pages }}</div>
+            <div class="button-row" style="margin-top: 0;">
+                {% if history_submissions.has_previous %}
+                    <a class="btn-secondary" href="?page={{ history_submissions.previous_page_number }}" aria-label="Previous page">&#8592;</a>
+                {% endif %}
+                {% for page_number in history_submission_pages %}
+                    {% if page_number == history_submissions.paginator.ELLIPSIS %}
+                        <span class="tag-pill">{{ page_number }}</span>
+                    {% elif page_number == history_submissions.number %}
+                        <span class="btn-main">{{ page_number }}</span>
+                    {% else %}
+                        <a class="btn-secondary" href="?page={{ page_number }}">{{ page_number }}</a>
+                    {% endif %}
+                {% endfor %}
+                {% if history_submissions.has_next %}
+                    <a class="btn-secondary" href="?page={{ history_submissions.next_page_number }}" aria-label="Next page">&#8594;</a>
+                {% endif %}
+            </div>
+        </div>
+    {% endif %}
 </section>
 
 {{ progress_data|json_script:"progress-data" }}

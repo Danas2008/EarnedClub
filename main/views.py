@@ -29,6 +29,7 @@ from .models import (
     ContentEnginePrompt,
     Follow,
     Goal,
+    NewsletterCampaign,
     NewsletterSubscriber,
     Profile,
     RANK_TIERS,
@@ -82,6 +83,12 @@ DEFAULT_EXERCISES = [
     {"name": "Dead bug", "type": "mobility", "body_part": "Core"},
     {"name": "Hip mobility flow", "type": "mobility", "body_part": "Legs"},
     {"name": "Shoulder mobility flow", "type": "mobility", "body_part": "Shoulders"},
+    {"name": "Glute bridge", "type": "strength", "body_part": "Legs"},
+    {"name": "Calf raises", "type": "strength", "body_part": "Legs"},
+    {"name": "Mountain climbers", "type": "cardio", "body_part": "Full body"},
+    {"name": "Pike push-ups", "type": "strength", "body_part": "Shoulders"},
+    {"name": "Superman hold", "type": "strength", "body_part": "Back"},
+    {"name": "Side plank", "type": "strength", "body_part": "Core"},
 ]
 
 BODY_PARTS = sorted({exercise["body_part"] for exercise in DEFAULT_EXERCISES})
@@ -91,40 +98,43 @@ SYSTEM_WORKOUT_TEMPLATES = [
     {
         "name": "Push Day",
         "difficulty": WorkoutTemplate.DIFFICULTY_BEGINNER,
-        "notes": "Push-ups, dips, plank. Good for building strict rep capacity.",
-        "exercises": [("Push-ups", 4, 12, None), ("Dips", 3, 8, None), ("Plank", 3, None, 45)],
+        "notes": "Balanced push practice with shoulder and core support.",
+        "exercises": [("Push-ups", 3, 10, None), ("Dips", 3, 8, None), ("Pike push-ups", 2, 8, None), ("Plank", 3, None, 35)],
     },
     {
         "name": "Leg Day",
         "difficulty": WorkoutTemplate.DIFFICULTY_BEGINNER,
         "notes": "Simple lower-body session for consistency and conditioning.",
-        "exercises": [("Squats", 4, 15, None), ("Lunges", 3, 12, None), ("Plank", 3, None, 40)],
+        "exercises": [("Squats", 3, 12, None), ("Lunges", 3, 10, None), ("Glute bridge", 3, 12, None), ("Calf raises", 2, 15, None), ("Plank", 2, None, 35)],
     },
     {
         "name": "Pull Strength",
         "difficulty": WorkoutTemplate.DIFFICULTY_INTERMEDIATE,
         "notes": "Back and biceps work to balance push-up volume.",
-        "exercises": [("Pull-ups", 4, 6, None), ("Rows", 4, 10, None), ("Dead bug", 3, None, 45)],
+        "exercises": [("Pull-ups", 3, 6, None), ("Rows", 3, 10, None), ("Rear delt raise", 2, 12, None), ("Superman hold", 2, None, 30), ("Dead bug", 3, None, 35)],
     },
     {
         "name": "Full Body Base",
         "difficulty": WorkoutTemplate.DIFFICULTY_INTERMEDIATE,
         "notes": "A practical whole-body session for steady weekly training.",
-        "exercises": [("Push-ups", 4, 15, None), ("Squats", 4, 15, None), ("Rows", 3, 12, None), ("Jump rope", 1, None, 300)],
+        "exercises": [("Push-ups", 3, 12, None), ("Squats", 3, 12, None), ("Rows", 3, 10, None), ("Lunges", 2, 10, None), ("Jump rope", 1, None, 180), ("Side plank", 2, None, 25)],
     },
     {
         "name": "Elite Push Builder",
         "difficulty": WorkoutTemplate.DIFFICULTY_ADVANCED,
         "notes": "Higher volume for athletes chasing 60+ strict push-ups.",
-        "exercises": [("Push-ups", 6, 18, None), ("Dips", 4, 10, None), ("Burpees", 4, 12, None)],
+        "exercises": [("Push-ups", 4, 14, None), ("Dips", 3, 10, None), ("Pike push-ups", 3, 8, None), ("Rows", 3, 12, None), ("Plank", 3, None, 45)],
     },
     {
         "name": "Legend Density",
         "difficulty": WorkoutTemplate.DIFFICULTY_ADVANCED,
         "notes": "Dense push volume with conditioning for high-rep athletes.",
-        "exercises": [("Push-ups", 8, 15, None), ("Burpees", 5, 10, None), ("Plank", 4, None, 60)],
+        "exercises": [("Push-ups", 5, 12, None), ("Burpees", 3, 10, None), ("Rows", 3, 12, None), ("Mountain climbers", 2, None, 40), ("Side plank", 3, None, 35)],
     },
 ]
+
+ADMIN_SUBMISSION_EMAIL = "daniel.havlicek1@seznam.cz"
+NEWSLETTER_FROM_EMAIL = "Earned Club <earnedclub1@gmail.com>"
 
 
 SITEMAP_NAMESPACE = "http://www.sitemaps.org/schemas/sitemap/0.9"
@@ -276,6 +286,24 @@ def notify_user_email(user, subject, message):
     send_mail(subject, message, getattr(settings, "DEFAULT_FROM_EMAIL", "noreply@earnedclub.club"), [user.email], fail_silently=True)
 
 
+def notify_admin_submission(submission, event_label):
+    proof = submission.proof_url or "No proof attached"
+    send_mail(
+        f"Earned Club result submitted: {submission.reps} reps",
+        (
+            f"{event_label}\n\n"
+            f"Name: {submission.name}\n"
+            f"Email: {submission.email or 'No email'}\n"
+            f"Reps: {submission.reps}\n"
+            f"Status: {submission.public_status_label}\n"
+            f"Proof: {proof}"
+        ),
+        getattr(settings, "DEFAULT_FROM_EMAIL", "noreply@earnedclub.club"),
+        [ADMIN_SUBMISSION_EMAIL],
+        fail_silently=True,
+    )
+
+
 def get_profile_share_message(profile, request):
     url = request.build_absolute_uri(reverse("athlete_profile", args=[profile.slug]))
     return f"Check out {profile.display_name}'s EarnedClub profile: {url}"
@@ -295,12 +323,18 @@ def get_daily_suggestion(profile, verified_count, workout_count):
         "Good training is boring until the numbers move.",
         "Win today's clean set.",
     ]
-    if profile.personal_best_reps >= 60:
+    if profile.personal_best_reps >= 80:
         tasks = [
-            "Film a controlled submax set.",
-            "Do core work and keep elbows fresh.",
-            "Repeat an elite push session.",
-            "Run a shorter density workout and keep every rep clean.",
+            "Keep today submax: push, pull, core, then stop before form breaks.",
+            "Do a quality density session with no failed reps.",
+            "Train recovery and shoulder stability so your next test is sharp.",
+            "Run a balanced full-body workout instead of another max push day.",
+        ]
+    elif profile.personal_best_reps >= 60:
+        tasks = [
+            "Do 4 controlled push-up sets at about 65% of your PR.",
+            "Pair push-ups with rows and core so your shoulders stay balanced.",
+            "Use an advanced workout today, but leave one rep in reserve.",
             "Retest one strong set only if you feel sharp.",
         ]
     elif profile.personal_best_reps >= 40:
@@ -619,7 +653,6 @@ def create_workout_from_request(request):
     notes = (request.POST.get("notes") or "").strip()
     is_public = request.POST.get("is_public") == "on"
     highlighted = request.POST.get("highlighted_on_profile") == "on"
-    save_as_template = request.POST.get("save_as_template") == "on"
     template_id = request.POST.get("template_id")
     template = None
     if template_id:
@@ -670,14 +703,101 @@ def create_workout_from_request(request):
             WorkoutExercise.objects.create(workout=workout, name=name, sets=sets, reps=reps, seconds=seconds, order=index)
     if workout.highlighted_on_profile:
         request.user.workouts.exclude(pk=workout.pk).update(highlighted_on_profile=False)
-    if save_as_template:
-        template_difficulty = WorkoutTemplate.DIFFICULTY_BEGINNER
-        if request.user.profile.personal_best_reps >= 60:
-            template_difficulty = WorkoutTemplate.DIFFICULTY_ADVANCED
-        elif request.user.profile.personal_best_reps >= 20:
-            template_difficulty = WorkoutTemplate.DIFFICULTY_INTERMEDIATE
-        WorkoutTemplate.objects.create(user=request.user, name=title, difficulty=template_difficulty, notes=notes)
     return workout, ""
+
+
+def pick_exercises_for_body_parts(body_parts, duration_minutes, personal_best):
+    body_parts = [part for part in body_parts if part in BODY_PARTS]
+    if not body_parts:
+        body_parts = ["Chest", "Back", "Legs", "Core"]
+    target_count = 4
+    if duration_minutes >= 35:
+        target_count = 6
+    elif duration_minutes >= 25:
+        target_count = 5
+
+    reps = 10
+    sets = 2
+    if personal_best >= 60:
+        reps = 12
+        sets = 3
+    elif personal_best >= 20:
+        reps = 10
+        sets = 3
+
+    chosen = []
+    for part in body_parts:
+        candidates = [exercise for exercise in DEFAULT_EXERCISES if exercise["body_part"] == part]
+        strength = [exercise for exercise in candidates if exercise["type"] == WorkoutExercise.TYPE_STRENGTH]
+        chosen.extend(strength[:2] or candidates[:1])
+
+    if "Chest" in body_parts and not any(item["name"] == "Push-ups" for item in chosen):
+        chosen.insert(0, get_default_exercise("Push-ups") | {"name": "Push-ups"})
+    if len(chosen) < target_count:
+        for fallback in ("Rows", "Squats", "Plank", "Jump rope", "Dead bug", "Side plank"):
+            exercise = get_default_exercise(fallback)
+            if exercise and exercise not in chosen:
+                chosen.append(exercise | {"name": fallback})
+            if len(chosen) >= target_count:
+                break
+
+    plan = []
+    for index, exercise in enumerate(chosen[:target_count]):
+        name = exercise["name"]
+        exercise_type = exercise["type"]
+        if exercise_type == WorkoutExercise.TYPE_CARDIO:
+            plan.append((name, 1 if duration_minutes < 25 else 2, None, 90 if duration_minutes < 25 else 120))
+        elif exercise_type == WorkoutExercise.TYPE_MOBILITY:
+            plan.append((name, 2, None, 30))
+        elif name in {"Plank", "Side plank", "Superman hold"}:
+            plan.append((name, 2 if personal_best < 60 else 3, None, 30 if personal_best < 60 else 40))
+        else:
+            plan.append((name, sets, reps if index else max(8, reps - 2), None))
+    return plan
+
+
+def create_generated_workout(request):
+    duration = parse_positive_int(request.POST.get("builder_minutes")) or 20
+    duration = min(60, max(10, duration))
+    body_parts = request.POST.getlist("builder_body_parts")
+    exercises = pick_exercises_for_body_parts(body_parts, duration, request.user.profile.personal_best_reps)
+    title_parts = ", ".join(body_parts[:2]) if body_parts else "Full body"
+    workout = Workout.objects.create(
+        user=request.user,
+        title=f"{title_parts} {duration}-minute builder",
+        duration_minutes=duration,
+        notes="Generated from your selected body parts and available time.",
+    )
+    for index, (name, sets, reps, seconds) in enumerate(exercises):
+        default_exercise = get_default_exercise(name)
+        WorkoutExercise.objects.create(
+            workout=workout,
+            name=name,
+            exercise_type=default_exercise.get("type", WorkoutExercise.TYPE_STRENGTH),
+            body_part=default_exercise.get("body_part", ""),
+            sets=sets,
+            reps=reps,
+            seconds=seconds,
+            order=index,
+        )
+    return workout
+
+
+def build_newsletter_draft(week_number):
+    return {
+        "subject": f"Earned Club Week {week_number}: leaderboard, training, proof",
+        "body": (
+            f"Week {week_number} update from Earned Club\n\n"
+            "1. Leaderboard movement\n"
+            "The board is moving. Submit a clean set if you want your rank to count.\n\n"
+            "2. Training focus\n"
+            "Keep this week balanced: push work, one pull movement, legs, and core.\n\n"
+            "3. Challenge\n"
+            "Film one honest attempt or complete one saved workout before the week ends.\n\n"
+            "Earn it,\n"
+            "Earned Club"
+        ),
+    }
 
 
 def clone_workout(source, *, user, title=None, is_public=False):
@@ -1073,6 +1193,7 @@ def dashboard(request):
             or (goal.goal_type == Goal.GOAL_RANK and current_pr >= goal.target_value)
         )
     ]
+    history_submissions = paginate_items(request, request.user.submission_set.order_by("-created_at"), per_page=5)
 
     context = {
         "profile": profile,
@@ -1090,7 +1211,12 @@ def dashboard(request):
         "verified_streak": get_current_streak(verified_submissions),
         "pending_submissions": pending_submissions.order_by("-created_at"),
         "unverified_submissions": unverified_submissions.order_by("-created_at"),
-        "history_submissions": request.user.submission_set.order_by("-created_at"),
+        "history_submissions": history_submissions,
+        "history_submission_pages": history_submissions.paginator.get_elided_page_range(
+            number=history_submissions.number,
+            on_each_side=1,
+            on_ends=1,
+        ),
         "rejected_count": rejected_submissions.count(),
         "progress_data": get_progress_data(verified_submissions),
         "progress_summary": progress_summary,
@@ -1192,7 +1318,7 @@ def athlete_profile(request, slug):
         "badges": profile.earned_badges,
         "followers_count": profile.user.follower_links.count(),
         "following_count": profile.user.following_links.count(),
-        "public_workouts": profile.user.workouts.filter(is_public=True).prefetch_related("exercises")[:4],
+        "public_workouts": profile.user.workouts.filter(is_public=True, highlighted_on_profile=False).prefetch_related("exercises")[:4],
         "highlighted_workout": profile.user.workouts.filter(is_public=True, highlighted_on_profile=True).prefetch_related("exercises").first(),
         "public_goals": profile.user.goals.filter(is_active=True, is_public=True)[:3],
         "is_following": is_following,
@@ -1354,6 +1480,7 @@ def challenge(request):
                     ]
                 )
                 create_verification_event(active_submission, VerificationEvent.ACTION_PROOF_ADDED)
+                notify_admin_submission(active_submission, "Proof was added to an existing result.")
                 estimated_position = estimate_verified_position(reps_value)
                 send_submission_notification(
                     active_submission,
@@ -1405,6 +1532,7 @@ def challenge(request):
             submission.save(update_fields=["video_storage_path", "video_file", "status"])
 
         create_verification_event(submission, VerificationEvent.ACTION_SUBMITTED)
+        notify_admin_submission(submission, "A new result was submitted.")
         send_submission_notification(
             submission,
             "Earned Club submission received",
@@ -1473,6 +1601,7 @@ def add_submission_proof(request, submission_id):
     submission.verified = False
     submission.save(update_fields=["video_link", "video_storage_path", "video_file", "status", "verified"])
     create_verification_event(submission, VerificationEvent.ACTION_PROOF_ADDED)
+    notify_admin_submission(submission, "Proof was added from the dashboard.")
     send_submission_notification(
         submission,
         "Earned Club proof received",
@@ -1496,6 +1625,19 @@ def delete_submission(request, submission_id):
 
 def is_app_admin(user):
     return user.is_authenticated and user.is_staff
+
+
+@user_passes_test(is_app_admin, login_url="login")
+def admin_menu(request):
+    return render(
+        request,
+        "admin_menu.html",
+        {
+            "pending_count": pending_submission_queryset().count(),
+            "subscriber_count": NewsletterSubscriber.objects.count(),
+            "prompt_count": ContentEnginePrompt.objects.count(),
+        },
+    )
 
 
 @user_passes_test(is_app_admin, login_url="login")
@@ -1644,6 +1786,50 @@ def newsletter_signup(request):
     return redirect("home")
 
 
+@user_passes_test(is_app_admin, login_url="login")
+def newsletter_admin(request):
+    default_week = NewsletterCampaign.objects.order_by("-week_number").values_list("week_number", flat=True).first() or 0
+    week_number = parse_positive_int(request.POST.get("week_number") if request.method == "POST" else request.GET.get("week")) or default_week + 1
+    draft = build_newsletter_draft(week_number)
+
+    if request.method == "POST":
+        subject = (request.POST.get("subject") or draft["subject"]).strip()
+        body = (request.POST.get("body") or draft["body"]).strip()
+        if not subject or not body:
+            messages.error(request, "Subject and body are required.")
+            return redirect("newsletter_admin")
+
+        campaign = NewsletterCampaign.objects.create(week_number=week_number, subject=subject, body=body)
+        recipients = list(NewsletterSubscriber.objects.order_by("email").values_list("email", flat=True))
+        if request.POST.get("action") == "send" and recipients:
+            sent_count = 0
+            for recipient in recipients:
+                sent_count += send_mail(subject, body, NEWSLETTER_FROM_EMAIL, [recipient], fail_silently=True)
+            campaign.sent_at = timezone.now()
+            campaign.sent_count = sent_count
+            campaign.save(update_fields=["sent_at", "sent_count"])
+            messages.success(request, f"Newsletter sent to {sent_count} subscriber(s).")
+        elif request.POST.get("action") == "send":
+            messages.info(request, "Newsletter draft saved. There are no subscribers yet.")
+        else:
+            messages.success(request, "Newsletter draft saved.")
+        return redirect("newsletter_admin")
+
+    campaigns = NewsletterCampaign.objects.all()[:8]
+    return render(
+        request,
+        "newsletter_admin.html",
+        {
+            "week_number": week_number,
+            "draft_subject": draft["subject"],
+            "draft_body": draft["body"],
+            "subscriber_count": NewsletterSubscriber.objects.count(),
+            "campaigns": campaigns,
+            "week_choices": range(1, 13),
+        },
+    )
+
+
 def calculators(request):
     prompts = ContentEnginePrompt.objects.filter(is_active=True)
     return render(request, "calculators.html", {"rank_tiers": RANK_TIERS, "content_prompts": prompts})
@@ -1662,6 +1848,12 @@ def workouts(request):
     ensure_system_workout_templates()
     if request.method == "POST":
         form_type = request.POST.get("form_type", "workout")
+        if form_type == "generated_workout":
+            workout = create_generated_workout(request)
+            session = start_workout_session_for_user(request.user, workout)
+            messages.success(request, f"{workout.title} generated and started.")
+            return redirect("workout_session_detail", session_id=session.id)
+
         if form_type == "quick_result":
             exercise_name = (request.POST.get("quick_exercise") or "Quick result").strip()
             default_exercise = get_default_exercise(exercise_name)
@@ -1788,6 +1980,10 @@ def workout_session_detail(request, session_id):
     target_reps = sum((exercise.target_reps or 0) * exercise.completed_sets for exercise in exercises)
     target_seconds = sum((exercise.target_seconds or 0) * exercise.completed_sets for exercise in exercises)
     body_parts = sorted({exercise.body_part for exercise in exercises if exercise.body_part})
+    elapsed_seconds = 0
+    if session.started_at:
+        end_time = session.completed_at or timezone.now()
+        elapsed_seconds = max(0, int((end_time - session.started_at).total_seconds()))
     return render(
         request,
         "workout_session.html",
@@ -1798,6 +1994,7 @@ def workout_session_detail(request, session_id):
             "session_reps": target_reps,
             "session_seconds": target_seconds,
             "trained_body_parts": body_parts,
+            "elapsed_seconds": elapsed_seconds,
         },
     )
 

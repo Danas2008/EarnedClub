@@ -199,8 +199,9 @@ class SubmissionFlowTests(TestCase):
                 action=VerificationEvent.ACTION_SUBMITTED,
             ).exists()
         )
-        self.assertEqual(len(mail.outbox), 1)
-        self.assertIn("submission received", mail.outbox[0].subject.lower())
+        self.assertEqual(len(mail.outbox), 2)
+        self.assertTrue(any("submission received" in message.subject.lower() for message in mail.outbox))
+        self.assertTrue(any("daniel.havlicek1@seznam.cz" in message.to for message in mail.outbox))
 
     def test_duplicate_proof_link_is_blocked(self):
         Submission.objects.create(

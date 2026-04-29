@@ -28,16 +28,19 @@
             <div class="muted">Exercises completed</div>
         </div>
         <div class="stat-card">
-            <span class="kicker">Status</span>
-            <span class="stat-value">{{ session.get_status_display }}</span>
+            <span class="kicker">Workout Clock</span>
+            <span class="stat-value" data-workout-clock data-started-at="{{ session.started_at|date:'c' }}" data-initial-seconds="{{ elapsed_seconds }}">00:00</span>
             <div class="muted">
                 {% if session.completed_at %}Finished {{ session.completed_at|date:"M j, H:i" }}{% else %}Keep marking sets as you go{% endif %}
             </div>
         </div>
         <div class="stat-card">
-            <span class="kicker">Source</span>
-            <span class="stat-value">Workout</span>
-            <div class="muted"><a href="{% url 'workout_detail' session.workout.slug %}">Open saved workout</a></div>
+            <span class="kicker">Rest Timer</span>
+            <span class="stat-value" data-rest-clock>01:00</span>
+            <div class="button-row" style="margin-top: 8px;">
+                <button class="btn-secondary" type="button" data-rest-start>Start</button>
+                <button class="btn-secondary" type="button" data-rest-reset>Reset</button>
+            </div>
         </div>
     </div>
 </section>
@@ -90,4 +93,44 @@
         <p class="muted">No exercises saved for this workout.</p>
     {% endfor %}
 </section>
+<script>
+    const formatTime = (seconds) => {
+        const mins = Math.floor(seconds / 60);
+        const secs = seconds % 60;
+        return `${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
+    };
+    const workoutClock = document.querySelector("[data-workout-clock]");
+    if (workoutClock) {
+        const started = Date.parse(workoutClock.dataset.startedAt);
+        const initial = Number(workoutClock.dataset.initialSeconds || 0);
+        const tickWorkout = () => {
+            const elapsed = Number.isNaN(started) ? initial : Math.max(initial, Math.floor((Date.now() - started) / 1000));
+            workoutClock.textContent = formatTime(elapsed);
+        };
+        tickWorkout();
+        {% if session.status == "active" %}setInterval(tickWorkout, 1000);{% endif %}
+    }
+    const restClock = document.querySelector("[data-rest-clock]");
+    let restSeconds = 60;
+    let restInterval = null;
+    const renderRest = () => restClock.textContent = formatTime(restSeconds);
+    document.querySelector("[data-rest-start]")?.addEventListener("click", () => {
+        if (restInterval) return;
+        restInterval = setInterval(() => {
+            restSeconds = Math.max(0, restSeconds - 1);
+            renderRest();
+            if (!restSeconds) {
+                clearInterval(restInterval);
+                restInterval = null;
+            }
+        }, 1000);
+    });
+    document.querySelector("[data-rest-reset]")?.addEventListener("click", () => {
+        clearInterval(restInterval);
+        restInterval = null;
+        restSeconds = 60;
+        renderRest();
+    });
+    renderRest();
+</script>
 {% endblock %}

@@ -11,6 +11,7 @@ from .models import (
     VerificationEvent,
     Workout,
     WorkoutExercise,
+    NewsletterCampaign,
     WorkoutTemplate,
 )
 
@@ -72,6 +73,12 @@ class WorkoutTemplateAdmin(admin.ModelAdmin):
     list_display = ("name", "difficulty", "is_system", "user", "created_at")
     list_filter = ("difficulty", "is_system")
     search_fields = ("name", "notes")
+
+
+@admin.register(NewsletterCampaign)
+class NewsletterCampaignAdmin(admin.ModelAdmin):
+    list_display = ("week_number", "subject", "sent_count", "sent_at", "created_at")
+    search_fields = ("subject", "body")
 
 
 @admin.register(Follow)

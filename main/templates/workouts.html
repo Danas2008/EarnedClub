@@ -96,6 +96,27 @@
 
     <div class="card-dark" id="builder">
         <h2>Build Workout</h2>
+        <form class="submission-form" method="POST" data-generated-builder>
+            {% csrf_token %}
+            <input type="hidden" name="form_type" value="generated_workout">
+            <div class="grid-2">
+                <div>
+                    <label class="field-label" for="builder-minutes">Time</label>
+                    <input id="builder-minutes" class="input" type="number" min="10" max="60" name="builder_minutes" value="20">
+                </div>
+                <div>
+                    <label class="field-label">Body parts</label>
+                    <div class="button-row" style="margin-top: 0;">
+                        {% for part in body_parts %}
+                            <label class="tag-pill"><input type="checkbox" name="builder_body_parts" value="{{ part }}" {% if part in "Chest,Back,Core" %}checked{% endif %}> {{ part }}</label>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            <button class="btn-main" type="submit" data-generate-button>Generate And Start</button>
+            <div class="hint" data-generate-status hidden>Building a balanced session...</div>
+        </form>
+        <hr style="border-color: rgba(255,255,255,.1); margin: 20px 0;">
         <form class="submission-form" method="POST" data-workout-builder>
             {% csrf_token %}
             <input type="hidden" name="form_type" value="workout">
@@ -111,13 +132,12 @@
                 <div>
                     <label class="tag-pill"><input type="checkbox" name="is_public"> Public</label>
                     <label class="tag-pill"><input type="checkbox" name="highlighted_on_profile"> Highlight</label>
-                    <label class="tag-pill"><input type="checkbox" name="save_as_template"> Save template</label>
                 </div>
             </div>
-            <details class="score-details">
+            <details class="score-details" data-builder-details>
                 <summary>Exercises +</summary>
                 <div class="hint" data-template-preview style="margin-top: 10px;"></div>
-                {% for i in "1234" %}
+                {% for i in "123456" %}
                     <div class="feature-card{% if not forloop.first %} hidden-panel{% endif %}" style="margin-top: 10px;" data-exercise-row>
                         <select class="select" name="body_part" data-builder-body>
                             <option value="">Body part</option>
@@ -188,7 +208,7 @@
             <div class="muted">Page {{ workouts.number }} of {{ workouts.paginator.num_pages }}</div>
             <div class="button-row" style="margin-top: 0;">
                 {% if workouts.has_previous %}
-                    <a class="btn-secondary" href="?{% if workout_query %}q={{ workout_query|urlencode }}&{% endif %}page={{ workouts.previous_page_number }}">&lt;-</a>
+                    <a class="btn-secondary" href="?{% if workout_query %}q={{ workout_query|urlencode }}&{% endif %}page={{ workouts.previous_page_number }}" aria-label="Previous page">&#8592;</a>
                 {% endif %}
                 {% for page_number in workout_pages %}
                     {% if page_number == workouts.paginator.ELLIPSIS %}
@@ -200,7 +220,7 @@
                     {% endif %}
                 {% endfor %}
                 {% if workouts.has_next %}
-                    <a class="btn-secondary" href="?{% if workout_query %}q={{ workout_query|urlencode }}&{% endif %}page={{ workouts.next_page_number }}">-&gt;</a>
+                    <a class="btn-secondary" href="?{% if workout_query %}q={{ workout_query|urlencode }}&{% endif %}page={{ workouts.next_page_number }}" aria-label="Next page">&#8594;</a>
                 {% endif %}
             </div>
         </div>
@@ -280,7 +300,7 @@
     };
     const fillExerciseRowsFromTemplate = (template) => {
         if (!template) return;
-        document.querySelector("[data-exercise-details]").open = true;
+        document.querySelector("[data-builder-details]").open = true;
         exerciseRows().forEach((row, index) => {
             clearExerciseRow(row);
             const exercise = template.exercises[index];
@@ -318,7 +338,17 @@
 
     document.querySelector("[data-template-select]")?.addEventListener("change", (event) => {
         const template = templateData.find((item) => String(item.id) === String(event.target.value));
-        if (!template) return;
+        if (!template) {
+            document.querySelector("[data-workout-title]").value = "";
+            document.querySelector("[data-workout-minutes]").value = "";
+            exerciseRows().forEach((row, index) => {
+                clearExerciseRow(row);
+                row.classList.toggle("hidden-panel", index > 0);
+            });
+            const preview = document.querySelector("[data-template-preview]");
+            if (preview) preview.innerHTML = "";
+            return;
+        }
         document.querySelector("[data-workout-title]").value = template.name;
         document.querySelector("[data-workout-minutes]").value = template.minutes;
         fillExerciseRowsFromTemplate(template);
@@ -330,6 +360,16 @@
                 return `<div>${exercise.name} - ${exercise.sets} set(s)${reps}${seconds}</div>`;
             }).join("");
         }
+    });
+    document.querySelector("[data-generated-builder]")?.addEventListener("submit", (event) => {
+        event.preventDefault();
+        const form = event.currentTarget;
+        const button = form.querySelector("[data-generate-button]");
+        const status = form.querySelector("[data-generate-status]");
+        button.disabled = true;
+        button.textContent = "Generating...";
+        status.hidden = false;
+        setTimeout(() => form.submit(), 900);
     });
 </script>
 {% endblock %}

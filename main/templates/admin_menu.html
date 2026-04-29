@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+
+{% block title %}Admin Menu{% endblock %}
+
+{% block content %}
+<section class="hero-card">
+    <div class="eyebrow">Admin</div>
+    <h1>Admin menu.</h1>
+    <p class="muted">Review submissions, manage content prompts, and prepare weekly newsletters.</p>
+</section>
+
+<section class="grid-3">
+    <a class="feature-card" href="{% url 'admin_review' %}">
+        <span class="kicker">Review</span>
+        <h2>Submissions</h2>
+        <p class="muted">{{ pending_count }} pending result(s) need attention.</p>
+    </a>
+    <a class="feature-card" href="{% url 'content_engine_admin' %}">
+        <span class="kicker">Content</span>
+        <h2>Content Engine</h2>
+        <p class="muted">{{ prompt_count }} prompt(s) are in the system.</p>
+    </a>
+    <a class="feature-card" href="{% url 'newsletter_admin' %}">
+        <span class="kicker">Newsletter</span>
+        <h2>Weekly Email</h2>
+        <p class="muted">{{ subscriber_count }} subscriber(s) linked from signups.</p>
+    </a>
+</section>
+{% endblock %}

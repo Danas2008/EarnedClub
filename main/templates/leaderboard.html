@@ -112,7 +112,7 @@
             <div class="muted">Page {{ leaderboard_rows.number }} of {{ leaderboard_rows.paginator.num_pages }}</div>
             <div class="button-row" style="margin-top: 0;">
                 {% if leaderboard_rows.has_previous %}
-                    <a class="btn-secondary" href="?mode={{ active_mode.key }}{% if query %}&q={{ query|urlencode }}{% endif %}&page={{ leaderboard_rows.previous_page_number }}#full-leaderboard">&lt;-</a>
+                    <a class="btn-secondary" href="?mode={{ active_mode.key }}{% if query %}&q={{ query|urlencode }}{% endif %}&page={{ leaderboard_rows.previous_page_number }}#full-leaderboard" aria-label="Previous page">&#8592;</a>
                 {% endif %}
                 {% for page_number in leaderboard_pages %}
                     {% if page_number == leaderboard_rows.paginator.ELLIPSIS %}
@@ -124,7 +124,7 @@
                     {% endif %}
                 {% endfor %}
                 {% if leaderboard_rows.has_next %}
-                    <a class="btn-secondary" href="?mode={{ active_mode.key }}{% if query %}&q={{ query|urlencode }}{% endif %}&page={{ leaderboard_rows.next_page_number }}#full-leaderboard">-&gt;</a>
+                    <a class="btn-secondary" href="?mode={{ active_mode.key }}{% if query %}&q={{ query|urlencode }}{% endif %}&page={{ leaderboard_rows.next_page_number }}#full-leaderboard" aria-label="Next page">&#8594;</a>
                 {% endif %}
             </div>
         </div>
