@@ -1,4 +1,5 @@
 import json
+import logging
 import random
 from datetime import timedelta
 from xml.etree.ElementTree import Element, SubElement, indent, register_namespace, tostring
@@ -10,7 +11,7 @@ from django.contrib import messages
 from django.contrib.auth import login, logout
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.decorators import user_passes_test
-from django.contrib.auth.forms import AuthenticationForm, UserCreationForm
+from django.contrib.auth.forms import AuthenticationForm
 from django.contrib.auth.models import User
 from django.core.mail import send_mail
 from django.core.serializers.json import DjangoJSONEncoder
@@ -25,11 +26,14 @@ from django.utils import timezone
 from django.utils.safestring import mark_safe
 
 from .countries import COUNTRY_CHOICES
+from .forms import FlexibleUsernameCreationForm
 from .models import (
     ContentEnginePrompt,
     Follow,
     Goal,
     NewsletterCampaign,
+    NewsletterSendEvent,
+    NewsletterSegment,
     NewsletterSubscriber,
     Profile,
     RANK_TIERS,
@@ -135,6 +139,7 @@ SYSTEM_WORKOUT_TEMPLATES = [
 
 ADMIN_SUBMISSION_EMAIL = "daniel.havlicek1@seznam.cz"
 NEWSLETTER_FROM_EMAIL = "Earned Club <earnedclub1@gmail.com>"
+logger = logging.getLogger(__name__)
 
 
 SITEMAP_NAMESPACE = "http://www.sitemaps.org/schemas/sitemap/0.9"
@@ -643,6 +648,67 @@ def parse_positive_int(value):
     return parsed if parsed > 0 else None
 
 
+def profile_completion_items(user):
+    profile = user.profile
+    items = [
+        {"label": "Add profile photo", "done": bool(profile.profile_image_url), "url": reverse("dashboard")},
+        {"label": "Add country", "done": bool(profile.country), "url": reverse("dashboard")},
+        {"label": "Add bio", "done": bool(profile.bio), "url": reverse("dashboard")},
+        {"label": "Get first verified push-up attempt", "done": user.submission_set.filter(status=Submission.STATUS_VERIFIED).exists(), "url": reverse("challenge")},
+        {"label": "Publish one workout", "done": user.workouts.filter(is_public=True).exists(), "url": reverse("workouts")},
+    ]
+    completed = sum(1 for item in items if item["done"])
+    return items, round((completed / len(items)) * 100)
+
+
+def build_onboarding_checklist(user):
+    return [
+        {"label": "Test your push-up level", "done": user.submission_set.exists(), "url": reverse("level_test")},
+        {"label": "Submit proof", "done": user.submission_set.filter(status__in=[Submission.STATUS_PENDING, Submission.STATUS_VERIFIED]).exists(), "url": reverse("challenge")},
+        {"label": "Create a workout", "done": user.workouts.exists(), "url": reverse("workouts")},
+        {"label": "Set a goal", "done": user.goals.exists(), "url": reverse("dashboard")},
+        {"label": "Share your profile", "done": bool(user.profile.personal_best_reps), "url": reverse("athlete_profile", args=[user.profile.slug])},
+    ]
+
+
+def build_next_action(user):
+    if not user.submission_set.exists():
+        return {"label": "Test your push-up level", "url": reverse("level_test"), "text": "Start with a quick push-up level test."}
+    if user.submission_set.filter(status=Submission.STATUS_UNVERIFIED).exists():
+        return {"label": "Add proof", "url": reverse("dashboard"), "text": "Upload proof so your push-up result can be reviewed."}
+    if not user.workouts.exists():
+        return {"label": "Create workout", "url": reverse("workouts"), "text": "Build a push-up workout plan for the next 14 days."}
+    if not user.goals.exists():
+        return {"label": "Set goal", "url": reverse("dashboard"), "text": "Pick the next push-up number you want to reach."}
+    return {"label": "Share profile", "url": reverse("athlete_profile", args=[user.profile.slug]), "text": "Share your public profile and keep building proof."}
+
+
+def send_newsletter_to_subscribers(subject, body, subscribers, campaign=None, request=None):
+    sent_count = 0
+    for subscriber in subscribers:
+        if not subscriber.is_subscribed:
+            continue
+        message = body
+        if request:
+            unsubscribe_url = request.build_absolute_uri(reverse("newsletter_unsubscribe", args=[subscriber.unsubscribe_token]))
+            message = f"{body}\n\nUnsubscribe: {unsubscribe_url}"
+        sent_count += send_mail(subject, message, NEWSLETTER_FROM_EMAIL, [subscriber.email], fail_silently=True)
+        NewsletterSendEvent.objects.create(subscriber=subscriber, campaign=campaign, subject=subject)
+    return sent_count
+
+
+def newsletter_auto_segment_subscribers(key):
+    if key == "verified":
+        return NewsletterSubscriber.objects.filter(email__in=Submission.objects.filter(status=Submission.STATUS_VERIFIED).exclude(email="").values("email"))
+    if key == "unverified":
+        return NewsletterSubscriber.objects.filter(email__in=Submission.objects.filter(status=Submission.STATUS_UNVERIFIED).exclude(email="").values("email"))
+    if key == "no-submission":
+        return NewsletterSubscriber.objects.exclude(email__in=Submission.objects.exclude(email="").values("email"))
+    if key == "high-rank":
+        return NewsletterSubscriber.objects.filter(email__in=Submission.objects.filter(status=Submission.STATUS_VERIFIED, reps__gte=60).exclude(email="").values("email"))
+    return NewsletterSubscriber.objects.none()
+
+
 def get_default_exercise(name):
     return EXERCISE_LOOKUP.get((name or "").strip(), {})
 
@@ -650,6 +716,7 @@ def get_default_exercise(name):
 def create_workout_from_request(request):
     title = (request.POST.get("title") or "").strip()
     duration_value = parse_positive_int(request.POST.get("duration_minutes"))
+    rest_interval = parse_positive_int(request.POST.get("rest_interval_seconds")) or 60
     notes = (request.POST.get("notes") or "").strip()
     is_public = request.POST.get("is_public") == "on"
     highlighted = request.POST.get("highlighted_on_profile") == "on"
@@ -663,11 +730,14 @@ def create_workout_from_request(request):
         duration_value = estimate_workout_minutes(get_template_exercises(template))
     if not title:
         return None, "Workout title is required."
+    if highlighted and is_public:
+        request.user.workouts.update(highlighted_on_profile=False)
     workout = Workout.objects.create(
         user=request.user,
         template=template,
         title=title,
         duration_minutes=duration_value,
+        rest_interval_seconds=rest_interval,
         notes=notes,
         is_public=is_public,
         highlighted_on_profile=highlighted and is_public,
@@ -708,7 +778,8 @@ def create_workout_from_request(request):
 
 def pick_exercises_for_body_parts(body_parts, duration_minutes, personal_best):
     body_parts = [part for part in body_parts if part in BODY_PARTS]
-    if not body_parts:
+    selected_body_parts = bool(body_parts)
+    if not selected_body_parts:
         body_parts = ["Chest", "Back", "Legs", "Core"]
     target_count = 4
     if duration_minutes >= 35:
@@ -729,11 +800,20 @@ def pick_exercises_for_body_parts(body_parts, duration_minutes, personal_best):
     for part in body_parts:
         candidates = [exercise for exercise in DEFAULT_EXERCISES if exercise["body_part"] == part]
         strength = [exercise for exercise in candidates if exercise["type"] == WorkoutExercise.TYPE_STRENGTH]
-        chosen.extend(strength[:2] or candidates[:1])
+        chosen.extend(strength[:target_count] or candidates[:target_count])
+
+    unique_chosen = []
+    seen_names = set()
+    for exercise in chosen:
+        if exercise["name"] in seen_names:
+            continue
+        seen_names.add(exercise["name"])
+        unique_chosen.append(exercise)
+    chosen = unique_chosen
 
     if "Chest" in body_parts and not any(item["name"] == "Push-ups" for item in chosen):
         chosen.insert(0, get_default_exercise("Push-ups") | {"name": "Push-ups"})
-    if len(chosen) < target_count:
+    if not selected_body_parts and len(chosen) < target_count:
         for fallback in ("Rows", "Squats", "Plank", "Jump rope", "Dead bug", "Side plank"):
             exercise = get_default_exercise(fallback)
             if exercise and exercise not in chosen:
@@ -759,16 +839,23 @@ def pick_exercises_for_body_parts(body_parts, duration_minutes, personal_best):
 def create_generated_workout(request):
     duration = parse_positive_int(request.POST.get("builder_minutes")) or 20
     duration = min(60, max(10, duration))
-    body_parts = request.POST.getlist("builder_body_parts")
-    exercises = pick_exercises_for_body_parts(body_parts, duration, request.user.profile.personal_best_reps)
-    exercise_names = [name for name, _sets, _reps, _seconds in exercises]
-    title_parts = ", ".join(exercise_names[:3]) if exercise_names else "Generated exercises"
-    if len(exercise_names) > 3:
-        title_parts = f"{title_parts}, ..."
+    body_parts = [part for part in request.POST.getlist("builder_body_parts") if part in BODY_PARTS]
+    difficulty = request.POST.get("builder_difficulty") or ""
+    personal_best = request.user.profile.personal_best_reps
+    if difficulty == WorkoutTemplate.DIFFICULTY_BEGINNER:
+        personal_best = 0
+    elif difficulty == WorkoutTemplate.DIFFICULTY_INTERMEDIATE:
+        personal_best = 25
+    elif difficulty == WorkoutTemplate.DIFFICULTY_ADVANCED:
+        personal_best = 60
+    rest_interval = parse_positive_int(request.POST.get("builder_rest_interval_seconds")) or 60
+    exercises = pick_exercises_for_body_parts(body_parts, duration, personal_best)
+    title_parts = ", ".join(body_parts) if body_parts else "Full body"
     workout = Workout.objects.create(
         user=request.user,
         title=f"{title_parts} {duration}-minute custom workout",
         duration_minutes=duration,
+        rest_interval_seconds=rest_interval,
         notes="Generated from your selected body parts and available time.",
     )
     for index, (name, sets, reps, seconds) in enumerate(exercises):
@@ -1020,7 +1107,7 @@ def register(request):
         return redirect("dashboard")
 
     if request.method == "POST":
-        form = UserCreationForm(request.POST)
+        form = FlexibleUsernameCreationForm(request.POST)
         email = (request.POST.get("email") or "").strip().lower()
         if form.is_valid():
             user = form.save(commit=False)
@@ -1034,7 +1121,7 @@ def register(request):
             messages.success(request, "Account created. Your athlete profile is ready.")
             return redirect("dashboard")
     else:
-        form = UserCreationForm()
+        form = FlexibleUsernameCreationForm()
 
     return render(
         request,
@@ -1197,6 +1284,7 @@ def dashboard(request):
         )
     ]
     history_submissions = paginate_items(request, request.user.submission_set.order_by("-created_at"), per_page=5)
+    profile_completion, profile_completion_percent = profile_completion_items(request.user)
 
     context = {
         "profile": profile,
@@ -1240,6 +1328,10 @@ def dashboard(request):
             for tier in RANK_TIERS
         ],
         "daily_suggestion": recommendation,
+        "profile_completion": profile_completion,
+        "profile_completion_percent": profile_completion_percent,
+        "onboarding_checklist": build_onboarding_checklist(request.user),
+        "next_action": build_next_action(request.user),
         "profile_share_message": get_profile_share_message(profile, request),
         "pr_share_message": get_pr_share_message(profile, request),
     }
@@ -1497,6 +1589,7 @@ def challenge(request):
                     request,
                     f"Proof added. If verified, this result would currently rank #{estimated_position} on the verified leaderboard.",
                 )
+                messages.info(request, "Next: retest your strict push-ups in 14 days or start a support workout today.")
                 return redirect("challenge")
 
             messages.error(
@@ -1566,6 +1659,7 @@ def challenge(request):
                 "Submission saved as unverified. Upload a proof video from your profile to move it into pending review."
             ),
         )
+        messages.info(request, "Next: open your dashboard to track review status, then retest your strict push-ups in 14 days.")
         return redirect("challenge")
 
     return render(request, "challenge.html", context)
@@ -1632,6 +1726,13 @@ def is_app_admin(user):
 
 @user_passes_test(is_app_admin, login_url="login")
 def admin_menu(request):
+    recent_errors = []
+    for path in ("runserver.err.log",):
+        try:
+            with open(path, "r", encoding="utf-8", errors="ignore") as handle:
+                recent_errors = [line.strip() for line in handle.readlines()[-5:] if line.strip()]
+        except OSError:
+            recent_errors = []
     return render(
         request,
         "admin_menu.html",
@@ -1639,6 +1740,13 @@ def admin_menu(request):
             "pending_count": pending_submission_queryset().count(),
             "subscriber_count": NewsletterSubscriber.objects.count(),
             "prompt_count": ContentEnginePrompt.objects.count(),
+            "site_health": {
+                "email_backend": settings.EMAIL_BACKEND,
+                "default_from_email": settings.DEFAULT_FROM_EMAIL,
+                "supabase_storage": "Enabled" if settings.SUPABASE_STORAGE_ENABLED else "Disabled",
+                "debug": "On" if settings.DEBUG else "Off",
+                "recent_errors": recent_errors,
+            },
         },
     )
 
@@ -1796,6 +1904,18 @@ def newsletter_admin(request):
     draft = build_newsletter_draft(week_number)
 
     if request.method == "POST":
+        form_type = request.POST.get("form_type") or "campaign"
+        if form_type == "segment":
+            name = (request.POST.get("segment_name") or "").strip()
+            subscriber_ids = request.POST.getlist("subscriber_ids")
+            if not name:
+                messages.error(request, "Segment name is required.")
+                return redirect("newsletter_admin")
+            segment, _created = NewsletterSegment.objects.get_or_create(name=name)
+            segment.subscribers.set(NewsletterSubscriber.objects.filter(id__in=subscriber_ids))
+            messages.success(request, f"{segment.name} saved with {segment.subscribers.count()} subscriber(s).")
+            return redirect("newsletter_admin")
+
         subject = (request.POST.get("subject") or draft["subject"]).strip()
         body = (request.POST.get("body") or draft["body"]).strip()
         if not subject or not body:
@@ -1803,15 +1923,40 @@ def newsletter_admin(request):
             return redirect("newsletter_admin")
 
         campaign = NewsletterCampaign.objects.create(week_number=week_number, subject=subject, body=body)
-        recipients = list(NewsletterSubscriber.objects.order_by("email").values_list("email", flat=True))
+        segment_id = request.POST.get("segment_id")
+        auto_segment = request.POST.get("auto_segment")
+        segment = NewsletterSegment.objects.filter(pk=segment_id).prefetch_related("subscribers").first() if segment_id else None
+        if auto_segment:
+            recipient_qs = newsletter_auto_segment_subscribers(auto_segment)
+        else:
+            recipient_qs = segment.subscribers.all() if segment else NewsletterSubscriber.objects.all()
+        recipients = list(recipient_qs.order_by("email"))
+        if request.POST.get("action") == "preview":
+            messages.info(request, f"Preview: {len([subscriber for subscriber in recipients if subscriber.is_subscribed])} subscribed recipient(s).")
+            return render(
+                request,
+                "newsletter_admin.html",
+                {
+                    "week_number": week_number,
+                    "draft_subject": subject,
+                    "draft_body": body,
+                    "subscriber_count": NewsletterSubscriber.objects.count(),
+                    "subscribers": NewsletterSubscriber.objects.prefetch_related("segments").order_by("email"),
+                    "segments": NewsletterSegment.objects.prefetch_related("subscribers"),
+                    "campaigns": NewsletterCampaign.objects.all()[:8],
+                    "week_choices": range(1, 13),
+                    "preview_subject": subject,
+                    "preview_body": body,
+                    "preview_count": len([subscriber for subscriber in recipients if subscriber.is_subscribed]),
+                },
+            )
         if request.POST.get("action") == "send" and recipients:
-            sent_count = 0
-            for recipient in recipients:
-                sent_count += send_mail(subject, body, NEWSLETTER_FROM_EMAIL, [recipient], fail_silently=True)
+            sent_count = send_newsletter_to_subscribers(subject, body, recipients, campaign=campaign, request=request)
             campaign.sent_at = timezone.now()
             campaign.sent_count = sent_count
             campaign.save(update_fields=["sent_at", "sent_count"])
-            messages.success(request, f"Newsletter sent to {sent_count} subscriber(s).")
+            destination = f" segment {segment.name}" if segment else (f" auto filter {auto_segment}" if auto_segment else "")
+            messages.success(request, f"Newsletter sent to {sent_count} subscriber(s){destination}.")
         elif request.POST.get("action") == "send":
             messages.info(request, "Newsletter draft saved. There are no subscribers yet.")
         else:
@@ -1819,6 +1964,14 @@ def newsletter_admin(request):
         return redirect("newsletter_admin")
 
     campaigns = NewsletterCampaign.objects.all()[:8]
+    subscribers = NewsletterSubscriber.objects.prefetch_related("segments").order_by("email")
+    segments = NewsletterSegment.objects.prefetch_related("subscribers")
+    auto_segments = {
+        "Verified users": NewsletterSubscriber.objects.filter(email__in=Submission.objects.filter(status=Submission.STATUS_VERIFIED).exclude(email="").values("email")).count(),
+        "Unverified users": NewsletterSubscriber.objects.filter(email__in=Submission.objects.filter(status=Submission.STATUS_UNVERIFIED).exclude(email="").values("email")).count(),
+        "No submission yet": NewsletterSubscriber.objects.exclude(email__in=Submission.objects.exclude(email="").values("email")).count(),
+        "High rank users": NewsletterSubscriber.objects.filter(email__in=Submission.objects.filter(status=Submission.STATUS_VERIFIED, reps__gte=60).exclude(email="").values("email")).count(),
+    }
     return render(
         request,
         "newsletter_admin.html",
@@ -1827,10 +1980,56 @@ def newsletter_admin(request):
             "draft_subject": draft["subject"],
             "draft_body": draft["body"],
             "subscriber_count": NewsletterSubscriber.objects.count(),
+            "subscribers": subscribers,
+            "segments": segments,
+            "auto_segments": auto_segments,
             "campaigns": campaigns,
             "week_choices": range(1, 13),
         },
     )
+
+
+@user_passes_test(is_app_admin, login_url="login")
+def newsletter_subscriber_detail(request, subscriber_id):
+    subscriber = get_object_or_404(NewsletterSubscriber.objects.prefetch_related("segments"), pk=subscriber_id)
+    default_week = NewsletterCampaign.objects.order_by("-week_number").values_list("week_number", flat=True).first() or 0
+    draft = build_newsletter_draft(default_week + 1)
+
+    if request.method == "POST":
+        subject = (request.POST.get("subject") or "").strip()
+        body = (request.POST.get("body") or "").strip()
+        if not subject or not body:
+            messages.error(request, "Subject and body are required.")
+            return redirect("newsletter_subscriber_detail", subscriber_id=subscriber.id)
+        sent_count = send_newsletter_to_subscribers(subject, body, [subscriber], request=request)
+        NewsletterCampaign.objects.create(
+            week_number=default_week + 1,
+            subject=subject,
+            body=body,
+            sent_at=timezone.now(),
+            sent_count=sent_count,
+        )
+        messages.success(request, f"Email sent to {subscriber.email}.")
+        return redirect("newsletter_subscriber_detail", subscriber_id=subscriber.id)
+
+    return render(
+        request,
+        "newsletter_subscriber_detail.html",
+        {
+            "subscriber": subscriber,
+            "draft_subject": draft["subject"],
+            "draft_body": draft["body"],
+            "segments": NewsletterSegment.objects.prefetch_related("subscribers"),
+            "send_events": subscriber.send_events.select_related("campaign")[:10],
+        },
+    )
+
+
+def newsletter_unsubscribe(request, token):
+    subscriber = get_object_or_404(NewsletterSubscriber, unsubscribe_token=token)
+    subscriber.unsubscribe()
+    messages.success(request, "You have been unsubscribed from Earned Club emails.")
+    return redirect("home")
 
 
 def calculators(request):
@@ -2012,6 +2211,7 @@ def finish_workout_session(request, session_id):
         session.completed_at = timezone.now()
         session.save(update_fields=["status", "completed_at"])
         messages.success(request, f"{session.workout.title} completed.")
+        messages.info(request, "Retest reminder: try a fresh strict push-up test in 14 days.")
     else:
         messages.info(request, "This workout is already completed.")
     return redirect("workout_session_detail", session_id=session.id)

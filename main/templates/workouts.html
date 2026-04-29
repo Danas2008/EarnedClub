@@ -106,6 +106,21 @@
                     <input id="builder-minutes" class="input" type="number" min="10" max="60" name="builder_minutes" value="20">
                 </div>
                 <div>
+                    <label class="field-label" for="builder-difficulty">Difficulty</label>
+                    <select id="builder-difficulty" class="select" name="builder_difficulty">
+                        <option value="">Match my level</option>
+                        <option value="beginner">Beginner</option>
+                        <option value="intermediate">Intermediate</option>
+                        <option value="advanced">Advanced</option>
+                    </select>
+                </div>
+            </div>
+            <div class="grid-2">
+                <div>
+                    <label class="field-label" for="builder-rest">Rest seconds</label>
+                    <input id="builder-rest" class="input" type="number" min="15" max="300" name="builder_rest_interval_seconds" value="60">
+                </div>
+                <div>
                     <label class="field-label">Body parts</label>
                     <div class="button-row" style="margin-top: 0;">
                         {% for part in body_parts %}
@@ -134,6 +149,7 @@
             </div>
             <div class="grid-2">
                 <input class="input" type="number" min="1" name="duration_minutes" data-workout-minutes placeholder="Minutes">
+                <input class="input" type="number" min="15" max="300" name="rest_interval_seconds" value="60" placeholder="Rest seconds">
                 <div>
                     <label class="tag-pill"><input type="checkbox" name="is_public"> Public</label>
                     <label class="tag-pill"><input type="checkbox" name="highlighted_on_profile"> Highlight</label>

@@ -4,7 +4,9 @@ from django.db import models
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django.urls import reverse
+from django.utils import timezone
 from django.utils.text import slugify
+from django.utils.crypto import get_random_string
 
 
 RANK_TIERS = [
@@ -367,12 +369,20 @@ class Workout(models.Model):
     slug = models.SlugField(max_length=140, unique=True, blank=True)
     notes = models.TextField(blank=True)
     duration_minutes = models.PositiveIntegerField(null=True, blank=True)
+    rest_interval_seconds = models.PositiveIntegerField(default=60)
     is_public = models.BooleanField(default=False)
     highlighted_on_profile = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         ordering = ("-created_at",)
+        constraints = [
+            models.UniqueConstraint(
+                fields=["user"],
+                condition=models.Q(highlighted_on_profile=True),
+                name="unique_highlighted_workout_per_user",
+            )
+        ]
 
     def __str__(self):
         return self.title
@@ -529,6 +539,8 @@ def refresh_profile_stats(user_ids=None, refresh_all_ranks=False):
 
 class NewsletterSubscriber(models.Model):
     email = models.EmailField(unique=True)
+    unsubscribe_token = models.CharField(max_length=48, unique=True, blank=True)
+    unsubscribed_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -536,6 +548,22 @@ class NewsletterSubscriber(models.Model):
 
     def __str__(self):
         return self.email
+
+    def save(self, *args, **kwargs):
+        if not self.unsubscribe_token:
+            token = get_random_string(32)
+            while NewsletterSubscriber.objects.filter(unsubscribe_token=token).exclude(pk=self.pk).exists():
+                token = get_random_string(32)
+            self.unsubscribe_token = token
+        super().save(*args, **kwargs)
+
+    @property
+    def is_subscribed(self):
+        return self.unsubscribed_at is None
+
+    def unsubscribe(self):
+        self.unsubscribed_at = timezone.now()
+        self.save(update_fields=["unsubscribed_at"])
 
 
 class NewsletterCampaign(models.Model):
@@ -551,3 +579,28 @@ class NewsletterCampaign(models.Model):
 
     def __str__(self):
         return f"Week {self.week_number}: {self.subject}"
+
+
+class NewsletterSegment(models.Model):
+    name = models.CharField(max_length=120, unique=True)
+    subscribers = models.ManyToManyField(NewsletterSubscriber, related_name="segments", blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ("name",)
+
+    def __str__(self):
+        return self.name
+
+
+class NewsletterSendEvent(models.Model):
+    subscriber = models.ForeignKey(NewsletterSubscriber, related_name="send_events", on_delete=models.CASCADE)
+    campaign = models.ForeignKey(NewsletterCampaign, related_name="send_events", null=True, blank=True, on_delete=models.SET_NULL)
+    subject = models.CharField(max_length=180)
+    sent_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ("-sent_at",)
+
+    def __str__(self):
+        return f"{self.subscriber.email} - {self.subject}"

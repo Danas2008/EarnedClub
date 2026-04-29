@@ -7,20 +7,20 @@
 <section class="hero-card quiz-shell">
     <div class="quiz-progress"><span data-quiz-progress></span></div>
     <div class="quiz-step is-active" data-step="0">
-        <div class="eyebrow">Question 1 / 6</div>
+        <div class="eyebrow">Question 1 / 7</div>
         <h1>How old are you?</h1>
         <input id="quiz-age" class="input quiz-input" type="number" min="13" max="100" placeholder="17" inputmode="numeric">
         <button class="btn-main" type="button" data-next>Next</button>
     </div>
     <div class="quiz-step" data-step="1">
-        <div class="eyebrow">Question 2 / 6</div>
-        <h1>Training days per week?</h1>
+        <div class="eyebrow">Question 2 / 7</div>
+        <h1>Push-up training days per week?</h1>
         <input id="quiz-days" class="input quiz-input" type="number" min="0" max="14" placeholder="4" inputmode="numeric">
         <button class="btn-main" type="button" data-next>Next</button>
     </div>
     <div class="quiz-step" data-step="2">
-        <div class="eyebrow">Question 3 / 6</div>
-        <h1>Current level?</h1>
+        <div class="eyebrow">Question 3 / 7</div>
+        <h1>Current push-up level?</h1>
         <select id="quiz-level" class="select quiz-input">
             <option value="beginner">Beginner</option>
             <option value="intermediate">Intermediate</option>
@@ -30,26 +30,32 @@
         <button class="btn-main" type="button" data-next>Next</button>
     </div>
     <div class="quiz-step" data-step="3">
-        <div class="eyebrow">Question 4 / 6</div>
-        <h1>Max reps in one clean set?</h1>
+        <div class="eyebrow">Question 4 / 7</div>
+        <h1>Max strict push-ups in one clean set?</h1>
         <input id="quiz-reps" class="input quiz-input" type="number" min="0" placeholder="42" inputmode="numeric">
         <button class="btn-main" type="button" data-next>Next</button>
     </div>
     <div class="quiz-step" data-step="4">
-        <div class="eyebrow">Question 5 / 6</div>
+        <div class="eyebrow">Question 5 / 7</div>
         <h1>Push-up goal?</h1>
         <input id="quiz-goal" class="input quiz-input" type="number" min="1" placeholder="50" inputmode="numeric">
         <button class="btn-main" type="button" data-next>Next</button>
     </div>
     <div class="quiz-step" data-step="5">
-        <div class="eyebrow">Question 6 / 6</div>
-        <h1>Display name?</h1>
-        <input id="quiz-display-name" class="input quiz-input" type="text" placeholder="Daniel">
+        <div class="eyebrow">Question 6 / 7</div>
+        <h1>Username?</h1>
+        <input id="quiz-username" class="input quiz-input" type="text" placeholder="Daniel Č Š">
+        <button class="btn-main" type="button" data-next>Next</button>
+    </div>
+    <div class="quiz-step" data-step="6">
+        <div class="eyebrow">Question 7 / 7</div>
+        <h1>Email?</h1>
+        <input id="quiz-email" class="input quiz-input" type="email" placeholder="you@example.com">
         <button class="btn-main" type="button" data-next>Reveal</button>
     </div>
-    <div class="quiz-step quiz-result-card" data-step="6">
+    <div class="quiz-step quiz-result-card" data-step="7">
         <div class="eyebrow">Your result</div>
-        <h1 id="quiz-title">Level ready.</h1>
+        <h1 id="quiz-title">Push-up level ready.</h1>
         <p id="quiz-result" class="muted"></p>
         <div id="quiz-summary" class="submit-panel" style="margin-bottom: 16px;"></div>
         <div class="hero-actions">
@@ -69,7 +75,7 @@
     function showStep(index) {
         active = index;
         steps.forEach((step) => step.classList.toggle("is-active", parseInt(step.dataset.step, 10) === index));
-        bar.style.width = `${Math.min(100, (index / 6) * 100)}%`;
+        bar.style.width = `${Math.min(100, (index / 7) * 100)}%`;
     }
     function tierFor(reps) {
         return tiers.find((tier) => reps >= tier.min_reps && (tier.max_reps === null || reps <= tier.max_reps)) || tiers[0];
@@ -80,26 +86,31 @@
         const level = document.getElementById("quiz-level").value;
         const reps = parseInt(document.getElementById("quiz-reps").value, 10) || 0;
         const goal = parseInt(document.getElementById("quiz-goal").value, 10) || 0;
-        const displayName = (document.getElementById("quiz-display-name").value || "").trim();
+        const username = (document.getElementById("quiz-username").value || "").trim();
+        const email = (document.getElementById("quiz-email").value || "").trim();
         const tier = tierFor(reps);
+        const tierWorkout = tier.name === "Beginner" ? "Beginner Push Day" : tier.name === "Intermediate" ? "Full Body Base" : "Elite Push Builder";
         const consistency = days >= 4 ? "Your training frequency is strong enough to push for a real jump." : "A little more weekly consistency would move this faster.";
         const gap = Math.max(0, goal - reps);
         const weeklyPace = Math.max(2, Math.min(10, Math.round((days || 2) * 1.5)));
         const weeks = gap ? Math.max(1, Math.ceil(gap / weeklyPace)) : 0;
         const goalLine = goal
             ? (gap ? `You are ${gap} push-ups away from ${goal}. With our workouts, that is roughly ${weeks} week${weeks === 1 ? "" : "s"} of focused training.` : `You already reached your ${goal}-rep goal. Set the next one and keep building.`)
-            : "Set a rep goal and the workouts can give you a clear target.";
-        document.getElementById("quiz-title").textContent = `Hello, ${displayName || "Athlete"}`;
-        document.getElementById("quiz-result").textContent = `${reps} strict reps puts you in ${tier.name}. ${tier.benchmark}. ${consistency} ${goalLine}`;
+            : "Set a push-up rep goal and the workouts can give you a clear target.";
+        document.getElementById("quiz-title").textContent = `Hello, ${username || "Athlete"}`;
+        document.getElementById("quiz-result").textContent = `You are ${tier.name}. Do ${tierWorkout} 3x/week, keep strict push-up form, and retest in 14 days. ${tier.benchmark}. ${consistency} ${goalLine}`;
         const summary = document.getElementById("quiz-summary");
         summary.replaceChildren();
         [
-            `Display name: ${displayName || "Not set"}`,
+            `Username: ${username || "Not set"}`,
+            `Email: ${email || "Not set"}`,
             `Age: ${age || "Not set"}`,
-            `Training days/week: ${days || 0}`,
+            `Push-up training days/week: ${days || 0}`,
             `Your level: ${level}`,
-            `Max reps: ${reps}`,
+            `Max strict push-ups: ${reps}`,
             `Goal: ${goal ? `${goal} push-ups` : "Not set"}`,
+            `Next workout: ${tierWorkout} 3x/week`,
+            "Retest: 14 days",
             goalLine,
         ].forEach((line) => {
             const item = document.createElement("div");
@@ -109,19 +120,20 @@
         });
         const params = new URLSearchParams();
         params.set("reps", reps);
-        if (displayName) params.set("name", displayName);
+        if (username) params.set("name", username);
+        if (email) params.set("email", email);
         document.getElementById("quiz-submit").href = `{% url 'challenge' %}?${params.toString()}#submit-form-top`;
         document.getElementById("quiz-register").href = `{% url 'register' %}?${params.toString()}`;
-        showStep(6);
+        showStep(7);
     }
     document.querySelectorAll("[data-next]").forEach((button) => {
-        button.addEventListener("click", () => active >= 5 ? reveal() : showStep(active + 1));
+        button.addEventListener("click", () => active >= 6 ? reveal() : showStep(active + 1));
     });
     document.querySelectorAll(".quiz-input").forEach((field) => {
         field.addEventListener("keydown", (event) => {
             if (event.key !== "Enter") return;
             event.preventDefault();
-            active >= 5 ? reveal() : showStep(active + 1);
+            active >= 6 ? reveal() : showStep(active + 1);
         });
     });
     showStep(0);

@@ -56,7 +56,7 @@
         </div>
         <div class="stat-card">
             <span class="kicker">Rest Timer</span>
-            <span class="stat-value" data-rest-clock>01:00</span>
+            <span class="stat-value" data-rest-clock data-rest-seconds="{{ session.workout.rest_interval_seconds }}">01:00</span>
             <div class="button-row" style="margin-top: 8px;">
                 <button class="btn-secondary" type="button" data-rest-start>Start</button>
                 <button class="btn-secondary" type="button" data-rest-reset>Reset</button>
@@ -111,7 +111,8 @@
         {% if session.status == "active" %}setInterval(tickWorkout, 1000);{% endif %}
     }
     const restClock = document.querySelector("[data-rest-clock]");
-    let restSeconds = 60;
+    const restDefault = Number(restClock?.dataset.restSeconds || 60);
+    let restSeconds = restDefault;
     let restInterval = null;
     const renderRest = () => restClock.textContent = formatTime(restSeconds);
     document.querySelector("[data-rest-start]")?.addEventListener("click", () => {
@@ -128,9 +129,18 @@
     document.querySelector("[data-rest-reset]")?.addEventListener("click", () => {
         clearInterval(restInterval);
         restInterval = null;
-        restSeconds = 60;
+        restSeconds = restDefault;
         renderRest();
     });
+    document.querySelectorAll("button[name='action'][value='complete_set']").forEach((button) => {
+        button.addEventListener("click", () => {
+            sessionStorage.setItem("startRestTimer", "1");
+        });
+    });
     renderRest();
+    if (sessionStorage.getItem("startRestTimer") === "1") {
+        sessionStorage.removeItem("startRestTimer");
+        document.querySelector("[data-rest-start]")?.click();
+    }
 </script>
 {% endblock %}

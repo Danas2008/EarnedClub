@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+
+{% block title %}Newsletter Subscriber{% endblock %}
+
+{% block content %}
+<section class="hero-card">
+    <div class="eyebrow">Subscriber</div>
+    <h1>{{ subscriber.email }}</h1>
+    <p class="muted">
+        Joined {{ subscriber.created_at|date:"M j, Y" }}
+        {% if subscriber.segments.all %} -
+            {% for segment in subscriber.segments.all %}{{ segment.name }}{% if not forloop.last %}, {% endif %}{% endfor %}
+        {% endif %}
+    </p>
+    <div class="button-row">
+        <a class="btn-secondary" href="{% url 'newsletter_admin' %}">Back To Newsletter</a>
+    </div>
+</section>
+
+<section class="grid-2">
+    <div class="card-dark">
+        <h2>Direct Email</h2>
+        <form class="submission-form" method="POST">
+            {% csrf_token %}
+            <label class="field-label" for="direct-subject">Subject</label>
+            <input id="direct-subject" class="input" name="subject" value="{{ draft_subject }}">
+            <label class="field-label" for="direct-body">Body</label>
+            <textarea id="direct-body" class="textarea" name="body" rows="12">{{ draft_body }}</textarea>
+            <button class="btn-main" type="submit">Send To This Email</button>
+        </form>
+    </div>
+
+    <div class="card-dark">
+        <h2>Subscriber Sets</h2>
+        {% for segment in segments %}
+            <div class="score-row">
+                <div class="score-row-main">
+                    <div class="submission-name">{{ segment.name }}</div>
+                    <div class="submission-meta">
+                        {{ segment.subscribers.count }} subscriber(s)
+                        {% if subscriber in segment.subscribers.all %} - includes this email{% endif %}
+                    </div>
+                </div>
+            </div>
+        {% empty %}
+            <p class="muted">No saved sets yet.</p>
+        {% endfor %}
+        <h2 style="margin-top: 18px;">Send History</h2>
+        {% for event in send_events %}
+            <div class="score-row">
+                <div class="score-row-main">
+                    <div class="submission-name">{{ event.subject }}</div>
+                    <div class="submission-meta">{{ event.sent_at|date:"M j, Y H:i" }}</div>
+                </div>
+            </div>
+        {% empty %}
+            <p class="muted">No emails sent yet.</p>
+        {% endfor %}
+    </div>
+</section>
+{% endblock %}

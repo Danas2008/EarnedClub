@@ -26,4 +26,20 @@
         <p class="muted">{{ subscriber_count }} subscriber(s) linked from signups.</p>
     </a>
 </section>
+
+<section class="card-dark">
+    <h2>Site Health</h2>
+    <div class="grid-4">
+        <div class="metric-card"><span class="kicker">Email</span><p class="muted">{{ site_health.email_backend }}</p></div>
+        <div class="metric-card"><span class="kicker">From</span><p class="muted">{{ site_health.default_from_email }}</p></div>
+        <div class="metric-card"><span class="kicker">Storage</span><span class="stat-value">{{ site_health.supabase_storage }}</span></div>
+        <div class="metric-card"><span class="kicker">Debug</span><span class="stat-value">{{ site_health.debug }}</span></div>
+    </div>
+    <h3 style="margin-top: 18px;">Recent Errors</h3>
+    {% for error in site_health.recent_errors %}
+        <div class="submission-meta">{{ error }}</div>
+    {% empty %}
+        <p class="muted">No recent local error log entries found.</p>
+    {% endfor %}
+</section>
 {% endblock %}

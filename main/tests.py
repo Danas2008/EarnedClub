@@ -4,6 +4,7 @@ from xml.etree import ElementTree
 
 from django.core import mail
 from django.contrib.auth.models import User
+from django.db import IntegrityError
 from django.test import TestCase
 from django.test import override_settings
 from django.urls import reverse
@@ -12,6 +13,7 @@ from .models import (
     ContentEnginePrompt,
     Follow,
     NewsletterSubscriber,
+    NewsletterSegment,
     Profile,
     Submission,
     VerificationEvent,
@@ -311,6 +313,27 @@ class SubmissionFlowTests(TestCase):
         self.assertRedirects(response, reverse("dashboard"))
         self.assertTrue(User.objects.filter(username="sixpass").exists())
 
+    def test_registration_accepts_unicode_username_with_spaces(self):
+        response = self.client.post(
+            reverse("register"),
+            {
+                "username": "Daniel Č Š",
+                "email": "unicode@example.com",
+                "password1": "StrongPass12345",
+                "password2": "StrongPass12345",
+            },
+        )
+
+        self.assertRedirects(response, reverse("dashboard"))
+        user = User.objects.get(username="Daniel Č Š")
+        self.assertEqual(user.profile.display_name, "Daniel Č Š")
+
+    def test_register_prefills_name_and_email_from_quiz(self):
+        response = self.client.get(f"{reverse('register')}?name=Daniel%20Test&email=daniel@example.com&reps=33")
+
+        self.assertContains(response, 'value="daniel@example.com"')
+        self.assertContains(response, "Daniel Test")
+
     def test_profile_slug_is_unique(self):
         first = User.objects.create_user(username="first")
         second = User.objects.create_user(username="second")
@@ -584,6 +607,25 @@ class SubmissionFlowTests(TestCase):
         self.assertRedirects(response, reverse("workout_session_detail", args=[session.id]))
         self.assertEqual(session.exercise_sessions.count(), 1)
 
+    def test_generated_workout_uses_selected_body_part_and_title(self):
+        user = User.objects.create_user(username="generator", password="StrongPass12345")
+        self.client.force_login(user)
+
+        response = self.client.post(
+            reverse("workouts"),
+            {
+                "form_type": "generated_workout",
+                "builder_minutes": "20",
+                "builder_body_parts": ["Chest"],
+            },
+        )
+
+        workout = Workout.objects.get(user=user)
+        self.assertEqual(workout.title, "Chest 20-minute custom workout")
+        self.assertRedirects(response, reverse("workout_session_detail", args=[workout.sessions.first().id]))
+        self.assertTrue(workout.exercises.exists())
+        self.assertTrue(all(exercise.body_part == "Chest" for exercise in workout.exercises.all()))
+
     def test_workout_session_marks_complete_after_finishing_sets(self):
         user = User.objects.create_user(username="session-user", password="StrongPass12345")
         workout = Workout.objects.create(user=user, title="Session Flow")
@@ -605,6 +647,13 @@ class SubmissionFlowTests(TestCase):
         self.assertEqual(session_exercise.completed_sets, 2)
         self.assertEqual(session.status, WorkoutSession.STATUS_COMPLETED)
         self.assertContains(response, "completed")
+
+    def test_only_one_highlighted_workout_per_user_constraint(self):
+        user = User.objects.create_user(username="highlight-constraint", password="StrongPass12345")
+        Workout.objects.create(user=user, title="First", is_public=True, highlighted_on_profile=True)
+
+        with self.assertRaises(IntegrityError):
+            Workout.objects.create(user=user, title="Second", is_public=True, highlighted_on_profile=True)
 
     def test_follow_toggle_creates_follow(self):
         follower = User.objects.create_user(username="follower", password="StrongPass12345")
@@ -632,6 +681,88 @@ class SubmissionFlowTests(TestCase):
 
         self.assertRedirects(response, reverse("content_engine_admin"))
         self.assertTrue(ContentEnginePrompt.objects.filter(title="Can you beat this?").exists())
+
+    def test_staff_can_create_newsletter_segment(self):
+        staff = User.objects.create_user(username="newsletter-staff", password="StrongPass12345", is_staff=True)
+        first = NewsletterSubscriber.objects.create(email="first@example.com")
+        second = NewsletterSubscriber.objects.create(email="second@example.com")
+        self.client.force_login(staff)
+
+        response = self.client.post(
+            reverse("newsletter_admin"),
+            {
+                "form_type": "segment",
+                "segment_name": "Week 1",
+                "subscriber_ids": [str(first.id), str(second.id)],
+            },
+        )
+
+        self.assertRedirects(response, reverse("newsletter_admin"))
+        segment = NewsletterSegment.objects.get(name="Week 1")
+        self.assertEqual(segment.subscribers.count(), 2)
+
+    @override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
+    def test_staff_can_send_newsletter_to_segment(self):
+        staff = User.objects.create_user(username="segment-send-staff", password="StrongPass12345", is_staff=True)
+        included = NewsletterSubscriber.objects.create(email="included@example.com")
+        NewsletterSubscriber.objects.create(email="excluded@example.com")
+        segment = NewsletterSegment.objects.create(name="Included")
+        segment.subscribers.add(included)
+        self.client.force_login(staff)
+
+        response = self.client.post(
+            reverse("newsletter_admin"),
+            {
+                "week_number": "1",
+                "subject": "Segment hello",
+                "body": "Only one set.",
+                "segment_id": str(segment.id),
+                "action": "send",
+            },
+        )
+
+        self.assertRedirects(response, reverse("newsletter_admin"))
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].to, ["included@example.com"])
+
+    @override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
+    def test_staff_can_send_newsletter_to_auto_segment(self):
+        staff = User.objects.create_user(username="auto-segment-staff", password="StrongPass12345", is_staff=True)
+        verified_user = User.objects.create_user(username="verified-email", email="verified@example.com", password="StrongPass12345")
+        NewsletterSubscriber.objects.create(email="verified@example.com")
+        NewsletterSubscriber.objects.create(email="other@example.com")
+        Submission.objects.create(user=verified_user, name="Verified", email="verified@example.com", reps=70, status=Submission.STATUS_VERIFIED)
+        self.client.force_login(staff)
+
+        response = self.client.post(
+            reverse("newsletter_admin"),
+            {
+                "week_number": "1",
+                "subject": "Verified hello",
+                "body": "For verified users.",
+                "auto_segment": "verified",
+                "action": "send",
+            },
+        )
+
+        self.assertRedirects(response, reverse("newsletter_admin"))
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].to, ["verified@example.com"])
+
+    @override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
+    def test_staff_can_send_direct_newsletter_email(self):
+        staff = User.objects.create_user(username="direct-staff", password="StrongPass12345", is_staff=True)
+        subscriber = NewsletterSubscriber.objects.create(email="direct@example.com")
+        self.client.force_login(staff)
+
+        response = self.client.post(
+            reverse("newsletter_subscriber_detail", args=[subscriber.id]),
+            {"subject": "Direct hello", "body": "Only for this subscriber."},
+        )
+
+        self.assertRedirects(response, reverse("newsletter_subscriber_detail", args=[subscriber.id]))
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].to, ["direct@example.com"])
 
     def test_sitemap_xml_lists_core_pages(self):
         response = self.client.get(reverse("sitemap_xml"))

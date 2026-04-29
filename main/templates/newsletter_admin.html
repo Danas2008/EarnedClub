@@ -24,11 +24,34 @@
             <input id="newsletter-subject" class="input" name="subject" value="{{ draft_subject }}" data-newsletter-subject>
             <label class="field-label" for="newsletter-body">Body</label>
             <textarea id="newsletter-body" class="textarea" name="body" rows="12" data-newsletter-body>{{ draft_body }}</textarea>
+            <label class="field-label" for="segment-id">Recipients</label>
+            <select id="segment-id" class="select" name="segment_id">
+                <option value="">All subscribers</option>
+                {% for segment in segments %}
+                    <option value="{{ segment.id }}">{{ segment.name }} - {{ segment.subscribers.count }} subscriber(s)</option>
+                {% endfor %}
+            </select>
+            <label class="field-label" for="auto-segment">Auto filter</label>
+            <select id="auto-segment" class="select" name="auto_segment">
+                <option value="">No auto filter</option>
+                <option value="verified">Verified users</option>
+                <option value="unverified">Unverified users</option>
+                <option value="no-submission">No submission yet</option>
+                <option value="high-rank">High rank users</option>
+            </select>
             <div class="button-row">
+                <button class="btn-secondary" type="submit" name="action" value="preview">Preview</button>
                 <button class="btn-secondary" type="submit" name="action" value="save">Save Draft</button>
                 <button class="btn-main" type="submit" name="action" value="send">Send To Subscribers</button>
             </div>
         </form>
+        {% if preview_subject %}
+            <div class="mini-card" style="margin-top: 14px;">
+                <span class="kicker">Preview - {{ preview_count }} recipient(s)</span>
+                <h3>{{ preview_subject }}</h3>
+                <p class="muted" style="white-space: pre-wrap;">{{ preview_body }}</p>
+            </div>
+        {% endif %}
     </div>
 
     <div class="card-dark">
@@ -44,6 +67,73 @@
             </div>
         {% empty %}
             <p class="muted">No campaigns yet.</p>
+        {% endfor %}
+    </div>
+</section>
+
+<section class="grid-2">
+    <div class="card-dark">
+        <div class="section-spread">
+            <div>
+                <h2>Subscribers</h2>
+                <p class="muted">Click one email to send a direct message.</p>
+            </div>
+        </div>
+        {% for subscriber in subscribers %}
+            <a class="score-row" href="{% url 'newsletter_subscriber_detail' subscriber.id %}">
+                <div class="score-row-main">
+                    <div class="submission-name">{{ subscriber.email }}</div>
+                    <div class="submission-meta">
+                        Joined {{ subscriber.created_at|date:"M j, Y" }}
+                        {% if subscriber.segments.all %} -
+                            {% for segment in subscriber.segments.all %}{{ segment.name }}{% if not forloop.last %}, {% endif %}{% endfor %}
+                        {% endif %}
+                    </div>
+                </div>
+            </a>
+        {% empty %}
+            <p class="muted">No subscribers yet.</p>
+        {% endfor %}
+    </div>
+
+    <div class="card-dark">
+        <h2>Subscriber Sets</h2>
+        <form class="submission-form" method="POST">
+            {% csrf_token %}
+            <input type="hidden" name="form_type" value="segment">
+            <label class="field-label" for="segment-name">Set name</label>
+            <input id="segment-name" class="input" name="segment_name" placeholder="Week 1 focus group">
+            <div class="stack" style="gap: 8px;">
+                {% for subscriber in subscribers %}
+                    <label class="tag-pill" style="justify-content: flex-start;">
+                        <input type="checkbox" name="subscriber_ids" value="{{ subscriber.id }}"> {{ subscriber.email }}
+                    </label>
+                {% empty %}
+                    <p class="muted">Add subscribers before creating sets.</p>
+                {% endfor %}
+            </div>
+            <button class="btn-main" type="submit">Save Set</button>
+        </form>
+
+        {% if segments %}
+            <h2 style="margin-top: 18px;">Saved Sets</h2>
+            {% for segment in segments %}
+                <div class="score-row">
+                    <div class="score-row-main">
+                        <div class="submission-name">{{ segment.name }}</div>
+                        <div class="submission-meta">{{ segment.subscribers.count }} subscriber(s)</div>
+                    </div>
+                </div>
+            {% endfor %}
+        {% endif %}
+        <h2 style="margin-top: 18px;">Auto Filters</h2>
+        {% for name, count in auto_segments.items %}
+            <div class="score-row">
+                <div class="score-row-main">
+                    <div class="submission-name">{{ name }}</div>
+                    <div class="submission-meta">{{ count }} subscriber(s)</div>
+                </div>
+            </div>
         {% endfor %}
     </div>
 </section>

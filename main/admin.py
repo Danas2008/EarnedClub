@@ -12,6 +12,8 @@ from .models import (
     Workout,
     WorkoutExercise,
     NewsletterCampaign,
+    NewsletterSendEvent,
+    NewsletterSegment,
     WorkoutTemplate,
 )
 
@@ -41,7 +43,7 @@ class ProfileAdmin(admin.ModelAdmin):
 
 @admin.register(NewsletterSubscriber)
 class NewsletterSubscriberAdmin(admin.ModelAdmin):
-    list_display = ("email", "created_at")
+    list_display = ("email", "is_subscribed", "created_at", "unsubscribed_at")
     search_fields = ("email",)
     ordering = ("-created_at",)
 
@@ -79,6 +81,19 @@ class WorkoutTemplateAdmin(admin.ModelAdmin):
 class NewsletterCampaignAdmin(admin.ModelAdmin):
     list_display = ("week_number", "subject", "sent_count", "sent_at", "created_at")
     search_fields = ("subject", "body")
+
+
+@admin.register(NewsletterSegment)
+class NewsletterSegmentAdmin(admin.ModelAdmin):
+    list_display = ("name", "created_at")
+    search_fields = ("name", "subscribers__email")
+    filter_horizontal = ("subscribers",)
+
+
+@admin.register(NewsletterSendEvent)
+class NewsletterSendEventAdmin(admin.ModelAdmin):
+    list_display = ("subscriber", "subject", "campaign", "sent_at")
+    search_fields = ("subscriber__email", "subject")
 
 
 @admin.register(Follow)

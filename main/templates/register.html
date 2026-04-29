@@ -7,7 +7,7 @@
 <section class="card-dark auth-card">
     <div class="eyebrow">Create Athlete Account</div>
     <h1>Register.</h1>
-    <p class="muted">Create a profile, submit results under your username, and start building verified progress history.</p>
+    <p class="muted">Create a push-up profile, submit strict push-up results under your username, and start building verified progress history.</p>
 
     <form class="submission-form" method="POST">
         {% csrf_token %}
@@ -19,14 +19,14 @@
         {% endif %}
 
         <div>
-            <label class="field-label" for="email">Email</label>
-            <input id="email" class="input" type="email" name="email" value="{{ prefill_email }}" placeholder="you@example.com">
-        </div>
-
-        <div>
             <label class="field-label" for="{{ form.username.id_for_label }}">Username</label>
             {{ form.username }}
             {% for error in form.username.errors %}<div class="hint">{{ error }}</div>{% endfor %}
+        </div>
+
+        <div>
+            <label class="field-label" for="email">Email</label>
+            <input id="email" class="input" type="email" name="email" value="{{ prefill_email }}" placeholder="you@example.com">
         </div>
 
         <div>
