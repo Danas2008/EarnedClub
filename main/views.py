@@ -761,10 +761,13 @@ def create_generated_workout(request):
     duration = min(60, max(10, duration))
     body_parts = request.POST.getlist("builder_body_parts")
     exercises = pick_exercises_for_body_parts(body_parts, duration, request.user.profile.personal_best_reps)
-    title_parts = ", ".join(body_parts[:2]) if body_parts else "Full body"
+    exercise_names = [name for name, _sets, _reps, _seconds in exercises]
+    title_parts = ", ".join(exercise_names[:3]) if exercise_names else "Generated exercises"
+    if len(exercise_names) > 3:
+        title_parts = f"{title_parts}, ..."
     workout = Workout.objects.create(
         user=request.user,
-        title=f"{title_parts} {duration}-minute builder",
+        title=f"{title_parts} {duration}-minute custom workout",
         duration_minutes=duration,
         notes="Generated from your selected body parts and available time.",
     )

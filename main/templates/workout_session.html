@@ -3,6 +3,26 @@
 {% block title %}{{ session.workout.title }} Session{% endblock %}
 
 {% block content %}
+{% if session.status == "completed" %}
+<section class="card-dark">
+    <div class="section-spread">
+        <div>
+            <div class="eyebrow">Workout Complete</div>
+            <h2>Recap</h2>
+            <p class="muted">
+                You completed {{ completed_sets }}/{{ target_sets }} planned sets{% if session_reps %}, totaling about {{ session_reps }} reps{% endif %}{% if session_seconds %}, plus {{ session_seconds }} seconds of timed work{% endif %}.
+            </p>
+        </div>
+        <span class="status-pill verified">Completed</span>
+    </div>
+    <div class="grid-3">
+        <div class="metric-card"><span class="kicker">Sets</span><span class="stat-value">{{ completed_sets }}</span><div class="muted">Completed sets</div></div>
+        <div class="metric-card"><span class="kicker">Reps</span><span class="stat-value">{{ session_reps }}</span><div class="muted">Estimated from logged sets</div></div>
+        <div class="metric-card"><span class="kicker">Body Parts</span><div class="button-row" style="margin-top: 8px;">{% for part in trained_body_parts %}<span class="tag-pill">{{ part }}</span>{% empty %}<span class="tag-pill">Full body</span>{% endfor %}</div></div>
+    </div>
+</section>
+{% endif %}
+
 <section class="hero-card profile-header">
     <div class="eyebrow">Workout In Progress</div>
     <h1>{{ session.workout.title }}</h1>
@@ -44,26 +64,6 @@
         </div>
     </div>
 </section>
-
-{% if session.status == "completed" %}
-<section class="card-dark">
-    <div class="section-spread">
-        <div>
-            <div class="eyebrow">Workout Complete</div>
-            <h2>Recap</h2>
-            <p class="muted">
-                You completed {{ completed_sets }}/{{ target_sets }} planned sets{% if session_reps %}, totaling about {{ session_reps }} reps{% endif %}{% if session_seconds %}, plus {{ session_seconds }} seconds of timed work{% endif %}.
-            </p>
-        </div>
-        <span class="status-pill verified">Completed</span>
-    </div>
-    <div class="grid-3">
-        <div class="metric-card"><span class="kicker">Sets</span><span class="stat-value">{{ completed_sets }}</span><div class="muted">Completed sets</div></div>
-        <div class="metric-card"><span class="kicker">Reps</span><span class="stat-value">{{ session_reps }}</span><div class="muted">Estimated from logged sets</div></div>
-        <div class="metric-card"><span class="kicker">Body Parts</span><div class="button-row" style="margin-top: 8px;">{% for part in trained_body_parts %}<span class="tag-pill">{{ part }}</span>{% empty %}<span class="tag-pill">Full body</span>{% endfor %}</div></div>
-    </div>
-</section>
-{% endif %}
 
 <section class="card-dark">
     <h2>Session Overview</h2>

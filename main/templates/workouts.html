@@ -63,7 +63,7 @@
     {% endfor %}
 </section>
 
-<section class="grid-2">
+<section class="grid-3">
     <div class="card-dark" id="quick-log">
         <div class="section-spread">
             <div>
@@ -94,8 +94,9 @@
         </form>
     </div>
 
-    <div class="card-dark" id="builder">
-        <h2>Build Workout</h2>
+    <div class="card-dark" id="generator">
+        <h2>Generate Workout</h2>
+        <p class="muted">Pick what you want to train and how much time you have. A session will be generated and started.</p>
         <form class="submission-form" method="POST" data-generated-builder>
             {% csrf_token %}
             <input type="hidden" name="form_type" value="generated_workout">
@@ -116,7 +117,11 @@
             <button class="btn-main" type="submit" data-generate-button>Generate And Start</button>
             <div class="hint" data-generate-status hidden>Building a balanced session...</div>
         </form>
-        <hr style="border-color: rgba(255,255,255,.1); margin: 20px 0;">
+    </div>
+
+    <div class="card-dark" id="builder">
+        <h2>Build Workout</h2>
+        <p class="muted">Start from a prebuilt workout and edit it, or choose Custom and build your own.</p>
         <form class="submission-form" method="POST" data-workout-builder>
             {% csrf_token %}
             <input type="hidden" name="form_type" value="workout">
