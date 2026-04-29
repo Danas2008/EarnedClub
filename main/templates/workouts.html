@@ -200,12 +200,12 @@
         <button class="btn-secondary" type="submit">Search</button>
     </form>
     {% for workout in workouts %}
-        <div class="score-row">
+        <div class="score-row workout-row">
             <div class="score-row-main">
                 <div class="submission-name">{{ workout.title }}</div>
                 <div class="submission-meta">{{ workout.created_at|date:"M j" }}{% if workout.duration_minutes %} - {{ workout.duration_minutes }} min{% endif %}{% if workout.is_public %} - Public{% endif %}{% if workout.highlighted_on_profile %} - Highlighted{% endif %}</div>
             </div>
-            <div class="button-row" style="margin-top: 0;">
+            <div class="workout-row-actions">
                 <form method="POST" action="{% url 'start_workout' %}">{% csrf_token %}<input type="hidden" name="workout_id" value="{{ workout.id }}"><button class="btn-main" type="submit">Start</button></form>
                 {% if workout.is_public %}<a class="btn-secondary" href="{% url 'workout_detail' workout.slug %}">Open</a>{% endif %}
                 {% if workout.is_public %}

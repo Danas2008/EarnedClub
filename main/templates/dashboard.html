@@ -16,7 +16,7 @@
             </p>
         </div>
     </div>
-    <div class="button-row">
+    <div class="button-row hero-action-row">
         <a class="btn-main" href="{% url 'challenge' %}#submit-form-top">Submit</a>
         <a class="btn-secondary" href="{% url 'workouts' %}">Workouts</a>
         <a class="btn-secondary" href="{% url 'athlete_profile' profile.slug %}">Public Profile</a>
@@ -42,38 +42,46 @@
 </section>
 
 <section class="grid-2">
-    <div class="card-dark">
-        <div class="section-spread">
-            <div>
-                <h2>Next Best Action</h2>
-                <p class="muted">{{ next_action.text }}</p>
+    <details class="card-dark compact-details">
+        <summary>Next Action</summary>
+        <div class="compact-details-body">
+            <div class="section-spread" style="margin-bottom: 0;">
+                <div>
+                    <h2>{{ next_action.label }}</h2>
+                    <p class="muted">{{ next_action.text }}</p>
+                </div>
+                <a class="btn-main" href="{{ next_action.url }}">Open</a>
             </div>
-            <a class="btn-main" href="{{ next_action.url }}">{{ next_action.label }}</a>
+            <h3>Onboarding</h3>
+            {% for item in onboarding_checklist %}
+                <div class="score-row">
+                    <div class="score-row-main">
+                        <div class="submission-name">{{ item.label }}</div>
+                        <div class="submission-meta">{% if item.done %}Done{% else %}Open task{% endif %}</div>
+                    </div>
+                    <a class="btn-secondary" href="{{ item.url }}">{% if item.done %}View{% else %}Do{% endif %}</a>
+                </div>
+            {% endfor %}
         </div>
-        <h3>Onboarding</h3>
-        {% for item in onboarding_checklist %}
-            <div class="score-row">
-                <div class="score-row-main">
-                    <div class="submission-name">{{ item.label }}</div>
-                    <div class="submission-meta">{% if item.done %}Done{% else %}Open task{% endif %}</div>
-                </div>
-                <a class="btn-secondary" href="{{ item.url }}">{% if item.done %}View{% else %}Do{% endif %}</a>
+    </details>
+    {% if profile_completion_percent < 100 %}
+        <details class="card-dark compact-details">
+            <summary>Profile Completion - {{ profile_completion_percent }}%</summary>
+            <div class="compact-details-body">
+                {% for item in profile_completion %}
+                    {% if not item.done %}
+                        <div class="score-row">
+                            <div class="score-row-main">
+                                <div class="submission-name">{{ item.label }}</div>
+                                <div class="submission-meta">Missing</div>
+                            </div>
+                            <a class="btn-secondary" href="{{ item.url }}">Open</a>
+                        </div>
+                    {% endif %}
+                {% endfor %}
             </div>
-        {% endfor %}
-    </div>
-    <div class="card-dark">
-        <h2>Profile Completion</h2>
-        <span class="stat-value">{{ profile_completion_percent }}%</span>
-        {% for item in profile_completion %}
-            <div class="score-row">
-                <div class="score-row-main">
-                    <div class="submission-name">{{ item.label }}</div>
-                    <div class="submission-meta">{% if item.done %}Complete{% else %}Missing{% endif %}</div>
-                </div>
-                <a class="btn-secondary" href="{{ item.url }}">Open</a>
-            </div>
-        {% endfor %}
-    </div>
+        </details>
+    {% endif %}
 </section>
 
 {% if active_workout_session %}

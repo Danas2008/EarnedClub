@@ -341,6 +341,13 @@
             transition: transform 0.2s ease, opacity 0.2s ease, background 0.2s ease;
         }
 
+        .hero-action-row .btn-main,
+        .hero-action-row .btn-secondary {
+            width: 148px;
+            flex: 0 0 148px;
+            white-space: nowrap;
+        }
+
         .btn-main {
             color: #111111;
             background: linear-gradient(135deg, var(--accent), #ffd77b);
@@ -770,6 +777,66 @@
             background: rgba(255, 255, 255, 0.04);
             border: 1px solid rgba(255, 255, 255, 0.08);
             border-radius: var(--radius-md);
+        }
+
+        .workout-row {
+            grid-template-columns: minmax(0, 1fr);
+            align-items: start;
+        }
+
+        .workout-row-actions {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            min-width: 0;
+            width: 100%;
+            margin-top: 8px;
+        }
+
+        .workout-row-actions form,
+        .workout-row-actions a {
+            flex: 1 1 92px;
+            min-width: 0;
+        }
+
+        .workout-row-actions .btn-main,
+        .workout-row-actions .btn-secondary {
+            width: 100%;
+            min-height: 38px;
+            padding: 8px 10px;
+            white-space: nowrap;
+        }
+
+        .compact-details {
+            padding: 0;
+            overflow: hidden;
+        }
+
+        .compact-details summary {
+            cursor: pointer;
+            padding: 14px 16px;
+            font-family: "Archivo", sans-serif;
+            font-weight: 800;
+            list-style: none;
+        }
+
+        .compact-details summary::-webkit-details-marker {
+            display: none;
+        }
+
+        .compact-details summary::after {
+            content: " +";
+            color: #ffd77b;
+        }
+
+        .compact-details[open] summary::after {
+            content: " -";
+        }
+
+        .compact-details-body {
+            display: grid;
+            gap: 10px;
+            padding: 0 16px 16px;
         }
 
         .score-row-main {
