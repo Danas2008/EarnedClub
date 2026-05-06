@@ -11,10 +11,40 @@
     }
 
     .home-hero {
+        position: relative;
+        overflow: hidden;
         padding: clamp(18px, 5vw, 34px);
+        background:
+            linear-gradient(135deg, rgba(247, 183, 51, 0.16), transparent 28%),
+            linear-gradient(315deg, rgba(252, 74, 26, 0.14), transparent 32%),
+            linear-gradient(180deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.02)),
+            var(--panel);
+        border-color: rgba(247, 183, 51, 0.18);
+    }
+
+    .home-hero::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background:
+            linear-gradient(115deg, transparent 0 38%, rgba(255, 255, 255, 0.055) 38% 39%, transparent 39% 100%),
+            linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent 52%);
+        opacity: 0.8;
+        pointer-events: none;
+    }
+
+    .home-hero::after {
+        content: "";
+        position: absolute;
+        inset: auto 18px 0;
+        height: 1px;
+        background: linear-gradient(90deg, transparent, rgba(247, 183, 51, 0.65), transparent);
+        pointer-events: none;
     }
 
     .home-hero-grid {
+        position: relative;
+        z-index: 1;
         display: grid;
         gap: 24px;
         align-items: center;
@@ -29,6 +59,7 @@
         font-size: clamp(3.15rem, 15vw, 5.7rem);
         line-height: 0.88;
         margin-bottom: 14px;
+        text-shadow: 0 18px 54px rgba(0, 0, 0, 0.34);
     }
 
     .home-lead {
@@ -52,6 +83,15 @@
         min-height: 52px;
     }
 
+    .home-cta-row .btn-main {
+        box-shadow: 0 16px 34px rgba(247, 183, 51, 0.2);
+    }
+
+    .home-cta-row .btn-secondary {
+        background: rgba(8, 11, 15, 0.38);
+        border-color: rgba(255, 255, 255, 0.13);
+    }
+
     .score-rank-card {
         position: relative;
         overflow: hidden;
@@ -65,9 +105,11 @@
         border: 1px solid rgba(255, 255, 255, 0.1);
         border-radius: var(--radius-lg);
         background:
-            linear-gradient(150deg, rgba(247, 183, 51, 0.15), rgba(252, 74, 26, 0.07) 32%, rgba(255, 255, 255, 0.035)),
+            linear-gradient(150deg, rgba(247, 183, 51, 0.2), rgba(252, 74, 26, 0.08) 34%, rgba(255, 255, 255, 0.045)),
             rgba(255, 255, 255, 0.04);
-        box-shadow: 0 18px 48px rgba(0, 0, 0, 0.26);
+        box-shadow:
+            0 18px 48px rgba(0, 0, 0, 0.3),
+            inset 0 1px 0 rgba(255, 255, 255, 0.08);
     }
 
     .score-rank-card .btn-secondary {
@@ -81,7 +123,15 @@
         width: 230px;
         height: 230px;
         border-radius: 50%;
-        background: rgba(247, 183, 51, 0.13);
+        background: rgba(247, 183, 51, 0.16);
+        pointer-events: none;
+    }
+
+    .score-rank-card::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(120deg, transparent 0 46%, rgba(255, 255, 255, 0.055) 46% 48%, transparent 48% 100%);
         pointer-events: none;
     }
 
@@ -176,8 +226,10 @@
         width: 100%;
         padding: 12px 14px;
         border-radius: var(--radius-md);
-        background: rgba(8, 11, 15, 0.34);
-        border: 1px solid rgba(255, 255, 255, 0.08);
+        background:
+            linear-gradient(90deg, rgba(247, 183, 51, 0.1), rgba(255, 255, 255, 0.035)),
+            rgba(8, 11, 15, 0.36);
+        border: 1px solid rgba(247, 183, 51, 0.16);
         color: var(--muted);
         font-weight: 800;
         transition: transform 0.2s ease, border-color 0.2s ease, background 0.2s ease;
@@ -198,8 +250,9 @@
         flex: 0 0 auto;
         border-radius: 50%;
         color: #111111;
-        background: var(--accent);
+        background: linear-gradient(135deg, var(--accent), #ffd77b);
         font-family: "Archivo", sans-serif;
+        box-shadow: 0 8px 24px rgba(247, 183, 51, 0.22);
         animation: scrollNudge 1.6s ease-in-out infinite;
     }
 
@@ -501,19 +554,26 @@
             margin-left: -4px;
             margin-right: -4px;
             padding-top: 20px;
+            padding-bottom: 16px;
         }
 
         .home-hero-grid {
-            gap: 20px;
+            gap: 16px;
         }
 
         .home-hero h1 {
             max-width: 9ch;
+            margin-bottom: 10px;
         }
 
         .home-lead {
             font-size: 1.08rem;
             line-height: 1.45;
+            margin-bottom: 12px;
+        }
+
+        .home-cta-row {
+            margin-top: 12px;
         }
 
         .score-rank-card {
@@ -528,6 +588,11 @@
 
         .score-rank-number {
             margin-top: 2px;
+        }
+
+        .hero-scroll-cue {
+            padding: 10px 12px;
+            font-size: 0.94rem;
         }
     }
 </style>
@@ -581,7 +646,7 @@
             </aside>
 
             <a class="hero-scroll-cue" href="#rank-tiers" aria-label="Scroll to rank tiers">
-                <span>See the ranks, proof rules, and what your score can become.</span>
+                <span>Scroll to see what your score can become.</span>
                 <span class="scroll-dot" aria-hidden="true">&darr;</span>
             </a>
         </div>

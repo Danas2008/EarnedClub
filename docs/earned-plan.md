@@ -717,6 +717,14 @@ Usually touches:
 - Removed the low-value hero chips for "Verified scores", "Public leaderboard", and "Real reps. Real proof."
 - Added a compact scroll cue under the hero sample card to pull phone visitors toward rank tiers and proof rules.
 
+### 2026-05-06 homepage first-view premium polish
+
+- Homepage hero received stronger athletic lighting with layered gradients, a sharper border, and subtle angled highlights.
+- Primary and secondary hero CTAs were given more intentional contrast and depth.
+- The sample result card kept the same structure but gained richer lighting, edge depth, and a subtle highlight sweep.
+- Mobile hero spacing was tightened so the first screen feels more visual and less text-heavy.
+- Scroll cue copy was shortened and styled to make the next section feel more inviting.
+
 ## Short Glossary
 
 - Official rank: rank based only on verified best submissions.
