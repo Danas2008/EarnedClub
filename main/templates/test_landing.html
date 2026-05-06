@@ -44,7 +44,7 @@
     <div class="quiz-step" data-step="5">
         <div class="eyebrow">Question 6 / 7</div>
         <h1>Username?</h1>
-        <input id="quiz-username" class="input quiz-input" type="text" placeholder="Daniel Č Š">
+        <input id="quiz-username" class="input quiz-input" type="text" placeholder="Jack">
         <button class="btn-main" type="button" data-next>Next</button>
     </div>
     <div class="quiz-step" data-step="6">
@@ -59,7 +59,7 @@
         <p id="quiz-result" class="muted"></p>
         <div id="quiz-summary" class="submit-panel" style="margin-bottom: 16px;"></div>
         <div class="hero-actions">
-            <a id="quiz-submit" class="btn-main" href="{% url 'challenge' %}#submit-form-top">Submit Proof</a>
+            <a id="quiz-submit" class="btn-main" href="{% url 'challenge' %}#submit-form-top">Submit Official Result</a>
             <a id="quiz-register" class="btn-secondary" href="{% url 'register' %}">Create Account</a>
         </div>
         <p class="muted">{{ total_submissions }} tested. {{ total_verified }} verified.</p>

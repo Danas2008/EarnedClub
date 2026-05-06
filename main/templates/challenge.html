@@ -8,15 +8,15 @@
     <div class="content-split">
         <div class="stack">
             <div class="eyebrow">Submit Your Result</div>
-            <h1>Put your best set on the board.</h1>
+            <h1>Take the Official Push-Up Test.</h1>
             <p class="muted">
-                Submit one strict max set, add video proof, and claim a place on the Earned Club leaderboard after review.
+                Don't just claim your strength. Prove it.
             </p>
             <p>
-                The flow is simple on purpose: enter reps, upload proof, and get reviewed.
+                Submit your max clean push-ups and earn your rank. Video proof is optional to submit, but recommended because official ranks require proof.
             </p>
             <div class="button-row">
-                <a class="btn-main" href="#submit-form-top">Send For Verification</a>
+                <a class="btn-main" href="#submit-form-top">Submit Official Result</a>
                 <a class="btn-secondary" href="/leaderboard/#full-leaderboard">See Current Rankings</a>
             </div>
             <div class="trust-strip">
@@ -44,7 +44,7 @@
                     </p>
                 {% else %}
                     <p class="muted">
-                        Verified entries go live on the leaderboard. Anonymous submissions stay supported, but email is needed for review status.
+                        Enter reps, name, and email. Your result can appear as unverified immediately; proof moves it into official review.
                     </p>
                 {% endif %}
 
@@ -95,28 +95,28 @@
                         {% endif %}
 
                         <div>
-                            <label class="field-label" for="reps">Reps</label>
+                            <label class="field-label" for="reps">Max clean push-ups</label>
                             <input
                                 id="reps"
                                 class="input"
                                 type="number"
                                 name="reps"
                                 min="1"
-                                placeholder="Your strict push-up score"
+                                placeholder="42"
                                 value="{{ form_data.reps|default:'' }}"
                                 required
                             >
                         </div>
 
                         <div>
-                            <label class="field-label" for="video_file">Proof video</label>
+                            <label class="field-label" for="video_file">Proof video <span class="muted">(optional, recommended)</span></label>
                             <input id="video_file" class="input" type="file" name="video_file" accept="video/*">
-                            <div class="hint">Upload the original set video. Clear side angle, full range, no cuts.</div>
+                            <div class="hint">Without proof, your result is visible but unverified. With proof, it can earn official rank after review.</div>
                         </div>
 
-                        <button type="submit" class="btn-main">Send For Verification</button>
+                        <button type="submit" class="btn-main">Submit Official Result</button>
                         <div class="result-note">
-                            Clear side angle, full range, no cuts.
+                            Official ranks require proof. Unverified results are shown, but not official.
                         </div>
                     </form>
                 {% endif %}
@@ -127,29 +127,29 @@
                     <div class="step-item">
                         <span class="step-number">1</span>
                         <div>
-                            <strong>Submit reps</strong>
-                            <div class="muted">Your score appears with a review status.</div>
+                            <strong>Do one max clean set</strong>
+                            <div class="muted">Strict reps, full range, no cuts.</div>
                         </div>
                     </div>
                     <div class="step-item">
                         <span class="step-number">2</span>
                         <div>
-                            <strong>Upload proof</strong>
-                            <div class="muted">Video sends it into review.</div>
+                            <strong>Submit your result</strong>
+                            <div class="muted">Reps, name, email, and optional proof.</div>
                         </div>
                     </div>
                     <div class="step-item">
                         <span class="step-number">3</span>
                         <div>
-                            <strong>Earn rank</strong>
-                            <div class="muted">Approved scores become official leaderboard ranks.</div>
+                            <strong>Add proof to get verified</strong>
+                            <div class="muted">Proof moves your result into review.</div>
                         </div>
                     </div>
                     <div class="step-item">
                         <span class="step-number">!</span>
                         <div>
-                            <strong>Submission limits</strong>
-                            <div class="muted">Anonymous max 40. Logged-in scores above 60 need upload.</div>
+                            <strong>Earn your public rank</strong>
+                            <div class="muted">Verified athletes earn public status.</div>
                         </div>
                     </div>
                 </div>

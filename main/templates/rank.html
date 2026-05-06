@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+
+{% block title %}Get Your Rank{% endblock %}
+{% block meta_description %}Enter your max clean push-ups and instantly see your Earned Club rank tier, then submit your official result for verification.{% endblock %}
+
+{% block content %}
+<section class="hero-card" style="max-width: 720px; margin-left: auto; margin-right: auto;">
+    <div class="stack">
+        <div class="eyebrow">Instant rank check</div>
+        <h1>Get Your Rank</h1>
+        <p class="muted">Enter your max clean push-ups.</p>
+
+        <form class="submission-form" method="GET" action="{% url 'rank' %}">
+            <div>
+                <label class="field-label" for="rank-reps">Max clean push-ups</label>
+                <input
+                    id="rank-reps"
+                    class="input"
+                    type="number"
+                    name="reps"
+                    min="0"
+                    placeholder="42"
+                    inputmode="numeric"
+                    value="{% if result %}{{ result.reps }}{% endif %}"
+                    autofocus
+                >
+            </div>
+            <button class="btn-main" type="submit">Show My Rank</button>
+        </form>
+
+        {% if result %}
+            <div class="submit-panel">
+                <div class="eyebrow">{{ result.reps }} clean push-ups</div>
+                <h2>{{ result.message }}</h2>
+                <p class="muted">{{ result.tier.description }}</p>
+                <p>Can you prove it officially?</p>
+                <p class="muted">Submit your result and earn verified status.</p>
+                <div class="hero-actions">
+                    <a class="btn-main" href="{{ submit_url }}">Submit Official Result</a>
+                    <a class="btn-secondary" href="{% url 'leaderboard' %}#full-leaderboard">View Leaderboard</a>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+</section>
+{% endblock %}

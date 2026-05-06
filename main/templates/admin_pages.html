@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+
+{% block title %}Admin Pages{% endblock %}
+
+{% block content %}
+<section class="hero-card">
+    <div class="eyebrow">Admin</div>
+    <h1>Pages.</h1>
+    <p class="muted">{{ page_count }} existing route(s) in the Earned Club app.</p>
+    <div class="button-row">
+        <a class="btn-secondary" href="{% url 'admin_menu' %}">Back to Admin Menu</a>
+    </div>
+</section>
+
+<section class="card-dark">
+    <div class="section-spread">
+        <div>
+            <h2>Existing pages</h2>
+            <p class="muted">Dynamic routes are listed by pattern. Static routes include direct links.</p>
+        </div>
+    </div>
+    <table class="leaderboard-table">
+        <thead>
+            <tr>
+                <th>Page</th>
+                <th>Route</th>
+                <th>Access</th>
+                <th>Open</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for page in page_rows %}
+                <tr>
+                    <td><span class="submission-name">{{ page.name }}</span></td>
+                    <td><span class="submission-meta">{{ page.route }}</span></td>
+                    <td><span class="tag-pill">{{ page.access }}</span></td>
+                    <td>
+                        {% if page.url %}
+                            <a class="btn-secondary" style="min-height: 34px; padding: 6px 10px;" href="{{ page.url }}">Open</a>
+                        {% else %}
+                            <span class="submission-meta">Pattern only</span>
+                        {% endif %}
+                    </td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</section>
+{% endblock %}

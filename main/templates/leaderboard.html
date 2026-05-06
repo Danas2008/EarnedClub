@@ -9,9 +9,9 @@
         <div>
             <div class="eyebrow">Leaderboard</div>
             <h1>Chase the board.</h1>
-            <p class="muted">Verified ranks, pending attempts, weekly heat, and monthly momentum in one view.</p>
+            <p class="muted">Official ranks require proof. Unverified results are shown, but not official. Verified athletes earn public status.</p>
             <div class="button-row">
-                <a class="btn-main" href="{% url 'challenge' %}#submit-form-top">Submit</a>
+                <a class="btn-main" href="{% url 'challenge' %}#submit-form-top">Take the Official Push-Up Test</a>
             </div>
         </div>
         <div class="stat-grid">
@@ -26,7 +26,7 @@
     <div class="section-spread">
         <div>
             <h2>Results</h2>
-            <p class="muted">Filter instantly. No page reload.</p>
+            <p class="muted">Verified rows can earn official rank. Pending and unverified rows show the chase, not official status.</p>
         </div>
     </div>
     <form class="search-row" method="GET" action="{% url 'leaderboard' %}#full-leaderboard">

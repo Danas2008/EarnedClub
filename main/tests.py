@@ -3,6 +3,7 @@ import tempfile
 from xml.etree import ElementTree
 
 from django.core import mail
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.contrib.auth.models import User
 from django.db import IntegrityError
 from django.test import TestCase
@@ -32,6 +33,9 @@ class SubmissionFlowTests(TestCase):
         self.addCleanup(self.settings_override.disable)
         self.addCleanup(lambda: shutil.rmtree(self._media_root, ignore_errors=True))
 
+    def proof_video(self, name="proof.mp4"):
+        return SimpleUploadedFile(name, b"fake video content", content_type="video/mp4")
+
     def test_challenge_submission_creates_unverified_record(self):
         response = self.client.post(
             reverse("challenge"),
@@ -39,7 +43,7 @@ class SubmissionFlowTests(TestCase):
                 "name": "Alex",
                 "email": "alex@example.com",
                 "reps": 40,
-                "video_link": "https://example.com/video",
+                "video_file": self.proof_video(),
             },
         )
 
@@ -48,6 +52,7 @@ class SubmissionFlowTests(TestCase):
         self.assertEqual(submission.reps, 40)
         self.assertFalse(submission.verified)
         self.assertEqual(submission.status, Submission.STATUS_PENDING)
+        self.assertEqual(submission.video_link, "")
         self.assertEqual(submission.email, "alex@example.com")
 
     def test_anonymous_submission_above_40_is_blocked(self):
@@ -87,7 +92,7 @@ class SubmissionFlowTests(TestCase):
         self.assertRedirects(response, reverse("challenge"))
         submission = Submission.objects.get(name="No Proof")
         self.assertEqual(submission.status, Submission.STATUS_UNVERIFIED)
-        self.assertContains(response, "saved as unverified")
+        self.assertContains(response, "Your result is live as unverified. Add proof to earn official rank.")
 
     def test_anonymous_unverified_submission_can_be_completed_with_proof(self):
         self.client.post(
@@ -105,7 +110,7 @@ class SubmissionFlowTests(TestCase):
                 "name": "No Proof",
                 "email": "noproof@example.com",
                 "reps": 24,
-                "video_link": "https://example.com/proof",
+                "video_file": self.proof_video(),
             },
             follow=True,
         )
@@ -114,8 +119,9 @@ class SubmissionFlowTests(TestCase):
         submission = Submission.objects.get(email="noproof@example.com")
         self.assertEqual(submission.status, Submission.STATUS_PENDING)
         self.assertEqual(submission.reps, 24)
-        self.assertEqual(submission.video_link, "https://example.com/proof")
-        self.assertContains(response, "Proof added.")
+        self.assertEqual(submission.video_link, "")
+        self.assertTrue(submission.has_proof)
+        self.assertContains(response, "Your result is pending review. If approved, your official rank will update.")
 
     def test_challenge_submission_shows_success_message(self):
         Submission.objects.create(
@@ -130,13 +136,12 @@ class SubmissionFlowTests(TestCase):
                 "name": "Jordan",
                 "email": "jordan@example.com",
                 "reps": 33,
-                "video_link": "https://example.com/proof",
+                "video_file": self.proof_video(),
             },
             follow=True,
         )
 
-        self.assertContains(response, "Submission received.")
-        self.assertContains(response, "would currently rank #2")
+        self.assertContains(response, "Your result is pending review. If approved, your official rank will update.")
 
     def test_leaderboard_shows_all_submissions_with_verification_status(self):
         Submission.objects.create(
@@ -188,13 +193,13 @@ class SubmissionFlowTests(TestCase):
                 "name": "Notify",
                 "email": "notify@example.com",
                 "reps": 38,
-                "video_link": "https://example.com/notify-proof",
+                "video_file": self.proof_video(),
             },
             follow=True,
         )
         submission = Submission.objects.get(email="notify@example.com")
 
-        self.assertContains(response, "Submission received.")
+        self.assertContains(response, "Your result is pending review. If approved, your official rank will update.")
         self.assertTrue(
             VerificationEvent.objects.filter(
                 submission=submission,
@@ -205,7 +210,7 @@ class SubmissionFlowTests(TestCase):
         self.assertTrue(any("submission received" in message.subject.lower() for message in mail.outbox))
         self.assertTrue(any("daniel.havlicek1@seznam.cz" in message.to for message in mail.outbox))
 
-    def test_duplicate_proof_link_is_blocked(self):
+    def test_proof_link_post_is_ignored_for_new_submissions(self):
         Submission.objects.create(
             name="Original",
             email="original@example.com",
@@ -225,8 +230,11 @@ class SubmissionFlowTests(TestCase):
             follow=True,
         )
 
-        self.assertEqual(Submission.objects.count(), 1)
-        self.assertContains(response, "already attached to a submission")
+        self.assertEqual(Submission.objects.count(), 2)
+        submission = Submission.objects.get(email="copy@example.com")
+        self.assertEqual(submission.video_link, "")
+        self.assertEqual(submission.status, Submission.STATUS_UNVERIFIED)
+        self.assertContains(response, "Your result is live as unverified. Add proof to earn official rank.")
 
     def test_honeypot_submission_is_silently_ignored(self):
         response = self.client.post(
@@ -281,6 +289,15 @@ class SubmissionFlowTests(TestCase):
         for reps, expected_name in expectations.items():
             with self.subTest(reps=reps):
                 self.assertEqual(get_rank_tier(reps)["name"], expected_name)
+
+    def test_rank_page_shows_tier_and_official_submit_cta(self):
+        response = self.client.get(f"{reverse('rank')}?reps=42")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Get Your Rank")
+        self.assertContains(response, "You reached Advanced.")
+        self.assertContains(response, "Submit Official Result")
+        self.assertContains(response, f"{reverse('challenge')}?reps=42#submit-form-top")
 
     def test_registration_creates_user_and_profile(self):
         response = self.client.post(
@@ -564,14 +581,15 @@ class SubmissionFlowTests(TestCase):
 
         response = self.client.post(
             reverse("add_submission_proof", args=[submission.id]),
-            {"video_link": "https://example.com/new-proof"},
+            {"video_file": self.proof_video()},
             follow=True,
         )
 
         self.assertRedirects(response, reverse("dashboard"))
         submission.refresh_from_db()
         self.assertEqual(submission.status, Submission.STATUS_PENDING)
-        self.assertEqual(submission.video_link, "https://example.com/new-proof")
+        self.assertEqual(submission.video_link, "")
+        self.assertTrue(submission.has_proof)
 
     def test_dashboard_can_log_workout(self):
         user = User.objects.create_user(username="workout-user", password="StrongPass12345")
@@ -774,6 +792,7 @@ class SubmissionFlowTests(TestCase):
         self.assertIn("application/xml", response["Content-Type"])
         self.assertContains(response, '<?xml-stylesheet type="text/xsl"', html=False)
         self.assertContains(response, "<urlset", html=False)
+        self.assertIn("https://earnedclub.club/rank/", locs)
         self.assertIn("https://earnedclub.club/leaderboard/", locs)
         self.assertIn("https://earnedclub.club/challenge/", locs)
         self.assertIn("https://earnedclub.club/test/", locs)
@@ -848,6 +867,17 @@ class SubmissionFlowTests(TestCase):
                 reviewer=admin,
             ).exists()
         )
+
+    def test_staff_can_view_admin_pages_index(self):
+        staff = User.objects.create_user(username="pages-staff", password="StrongPass12345", is_staff=True)
+        self.client.force_login(staff)
+
+        response = self.client.get(reverse("admin_pages"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Existing pages")
+        self.assertContains(response, "/rank/")
+        self.assertContains(response, "/challenge/")
 
     def test_review_page_requires_staff_or_superuser(self):
         user = User.objects.create_user(username="regular", password="StrongPass12345")

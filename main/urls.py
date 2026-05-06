@@ -4,6 +4,7 @@ from . import views
 
 urlpatterns = [
     path("", views.home, name="home"),
+    path("rank/", views.rank, name="rank"),
     path("test/", views.level_test, name="level_test"),
     path("sitemap.xml", views.sitemap_xml, name="sitemap_xml"),
     path("sitemap.xsl", views.sitemap_xsl, name="sitemap_xsl"),
@@ -25,6 +26,7 @@ urlpatterns = [
     path("workouts/<int:workout_id>/delete/", views.delete_workout, name="delete_workout"),
     path("workouts/<int:workout_id>/highlight/", views.toggle_highlight_workout, name="toggle_highlight_workout"),
     path("admin-menu/", views.admin_menu, name="admin_menu"),
+    path("admin-menu/pages/", views.admin_pages, name="admin_pages"),
     path("admin-review/", views.admin_review, name="admin_review"),
     path("admin-review/<int:submission_id>/", views.review_submission, name="review_submission"),
     path("content/", views.content_engine_admin, name="content_engine_admin"),

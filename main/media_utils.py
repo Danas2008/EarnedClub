@@ -108,6 +108,9 @@ def process_submission_video(uploaded_file):
                 output_file.read(),
                 name=f"{Path(getattr(uploaded_file, 'name', 'submission')).stem}-{uuid.uuid4().hex[:8]}.mp4",
             )
+    except OSError:
+        uploaded_file.seek(0)
+        return uploaded_file
     finally:
         for path in (source_path, output_path):
             if path and os.path.exists(path):

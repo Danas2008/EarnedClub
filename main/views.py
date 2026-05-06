@@ -138,7 +138,6 @@ SYSTEM_WORKOUT_TEMPLATES = [
 ]
 
 ADMIN_SUBMISSION_EMAIL = "daniel.havlicek1@seznam.cz"
-NEWSLETTER_FROM_EMAIL = "Earned Club <earnedclub1@gmail.com>"
 logger = logging.getLogger(__name__)
 
 
@@ -147,6 +146,7 @@ register_namespace("", SITEMAP_NAMESPACE)
 
 SITEMAP_STATIC_PAGES = [
     {"view_name": "home", "changefreq": "daily", "priority": "1.0"},
+    {"view_name": "rank", "changefreq": "daily", "priority": "0.95"},
     {"view_name": "level_test", "changefreq": "weekly", "priority": "0.9"},
     {"view_name": "challenge", "changefreq": "weekly", "priority": "0.9"},
     {"view_name": "leaderboard", "changefreq": "daily", "priority": "0.9"},
@@ -288,12 +288,26 @@ def build_template_payload(cards):
 def notify_user_email(user, subject, message):
     if not user or not user.email:
         return
-    send_mail(subject, message, getattr(settings, "DEFAULT_FROM_EMAIL", "noreply@earnedclub.club"), [user.email], fail_silently=True)
+    safe_send_mail(subject, message, [user.email])
+
+
+def safe_send_mail(subject, message, recipients, from_email=None):
+    try:
+        return send_mail(
+            subject,
+            message,
+            from_email or getattr(settings, "DEFAULT_FROM_EMAIL", "noreply@earnedclub.club"),
+            recipients,
+            fail_silently=False,
+        )
+    except Exception:
+        logger.exception("Email delivery failed for subject %s to %s", subject, recipients)
+        return 0
 
 
 def notify_admin_submission(submission, event_label):
     proof = submission.proof_url or "No proof attached"
-    send_mail(
+    return safe_send_mail(
         f"Earned Club result submitted: {submission.reps} reps",
         (
             f"{event_label}\n\n"
@@ -303,9 +317,7 @@ def notify_admin_submission(submission, event_label):
             f"Status: {submission.public_status_label}\n"
             f"Proof: {proof}"
         ),
-        getattr(settings, "DEFAULT_FROM_EMAIL", "noreply@earnedclub.club"),
         [ADMIN_SUBMISSION_EMAIL],
-        fail_silently=True,
     )
 
 
@@ -571,33 +583,12 @@ def send_submission_notification(submission, subject, message):
     recipient = get_submission_recipient(submission)
     if not recipient:
         return
-    send_mail(
-        subject,
-        message,
-        settings.DEFAULT_FROM_EMAIL,
-        [recipient],
-        fail_silently=True,
-    )
+    safe_send_mail(subject, message, [recipient])
 
 
-def find_proof_link_blocker(video_link, exclude_pk=None):
-    if not video_link:
-        return ""
-    proof_matches = Submission.objects.filter(video_link__iexact=video_link)
-    if exclude_pk:
-        proof_matches = proof_matches.exclude(pk=exclude_pk)
-    if proof_matches.exists():
-        return "This proof is already attached to a submission."
-    return ""
-
-
-def find_submission_blocker(request, name, email, reps, video_link):
+def find_submission_blocker(request, name, email, reps):
     if request.POST.get("website"):
         return "silent"
-
-    proof_blocker = find_proof_link_blocker(video_link)
-    if proof_blocker:
-        return proof_blocker
 
     cooldown = timezone.now() - timedelta(minutes=1)
     recent_duplicate = Submission.objects.filter(created_at__gte=cooldown, reps=reps)
@@ -685,6 +676,7 @@ def build_next_action(user):
 
 def send_newsletter_to_subscribers(subject, body, subscribers, campaign=None, request=None):
     sent_count = 0
+    failures = []
     for subscriber in subscribers:
         if not subscriber.is_subscribed:
             continue
@@ -692,9 +684,13 @@ def send_newsletter_to_subscribers(subject, body, subscribers, campaign=None, re
         if request:
             unsubscribe_url = request.build_absolute_uri(reverse("newsletter_unsubscribe", args=[subscriber.unsubscribe_token]))
             message = f"{body}\n\nUnsubscribe: {unsubscribe_url}"
-        sent_count += send_mail(subject, message, NEWSLETTER_FROM_EMAIL, [subscriber.email], fail_silently=True)
-        NewsletterSendEvent.objects.create(subscriber=subscriber, campaign=campaign, subject=subject)
-    return sent_count
+        delivered = safe_send_mail(subject, message, [subscriber.email], from_email=getattr(settings, "NEWSLETTER_FROM_EMAIL", settings.DEFAULT_FROM_EMAIL))
+        if delivered:
+            sent_count += delivered
+            NewsletterSendEvent.objects.create(subscriber=subscriber, campaign=campaign, subject=subject)
+        else:
+            failures.append(subscriber.email)
+    return sent_count, failures
 
 
 def newsletter_auto_segment_subscribers(key):
@@ -1042,6 +1038,39 @@ def level_test(request):
             "rank_tiers": RANK_TIERS,
             "total_verified": len(verified_submissions),
             "total_submissions": len(public_submission_queryset()),
+        },
+    )
+
+
+def rank(request):
+    reps_raw = (request.GET.get("reps") or "").strip()
+    result = None
+    submit_url = f"{reverse('challenge')}#submit-form-top"
+    if reps_raw:
+        try:
+            reps_value = int(reps_raw)
+        except ValueError:
+            messages.error(request, "Enter your push-up count as a whole number.")
+        else:
+            if reps_value < 0:
+                messages.error(request, "Push-up count cannot be negative.")
+            else:
+                tier = get_rank_tier(reps_value)
+                result = {
+                    "reps": reps_value,
+                    "tier": tier,
+                    "message": f"You reached {tier['name']}.",
+                }
+                params = urlencode({"reps": reps_value})
+                submit_url = f"{reverse('challenge')}?{params}#submit-form-top"
+
+    return render(
+        request,
+        "rank.html",
+        {
+            "result": result,
+            "submit_url": submit_url,
+            "rank_tiers": RANK_TIERS,
         },
     )
 
@@ -1497,7 +1526,7 @@ def challenge(request):
         name = (request.POST.get("name") or "").strip()
         email = (request.POST.get("email") or "").strip().lower()
         reps = (request.POST.get("reps") or "").strip()
-        video_link = (request.POST.get("video_link") or "").strip()
+        video_link = ""
         video_file = request.FILES.get("video_file")
 
         if request.user.is_authenticated:
@@ -1534,7 +1563,7 @@ def challenge(request):
             context["show_submit_help"] = True
             return render(request, "challenge.html", context)
 
-        if request.user.is_authenticated and reps_value > 60 and not (video_link or video_file):
+        if request.user.is_authenticated and reps_value > 60 and not video_file:
             messages.error(request, "Scores above 60 need video proof.")
             context["form_data"] = request.POST
             context["show_submit_help"] = True
@@ -1547,25 +1576,14 @@ def challenge(request):
             active_submission = active_filter.filter(email=email).first()
 
         if active_submission:
-            if active_submission.status == Submission.STATUS_UNVERIFIED and (video_link or video_file):
-                proof_blocker = find_proof_link_blocker(video_link, exclude_pk=active_submission.pk)
-                if proof_blocker:
-                    messages.error(request, proof_blocker)
-                    context["form_data"] = request.POST
-                    context["active_submission"] = active_submission
-                    context["show_submit_help"] = True
-                    return render(request, "challenge.html", context)
+            if active_submission.status == Submission.STATUS_UNVERIFIED and video_file:
                 active_submission.name = name
                 active_submission.email = email
                 active_submission.reps = reps_value
-                active_submission.video_link = video_link
-                if video_file:
-                    stored_video = store_submission_video(active_submission, video_file)
-                    active_submission.video_storage_path = stored_video["storage_path"]
-                    active_submission.video_file = stored_video["local_file"] or ""
-                else:
-                    active_submission.video_storage_path = ""
-                    active_submission.video_file = ""
+                active_submission.video_link = ""
+                stored_video = store_submission_video(active_submission, video_file)
+                active_submission.video_storage_path = stored_video["storage_path"]
+                active_submission.video_file = stored_video["local_file"] or ""
                 active_submission.status = Submission.STATUS_PENDING
                 active_submission.verified = False
                 active_submission.save(
@@ -1581,7 +1599,7 @@ def challenge(request):
                     ]
                 )
                 create_verification_event(active_submission, VerificationEvent.ACTION_PROOF_ADDED)
-                notify_admin_submission(active_submission, "Proof was added to an existing result.")
+                admin_notified = notify_admin_submission(active_submission, "Proof was added to an existing result.")
                 estimated_position = estimate_verified_position(reps_value)
                 send_submission_notification(
                     active_submission,
@@ -1593,8 +1611,10 @@ def challenge(request):
                 )
                 messages.success(
                     request,
-                    f"Proof added. If verified, this result would currently rank #{estimated_position} on the verified leaderboard.",
+                    "Your result is pending review. If approved, your official rank will update.",
                 )
+                if not admin_notified:
+                    messages.warning(request, "Your proof was saved, but the admin email could not be delivered. Staff can still see it in review.")
                 messages.info(request, "Next: retest your strict push-ups in 14 days or start a support workout today.")
                 return redirect("challenge")
 
@@ -1607,7 +1627,7 @@ def challenge(request):
             context["show_submit_help"] = True
             return render(request, "challenge.html", context)
 
-        blocker = find_submission_blocker(request, name, email, reps_value, video_link)
+        blocker = find_submission_blocker(request, name, email, reps_value)
         if blocker == "silent":
             messages.success(request, "Submission received. If it passes review, it will appear on the leaderboard.")
             return redirect("challenge")
@@ -1623,8 +1643,8 @@ def challenge(request):
             name=name,
             email=email,
             reps=reps_value,
-            video_link=video_link,
-            status=Submission.STATUS_PENDING if (video_link or video_file) else Submission.STATUS_UNVERIFIED,
+            video_link="",
+            status=Submission.STATUS_PENDING if video_file else Submission.STATUS_UNVERIFIED,
         )
         if video_file:
             stored_video = store_submission_video(submission, video_file)
@@ -1634,7 +1654,7 @@ def challenge(request):
             submission.save(update_fields=["video_storage_path", "video_file", "status"])
 
         create_verification_event(submission, VerificationEvent.ACTION_SUBMITTED)
-        notify_admin_submission(submission, "A new result was submitted.")
+        admin_notified = notify_admin_submission(submission, "A new result was submitted.")
         send_submission_notification(
             submission,
             "Earned Club submission received",
@@ -1649,22 +1669,22 @@ def challenge(request):
         )
 
         for subscriber in NewsletterSubscriber.objects.exclude(email=email)[:50]:
-            send_mail(
+            safe_send_mail(
                 "New EarnedClub challenge result",
                 f"{name} just submitted {reps_value} push-ups. Check the leaderboard to see if you can beat it.",
-                getattr(settings, "DEFAULT_FROM_EMAIL", "noreply@earnedclub.club"),
                 [subscriber.email],
-                fail_silently=True,
             )
 
         messages.success(
             request,
             (
-                f"Submission received. If verified, this result would currently rank #{estimated_position} on the verified leaderboard."
+                "Your result is pending review. If approved, your official rank will update."
                 if submission.has_proof else
-                "Submission saved as unverified. Upload a proof video from your profile to move it into pending review."
+                "Your result is live as unverified. Add proof to earn official rank."
             ),
         )
+        if not admin_notified:
+            messages.warning(request, "Your result was saved, but the admin email could not be delivered. Staff can still see it in review.")
         messages.info(request, "Next: open your dashboard to track review status, then retest your strict push-ups in 14 days.")
         return redirect("challenge")
 
@@ -1675,7 +1695,6 @@ def challenge(request):
 @login_required
 def add_submission_proof(request, submission_id):
     submission = get_object_or_404(Submission, pk=submission_id, user=request.user)
-    video_link = (request.POST.get("video_link") or "").strip()
     video_file = request.FILES.get("video_file")
 
     if submission.status != Submission.STATUS_UNVERIFIED:
@@ -1686,20 +1705,14 @@ def add_submission_proof(request, submission_id):
         messages.error(request, "You already have a submission waiting for verification.")
         return redirect("dashboard")
 
-    if not video_link and not video_file:
+    if not video_file:
         messages.error(request, "Upload a proof video file.")
         return redirect("dashboard")
 
-    proof_blocker = find_proof_link_blocker(video_link, exclude_pk=submission.pk)
-    if proof_blocker:
-        messages.error(request, proof_blocker)
-        return redirect("dashboard")
-
-    submission.video_link = video_link
-    if video_file:
-        stored_video = store_submission_video(submission, video_file)
-        submission.video_storage_path = stored_video["storage_path"]
-        submission.video_file = stored_video["local_file"] or ""
+    submission.video_link = ""
+    stored_video = store_submission_video(submission, video_file)
+    submission.video_storage_path = stored_video["storage_path"]
+    submission.video_file = stored_video["local_file"] or ""
     submission.status = Submission.STATUS_PENDING
     submission.verified = False
     submission.save(update_fields=["video_link", "video_storage_path", "video_file", "status", "verified"])
@@ -1749,10 +1762,51 @@ def admin_menu(request):
             "site_health": {
                 "email_backend": settings.EMAIL_BACKEND,
                 "default_from_email": settings.DEFAULT_FROM_EMAIL,
+                "email_host": settings.EMAIL_HOST,
+                "email_user": settings.EMAIL_HOST_USER or "Not configured",
                 "supabase_storage": "Enabled" if settings.SUPABASE_STORAGE_ENABLED else "Disabled",
                 "debug": "On" if settings.DEBUG else "Off",
                 "recent_errors": recent_errors,
             },
+        },
+    )
+
+
+@user_passes_test(is_app_admin, login_url="login")
+def admin_pages(request):
+    from .urls import urlpatterns as main_urlpatterns
+
+    page_rows = []
+    for pattern in main_urlpatterns:
+        name = getattr(pattern, "name", "") or ""
+        route = str(pattern.pattern)
+        url = ""
+        if name and "<" not in route:
+            try:
+                url = reverse(name)
+            except Exception:
+                url = ""
+        if route.startswith("admin") or route.startswith("newsletter") or route.startswith("content"):
+            access = "Staff"
+        elif route.startswith("dashboard") or route in {"login/", "logout/", "register/"}:
+            access = "Account"
+        else:
+            access = "Public"
+        page_rows.append(
+            {
+                "name": name or "unnamed",
+                "route": f"/{route}",
+                "url": url,
+                "access": access,
+            }
+        )
+
+    return render(
+        request,
+        "admin_pages.html",
+        {
+            "page_rows": page_rows,
+            "page_count": len(page_rows),
         },
     )
 
@@ -1957,12 +2011,15 @@ def newsletter_admin(request):
                 },
             )
         if request.POST.get("action") == "send" and recipients:
-            sent_count = send_newsletter_to_subscribers(subject, body, recipients, campaign=campaign, request=request)
+            sent_count, failures = send_newsletter_to_subscribers(subject, body, recipients, campaign=campaign, request=request)
             campaign.sent_at = timezone.now()
             campaign.sent_count = sent_count
             campaign.save(update_fields=["sent_at", "sent_count"])
             destination = f" segment {segment.name}" if segment else (f" auto filter {auto_segment}" if auto_segment else "")
-            messages.success(request, f"Newsletter sent to {sent_count} subscriber(s){destination}.")
+            if sent_count:
+                messages.success(request, f"Newsletter sent to {sent_count} subscriber(s){destination}.")
+            if failures:
+                messages.error(request, f"Email failed for {len(failures)} recipient(s): {', '.join(failures[:3])}. Check EMAIL_BACKEND/SMTP settings.")
         elif request.POST.get("action") == "send":
             messages.info(request, "Newsletter draft saved. There are no subscribers yet.")
         else:
@@ -2007,7 +2064,7 @@ def newsletter_subscriber_detail(request, subscriber_id):
         if not subject or not body:
             messages.error(request, "Subject and body are required.")
             return redirect("newsletter_subscriber_detail", subscriber_id=subscriber.id)
-        sent_count = send_newsletter_to_subscribers(subject, body, [subscriber], request=request)
+        sent_count, failures = send_newsletter_to_subscribers(subject, body, [subscriber], request=request)
         NewsletterCampaign.objects.create(
             week_number=default_week + 1,
             subject=subject,
@@ -2015,7 +2072,10 @@ def newsletter_subscriber_detail(request, subscriber_id):
             sent_at=timezone.now(),
             sent_count=sent_count,
         )
-        messages.success(request, f"Email sent to {subscriber.email}.")
+        if sent_count:
+            messages.success(request, f"Email sent to {subscriber.email}.")
+        else:
+            messages.error(request, f"Email failed for {subscriber.email}. Check EMAIL_BACKEND/SMTP settings.")
         return redirect("newsletter_subscriber_detail", subscriber_id=subscriber.id)
 
     return render(

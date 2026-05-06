@@ -162,3 +162,11 @@ LOGIN_URL = "login"
 LOGIN_REDIRECT_URL = "dashboard"
 DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "Earned Club <noreply@earnedclub.club>")
 EMAIL_BACKEND = os.getenv("EMAIL_BACKEND", "django.core.mail.backends.console.EmailBackend")
+EMAIL_HOST = os.getenv("EMAIL_HOST", "localhost")
+EMAIL_PORT = int(os.getenv("EMAIL_PORT", "25"))
+EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER", "")
+EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", "")
+EMAIL_USE_TLS = get_bool_env("EMAIL_USE_TLS", default=False)
+EMAIL_USE_SSL = get_bool_env("EMAIL_USE_SSL", default=False)
+EMAIL_TIMEOUT = int(os.getenv("EMAIL_TIMEOUT", "20"))
+NEWSLETTER_FROM_EMAIL = os.getenv("NEWSLETTER_FROM_EMAIL", DEFAULT_FROM_EMAIL)

@@ -25,6 +25,11 @@
         <h2>Weekly Email</h2>
         <p class="muted">{{ subscriber_count }} subscriber(s) linked from signups.</p>
     </a>
+    <a class="feature-card" href="{% url 'admin_pages' %}">
+        <span class="kicker">Pages</span>
+        <h2>Site Pages</h2>
+        <p class="muted">See existing public, account, and staff routes.</p>
+    </a>
 </section>
 
 <section class="card-dark">
@@ -32,6 +37,8 @@
     <div class="grid-4">
         <div class="metric-card"><span class="kicker">Email</span><p class="muted">{{ site_health.email_backend }}</p></div>
         <div class="metric-card"><span class="kicker">From</span><p class="muted">{{ site_health.default_from_email }}</p></div>
+        <div class="metric-card"><span class="kicker">SMTP host</span><p class="muted">{{ site_health.email_host }}</p></div>
+        <div class="metric-card"><span class="kicker">SMTP user</span><p class="muted">{{ site_health.email_user }}</p></div>
         <div class="metric-card"><span class="kicker">Storage</span><span class="stat-value">{{ site_health.supabase_storage }}</span></div>
         <div class="metric-card"><span class="kicker">Debug</span><span class="stat-value">{{ site_health.debug }}</span></div>
     </div>
