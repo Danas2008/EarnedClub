@@ -701,6 +701,15 @@ Usually touches:
 - Homepage keeps YouTube/content placeholders and links to calculators/tools and `/rank/`.
 - Homepage copy now emphasizes "Don't just claim your strength. Prove it.", "Earn your rank.", "Verified status.", "Public leaderboard.", and "Real reps. Real proof."
 
+### 2026-05-06 rank and first-screen conversion polish
+
+- `/rank/` was redesigned from nested hero/panel cards into a single focused rank-check stage.
+- `/rank/` now gives the input more space, hides it after result, animates the result ticket subtly, and keeps "Check Again" as the reset action.
+- Homepage hero no longer uses a logo badge inside the first section.
+- Header brand text now shows "EarnedClub" so the brand is readable without relying only on the logo.
+- Homepage sample result was redesigned into a compact "Sample rank check" card with the large `42`, Advanced status, a rank meter, and proof-status copy.
+- Homepage first mobile screen now has stronger headline sizing, tighter spacing, and a cleaner score-to-status visual for social traffic.
+
 ## Short Glossary
 
 - Official rank: rank based only on verified best submissions.

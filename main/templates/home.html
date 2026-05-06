@@ -1,5 +1,4 @@
 {% extends "base.html" %}
-{% load static %}
 
 {% block title %}Earned Club - Get Your Push-Up Rank{% endblock %}
 {% block meta_description %}Earned Club is the proof-first push-up test. Get your rank, submit your max clean push-ups, upload proof, and earn verified public status.{% endblock %}
@@ -12,7 +11,7 @@
     }
 
     .home-hero {
-        padding: 18px;
+        padding: clamp(18px, 5vw, 34px);
     }
 
     .home-hero-grid {
@@ -25,27 +24,10 @@
         max-width: 720px;
     }
 
-    .home-hero-mark {
-        display: inline-flex;
-        align-items: center;
-        gap: 10px;
-        margin-bottom: 14px;
-        padding: 8px 10px;
-        border-radius: var(--radius-md);
-        background: rgba(255, 255, 255, 0.05);
-        border: 1px solid rgba(255, 255, 255, 0.08);
-    }
-
-    .home-hero-mark img {
-        width: 38px;
-        height: 38px;
-        object-fit: contain;
-    }
-
     .home-hero h1 {
         max-width: 760px;
-        font-size: clamp(2.65rem, 13vw, 5.45rem);
-        line-height: 0.92;
+        font-size: clamp(3.15rem, 15vw, 5.7rem);
+        line-height: 0.88;
         margin-bottom: 14px;
     }
 
@@ -92,12 +74,15 @@
         overflow: hidden;
         contain: layout paint;
         display: grid;
-        gap: 16px;
+        gap: 14px;
+        max-width: 430px;
+        width: 100%;
+        justify-self: center;
         padding: 16px;
         border: 1px solid rgba(255, 255, 255, 0.1);
         border-radius: var(--radius-lg);
         background:
-            linear-gradient(145deg, rgba(247, 183, 51, 0.12), rgba(252, 74, 26, 0.06) 38%, rgba(255, 255, 255, 0.035)),
+            linear-gradient(150deg, rgba(247, 183, 51, 0.15), rgba(252, 74, 26, 0.07) 32%, rgba(255, 255, 255, 0.035)),
             rgba(255, 255, 255, 0.04);
         box-shadow: 0 18px 48px rgba(0, 0, 0, 0.26);
     }
@@ -117,51 +102,84 @@
         pointer-events: none;
     }
 
-    .score-rank-header,
-    .score-rank-flow {
+    .score-rank-top,
+    .score-rank-result,
+    .score-rank-proof,
+    .rank-meter {
         position: relative;
         z-index: 1;
     }
 
-    .score-rank-header {
-        display: grid;
-        grid-template-columns: minmax(0, 1fr) auto;
-        gap: 14px;
+    .score-rank-top,
+    .score-rank-proof {
+        display: flex;
+        justify-content: space-between;
         align-items: center;
+        gap: 12px;
     }
 
     .score-rank-number {
         font-family: "Archivo", sans-serif;
-        font-size: clamp(3.4rem, 20vw, 6.4rem);
-        line-height: 0.82;
+        font-size: clamp(5.8rem, 32vw, 8.6rem);
+        line-height: 0.76;
         font-weight: 900;
         color: var(--accent);
         text-shadow: 0 14px 32px rgba(247, 183, 51, 0.18);
     }
 
-    .score-rank-flow {
+    .score-rank-result {
         display: grid;
-        gap: 10px;
+        grid-template-columns: auto minmax(0, 1fr);
+        gap: 14px;
+        align-items: end;
+        padding: 14px 0 10px;
     }
 
-    .score-rank-step {
+    .score-rank-result h2 {
+        margin-bottom: 6px;
+        font-size: clamp(1.5rem, 7vw, 2.35rem);
+        line-height: 0.96;
+    }
+
+    .rank-meter {
         display: grid;
-        grid-template-columns: minmax(0, 1fr);
-        gap: 10px;
-        align-items: center;
-        padding: 11px;
+        gap: 8px;
+        padding: 12px;
         border-radius: var(--radius-md);
-        background: rgba(8, 11, 15, 0.35);
+        background: rgba(8, 11, 15, 0.34);
         border: 1px solid rgba(255, 255, 255, 0.08);
     }
 
-    .score-rank-arrow {
-        display: none;
-        color: var(--accent);
-        font-family: "Archivo", sans-serif;
+    .rank-meter-track {
+        position: relative;
+        height: 9px;
+        overflow: hidden;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.08);
+    }
+
+    .rank-meter-track::before {
+        content: "";
+        position: absolute;
+        inset: 0 36% 0 0;
+        border-radius: inherit;
+        background: linear-gradient(90deg, var(--accent), var(--accent-2));
+    }
+
+    .rank-meter-labels {
+        display: flex;
+        justify-content: space-between;
+        gap: 8px;
+        color: var(--muted);
         font-size: 0.82rem;
-        text-transform: uppercase;
-        letter-spacing: 0.08em;
+        font-weight: 800;
+    }
+
+    .score-rank-proof {
+        padding: 12px;
+        border-radius: var(--radius-md);
+        background: rgba(30, 157, 116, 0.08);
+        border: 1px solid rgba(30, 157, 116, 0.22);
     }
 
     .flow-label {
@@ -360,6 +378,26 @@
         transform: translateY(0);
     }
 
+    .home-hero-copy,
+    .score-rank-card {
+        animation: heroLift 0.58s ease both;
+    }
+
+    .score-rank-card {
+        animation-delay: 0.08s;
+    }
+
+    @keyframes heroLift {
+        from {
+            opacity: 0;
+            transform: translateY(16px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
     @media (prefers-reduced-motion: reduce) {
         .home-reveal.is-reveal-ready,
         .home-value-item,
@@ -367,10 +405,13 @@
         .home-tool-card,
         .home-rank-card,
         .proof-card,
-        .video-preview-card {
+        .video-preview-card,
+        .home-hero-copy,
+        .score-rank-card {
             opacity: 1;
             transform: none;
             transition: none;
+            animation: none;
         }
     }
 
@@ -384,7 +425,7 @@
         }
 
         .home-hero-grid {
-            grid-template-columns: minmax(0, 1.18fr) minmax(360px, 0.82fr);
+            grid-template-columns: minmax(0, 1.08fr) minmax(360px, 0.92fr);
         }
 
         .home-cta-row,
@@ -414,25 +455,56 @@
             grid-template-columns: repeat(5, minmax(0, 1fr));
         }
 
-        .score-rank-flow {
-            grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto minmax(0, 1fr);
-            align-items: stretch;
-        }
-
-        .score-rank-arrow {
-            display: grid;
-            place-items: center;
+        .score-rank-card {
+            justify-self: end;
         }
     }
 
     @media (max-width: 719px) {
-        .score-rank-header {
+        .home-page {
+            gap: 14px;
+        }
+
+        .home-hero {
+            margin-left: -4px;
+            margin-right: -4px;
+            padding-top: 20px;
+        }
+
+        .home-hero-grid {
+            gap: 20px;
+        }
+
+        .home-hero h1 {
+            max-width: 9ch;
+        }
+
+        .home-lead {
+            font-size: 1.08rem;
+            line-height: 1.45;
+        }
+
+        .home-trust-line {
+            margin-top: 12px;
+        }
+
+        .home-trust-line span {
+            flex: 1 1 auto;
+            text-align: center;
+        }
+
+        .score-rank-card {
+            max-width: none;
+        }
+
+        .score-rank-result {
             grid-template-columns: 1fr;
+            gap: 8px;
+            padding-top: 8px;
         }
 
         .score-rank-number {
-            justify-self: start;
-            margin-top: -4px;
+            margin-top: 2px;
         }
     }
 </style>
@@ -441,10 +513,6 @@
     <section class="hero-card home-hero home-reveal">
         <div class="home-hero-grid">
             <div class="home-hero-copy">
-                <div class="home-hero-mark" aria-label="Earned Club">
-                    <img src="{% static 'EarnedClub.png' %}" alt="">
-                    <span class="kicker">Earned Club</span>
-                </div>
                 <div class="eyebrow">Official Push-Up Test</div>
                 <h1>Don't just claim it. Prove it.</h1>
                 <p class="home-lead muted">
@@ -465,37 +533,33 @@
             </div>
 
             <aside class="score-rank-card" aria-label="Example score to rank preview">
-                <div class="score-rank-header">
+                <div class="score-rank-top">
                     <div>
-                        <span class="kicker">Score to status</span>
-                        <h2 style="margin-bottom: 6px;">Sample result</h2>
-                        <p class="muted" style="margin-bottom: 0;">42 clean reps reaches Advanced. Upload proof to make it official.</p>
+                        <span class="kicker">Sample rank check</span>
+                        <strong>Official Push-Up Test</strong>
                     </div>
-                    <div class="score-rank-number">42</div>
+                    <span class="status-pill unverified">Example</span>
                 </div>
-                <div class="score-rank-flow">
-                    <div class="score-rank-step">
-                        <span class="flow-label">Score</span>
-                        <div>
-                            <strong>Max clean set</strong>
-                            <div class="submission-meta">Max clean set</div>
-                        </div>
+                <div class="score-rank-result">
+                    <div class="score-rank-number">42</div>
+                    <div>
+                        <span class="status-pill verified">Advanced</span>
+                        <h2>Clean reps become status.</h2>
+                        <p class="muted" style="margin-bottom: 0;">42 reps lands in Advanced. Proof turns the score official.</p>
                     </div>
-                    <div class="score-rank-arrow">Then</div>
-                    <div class="score-rank-step">
-                        <span class="status-pill unverified">Advanced</span>
-                        <div>
-                            <strong>Tier</strong>
-                            <div class="submission-meta">40-59 reps</div>
-                        </div>
+                </div>
+                <div class="rank-meter" aria-label="Sample rank tier meter">
+                    <div class="rank-meter-track"></div>
+                    <div class="rank-meter-labels">
+                        <span>Beginner</span>
+                        <span>Advanced</span>
+                        <span>Legend</span>
                     </div>
-                    <div class="score-rank-arrow">Then</div>
-                    <div class="score-rank-step">
-                        <span class="status-pill verified">Proof</span>
-                        <div>
-                            <strong>Official rank</strong>
-                            <div class="submission-meta">After review</div>
-                        </div>
+                </div>
+                <div class="score-rank-proof">
+                    <div>
+                        <strong>Verified status requires proof</strong>
+                        <div class="submission-meta">Unverified scores can show, but official rank is earned after review.</div>
                     </div>
                 </div>
                 <a class="btn-secondary" href="{% url 'challenge' %}#submit-form-top">Prove Your Score</a>

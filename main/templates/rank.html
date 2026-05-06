@@ -5,42 +5,153 @@
 
 {% block content %}
 <style>
-    .rank-shell {
-        max-width: 760px;
-        margin: 0 auto;
-    }
-
-    .rank-card {
+    .rank-page {
         display: grid;
         gap: 18px;
     }
 
-    .rank-form-panel,
-    .rank-result-panel {
-        padding: 18px;
+    .rank-stage {
+        position: relative;
+        overflow: hidden;
+        display: grid;
+        gap: 22px;
+        min-height: calc(100svh - 150px);
+        align-content: center;
+        padding: clamp(22px, 6vw, 42px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
         border-radius: var(--radius-lg);
-        background: rgba(255, 255, 255, 0.045);
-        border: 1px solid rgba(255, 255, 255, 0.09);
+        background:
+            linear-gradient(145deg, rgba(247, 183, 51, 0.13), rgba(252, 74, 26, 0.07) 34%, rgba(13, 20, 28, 0.92) 72%),
+            radial-gradient(circle at 80% 10%, rgba(247, 183, 51, 0.14), transparent 34%),
+            var(--panel);
+        box-shadow: var(--shadow);
     }
 
-    .rank-result-panel {
+    .rank-stage::before {
+        content: "";
+        position: absolute;
+        inset: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.055);
+        border-radius: var(--radius-md);
+        pointer-events: none;
+    }
+
+    .rank-hero {
+        position: relative;
+        z-index: 1;
+        display: grid;
+        gap: 18px;
+    }
+
+    .rank-copy {
+        max-width: 680px;
+    }
+
+    .rank-copy h1 {
+        font-size: clamp(3rem, 17vw, 6rem);
+        line-height: 0.86;
+        margin-bottom: 12px;
+    }
+
+    .rank-copy p {
+        max-width: 560px;
+        font-size: clamp(1.08rem, 4.5vw, 1.28rem);
+    }
+
+    .rank-entry-form {
+        display: grid;
+        gap: 14px;
+        width: 100%;
+        max-width: 480px;
+    }
+
+    .rank-input-wrap {
+        position: relative;
+    }
+
+    .rank-input-wrap .input {
+        min-height: 64px;
+        padding-right: 92px;
+        font-family: "Archivo", sans-serif;
+        font-size: clamp(1.35rem, 7vw, 2rem);
+        font-weight: 900;
+    }
+
+    .rank-input-suffix {
+        position: absolute;
+        right: 16px;
+        bottom: 17px;
+        color: var(--muted);
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        pointer-events: none;
+    }
+
+    .rank-entry-form .btn-main {
+        min-height: 56px;
+        width: 100%;
+    }
+
+    .rank-microcopy {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        max-width: 540px;
+    }
+
+    .rank-microcopy span {
+        padding: 7px 10px;
+        border-radius: var(--radius-sm);
+        background: rgba(255, 255, 255, 0.055);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        color: var(--muted);
+        font-size: 0.9rem;
+        font-weight: 800;
+    }
+
+    .rank-result-ticket {
+        position: relative;
+        z-index: 1;
+        display: grid;
+        gap: 18px;
+        max-width: 760px;
+        padding: clamp(16px, 4vw, 24px);
+        border-radius: var(--radius-lg);
         background:
-            linear-gradient(135deg, rgba(247, 183, 51, 0.12), rgba(30, 157, 116, 0.08)),
-            rgba(255, 255, 255, 0.045);
+            linear-gradient(135deg, rgba(247, 183, 51, 0.18), rgba(30, 157, 116, 0.1)),
+            rgba(8, 11, 15, 0.58);
+        border: 1px solid rgba(247, 183, 51, 0.24);
+        box-shadow: 0 18px 48px rgba(0, 0, 0, 0.28);
+        animation: rankReveal 0.48s ease both;
+    }
+
+    .rank-result-main {
+        display: grid;
+        gap: 14px;
+        align-items: center;
     }
 
     .rank-score {
         font-family: "Archivo", sans-serif;
-        font-size: clamp(3.4rem, 22vw, 6rem);
-        line-height: 0.84;
+        font-size: clamp(4.8rem, 28vw, 8rem);
+        line-height: 0.78;
         font-weight: 900;
         color: var(--accent);
+        text-shadow: 0 18px 42px rgba(247, 183, 51, 0.2);
     }
 
-    .rank-result-grid {
-        display: grid;
-        gap: 14px;
-        align-items: center;
+    .rank-result-copy h2 {
+        font-size: clamp(2rem, 9vw, 3.45rem);
+        line-height: 0.92;
+        margin-bottom: 10px;
+    }
+
+    .rank-status-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-bottom: 12px;
     }
 
     .rank-actions {
@@ -55,47 +166,112 @@
         min-height: 50px;
     }
 
-    @media (min-width: 720px) {
-        .rank-result-grid {
+    .rank-context {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+
+    .rank-context-card {
+        padding: 14px;
+        border-radius: var(--radius-md);
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .rank-context-card strong {
+        display: block;
+        margin-bottom: 6px;
+        font-family: "Archivo", sans-serif;
+    }
+
+    @keyframes rankReveal {
+        from {
+            opacity: 0;
+            transform: translateY(18px) scale(0.98);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+        }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .rank-result-ticket {
+            animation: none;
+        }
+    }
+
+    @media (min-width: 760px) {
+        .rank-hero {
+            grid-template-columns: minmax(0, 1fr) minmax(320px, 0.72fr);
+            align-items: center;
+        }
+
+        .rank-result-main {
             grid-template-columns: auto minmax(0, 1fr);
         }
 
         .rank-actions {
+            grid-template-columns: 1.25fr 1fr 0.85fr;
+        }
+
+        .rank-context {
             grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+    }
+
+    @media (max-width: 759px) {
+        .rank-stage {
+            min-height: calc(100svh - 118px);
+            margin-left: -4px;
+            margin-right: -4px;
+        }
+
+        .rank-copy h1 {
+            max-width: 8ch;
         }
     }
 </style>
 
-<section class="hero-card rank-shell">
-    <div class="stack rank-card">
-        <div>
-            <div class="eyebrow">Instant rank check</div>
-            <h1>Get Your Rank</h1>
-            <p class="muted">Enter your max clean push-ups. See your tier. Prove it when you are ready.</p>
-        </div>
-
-        {% if result %}
-            <div id="rank-result" class="rank-result-panel" tabindex="-1">
-                <div class="rank-result-grid">
-                    <div class="rank-score">{{ result.reps }}</div>
-                    <div>
-                        <span class="kicker">{{ result.reps }} clean push-ups</span>
-                        <h2>{{ result.message }}</h2>
-                        <p class="muted">{{ result.tier.description }}</p>
-                        <p>Can you prove it officially?</p>
-                        <p class="muted">Submit your result, upload proof, and earn verified status.</p>
-                    </div>
-                </div>
-                <div class="rank-actions">
-                    <a class="btn-main" href="{{ submit_url }}">Submit Official Result</a>
-                    <a class="btn-secondary" href="{% url 'leaderboard' %}#full-leaderboard">View Leaderboard</a>
-                    <a class="btn-secondary" href="{% url 'rank' %}">Check Again</a>
+<div class="rank-page">
+    <section class="rank-stage{% if result %} has-result{% endif %}" aria-labelledby="rank-title">
+        <div class="rank-hero">
+            <div class="rank-copy">
+                <div class="eyebrow">Official Push-Up Test</div>
+                <h1 id="rank-title">Get Your Rank</h1>
+                <p class="muted">Enter your max clean push-ups. See your tier instantly. Then prove it for official status.</p>
+                <div class="rank-microcopy" aria-label="Rank rules">
+                    <span>One clean set</span>
+                    <span>Instant tier</span>
+                    <span>Proof makes it official</span>
                 </div>
             </div>
-        {% else %}
-            <div class="rank-form-panel">
-                <form class="submission-form" method="GET" action="{% url 'rank' %}">
-                    <div>
+
+            {% if result %}
+                <div id="rank-result" class="rank-result-ticket" tabindex="-1">
+                    <div class="rank-result-main">
+                        <div class="rank-score">{{ result.reps }}</div>
+                        <div class="rank-result-copy">
+                            <div class="rank-status-row">
+                                <span class="status-pill unverified">{{ result.reps }} reps</span>
+                                <span class="status-pill verified">{{ result.tier.name }}</span>
+                            </div>
+                            <h2>{{ result.message }}</h2>
+                            <p class="muted">{{ result.tier.description }}</p>
+                            <p>Can you prove it officially?</p>
+                            <p class="muted">Submit your result, upload proof, and earn verified public status.</p>
+                        </div>
+                    </div>
+                    <div class="rank-actions">
+                        <a class="btn-main" href="{{ submit_url }}">Submit Official Result</a>
+                        <a class="btn-secondary" href="{% url 'leaderboard' %}#full-leaderboard">View Leaderboard</a>
+                        <a class="btn-secondary" href="{% url 'rank' %}">Check Again</a>
+                    </div>
+                </div>
+            {% else %}
+                <form class="rank-entry-form" method="GET" action="{% url 'rank' %}">
+                    <div class="rank-input-wrap">
                         <label class="field-label" for="rank-reps">Max clean push-ups</label>
                         <input
                             id="rank-reps"
@@ -107,21 +283,39 @@
                             inputmode="numeric"
                             required
                         >
+                        <span class="rank-input-suffix">reps</span>
                     </div>
                     <button class="btn-main" type="submit">Show My Rank</button>
                 </form>
-            </div>
-        {% endif %}
-    </div>
-</section>
+            {% endif %}
+        </div>
+    </section>
+
+    <section class="rank-context" aria-label="What happens after rank check">
+        <div class="rank-context-card">
+            <strong>Unverified is visible</strong>
+            <p class="muted">Your score can appear, but it is not official until proof is approved.</p>
+        </div>
+        <div class="rank-context-card">
+            <strong>Proof earns status</strong>
+            <p class="muted">Upload a clean video with your official result for review.</p>
+        </div>
+        <div class="rank-context-card">
+            <strong>Rank is public</strong>
+            <p class="muted">Verified athletes earn official rank on profiles and leaderboards.</p>
+        </div>
+    </section>
+</div>
 
 {% if result %}
     <script>
         (() => {
             const result = document.getElementById("rank-result");
             if (!result) return;
-            result.scrollIntoView({ behavior: "smooth", block: "start" });
-            result.focus({ preventScroll: true });
+            requestAnimationFrame(() => {
+                result.scrollIntoView({ behavior: "smooth", block: "center" });
+                result.focus({ preventScroll: true });
+            });
         })();
     </script>
 {% endif %}
