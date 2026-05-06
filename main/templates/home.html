@@ -15,21 +15,18 @@
         overflow: hidden;
         padding: clamp(18px, 5vw, 34px);
         background:
-            linear-gradient(135deg, rgba(247, 183, 51, 0.16), transparent 28%),
-            linear-gradient(315deg, rgba(252, 74, 26, 0.14), transparent 32%),
-            linear-gradient(180deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.02)),
+            linear-gradient(145deg, rgba(247, 183, 51, 0.1), transparent 34%),
+            linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.018)),
             var(--panel);
-        border-color: rgba(247, 183, 51, 0.18);
+        border-color: rgba(255, 255, 255, 0.11);
     }
 
     .home-hero::before {
         content: "";
         position: absolute;
         inset: 0;
-        background:
-            linear-gradient(115deg, transparent 0 38%, rgba(255, 255, 255, 0.055) 38% 39%, transparent 39% 100%),
-            linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent 52%);
-        opacity: 0.8;
+        background: radial-gradient(circle at 88% 10%, rgba(247, 183, 51, 0.12), transparent 32%);
+        opacity: 0.75;
         pointer-events: none;
     }
 
@@ -46,7 +43,7 @@
         position: relative;
         z-index: 1;
         display: grid;
-        gap: 24px;
+        gap: 22px;
         align-items: center;
     }
 
@@ -56,14 +53,14 @@
 
     .home-hero h1 {
         max-width: 760px;
-        font-size: clamp(3.15rem, 15vw, 5.7rem);
-        line-height: 0.88;
+        font-size: clamp(3rem, 14vw, 5.45rem);
+        line-height: 0.9;
         margin-bottom: 14px;
-        text-shadow: 0 18px 54px rgba(0, 0, 0, 0.34);
+        text-shadow: 0 14px 42px rgba(0, 0, 0, 0.28);
     }
 
     .home-lead {
-        max-width: 650px;
+        max-width: 560px;
         font-size: clamp(1.08rem, 4vw, 1.35rem);
     }
 
@@ -84,11 +81,11 @@
     }
 
     .home-cta-row .btn-main {
-        box-shadow: 0 16px 34px rgba(247, 183, 51, 0.2);
+        box-shadow: 0 12px 26px rgba(247, 183, 51, 0.16);
     }
 
     .home-cta-row .btn-secondary {
-        background: rgba(8, 11, 15, 0.38);
+        background: rgba(8, 11, 15, 0.3);
         border-color: rgba(255, 255, 255, 0.13);
     }
 
@@ -105,10 +102,10 @@
         border: 1px solid rgba(255, 255, 255, 0.1);
         border-radius: var(--radius-lg);
         background:
-            linear-gradient(150deg, rgba(247, 183, 51, 0.2), rgba(252, 74, 26, 0.08) 34%, rgba(255, 255, 255, 0.045)),
+            linear-gradient(150deg, rgba(247, 183, 51, 0.15), rgba(252, 74, 26, 0.06) 34%, rgba(255, 255, 255, 0.04)),
             rgba(255, 255, 255, 0.04);
         box-shadow:
-            0 18px 48px rgba(0, 0, 0, 0.3),
+            0 18px 44px rgba(0, 0, 0, 0.28),
             inset 0 1px 0 rgba(255, 255, 255, 0.08);
     }
 
@@ -124,14 +121,6 @@
         height: 230px;
         border-radius: 50%;
         background: rgba(247, 183, 51, 0.16);
-        pointer-events: none;
-    }
-
-    .score-rank-card::after {
-        content: "";
-        position: absolute;
-        inset: 0;
-        background: linear-gradient(120deg, transparent 0 46%, rgba(255, 255, 255, 0.055) 46% 48%, transparent 48% 100%);
         pointer-events: none;
     }
 
@@ -227,9 +216,9 @@
         padding: 12px 14px;
         border-radius: var(--radius-md);
         background:
-            linear-gradient(90deg, rgba(247, 183, 51, 0.1), rgba(255, 255, 255, 0.035)),
+            linear-gradient(90deg, rgba(247, 183, 51, 0.08), rgba(255, 255, 255, 0.03)),
             rgba(8, 11, 15, 0.36);
-        border: 1px solid rgba(247, 183, 51, 0.16);
+        border: 1px solid rgba(255, 255, 255, 0.1);
         color: var(--muted);
         font-weight: 800;
         transition: transform 0.2s ease, border-color 0.2s ease, background 0.2s ease;
@@ -592,17 +581,17 @@
         .home-hero {
             margin-left: -4px;
             margin-right: -4px;
-            padding: 14px;
+            padding: 16px 14px;
         }
 
         .home-hero-grid {
-            gap: 12px;
+            gap: 14px;
         }
 
         .home-hero h1 {
             max-width: 9ch;
-            font-size: clamp(2.55rem, 12.4vw, 3.35rem);
-            margin-bottom: 10px;
+            font-size: clamp(2.65rem, 13vw, 3.45rem);
+            margin-bottom: 12px;
         }
 
         .home-lead {
@@ -612,9 +601,9 @@
         }
 
         .home-cta-row {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
+            grid-template-columns: 1fr;
             gap: 8px;
-            margin-top: 10px;
+            margin-top: 12px;
         }
 
         .home-cta-row .btn-main,
@@ -622,13 +611,14 @@
             min-height: 46px;
             padding-left: 10px;
             padding-right: 10px;
-            font-size: 0.95rem;
+            font-size: 1rem;
         }
 
         .score-rank-card {
             max-width: none;
             gap: 10px;
             padding: 12px;
+            margin-top: 2px;
         }
 
         .score-rank-result {

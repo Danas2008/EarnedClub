@@ -732,6 +732,14 @@ Usually touches:
 - Mobile sample result hides secondary descriptive copy so the `42`, Advanced status, and rank meter appear sooner.
 - Rank tier cards are now color-coded by level: Beginner, Intermediate, Advanced, Elite, and Earned Legend.
 
+### 2026-05-06 focused hero simplification
+
+- Homepage first hero was simplified after the premium pass to reduce visual chaos.
+- Removed the extra angled highlight sweep from the sample result card and softened hero lighting.
+- Mobile hero spacing and typography were adjusted for cleaner hierarchy.
+- Mobile hero CTAs returned to a stacked layout for clearer primary action focus.
+- Sample rank result remains a separate card in the first hero section.
+
 ## Short Glossary
 
 - Official rank: rank based only on verified best submissions.
