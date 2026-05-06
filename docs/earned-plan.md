@@ -658,6 +658,17 @@ Usually touches:
 - Direct newsletter send failures now display the actual SMTP exception instead of only saying to check settings.
 - Admin menu site health now shows SMTP port and TLS/SSL status.
 
+### 2026-05-06 homepage second-pass polish
+
+- Homepage hero now uses one primary "Get Your Rank" CTA and varies later CTAs by context.
+- The large `42` visual was redesigned into an intentional score-to-rank preview card.
+- Removed the small live-count/status emphasis from the homepage so the early-stage community does not feel artificially inflated.
+- Added a "How ranks are earned" proof/status section focused on unverified, review, and official status.
+- Video/content area now uses polished thumbnail-style preview cards with play overlays and a future YouTube slot.
+- Tools section now presents rank check, performance calculators, and leaderboard comparison as separate utilities.
+- Added lightweight scroll reveal effects with reduced-motion support and graceful no-JS fallback.
+- Homepage copy was tightened around "Don't just claim it. Prove it.", "One clean set. One public rank.", and "Built for performance, not vanity."
+
 ### 2026-05-06 sitemap, mobile admin pages, and homepage polish
 
 - `/sitemap.xml` now returns plain sitemap XML without an XSL stylesheet processing instruction.

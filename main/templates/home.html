@@ -5,28 +5,39 @@
 
 {% block content %}
 <style>
+    .home-page {
+        display: grid;
+        gap: 18px;
+    }
+
     .home-hero {
         padding: 18px;
     }
 
     .home-hero-grid {
         display: grid;
-        gap: 22px;
+        gap: 24px;
         align-items: center;
     }
 
+    .home-hero-copy {
+        max-width: 720px;
+    }
+
     .home-hero h1 {
-        font-size: clamp(2.55rem, 13vw, 5.2rem);
+        max-width: 760px;
+        font-size: clamp(2.65rem, 13vw, 5.45rem);
         line-height: 0.92;
-        margin-bottom: 12px;
+        margin-bottom: 14px;
     }
 
     .home-lead {
+        max-width: 650px;
         font-size: clamp(1.08rem, 4vw, 1.35rem);
-        max-width: 640px;
     }
 
-    .home-cta-row {
+    .home-cta-row,
+    .final-cta-row {
         display: grid;
         grid-template-columns: 1fr;
         gap: 10px;
@@ -37,70 +48,143 @@
     .home-cta-row .btn-secondary,
     .final-cta-row .btn-main,
     .final-cta-row .btn-secondary {
-        min-height: 52px;
         width: 100%;
+        min-height: 52px;
     }
 
-    .rank-preview {
-        display: grid;
-        gap: 12px;
-        padding: 16px;
-        background: rgba(255, 255, 255, 0.045);
-        border: 1px solid rgba(255, 255, 255, 0.09);
-        border-radius: var(--radius-lg);
-    }
-
-    .rank-preview-top {
+    .home-trust-line {
         display: flex;
-        justify-content: space-between;
-        gap: 12px;
-        align-items: flex-start;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 16px;
     }
 
-    .rank-preview-score {
+    .home-trust-line span {
+        padding: 7px 10px;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: var(--radius-sm);
+        background: rgba(255, 255, 255, 0.045);
+        color: var(--muted);
+        font-weight: 700;
+        font-size: 0.92rem;
+    }
+
+    .score-rank-card {
+        position: relative;
+        overflow: hidden;
+        display: grid;
+        gap: 16px;
+        padding: 16px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: var(--radius-lg);
+        background:
+            linear-gradient(145deg, rgba(247, 183, 51, 0.12), rgba(252, 74, 26, 0.06) 38%, rgba(255, 255, 255, 0.035)),
+            rgba(255, 255, 255, 0.04);
+        box-shadow: 0 18px 48px rgba(0, 0, 0, 0.26);
+    }
+
+    .score-rank-card::before {
+        content: "";
+        position: absolute;
+        inset: -80px -120px auto auto;
+        width: 230px;
+        height: 230px;
+        border-radius: 50%;
+        background: rgba(247, 183, 51, 0.13);
+        pointer-events: none;
+    }
+
+    .score-rank-header,
+    .score-rank-flow {
+        position: relative;
+        z-index: 1;
+    }
+
+    .score-rank-header {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 14px;
+        align-items: center;
+    }
+
+    .score-rank-number {
         font-family: "Archivo", sans-serif;
-        font-size: clamp(2.4rem, 14vw, 4.8rem);
-        line-height: 0.9;
+        font-size: clamp(3.4rem, 20vw, 6.4rem);
+        line-height: 0.82;
         font-weight: 900;
         color: var(--accent);
+        text-shadow: 0 14px 32px rgba(247, 183, 51, 0.18);
     }
 
-    .rank-preview-row {
+    .score-rank-flow {
         display: grid;
-        grid-template-columns: auto minmax(0, 1fr) auto;
+        gap: 10px;
+    }
+
+    .score-rank-step {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr);
         gap: 10px;
         align-items: center;
-        padding: 10px;
+        padding: 11px;
         border-radius: var(--radius-md);
-        background: rgba(255, 255, 255, 0.04);
-        border: 1px solid rgba(255, 255, 255, 0.07);
+        background: rgba(8, 11, 15, 0.35);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .score-rank-arrow {
+        display: none;
+        color: var(--accent);
+        font-family: "Archivo", sans-serif;
+        font-size: 1.4rem;
     }
 
     .home-value-strip,
     .home-feature-grid,
     .home-tools-grid,
-    .home-rank-grid {
+    .home-rank-grid,
+    .proof-grid,
+    .home-video-grid {
         display: grid;
         gap: 12px;
     }
 
-    .home-value-strip {
-        grid-template-columns: 1fr;
+    .home-value-item,
+    .home-feature-card,
+    .home-tool-card,
+    .home-rank-card,
+    .proof-card,
+    .video-preview-card {
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: var(--radius-md);
+        background: rgba(255, 255, 255, 0.04);
+        transition: transform 0.22s ease, border-color 0.22s ease, background 0.22s ease;
     }
 
     .home-value-item,
     .home-feature-card,
-    .home-video-card,
-    .home-tool-card {
+    .home-tool-card,
+    .home-rank-card,
+    .proof-card {
         padding: 14px;
-        border-radius: var(--radius-md);
-        background: rgba(255, 255, 255, 0.04);
-        border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .home-value-item:hover,
+    .home-feature-card:hover,
+    .home-tool-card:hover,
+    .home-rank-card:hover,
+    .proof-card:hover,
+    .video-preview-card:hover {
+        transform: translateY(-2px);
+        border-color: rgba(247, 183, 51, 0.28);
+        background: rgba(255, 255, 255, 0.06);
     }
 
     .home-value-item strong,
     .home-feature-card strong,
-    .home-tool-card strong {
+    .home-tool-card strong,
+    .home-rank-card strong,
+    .proof-card strong {
         display: block;
         margin-bottom: 6px;
         font-family: "Archivo", sans-serif;
@@ -108,43 +192,94 @@
     }
 
     .home-section-head {
-        max-width: 760px;
+        max-width: 780px;
         margin-bottom: 18px;
     }
 
     .home-rank-card {
         display: grid;
         gap: 6px;
-        padding: 13px;
-        border-radius: var(--radius-md);
-        background: rgba(255, 255, 255, 0.04);
-        border: 1px solid rgba(255, 255, 255, 0.08);
-    }
-
-    .home-rank-card strong {
-        font-family: "Archivo", sans-serif;
     }
 
     .home-rank-card span {
         color: var(--muted);
     }
 
-    .home-video-grid {
-        display: grid;
-        gap: 14px;
+    .proof-card {
+        min-height: 142px;
     }
 
-    .home-video-placeholder {
+    .proof-card.is-official {
+        border-color: rgba(30, 157, 116, 0.28);
+        background: rgba(30, 157, 116, 0.08);
+    }
+
+    .video-preview-card {
+        display: block;
+        overflow: hidden;
+        color: inherit;
+    }
+
+    .video-thumb {
+        position: relative;
+        min-height: 190px;
+        background:
+            linear-gradient(135deg, rgba(8, 11, 15, 0.08), rgba(8, 11, 15, 0.62)),
+            var(--video-image);
+        background-size: cover;
+        background-position: center;
+    }
+
+    .video-thumb::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(180deg, transparent 20%, rgba(8, 11, 15, 0.82));
+    }
+
+    .play-button {
+        position: absolute;
+        z-index: 2;
+        top: 50%;
+        left: 50%;
         display: grid;
         place-items: center;
-        min-height: 170px;
-        border-radius: var(--radius-md);
-        background:
-            linear-gradient(135deg, rgba(247, 183, 51, 0.14), rgba(252, 74, 26, 0.08)),
-            rgba(255, 255, 255, 0.035);
-        border: 1px solid rgba(255, 255, 255, 0.09);
-        text-align: center;
-        padding: 18px;
+        width: 58px;
+        height: 58px;
+        transform: translate(-50%, -50%);
+        border-radius: 50%;
+        background: rgba(247, 183, 51, 0.96);
+        color: #111111;
+        font-family: "Archivo", sans-serif;
+        font-weight: 900;
+        box-shadow: 0 14px 36px rgba(0, 0, 0, 0.34);
+    }
+
+    .video-label {
+        position: absolute;
+        z-index: 2;
+        left: 12px;
+        bottom: 12px;
+        padding: 6px 9px;
+        border-radius: var(--radius-sm);
+        background: rgba(8, 11, 15, 0.72);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        color: var(--muted);
+        font-size: 0.84rem;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+    }
+
+    .video-body {
+        padding: 14px;
+    }
+
+    .tool-arrow {
+        display: inline-flex;
+        margin-top: 8px;
+        color: var(--accent);
+        font-weight: 900;
     }
 
     .final-cta {
@@ -159,19 +294,47 @@
     }
 
     .final-cta-row {
-        display: grid;
-        gap: 10px;
-        max-width: 520px;
+        max-width: 560px;
         margin: 18px auto 0;
     }
 
+    .home-reveal.is-reveal-ready {
+        opacity: 0;
+        transform: translateY(18px);
+        transition: opacity 0.55s ease, transform 0.55s ease;
+        transition-delay: var(--reveal-delay, 0ms);
+    }
+
+    .home-reveal.is-visible {
+        opacity: 1;
+        transform: translateY(0);
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .home-reveal.is-reveal-ready,
+        .home-value-item,
+        .home-feature-card,
+        .home-tool-card,
+        .home-rank-card,
+        .proof-card,
+        .video-preview-card {
+            opacity: 1;
+            transform: none;
+            transition: none;
+        }
+    }
+
     @media (min-width: 720px) {
+        .home-page {
+            gap: 22px;
+        }
+
         .home-hero {
-            padding: 30px;
+            padding: 32px;
         }
 
         .home-hero-grid {
-            grid-template-columns: minmax(0, 1.1fr) minmax(320px, 0.9fr);
+            grid-template-columns: minmax(0, 1.06fr) minmax(340px, 0.94fr);
         }
 
         .home-cta-row,
@@ -179,7 +342,8 @@
             grid-template-columns: repeat(2, minmax(0, 1fr));
         }
 
-        .home-value-strip {
+        .home-value-strip,
+        .proof-grid {
             grid-template-columns: repeat(3, minmax(0, 1fr));
         }
 
@@ -189,245 +353,312 @@
 
         .home-tools-grid,
         .home-video-grid {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
+            grid-template-columns: repeat(3, minmax(0, 1fr));
         }
 
         .home-rank-grid {
             grid-template-columns: repeat(5, minmax(0, 1fr));
         }
+
+        .score-rank-flow {
+            grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto minmax(0, 1fr);
+            align-items: stretch;
+        }
+
+        .score-rank-arrow {
+            display: grid;
+            place-items: center;
+        }
     }
 </style>
 
-<section class="hero-card home-hero">
-    <div class="home-hero-grid">
-        <div>
-            <div class="eyebrow">Official Push-Up Test</div>
-            <h1>Don't just claim your strength. Prove it.</h1>
-            <p class="home-lead muted">
-                Submit your max clean push-ups, upload proof, and earn verified status on a public leaderboard.
-            </p>
+<div class="home-page">
+    <section class="hero-card home-hero home-reveal">
+        <div class="home-hero-grid">
+            <div class="home-hero-copy">
+                <div class="eyebrow">Official Push-Up Test</div>
+                <h1>Don't just claim it. Prove it.</h1>
+                <p class="home-lead muted">
+                    Earned Club turns one max clean push-up set into a public rank. Submit your score, upload proof, and earn verified status.
+                </p>
+                <p>
+                    One clean set. One public rank. Built for performance, not vanity.
+                </p>
+                <div class="home-cta-row">
+                    <a class="btn-main" href="{% url 'rank' %}">Get Your Rank</a>
+                    <a class="btn-secondary" href="{% url 'leaderboard' %}#full-leaderboard">View Leaderboard</a>
+                </div>
+                <div class="home-trust-line" aria-label="Earned Club trust points">
+                    <span>Verified scores</span>
+                    <span>Public leaderboard</span>
+                    <span>Real reps. Real proof.</span>
+                </div>
+            </div>
+
+            <aside class="score-rank-card" aria-label="Example score to rank preview">
+                <div class="score-rank-header">
+                    <div>
+                        <span class="kicker">Sample rank result</span>
+                        <h2 style="margin-bottom: 6px;">42 clean reps</h2>
+                        <p class="muted" style="margin-bottom: 0;">You reached Advanced. Proof makes it official.</p>
+                    </div>
+                    <div class="score-rank-number">42</div>
+                </div>
+                <div class="score-rank-flow">
+                    <div class="score-rank-step">
+                        <span class="step-number">1</span>
+                        <div>
+                            <strong>Score</strong>
+                            <div class="submission-meta">Max clean set</div>
+                        </div>
+                    </div>
+                    <div class="score-rank-arrow">→</div>
+                    <div class="score-rank-step">
+                        <span class="status-pill unverified">Advanced</span>
+                        <div>
+                            <strong>Tier</strong>
+                            <div class="submission-meta">40-59 reps</div>
+                        </div>
+                    </div>
+                    <div class="score-rank-arrow">→</div>
+                    <div class="score-rank-step">
+                        <span class="status-pill verified">Proof</span>
+                        <div>
+                            <strong>Official rank</strong>
+                            <div class="submission-meta">After review</div>
+                        </div>
+                    </div>
+                </div>
+                <a class="btn-secondary" href="{% url 'challenge' %}#submit-form-top">Prove Your Score</a>
+            </aside>
+        </div>
+    </section>
+
+    <section class="card-dark home-reveal">
+        <div class="home-value-strip">
+            <div class="home-value-item home-reveal">
+                <span class="step-number">1</span>
+                <strong>Test your max</strong>
+                <p class="muted">One clean set. Full range. Honest reps.</p>
+            </div>
+            <div class="home-value-item home-reveal">
+                <span class="step-number">2</span>
+                <strong>Prove your result</strong>
+                <p class="muted">Upload video proof when you want official status.</p>
+            </div>
+            <div class="home-value-item home-reveal">
+                <span class="step-number">3</span>
+                <strong>Earn your rank</strong>
+                <p class="muted">Verified scores earn official status.</p>
+            </div>
+        </div>
+    </section>
+
+    <section class="card-dark home-reveal">
+        <div class="home-section-head">
+            <h2>How it works</h2>
+            <p class="muted">Simple enough for your first visit. Serious enough for public status.</p>
+        </div>
+        <div class="step-list">
+            <div class="step-item home-reveal">
+                <span class="step-number">1</span>
+                <div>
+                    <strong>Do one max clean set</strong>
+                    <div class="muted">Strict push-ups. No cuts.</div>
+                </div>
+            </div>
+            <div class="step-item home-reveal">
+                <span class="step-number">2</span>
+                <div>
+                    <strong>Submit your score</strong>
+                    <div class="muted">Enter reps, name, and email.</div>
+                </div>
+            </div>
+            <div class="step-item home-reveal">
+                <span class="step-number">3</span>
+                <div>
+                    <strong>Add proof for verification</strong>
+                    <div class="muted">Upload your set video to enter review.</div>
+                </div>
+            </div>
+            <div class="step-item home-reveal">
+                <span class="step-number">4</span>
+                <div>
+                    <strong>Earn your public rank</strong>
+                    <div class="muted">Approved results become official.</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="card-dark home-reveal">
+        <div class="section-spread">
+            <div class="home-section-head" style="margin-bottom: 0;">
+                <h2>Rank system</h2>
+                <p class="muted">See where your max set lands. Unverified scores can appear, but proof makes it official.</p>
+            </div>
+            <a class="btn-secondary" href="{% url 'challenge' %}#submit-form-top">Submit Official Result</a>
+        </div>
+        <div class="home-rank-grid" id="rank-tiers">
+            <div class="home-rank-card home-reveal"><strong>Beginner</strong><span>0-19 reps</span></div>
+            <div class="home-rank-card home-reveal"><strong>Intermediate</strong><span>20-39 reps</span></div>
+            <div class="home-rank-card home-reveal"><strong>Advanced</strong><span>40-59 reps</span></div>
+            <div class="home-rank-card home-reveal"><strong>Elite</strong><span>60-79 reps</span></div>
+            <div class="home-rank-card home-reveal"><strong>Earned Legend</strong><span>80+ reps</span></div>
+        </div>
+    </section>
+
+    <section class="grid-2 home-reveal">
+        <div class="card-dark">
+            <h2>Why it exists</h2>
             <p>
-                Real reps. Real proof. Earn your rank.
+                Most fitness apps let users track workouts. Earned Club is about proving real performance.
             </p>
-            <div class="home-cta-row">
-                <a class="btn-main" href="{% url 'rank' %}">Get Your Rank</a>
-                <a class="btn-secondary" href="{% url 'leaderboard' %}#full-leaderboard">View Leaderboard</a>
-            </div>
-            <p class="muted" style="margin-top: 14px; margin-bottom: 0;">
-                Verified ranks. Public leaderboards. Real performance.
+            <p class="muted">
+                Status is not claimed. It is earned through clean reps, uploaded proof, and public verification.
             </p>
+            <div class="button-row">
+                <a class="btn-main" href="{% url 'challenge' %}#submit-form-top">Prove Your Score</a>
+            </div>
         </div>
 
-        <aside class="rank-preview" aria-label="Earned Club rank preview">
-            <div class="rank-preview-top">
-                <div>
-                    <span class="kicker">Rank preview</span>
-                    <h2 style="margin-bottom: 4px;">Advanced</h2>
-                    <p class="muted" style="margin-bottom: 0;">40-59 clean reps</p>
+        <div class="card-dark">
+            <h2>How ranks are earned</h2>
+            <div class="proof-grid">
+                <div class="proof-card home-reveal">
+                    <span class="status-pill unverified">Visible</span>
+                    <strong style="margin-top: 12px;">Unverified score</strong>
+                    <p class="muted">Your result can appear, but it is not official yet.</p>
                 </div>
-                <div class="rank-preview-score">42</div>
-            </div>
-            <div class="rank-preview-row">
-                <span class="position-pill">#?</span>
-                <div>
-                    <strong>Submit first</strong>
-                    <div class="submission-meta">Then upload proof for review.</div>
+                <div class="proof-card home-reveal">
+                    <span class="status-pill pending">Review</span>
+                    <strong style="margin-top: 12px;">Uploaded proof</strong>
+                    <p class="muted">A clean video moves the result into verification.</p>
                 </div>
-                <span class="status-pill unverified">Unverified</span>
-            </div>
-            <div class="rank-preview-row">
-                <span class="position-pill">#</span>
-                <div>
-                    <strong>Verified status</strong>
-                    <div class="submission-meta">Official rank only after proof review.</div>
+                <div class="proof-card is-official home-reveal">
+                    <span class="status-pill verified">Official</span>
+                    <strong style="margin-top: 12px;">Verified status</strong>
+                    <p class="muted">Approved scores earn official public rank.</p>
                 </div>
-                <span class="status-pill verified">Proof</span>
             </div>
-        </aside>
-    </div>
-</section>
+        </div>
+    </section>
 
-<section class="card-dark">
-    <div class="home-value-strip">
-        <div class="home-value-item">
-            <span class="step-number">1</span>
-            <strong>Test your max</strong>
-            <p class="muted">One clean set. Full range. Honest reps.</p>
+    <section class="card-dark home-reveal">
+        <div class="home-section-head">
+            <h2>What you get</h2>
+            <p class="muted">A competitive layer for people who want performance to mean something.</p>
         </div>
-        <div class="home-value-item">
-            <span class="step-number">2</span>
-            <strong>Prove your result</strong>
-            <p class="muted">Upload video proof when you want official status.</p>
+        <div class="home-feature-grid">
+            <div class="home-feature-card home-reveal"><strong>Leaderboards</strong><p class="muted">Compare clean push-up results in public.</p></div>
+            <div class="home-feature-card home-reveal"><strong>Athlete profiles</strong><p class="muted">Turn verified results into a public record.</p></div>
+            <div class="home-feature-card home-reveal"><strong>Workout tracking</strong><p class="muted">Build sessions around your next rank jump.</p></div>
+            <div class="home-feature-card home-reveal"><strong>Progress tracking</strong><p class="muted">See your best result and history improve.</p></div>
+            <div class="home-feature-card home-reveal"><strong>Comparisons</strong><p class="muted">Match your rank against another athlete.</p></div>
+            <div class="home-feature-card home-reveal"><strong>Verification</strong><p class="muted">Proof review keeps status trustworthy.</p></div>
         </div>
-        <div class="home-value-item">
-            <span class="step-number">3</span>
-            <strong>Earn your rank</strong>
-            <p class="muted">Verified athletes earn public leaderboard status.</p>
-        </div>
-    </div>
-</section>
+    </section>
 
-<section class="card-dark">
-    <div class="home-section-head">
-        <h2>How it works</h2>
-        <p class="muted">Simple enough for your first visit. Serious enough for public status.</p>
-    </div>
-    <div class="step-list">
-        <div class="step-item">
-            <span class="step-number">1</span>
-            <div>
-                <strong>Do one max clean set</strong>
-                <div class="muted">Strict push-ups. No cuts.</div>
+    <section class="card-dark home-reveal">
+        <div class="section-spread">
+            <div class="home-section-head" style="margin-bottom: 0;">
+                <h2>Challenge content</h2>
+                <p class="muted">Proof examples, challenge clips, and training motivation will live here.</p>
             </div>
         </div>
-        <div class="step-item">
-            <span class="step-number">2</span>
-            <div>
-                <strong>Submit your score</strong>
-                <div class="muted">Enter reps, name, and email.</div>
-            </div>
-        </div>
-        <div class="step-item">
-            <span class="step-number">3</span>
-            <div>
-                <strong>Add proof for verification</strong>
-                <div class="muted">Upload your set video to enter review.</div>
-            </div>
-        </div>
-        <div class="step-item">
-            <span class="step-number">4</span>
-            <div>
-                <strong>Earn your public rank</strong>
-                <div class="muted">Approved results become official.</div>
-            </div>
-        </div>
-    </div>
-</section>
-
-<section class="card-dark">
-    <div class="section-spread">
-        <div class="home-section-head" style="margin-bottom: 0;">
-            <h2>Rank system</h2>
-            <p class="muted">Unverified scores can be visible, but they are not official. Verified submissions can earn official rank.</p>
-        </div>
-        <a class="btn-main" href="{% url 'rank' %}">Get Your Rank</a>
-    </div>
-    <div class="home-rank-grid">
-        <div class="home-rank-card"><strong>Beginner</strong><span>0-19 reps</span></div>
-        <div class="home-rank-card"><strong>Intermediate</strong><span>20-39 reps</span></div>
-        <div class="home-rank-card"><strong>Advanced</strong><span>40-59 reps</span></div>
-        <div class="home-rank-card"><strong>Elite</strong><span>60-79 reps</span></div>
-        <div class="home-rank-card"><strong>Earned Legend</strong><span>80+ reps</span></div>
-    </div>
-</section>
-
-<section class="grid-2">
-    <div class="card-dark">
-        <h2>Why it exists</h2>
-        <p>
-            Most fitness apps let users track workouts. Earned Club is about proving real performance.
-        </p>
-        <p class="muted">
-            Status is not claimed. It is earned through clean reps, uploaded proof, and public verification.
-        </p>
-        <div class="button-row">
-            <a class="btn-main" href="{% url 'challenge' %}#submit-form-top">Submit Official Result</a>
-        </div>
-    </div>
-
-    <div class="card-dark">
-        <h2>Live status</h2>
-        <div class="stat-grid">
-            <div class="stat-card">
-                <span class="kicker">Shown</span>
-                <span class="stat-value">{{ total_submissions }}</span>
-                <div class="muted">public results</div>
-            </div>
-            <div class="stat-card">
-                <span class="kicker">Verified</span>
-                <span class="stat-value">{{ total_verified }}</span>
-                <div class="muted">official athletes</div>
-            </div>
-            <div class="stat-card">
-                <span class="kicker">Elite</span>
-                <span class="stat-value">60+</span>
-                <div class="muted">status benchmark</div>
-            </div>
-        </div>
-    </div>
-</section>
-
-<section class="card-dark">
-    <div class="home-section-head">
-        <h2>What you get</h2>
-        <p class="muted">A competitive layer for people who want performance to mean something.</p>
-    </div>
-    <div class="home-feature-grid">
-        <div class="home-feature-card"><strong>Leaderboards</strong><p class="muted">Compare clean push-up results in public.</p></div>
-        <div class="home-feature-card"><strong>Athlete profiles</strong><p class="muted">Turn verified results into a public record.</p></div>
-        <div class="home-feature-card"><strong>Workout tracking</strong><p class="muted">Build sessions around your next rank jump.</p></div>
-        <div class="home-feature-card"><strong>Progress tracking</strong><p class="muted">See your best result and history improve.</p></div>
-        <div class="home-feature-card"><strong>Comparisons</strong><p class="muted">Match your rank against another athlete.</p></div>
-        <div class="home-feature-card"><strong>Verification</strong><p class="muted">Proof review keeps status trustworthy.</p></div>
-    </div>
-</section>
-
-<section class="card-dark">
-    <div class="section-spread">
-        <div class="home-section-head" style="margin-bottom: 0;">
-            <h2>Challenge content</h2>
-            <p class="muted">Motivation, challenge clips, and future YouTube embeds live here.</p>
-        </div>
-    </div>
-    <div class="home-video-grid">
-        <!-- Add future YouTube challenge embeds here. Keep iframe titles descriptive for accessibility. -->
-        <a class="home-video-card" href="https://www.youtube.com/watch?v=mgmVOuLgFB0" target="_blank" rel="noopener noreferrer">
-            <div class="home-video-placeholder">
-                <div>
-                    <span class="kicker">YouTube</span>
+        <div class="home-video-grid">
+            <!-- Replace this card with a real YouTube embed when the first challenge video is ready. -->
+            <a class="video-preview-card home-reveal" href="https://www.youtube.com/watch?v=mgmVOuLgFB0" target="_blank" rel="noopener noreferrer">
+                <div class="video-thumb" style="--video-image: url('https://img.youtube.com/vi/mgmVOuLgFB0/hqdefault.jpg');">
+                    <span class="play-button">▶</span>
+                    <span class="video-label">YouTube video</span>
+                </div>
+                <div class="video-body">
                     <h3>Discipline</h3>
-                    <p class="muted">Open current motivation video.</p>
+                    <p class="muted">Current motivation video. Challenge breakdown coming soon.</p>
                 </div>
-            </div>
-        </a>
-        <!-- Add future short-form challenge or proof-example embed here. -->
-        <a class="home-video-card" href="https://www.youtube.com/watch?v=wnHW6o8WMas" target="_blank" rel="noopener noreferrer">
-            <div class="home-video-placeholder">
-                <div>
-                    <span class="kicker">YouTube</span>
+            </a>
+            <!-- Replace this card with a proof-example YouTube embed later. -->
+            <a class="video-preview-card home-reveal" href="https://www.youtube.com/watch?v=wnHW6o8WMas" target="_blank" rel="noopener noreferrer">
+                <div class="video-thumb" style="--video-image: url('https://img.youtube.com/vi/wnHW6o8WMas/hqdefault.jpg');">
+                    <span class="play-button">▶</span>
+                    <span class="video-label">YouTube video</span>
+                </div>
+                <div class="video-body">
                     <h3>No Comfort Zone</h3>
-                    <p class="muted">Open current training mindset video.</p>
+                    <p class="muted">Training mindset now. Official proof guide coming soon.</p>
+                </div>
+            </a>
+            <!-- Future YouTube video coming soon: add iframe or linked thumbnail here. -->
+            <div class="video-preview-card home-reveal">
+                <div class="video-thumb" style="--video-image: linear-gradient(135deg, rgba(247,183,51,.18), rgba(252,74,26,.12));">
+                    <span class="play-button">▶</span>
+                    <span class="video-label">YouTube video coming soon</span>
+                </div>
+                <div class="video-body">
+                    <h3>Official test guide</h3>
+                    <p class="muted">A clean-form video slot for rules, examples, and proof standards.</p>
                 </div>
             </div>
-        </a>
-    </div>
-</section>
+        </div>
+    </section>
 
-<section class="card-dark">
-    <div class="home-section-head">
-        <h2>Tools</h2>
-        <p class="muted">Use the quick rank check or open calculators before your next attempt.</p>
-    </div>
-    <div class="home-tools-grid">
-        <!-- Rank link is handled by the existing /rank/ route. -->
-        <a class="home-tool-card" href="{% url 'rank' %}">
-            <strong>Get Your Rank</strong>
-            <p class="muted">Enter reps and instantly see your tier.</p>
-        </a>
-        <!-- Calculator link is handled by the existing calculators route. -->
-        <a class="home-tool-card" href="{% url 'calculators' %}">
-            <strong>Calculators and tools</strong>
-            <p class="muted">Check targets, progress, and training context.</p>
-        </a>
-    </div>
-</section>
+    <section class="card-dark home-reveal">
+        <div class="home-section-head">
+            <h2>Performance tools</h2>
+            <p class="muted">Use the right tool for the next step: rank, training context, or comparison.</p>
+        </div>
+        <div class="home-tools-grid">
+            <!-- Rank link is handled by the existing /rank/ route. -->
+            <a class="home-tool-card home-reveal" href="{% url 'rank' %}">
+                <strong>Calculate your level</strong>
+                <p class="muted">Enter reps and instantly see your rank tier.</p>
+                <span class="tool-arrow">Open rank check</span>
+            </a>
+            <!-- Calculator link is handled by the existing calculators route. -->
+            <a class="home-tool-card home-reveal" href="{% url 'calculators' %}">
+                <strong>Open Performance Tools</strong>
+                <p class="muted">Use calculators for targets, progress, and training context.</p>
+                <span class="tool-arrow">Open calculators</span>
+            </a>
+            <a class="home-tool-card home-reveal" href="{% url 'leaderboard' %}#full-leaderboard">
+                <strong>Compare your stats</strong>
+                <p class="muted">Check the board and see the standard before you submit.</p>
+                <span class="tool-arrow">View leaderboard</span>
+            </a>
+        </div>
+    </section>
 
-<section class="hero-card final-cta">
-    <h2>Can you prove it?</h2>
-    <p class="muted">Take the test, upload proof, and earn verified status.</p>
-    <div class="final-cta-row">
-        <a class="btn-main" href="{% url 'rank' %}">Get Your Rank</a>
-        <a class="btn-secondary" href="{% url 'challenge' %}#submit-form-top">Submit Official Result</a>
-    </div>
-</section>
+    <section class="hero-card final-cta home-reveal">
+        <h2>Can you prove it?</h2>
+        <p class="muted">Take the test, upload proof, and earn verified status.</p>
+        <div class="final-cta-row">
+            <a class="btn-main" href="{% url 'challenge' %}#submit-form-top">Submit Official Result</a>
+            <a class="btn-secondary" href="{% url 'leaderboard' %}#full-leaderboard">View Leaderboard</a>
+        </div>
+    </section>
+</div>
+
+<script>
+    (() => {
+        const revealItems = Array.from(document.querySelectorAll(".home-reveal"));
+        const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+        if (!revealItems.length || reduceMotion) return;
+
+        revealItems.forEach((item, index) => {
+            item.classList.add("is-reveal-ready");
+            item.style.setProperty("--reveal-delay", `${Math.min(index % 6, 5) * 45}ms`);
+        });
+
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach((entry) => {
+                if (!entry.isIntersecting) return;
+                entry.target.classList.add("is-visible");
+                observer.unobserve(entry.target);
+            });
+        }, { threshold: 0.12, rootMargin: "0px 0px -8% 0px" });
+
+        revealItems.forEach((item) => observer.observe(item));
+    })();
+</script>
 {% endblock %}
