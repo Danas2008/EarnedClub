@@ -203,15 +203,7 @@
                     {% if workouts.has_previous %}
                         <a class="btn-secondary" href="?workout_page={{ workouts.previous_page_number }}" aria-label="Previous page">&#8592;</a>
                     {% endif %}
-                    {% for page_number in workout_pages %}
-                        {% if page_number == workouts.paginator.ELLIPSIS %}
-                            <span class="tag-pill">{{ page_number }}</span>
-                        {% elif page_number == workouts.number %}
-                            <span class="btn-main">{{ page_number }}</span>
-                        {% else %}
-                            <a class="btn-secondary" href="?workout_page={{ page_number }}">{{ page_number }}</a>
-                        {% endif %}
-                    {% endfor %}
+                    <span class="btn-main">Page {{ workouts.number }}</span>
                     {% if workouts.has_next %}
                         <a class="btn-secondary" href="?workout_page={{ workouts.next_page_number }}" aria-label="Next page">&#8594;</a>
                     {% endif %}

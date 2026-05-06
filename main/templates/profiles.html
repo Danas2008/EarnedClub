@@ -38,7 +38,7 @@
         </a>
     {% empty %}
         <h2>No profiles yet.</h2>
-        <p class="muted">The first registered athletes with verified scores will appear here.</p>
+        <p class="muted">Registered athlete accounts will appear here. Anonymous submissions stay on the leaderboard only.</p>
     {% endfor %}
 
     {% if profiles.paginator.num_pages > 1 %}
@@ -60,7 +60,7 @@
     <div class="section-spread">
         <div>
             <h2>Verified Athlete Directory</h2>
-            <p class="muted">Public profiles create durable pages for athlete names, ranks, progress charts, and verified push-up performance.</p>
+            <p class="muted">Only real registered accounts appear here. Anonymous submissions do not create athlete cards.</p>
         </div>
         <a class="btn-main" href="{% url 'register' %}">Earn Your Profile</a>
     </div>

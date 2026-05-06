@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load static %}
 
 {% block title %}Earned Club - Get Your Push-Up Rank{% endblock %}
 {% block meta_description %}Earned Club is the proof-first push-up test. Get your rank, submit your max clean push-ups, upload proof, and earn verified public status.{% endblock %}
@@ -22,6 +23,23 @@
 
     .home-hero-copy {
         max-width: 720px;
+    }
+
+    .home-hero-mark {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 14px;
+        padding: 8px 10px;
+        border-radius: var(--radius-md);
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .home-hero-mark img {
+        width: 38px;
+        height: 38px;
+        object-fit: contain;
     }
 
     .home-hero h1 {
@@ -72,6 +90,7 @@
     .score-rank-card {
         position: relative;
         overflow: hidden;
+        contain: layout paint;
         display: grid;
         gap: 16px;
         padding: 16px;
@@ -282,6 +301,18 @@
         font-weight: 900;
     }
 
+    .enduro-mini-ad {
+        background:
+            linear-gradient(135deg, rgba(33, 150, 83, 0.18), rgba(7, 61, 39, 0.24)),
+            rgba(255, 255, 255, 0.04);
+        border-color: rgba(91, 214, 139, 0.24);
+    }
+
+    .enduro-mini-ad strong,
+    .enduro-mini-ad .tool-arrow {
+        color: #a8f0bf;
+    }
+
     .final-cta {
         text-align: center;
         padding: 24px 18px;
@@ -376,6 +407,10 @@
     <section class="hero-card home-hero home-reveal">
         <div class="home-hero-grid">
             <div class="home-hero-copy">
+                <div class="home-hero-mark" aria-label="Earned Club">
+                    <img src="{% static 'EarnedClub.png' %}" alt="">
+                    <span class="kicker">Earned Club</span>
+                </div>
                 <div class="eyebrow">Official Push-Up Test</div>
                 <h1>Don't just claim it. Prove it.</h1>
                 <p class="home-lead muted">
@@ -626,6 +661,17 @@
                 <p class="muted">Check the board and see the standard before you submit.</p>
                 <span class="tool-arrow">View leaderboard</span>
             </a>
+        </div>
+    </section>
+
+    <section class="card-dark enduro-mini-ad home-reveal">
+        <div class="section-spread">
+            <div>
+                <div class="eyebrow">Endurance partner</div>
+                <h2>EnduroBuddy.cz</h2>
+                <p class="muted">Running-focused training plans for athletes building engine next to strength.</p>
+            </div>
+            <a class="btn-secondary" href="https://endurobuddy.cz" target="_blank" rel="noopener noreferrer">Open EnduroBuddy</a>
         </div>
     </section>
 

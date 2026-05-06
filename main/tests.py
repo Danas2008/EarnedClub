@@ -1,5 +1,6 @@
 import shutil
 import tempfile
+from unittest.mock import patch
 from xml.etree import ElementTree
 
 from django.core import mail
@@ -14,6 +15,7 @@ from .models import (
     ContentEnginePrompt,
     Follow,
     NewsletterSubscriber,
+    NewsletterSendEvent,
     NewsletterSegment,
     Profile,
     Submission,
@@ -297,6 +299,8 @@ class SubmissionFlowTests(TestCase):
         self.assertContains(response, "Get Your Rank")
         self.assertContains(response, "You reached Advanced.")
         self.assertContains(response, "Submit Official Result")
+        self.assertContains(response, "Check Again")
+        self.assertNotContains(response, 'id="rank-reps"', html=False)
         self.assertContains(response, f"{reverse('challenge')}?reps=42#submit-form-top")
 
     def test_registration_creates_user_and_profile(self):
@@ -492,6 +496,18 @@ class SubmissionFlowTests(TestCase):
         self.assertContains(response, 'type="application/ld+json"', html=False)
         self.assertContains(response, "https://earnedclub.club/athlete/public/", html=False)
 
+    def test_profiles_directory_shows_real_accounts_not_anonymous_submitters(self):
+        user = User.objects.create_user(username="real-account", password="StrongPass12345")
+        user.profile.display_name = "Real Account"
+        user.profile.save()
+        Submission.objects.create(name="Anonymous Submitter", email="anon@example.com", reps=35, status=Submission.STATUS_UNVERIFIED)
+
+        response = self.client.get(reverse("profiles"))
+
+        self.assertContains(response, "Real Account")
+        self.assertContains(response, "No verified PR")
+        self.assertNotContains(response, "Anonymous Submitter")
+
     def test_leaderboard_shows_best_pending_instead_of_lower_verified_for_user(self):
         user = User.objects.create_user(username="one-row", password="StrongPass12345")
         user.profile.display_name = "One Row"
@@ -665,6 +681,8 @@ class SubmissionFlowTests(TestCase):
         self.assertEqual(session_exercise.completed_sets, 2)
         self.assertEqual(session.status, WorkoutSession.STATUS_COMPLETED)
         self.assertContains(response, "completed")
+        self.assertNotContains(response, "Complete Set")
+        self.assertNotContains(response, "data-rest-start", html=False)
 
     def test_only_one_highlighted_workout_per_user_constraint(self):
         user = User.objects.create_user(username="highlight-constraint", password="StrongPass12345")
@@ -782,6 +800,30 @@ class SubmissionFlowTests(TestCase):
         self.assertEqual(len(mail.outbox), 1)
         self.assertEqual(mail.outbox[0].to, ["direct@example.com"])
 
+    @override_settings(
+        EMAIL_BACKEND="django.core.mail.backends.smtp.EmailBackend",
+        EMAIL_HOST="smtp.gmail.com",
+        EMAIL_PORT=587,
+        EMAIL_USE_TLS=True,
+        EMAIL_USE_SSL=False,
+        EMAIL_HOST_USER="earnedclub1@gmail.com",
+        EMAIL_HOST_PASSWORD="app-password",
+    )
+    def test_direct_newsletter_email_reports_network_failure_without_send_event(self):
+        staff = User.objects.create_user(username="network-staff", password="StrongPass12345", is_staff=True)
+        subscriber = NewsletterSubscriber.objects.create(email="network@example.com")
+        self.client.force_login(staff)
+
+        with patch("main.views.send_mail", side_effect=OSError("[Errno 101] Network is unreachable")):
+            response = self.client.post(
+                reverse("newsletter_subscriber_detail", args=[subscriber.id]),
+                {"subject": "Network hello", "body": "Only for this subscriber."},
+                follow=True,
+            )
+
+        self.assertContains(response, "SMTP network is unreachable")
+        self.assertEqual(NewsletterSendEvent.objects.count(), 0)
+
     def test_sitemap_xml_lists_core_pages(self):
         response = self.client.get(reverse("sitemap_xml"))
         namespace = {"s": "http://www.sitemaps.org/schemas/sitemap/0.9"}
@@ -835,6 +877,7 @@ class SubmissionFlowTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertIn("text/xsl", response["Content-Type"])
+        self.assertEqual(response["X-Robots-Tag"], "noindex")
         self.assertContains(response, "Earned Club Sitemap", html=False)
         self.assertContains(response, "s:urlset/s:url", html=False)
 

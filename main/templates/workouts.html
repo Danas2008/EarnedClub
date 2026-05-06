@@ -3,6 +3,74 @@
 {% block title %}Workouts{% endblock %}
 
 {% block content %}
+<style>
+    .workout-tools-grid {
+        display: grid;
+        gap: 18px;
+    }
+
+    .generator-card {
+        border-color: rgba(247, 183, 51, 0.18);
+    }
+
+    .generator-control-grid {
+        display: grid;
+        gap: 14px;
+    }
+
+    .body-part-picker {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 0;
+    }
+
+    .clean-pagination {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        align-items: center;
+        justify-content: space-between;
+        margin-top: 18px;
+    }
+
+    .clean-pagination-actions {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+
+    .enduro-ad {
+        background:
+            linear-gradient(135deg, rgba(33, 150, 83, 0.2), rgba(9, 68, 43, 0.28)),
+            rgba(255, 255, 255, 0.04);
+        border-color: rgba(91, 214, 139, 0.28);
+    }
+
+    .enduro-ad .eyebrow,
+    .enduro-ad .tag-pill {
+        color: #a8f0bf;
+        background: rgba(33, 150, 83, 0.16);
+        border-color: rgba(91, 214, 139, 0.22);
+    }
+
+    .enduro-ad .btn-secondary {
+        border-color: rgba(91, 214, 139, 0.34);
+        background: rgba(33, 150, 83, 0.14);
+    }
+
+    @media (min-width: 900px) {
+        .workout-tools-grid {
+            grid-template-columns: minmax(260px, 0.85fr) minmax(360px, 1.25fr) minmax(300px, 1fr);
+            align-items: start;
+        }
+
+        .generator-control-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+    }
+</style>
+
 <section class="hero-card" style="margin-bottom: 24px;">
     <div class="content-split">
         <div>
@@ -63,7 +131,7 @@
     {% endfor %}
 </section>
 
-<section class="grid-3">
+<section class="workout-tools-grid">
     <div class="card-dark" id="quick-log">
         <div class="section-spread">
             <div>
@@ -94,13 +162,13 @@
         </form>
     </div>
 
-    <div class="card-dark" id="generator">
+    <div class="card-dark generator-card" id="generator">
         <h2>Generate Workout</h2>
         <p class="muted">Pick what you want to train and how much time you have. A session will be generated and started.</p>
         <form class="submission-form" method="POST" data-generated-builder>
             {% csrf_token %}
             <input type="hidden" name="form_type" value="generated_workout">
-            <div class="grid-2">
+            <div class="generator-control-grid">
                 <div>
                     <label class="field-label" for="builder-minutes">Time</label>
                     <input id="builder-minutes" class="input" type="number" min="10" max="60" name="builder_minutes" value="20">
@@ -115,14 +183,14 @@
                     </select>
                 </div>
             </div>
-            <div class="grid-2">
+            <div class="generator-control-grid">
                 <div>
                     <label class="field-label" for="builder-rest">Rest seconds</label>
                     <input id="builder-rest" class="input" type="number" min="15" max="300" name="builder_rest_interval_seconds" value="60">
                 </div>
                 <div>
                     <label class="field-label">Body parts</label>
-                    <div class="button-row" style="margin-top: 0;">
+                    <div class="body-part-picker">
                         {% for part in body_parts %}
                             <label class="tag-pill"><input type="checkbox" name="builder_body_parts" value="{{ part }}" {% if part in "Chest,Back,Core" %}checked{% endif %}> {{ part }}</label>
                         {% endfor %}
@@ -225,35 +293,32 @@
         <p class="muted">No workouts yet.</p>
     {% endfor %}
     {% if workouts.paginator.num_pages > 1 %}
-        <div class="pagination-row">
+        <div class="clean-pagination">
             <div class="muted">Page {{ workouts.number }} of {{ workouts.paginator.num_pages }}</div>
-            <div class="button-row" style="margin-top: 0;">
+            <div class="clean-pagination-actions">
                 {% if workouts.has_previous %}
-                    <a class="btn-secondary" href="?{% if workout_query %}q={{ workout_query|urlencode }}&{% endif %}page={{ workouts.previous_page_number }}" aria-label="Previous page">&#8592;</a>
+                    <a class="btn-secondary" href="?{% if workout_query %}q={{ workout_query|urlencode }}&{% endif %}page={{ workouts.previous_page_number }}">Previous</a>
                 {% endif %}
-                {% for page_number in workout_pages %}
-                    {% if page_number == workouts.paginator.ELLIPSIS %}
-                        <span class="tag-pill">{{ page_number }}</span>
-                    {% elif page_number == workouts.number %}
-                        <span class="btn-main">{{ page_number }}</span>
-                    {% else %}
-                        <a class="btn-secondary" href="?{% if workout_query %}q={{ workout_query|urlencode }}&{% endif %}page={{ page_number }}">{{ page_number }}</a>
-                    {% endif %}
-                {% endfor %}
+                <span class="btn-main">Page {{ workouts.number }}</span>
                 {% if workouts.has_next %}
-                    <a class="btn-secondary" href="?{% if workout_query %}q={{ workout_query|urlencode }}&{% endif %}page={{ workouts.next_page_number }}" aria-label="Next page">&#8594;</a>
+                    <a class="btn-secondary" href="?{% if workout_query %}q={{ workout_query|urlencode }}&{% endif %}page={{ workouts.next_page_number }}">Next</a>
                 {% endif %}
             </div>
         </div>
     {% endif %}
 </section>
 
-<section class="card-dark">
+<section class="card-dark enduro-ad">
     <div class="section-spread">
         <div>
-            <div class="eyebrow">Running plans</div>
+            <div class="eyebrow">Partner training</div>
             <h2>EnduroBuddy.cz</h2>
-            <p class="muted">Running-only training plans for athletes who want structured endurance work next to strength.</p>
+            <p class="muted">Green, focused running plans for athletes who want structured endurance work next to strength.</p>
+            <div class="button-row" style="margin-top: 0;">
+                <span class="tag-pill">Running plans</span>
+                <span class="tag-pill">Endurance</span>
+                <span class="tag-pill">Czech project</span>
+            </div>
         </div>
         <a class="btn-secondary" href="https://endurobuddy.cz" target="_blank" rel="noopener noreferrer">Open EnduroBuddy</a>
     </div>

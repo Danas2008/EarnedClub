@@ -669,6 +669,19 @@ Usually touches:
 - Added lightweight scroll reveal effects with reduced-motion support and graceful no-JS fallback.
 - Homepage copy was tightened around "Don't just claim it. Prove it.", "One clean set. One public rank.", and "Built for performance, not vanity."
 
+### 2026-05-06 full-site UX polish pass
+
+- `/rank/` now hides the input form after a result is shown, removes result-state autofocus from the input, scrolls/focuses to the result, and includes "Check Again".
+- Completed workout sessions now render as clean overviews without active set controls or rest timer controls.
+- Profiles directory copy and tests now make clear that only registered user accounts appear; anonymous submitters remain leaderboard entries only.
+- Newsletter direct-send failures now map `Network is unreachable` to an admin-friendly SMTP/network message and do not create send events.
+- Newsletter week defaults no longer jump to the next number after every send/direct-send by default.
+- Workout pagination on workout lists/dashboard now uses clear Previous / Page N / Next controls instead of ellipses.
+- Generate workout desktop layout now uses a more intentional control grid and grouped body-part picker.
+- EnduroBuddy.cz promo was restyled as a green ad block and placed on homepage/tools and workouts.
+- Shared UI now has stronger focus-visible states and better long-text wrapping for admin health/email rows.
+- Homepage score preview now uses layout containment to reduce desktop paint/layout cost.
+
 ### 2026-05-06 sitemap, mobile admin pages, and homepage polish
 
 - `/sitemap.xml` now returns plain sitemap XML without an XSL stylesheet processing instruction.

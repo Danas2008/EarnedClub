@@ -4,43 +4,125 @@
 {% block meta_description %}Enter your max clean push-ups and instantly see your Earned Club rank tier, then submit your official result for verification.{% endblock %}
 
 {% block content %}
-<section class="hero-card" style="max-width: 720px; margin-left: auto; margin-right: auto;">
-    <div class="stack">
-        <div class="eyebrow">Instant rank check</div>
-        <h1>Get Your Rank</h1>
-        <p class="muted">Enter your max clean push-ups.</p>
+<style>
+    .rank-shell {
+        max-width: 760px;
+        margin: 0 auto;
+    }
 
-        <form class="submission-form" method="GET" action="{% url 'rank' %}">
-            <div>
-                <label class="field-label" for="rank-reps">Max clean push-ups</label>
-                <input
-                    id="rank-reps"
-                    class="input"
-                    type="number"
-                    name="reps"
-                    min="0"
-                    placeholder="42"
-                    inputmode="numeric"
-                    value="{% if result %}{{ result.reps }}{% endif %}"
-                    autofocus
-                >
-            </div>
-            <button class="btn-main" type="submit">Show My Rank</button>
-        </form>
+    .rank-card {
+        display: grid;
+        gap: 18px;
+    }
+
+    .rank-form-panel,
+    .rank-result-panel {
+        padding: 18px;
+        border-radius: var(--radius-lg);
+        background: rgba(255, 255, 255, 0.045);
+        border: 1px solid rgba(255, 255, 255, 0.09);
+    }
+
+    .rank-result-panel {
+        background:
+            linear-gradient(135deg, rgba(247, 183, 51, 0.12), rgba(30, 157, 116, 0.08)),
+            rgba(255, 255, 255, 0.045);
+    }
+
+    .rank-score {
+        font-family: "Archivo", sans-serif;
+        font-size: clamp(3.4rem, 22vw, 6rem);
+        line-height: 0.84;
+        font-weight: 900;
+        color: var(--accent);
+    }
+
+    .rank-result-grid {
+        display: grid;
+        gap: 14px;
+        align-items: center;
+    }
+
+    .rank-actions {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 10px;
+    }
+
+    .rank-actions .btn-main,
+    .rank-actions .btn-secondary {
+        width: 100%;
+        min-height: 50px;
+    }
+
+    @media (min-width: 720px) {
+        .rank-result-grid {
+            grid-template-columns: auto minmax(0, 1fr);
+        }
+
+        .rank-actions {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+    }
+</style>
+
+<section class="hero-card rank-shell">
+    <div class="stack rank-card">
+        <div>
+            <div class="eyebrow">Instant rank check</div>
+            <h1>Get Your Rank</h1>
+            <p class="muted">Enter your max clean push-ups. See your tier. Prove it when you are ready.</p>
+        </div>
 
         {% if result %}
-            <div class="submit-panel">
-                <div class="eyebrow">{{ result.reps }} clean push-ups</div>
-                <h2>{{ result.message }}</h2>
-                <p class="muted">{{ result.tier.description }}</p>
-                <p>Can you prove it officially?</p>
-                <p class="muted">Submit your result and earn verified status.</p>
-                <div class="hero-actions">
+            <div id="rank-result" class="rank-result-panel" tabindex="-1">
+                <div class="rank-result-grid">
+                    <div class="rank-score">{{ result.reps }}</div>
+                    <div>
+                        <span class="kicker">{{ result.reps }} clean push-ups</span>
+                        <h2>{{ result.message }}</h2>
+                        <p class="muted">{{ result.tier.description }}</p>
+                        <p>Can you prove it officially?</p>
+                        <p class="muted">Submit your result, upload proof, and earn verified status.</p>
+                    </div>
+                </div>
+                <div class="rank-actions">
                     <a class="btn-main" href="{{ submit_url }}">Submit Official Result</a>
                     <a class="btn-secondary" href="{% url 'leaderboard' %}#full-leaderboard">View Leaderboard</a>
+                    <a class="btn-secondary" href="{% url 'rank' %}">Check Again</a>
                 </div>
+            </div>
+        {% else %}
+            <div class="rank-form-panel">
+                <form class="submission-form" method="GET" action="{% url 'rank' %}">
+                    <div>
+                        <label class="field-label" for="rank-reps">Max clean push-ups</label>
+                        <input
+                            id="rank-reps"
+                            class="input"
+                            type="number"
+                            name="reps"
+                            min="0"
+                            placeholder="42"
+                            inputmode="numeric"
+                            required
+                        >
+                    </div>
+                    <button class="btn-main" type="submit">Show My Rank</button>
+                </form>
             </div>
         {% endif %}
     </div>
 </section>
+
+{% if result %}
+    <script>
+        (() => {
+            const result = document.getElementById("rank-result");
+            if (!result) return;
+            result.scrollIntoView({ behavior: "smooth", block: "start" });
+            result.focus({ preventScroll: true });
+        })();
+    </script>
+{% endif %}
 {% endblock %}

@@ -24,7 +24,7 @@
 {% endif %}
 
 <section class="hero-card profile-header">
-    <div class="eyebrow">Workout In Progress</div>
+    <div class="eyebrow">{% if session.status == "completed" %}Workout Overview{% else %}Workout In Progress{% endif %}</div>
     <h1>{{ session.workout.title }}</h1>
     <p class="muted">
         Started {{ session.started_at|date:"M j, Y H:i" }}
@@ -54,14 +54,16 @@
                 {% if session.completed_at %}Finished {{ session.completed_at|date:"M j, H:i" }}{% else %}Keep marking sets as you go{% endif %}
             </div>
         </div>
-        <div class="stat-card">
-            <span class="kicker">Rest Timer</span>
-            <span class="stat-value" data-rest-clock data-rest-seconds="{{ session.workout.rest_interval_seconds }}">01:00</span>
-            <div class="button-row" style="margin-top: 8px;">
-                <button class="btn-secondary" type="button" data-rest-start>Start</button>
-                <button class="btn-secondary" type="button" data-rest-reset>Reset</button>
+        {% if session.status == "active" %}
+            <div class="stat-card">
+                <span class="kicker">Rest Timer</span>
+                <span class="stat-value" data-rest-clock data-rest-seconds="{{ session.workout.rest_interval_seconds }}">01:00</span>
+                <div class="button-row" style="margin-top: 8px;">
+                    <button class="btn-secondary" type="button" data-rest-start>Start</button>
+                    <button class="btn-secondary" type="button" data-rest-reset>Reset</button>
+                </div>
             </div>
-        </div>
+        {% endif %}
     </div>
 </section>
 
@@ -78,16 +80,20 @@
                     {% if exercise.body_part %} - {{ exercise.body_part }}{% endif %}
                 </div>
             </div>
-            <div class="button-row" style="margin-top: 0;">
-                <form method="POST" action="{% url 'update_workout_session' session.id exercise.id %}">
-                    {% csrf_token %}
-                    <button class="btn-secondary" type="submit" name="action" value="undo_set" {% if exercise.completed_sets == 0 or session.status != "active" %}disabled{% endif %}>Undo</button>
-                </form>
-                <form method="POST" action="{% url 'update_workout_session' session.id exercise.id %}">
-                    {% csrf_token %}
-                    <button class="btn-main" type="submit" name="action" value="complete_set" {% if exercise.is_complete or session.status != "active" %}disabled{% endif %}>Complete Set</button>
-                </form>
-            </div>
+            {% if session.status == "active" %}
+                <div class="button-row" style="margin-top: 0;">
+                    <form method="POST" action="{% url 'update_workout_session' session.id exercise.id %}">
+                        {% csrf_token %}
+                        <button class="btn-secondary" type="submit" name="action" value="undo_set" {% if exercise.completed_sets == 0 %}disabled{% endif %}>Undo</button>
+                    </form>
+                    <form method="POST" action="{% url 'update_workout_session' session.id exercise.id %}">
+                        {% csrf_token %}
+                        <button class="btn-main" type="submit" name="action" value="complete_set" {% if exercise.is_complete %}disabled{% endif %}>Complete Set</button>
+                    </form>
+                </div>
+            {% else %}
+                <span class="status-pill verified">Done</span>
+            {% endif %}
         </div>
     {% empty %}
         <p class="muted">No exercises saved for this workout.</p>
@@ -110,37 +116,45 @@
         tickWorkout();
         {% if session.status == "active" %}setInterval(tickWorkout, 1000);{% endif %}
     }
-    const restClock = document.querySelector("[data-rest-clock]");
-    const restDefault = Number(restClock?.dataset.restSeconds || 60);
-    let restSeconds = restDefault;
-    let restInterval = null;
-    const renderRest = () => restClock.textContent = formatTime(restSeconds);
-    document.querySelector("[data-rest-start]")?.addEventListener("click", () => {
-        if (restInterval) return;
-        restInterval = setInterval(() => {
-            restSeconds = Math.max(0, restSeconds - 1);
-            renderRest();
-            if (!restSeconds) {
+    {% if session.status == "active" %}
+        const restClock = document.querySelector("[data-rest-clock]");
+        if (restClock) {
+            const restDefault = Number(restClock.dataset.restSeconds || 60);
+            let restSeconds = restDefault;
+            let restInterval = null;
+            const renderRest = () => restClock.textContent = formatTime(restSeconds);
+            document.querySelector("[data-rest-start]")?.addEventListener("click", () => {
+                if (restInterval) return;
+                restInterval = setInterval(() => {
+                    restSeconds = Math.max(0, restSeconds - 1);
+                    renderRest();
+                    if (!restSeconds) {
+                        clearInterval(restInterval);
+                        restInterval = null;
+                    }
+                }, 1000);
+            });
+            document.querySelector("[data-rest-reset]")?.addEventListener("click", () => {
                 clearInterval(restInterval);
                 restInterval = null;
+                restSeconds = restDefault;
+                renderRest();
+            });
+            document.querySelectorAll("button[name='action'][value='complete_set']").forEach((button) => {
+                button.addEventListener("click", () => {
+                    sessionStorage.setItem("startRestTimer", "1");
+                });
+            });
+            renderRest();
+            if (sessionStorage.getItem("startRestTimer") === "1") {
+                sessionStorage.removeItem("startRestTimer");
+                document.querySelector("[data-rest-start]")?.click();
             }
-        }, 1000);
-    });
-    document.querySelector("[data-rest-reset]")?.addEventListener("click", () => {
-        clearInterval(restInterval);
-        restInterval = null;
-        restSeconds = restDefault;
-        renderRest();
-    });
-    document.querySelectorAll("button[name='action'][value='complete_set']").forEach((button) => {
-        button.addEventListener("click", () => {
-            sessionStorage.setItem("startRestTimer", "1");
-        });
-    });
-    renderRest();
-    if (sessionStorage.getItem("startRestTimer") === "1") {
-        sessionStorage.removeItem("startRestTimer");
-        document.querySelector("[data-rest-start]")?.click();
-    }
+        }
+    {% else %}
+        if (sessionStorage.getItem("startRestTimer") === "1") {
+            sessionStorage.removeItem("startRestTimer");
+        }
+    {% endif %}
 </script>
 {% endblock %}

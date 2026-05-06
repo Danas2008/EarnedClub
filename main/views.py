@@ -308,7 +308,10 @@ def safe_send_mail(subject, message, recipients, from_email=None):
         )
     except Exception as exc:
         logger.exception("Email delivery failed for subject %s to %s", subject, recipients)
-        safe_send_mail.last_error = f"{exc.__class__.__name__}: {exc}"
+        if isinstance(exc, OSError) and "Network is unreachable" in str(exc):
+            safe_send_mail.last_error = "SMTP network is unreachable from this environment. Check Render outbound network and SMTP host/port."
+        else:
+            safe_send_mail.last_error = f"{exc.__class__.__name__}: {exc}"
         return 0
 
 
@@ -1410,7 +1413,7 @@ def delete_goal(request, goal_id):
 
 def profiles(request):
     query = (request.GET.get("q") or "").strip()
-    profiles_with_scores = Profile.objects.all().order_by(
+    profiles_with_scores = Profile.objects.select_related("user").order_by(
         F("current_rank").asc(nulls_last=True), "-personal_best_reps", "display_name"
     )
     if query:
@@ -1988,8 +1991,8 @@ def newsletter_signup(request):
 
 @user_passes_test(is_app_admin, login_url="login")
 def newsletter_admin(request):
-    default_week = NewsletterCampaign.objects.order_by("-week_number").values_list("week_number", flat=True).first() or 0
-    week_number = parse_positive_int(request.POST.get("week_number") if request.method == "POST" else request.GET.get("week")) or default_week + 1
+    default_week = NewsletterCampaign.objects.order_by("-week_number").values_list("week_number", flat=True).first() or 1
+    week_number = parse_positive_int(request.POST.get("week_number") if request.method == "POST" else request.GET.get("week")) or default_week
     draft = build_newsletter_draft(week_number)
 
     if request.method == "POST":
@@ -2011,7 +2014,6 @@ def newsletter_admin(request):
             messages.error(request, "Subject and body are required.")
             return redirect("newsletter_admin")
 
-        campaign = NewsletterCampaign.objects.create(week_number=week_number, subject=subject, body=body)
         segment_id = request.POST.get("segment_id")
         auto_segment = request.POST.get("auto_segment")
         segment = NewsletterSegment.objects.filter(pk=segment_id).prefetch_related("subscribers").first() if segment_id else None
@@ -2046,8 +2048,9 @@ def newsletter_admin(request):
             if delivery_issue:
                 messages.error(request, f"Email is not configured for real delivery: {delivery_issue}")
                 return redirect("newsletter_admin")
+            campaign = NewsletterCampaign.objects.create(week_number=week_number, subject=subject, body=body)
             sent_count, failures = send_newsletter_to_subscribers(subject, body, recipients, campaign=campaign, request=request)
-            campaign.sent_at = timezone.now()
+            campaign.sent_at = timezone.now() if sent_count else None
             campaign.sent_count = sent_count
             campaign.save(update_fields=["sent_at", "sent_count"])
             destination = f" segment {segment.name}" if segment else (f" auto filter {auto_segment}" if auto_segment else "")
@@ -2058,6 +2061,7 @@ def newsletter_admin(request):
         elif request.POST.get("action") == "send":
             messages.info(request, "Newsletter draft saved. There are no subscribers yet.")
         else:
+            NewsletterCampaign.objects.create(week_number=week_number, subject=subject, body=body)
             messages.success(request, "Newsletter draft saved.")
         return redirect("newsletter_admin")
 
@@ -2092,8 +2096,8 @@ def newsletter_admin(request):
 @user_passes_test(is_app_admin, login_url="login")
 def newsletter_subscriber_detail(request, subscriber_id):
     subscriber = get_object_or_404(NewsletterSubscriber.objects.prefetch_related("segments"), pk=subscriber_id)
-    default_week = NewsletterCampaign.objects.order_by("-week_number").values_list("week_number", flat=True).first() or 0
-    draft = build_newsletter_draft(default_week + 1)
+    default_week = NewsletterCampaign.objects.order_by("-week_number").values_list("week_number", flat=True).first() or 1
+    draft = build_newsletter_draft(default_week)
 
     if request.method == "POST":
         subject = (request.POST.get("subject") or "").strip()
@@ -2106,13 +2110,6 @@ def newsletter_subscriber_detail(request, subscriber_id):
             messages.error(request, f"Email is not configured for real delivery: {delivery_issue}")
             return redirect("newsletter_subscriber_detail", subscriber_id=subscriber.id)
         sent_count, failures = send_newsletter_to_subscribers(subject, body, [subscriber], request=request)
-        NewsletterCampaign.objects.create(
-            week_number=default_week + 1,
-            subject=subject,
-            body=body,
-            sent_at=timezone.now(),
-            sent_count=sent_count,
-        )
         if sent_count:
             messages.success(request, f"Email sent to {subscriber.email}.")
         else:

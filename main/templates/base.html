@@ -366,6 +366,15 @@
             color: inherit;
         }
 
+        .btn-main:focus-visible,
+        .btn-secondary:focus-visible,
+        .input:focus-visible,
+        .select:focus-visible,
+        .textarea:focus-visible {
+            outline: 2px solid var(--accent);
+            outline-offset: 2px;
+        }
+
         .stat-grid {
             display: grid;
             grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -411,6 +420,14 @@
 
         .metric-card {
             min-height: 104px;
+            min-width: 0;
+            overflow-wrap: anywhere;
+        }
+
+        .metric-card p,
+        .metric-card .muted,
+        .submission-meta {
+            overflow-wrap: anywhere;
         }
 
         .progress-chart {
