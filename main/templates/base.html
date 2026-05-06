@@ -122,8 +122,9 @@
         .navbar-brand {
             display: flex;
             align-items: center;
-            gap: 14px;
+            gap: 12px;
             margin: 0;
+            min-width: 0;
         }
 
         .brand-logo {
@@ -140,14 +141,18 @@
 
         .brand-title {
             font-family: "Archivo", sans-serif;
-            font-size: 1.05rem;
-            letter-spacing: 0.16em;
-            text-transform: uppercase;
+            color: #ffffff;
+            font-size: 1.12rem;
+            font-weight: 900;
+            letter-spacing: 0.035em;
+            text-transform: none;
+            text-shadow: 0 0 18px rgba(247, 183, 51, 0.18);
         }
 
         .brand-tagline {
-            color: var(--muted);
-            font-size: 0.92rem;
+            color: rgba(245, 247, 251, 0.84);
+            font-size: 0.86rem;
+            font-weight: 700;
         }
 
         .navbar-toggler {
@@ -1534,8 +1539,8 @@
             }
 
             .brand-title {
-                font-size: 0.92rem;
-                letter-spacing: 0.1em;
+                font-size: 1rem;
+                letter-spacing: 0.02em;
             }
 
             .brand-tagline {

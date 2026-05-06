@@ -710,6 +710,13 @@ Usually touches:
 - Homepage sample result was redesigned into a compact "Sample rank check" card with the large `42`, Advanced status, a rank meter, and proof-status copy.
 - Homepage first mobile screen now has stronger headline sizing, tighter spacing, and a cleaner score-to-status visual for social traffic.
 
+### 2026-05-06 header readability and mobile hero trimming
+
+- Header brand text was restyled into a clearer high-contrast `EarnedClub` wordmark.
+- Homepage hero copy was shortened so mobile visitors are not hit with too much text at the start.
+- Removed the low-value hero chips for "Verified scores", "Public leaderboard", and "Real reps. Real proof."
+- Added a compact scroll cue under the hero sample card to pull phone visitors toward rank tiers and proof rules.
+
 ## Short Glossary
 
 - Official rank: rank based only on verified best submissions.
