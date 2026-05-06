@@ -626,6 +626,16 @@ Usually touches:
 - Kept `video_link` in the database/model for legacy submissions and admin review visibility only.
 - Video processing now falls back to the original upload if `ffmpeg` is unavailable.
 
+### 2026-05-06 admin pages and email delivery correction
+
+- Reworked `/admin-menu/pages/` to use an explicit page list instead of importing URL patterns from inside the view.
+- Newsletter admin and single-subscriber direct email pages now show the configured sender address.
+- Newsletter send buttons are disabled when Django is using console-only email or missing required SMTP settings.
+- Direct single-recipient sends now fail visibly when real delivery is not configured instead of looking successful.
+- `EMAIL_BACKEND` now automatically switches to SMTP when SMTP host/user/password environment variables are present and no explicit backend is set.
+- `NEWSLETTER_FROM_EMAIL` defaults to the SMTP user address when available.
+- Admin menu site health now shows the email delivery readiness message.
+
 ## Short Glossary
 
 - Official rank: rank based only on verified best submissions.

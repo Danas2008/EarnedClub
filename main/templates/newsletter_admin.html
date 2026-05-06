@@ -6,7 +6,12 @@
 <section class="hero-card">
     <div class="eyebrow">Newsletter</div>
     <h1>Weekly builder.</h1>
-    <p class="muted">{{ subscriber_count }} subscriber(s) will receive sends from earnedclub1@gmail.com.</p>
+    <p class="muted">{{ subscriber_count }} subscriber(s) will receive sends from {{ newsletter_from_email }}.</p>
+    {% if email_delivery_issue %}
+        <div class="result-note">
+            Real email delivery is not ready: {{ email_delivery_issue }}
+        </div>
+    {% endif %}
 </section>
 
 <section class="grid-2">
@@ -42,7 +47,7 @@
             <div class="button-row">
                 <button class="btn-secondary" type="submit" name="action" value="preview">Preview</button>
                 <button class="btn-secondary" type="submit" name="action" value="save">Save Draft</button>
-                <button class="btn-main" type="submit" name="action" value="send">Send To Subscribers</button>
+                <button class="btn-main" type="submit" name="action" value="send" {% if email_delivery_issue %}disabled{% endif %}>Send To Subscribers</button>
             </div>
         </form>
         {% if preview_subject %}
@@ -76,7 +81,7 @@
         <div class="section-spread">
             <div>
                 <h2>Subscribers</h2>
-                <p class="muted">Click one email to send a direct message.</p>
+                <p class="muted">Click one email to send a direct message to that subscriber only.</p>
             </div>
         </div>
         {% for subscriber in subscribers %}

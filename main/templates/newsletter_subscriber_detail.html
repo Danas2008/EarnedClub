@@ -12,6 +12,12 @@
             {% for segment in subscriber.segments.all %}{{ segment.name }}{% if not forloop.last %}, {% endif %}{% endfor %}
         {% endif %}
     </p>
+    <p class="muted">Sending from {{ newsletter_from_email }}.</p>
+    {% if email_delivery_issue %}
+        <div class="result-note">
+            Real email delivery is not ready: {{ email_delivery_issue }}
+        </div>
+    {% endif %}
     <div class="button-row">
         <a class="btn-secondary" href="{% url 'newsletter_admin' %}">Back To Newsletter</a>
     </div>
@@ -26,7 +32,7 @@
             <input id="direct-subject" class="input" name="subject" value="{{ draft_subject }}">
             <label class="field-label" for="direct-body">Body</label>
             <textarea id="direct-body" class="textarea" name="body" rows="12">{{ draft_body }}</textarea>
-            <button class="btn-main" type="submit">Send To This Email</button>
+            <button class="btn-main" type="submit" {% if email_delivery_issue %}disabled{% endif %}>Send To This Email</button>
         </form>
     </div>
 

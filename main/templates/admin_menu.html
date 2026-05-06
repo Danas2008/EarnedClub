@@ -39,6 +39,7 @@
         <div class="metric-card"><span class="kicker">From</span><p class="muted">{{ site_health.default_from_email }}</p></div>
         <div class="metric-card"><span class="kicker">SMTP host</span><p class="muted">{{ site_health.email_host }}</p></div>
         <div class="metric-card"><span class="kicker">SMTP user</span><p class="muted">{{ site_health.email_user }}</p></div>
+        <div class="metric-card"><span class="kicker">Delivery</span><p class="muted">{{ site_health.email_delivery_issue }}</p></div>
         <div class="metric-card"><span class="kicker">Storage</span><span class="stat-value">{{ site_health.supabase_storage }}</span></div>
         <div class="metric-card"><span class="kicker">Debug</span><span class="stat-value">{{ site_health.debug }}</span></div>
     </div>

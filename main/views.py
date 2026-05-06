@@ -292,6 +292,10 @@ def notify_user_email(user, subject, message):
 
 
 def safe_send_mail(subject, message, recipients, from_email=None):
+    issue = get_email_delivery_issue()
+    if issue:
+        logger.error("Email delivery skipped for subject %s to %s: %s", subject, recipients, issue)
+        return 0
     try:
         return send_mail(
             subject,
@@ -303,6 +307,20 @@ def safe_send_mail(subject, message, recipients, from_email=None):
     except Exception:
         logger.exception("Email delivery failed for subject %s to %s", subject, recipients)
         return 0
+
+
+def get_email_delivery_issue():
+    backend = getattr(settings, "EMAIL_BACKEND", "")
+    if backend == "django.core.mail.backends.console.EmailBackend":
+        return "EMAIL_BACKEND is console-only, so messages are printed to logs instead of delivered."
+    if backend == "django.core.mail.backends.smtp.EmailBackend":
+        if not getattr(settings, "EMAIL_HOST", "") or settings.EMAIL_HOST == "localhost":
+            return "EMAIL_HOST is not configured for SMTP delivery."
+        if not getattr(settings, "EMAIL_HOST_USER", ""):
+            return "EMAIL_HOST_USER is not configured."
+        if not getattr(settings, "EMAIL_HOST_PASSWORD", ""):
+            return "EMAIL_HOST_PASSWORD is not configured."
+    return ""
 
 
 def notify_admin_submission(submission, event_label):
@@ -1764,6 +1782,7 @@ def admin_menu(request):
                 "default_from_email": settings.DEFAULT_FROM_EMAIL,
                 "email_host": settings.EMAIL_HOST,
                 "email_user": settings.EMAIL_HOST_USER or "Not configured",
+                "email_delivery_issue": get_email_delivery_issue() or "Ready",
                 "supabase_storage": "Enabled" if settings.SUPABASE_STORAGE_ENABLED else "Disabled",
                 "debug": "On" if settings.DEBUG else "Off",
                 "recent_errors": recent_errors,
@@ -1774,33 +1793,32 @@ def admin_menu(request):
 
 @user_passes_test(is_app_admin, login_url="login")
 def admin_pages(request):
-    from .urls import urlpatterns as main_urlpatterns
-
-    page_rows = []
-    for pattern in main_urlpatterns:
-        name = getattr(pattern, "name", "") or ""
-        route = str(pattern.pattern)
-        url = ""
-        if name and "<" not in route:
-            try:
-                url = reverse(name)
-            except Exception:
-                url = ""
-        if route.startswith("admin") or route.startswith("newsletter") or route.startswith("content"):
-            access = "Staff"
-        elif route.startswith("dashboard") or route in {"login/", "logout/", "register/"}:
-            access = "Account"
-        else:
-            access = "Public"
-        page_rows.append(
-            {
-                "name": name or "unnamed",
-                "route": f"/{route}",
-                "url": url,
-                "access": access,
-            }
-        )
-
+    page_rows = [
+        {"name": "home", "route": "/", "url": reverse("home"), "access": "Public"},
+        {"name": "rank", "route": "/rank/", "url": reverse("rank"), "access": "Public"},
+        {"name": "level_test", "route": "/test/", "url": reverse("level_test"), "access": "Public"},
+        {"name": "challenge", "route": "/challenge/", "url": reverse("challenge"), "access": "Public"},
+        {"name": "leaderboard", "route": "/leaderboard/", "url": reverse("leaderboard"), "access": "Public"},
+        {"name": "profiles", "route": "/profiles/", "url": reverse("profiles"), "access": "Public"},
+        {"name": "athlete_profile", "route": "/athlete/<slug>/", "url": "", "access": "Public"},
+        {"name": "comparison", "route": "/comparison/<left>vs<right>/", "url": "", "access": "Public"},
+        {"name": "workout_detail", "route": "/workout/<slug>/", "url": "", "access": "Public"},
+        {"name": "calculators", "route": "/calculators/", "url": reverse("calculators"), "access": "Public"},
+        {"name": "privacy", "route": "/privacy/", "url": reverse("privacy"), "access": "Public"},
+        {"name": "terms", "route": "/terms/", "url": reverse("terms"), "access": "Public"},
+        {"name": "register", "route": "/register/", "url": reverse("register"), "access": "Account"},
+        {"name": "login", "route": "/login/", "url": reverse("login"), "access": "Account"},
+        {"name": "dashboard", "route": "/dashboard/", "url": reverse("dashboard"), "access": "Account"},
+        {"name": "workouts", "route": "/workouts/", "url": reverse("workouts"), "access": "Account"},
+        {"name": "admin_menu", "route": "/admin-menu/", "url": reverse("admin_menu"), "access": "Staff"},
+        {"name": "admin_pages", "route": "/admin-menu/pages/", "url": reverse("admin_pages"), "access": "Staff"},
+        {"name": "admin_review", "route": "/admin-review/", "url": reverse("admin_review"), "access": "Staff"},
+        {"name": "content_engine_admin", "route": "/content/", "url": reverse("content_engine_admin"), "access": "Staff"},
+        {"name": "newsletter_admin", "route": "/newsletter/", "url": reverse("newsletter_admin"), "access": "Staff"},
+        {"name": "newsletter_subscriber_detail", "route": "/newsletter/subscribers/<id>/", "url": "", "access": "Staff"},
+        {"name": "sitemap_xml", "route": "/sitemap.xml", "url": reverse("sitemap_xml"), "access": "System"},
+        {"name": "robots_txt", "route": "/robots.txt", "url": reverse("robots_txt"), "access": "System"},
+    ]
     return render(
         request,
         "admin_pages.html",
@@ -2008,9 +2026,15 @@ def newsletter_admin(request):
                     "preview_subject": subject,
                     "preview_body": body,
                     "preview_count": len([subscriber for subscriber in recipients if subscriber.is_subscribed]),
+                    "email_delivery_issue": get_email_delivery_issue(),
+                    "newsletter_from_email": getattr(settings, "NEWSLETTER_FROM_EMAIL", settings.DEFAULT_FROM_EMAIL),
                 },
             )
         if request.POST.get("action") == "send" and recipients:
+            delivery_issue = get_email_delivery_issue()
+            if delivery_issue:
+                messages.error(request, f"Email is not configured for real delivery: {delivery_issue}")
+                return redirect("newsletter_admin")
             sent_count, failures = send_newsletter_to_subscribers(subject, body, recipients, campaign=campaign, request=request)
             campaign.sent_at = timezone.now()
             campaign.sent_count = sent_count
@@ -2048,6 +2072,8 @@ def newsletter_admin(request):
             "auto_segments": auto_segments,
             "campaigns": campaigns,
             "week_choices": range(1, 13),
+            "email_delivery_issue": get_email_delivery_issue(),
+            "newsletter_from_email": getattr(settings, "NEWSLETTER_FROM_EMAIL", settings.DEFAULT_FROM_EMAIL),
         },
     )
 
@@ -2063,6 +2089,10 @@ def newsletter_subscriber_detail(request, subscriber_id):
         body = (request.POST.get("body") or "").strip()
         if not subject or not body:
             messages.error(request, "Subject and body are required.")
+            return redirect("newsletter_subscriber_detail", subscriber_id=subscriber.id)
+        delivery_issue = get_email_delivery_issue()
+        if delivery_issue:
+            messages.error(request, f"Email is not configured for real delivery: {delivery_issue}")
             return redirect("newsletter_subscriber_detail", subscriber_id=subscriber.id)
         sent_count, failures = send_newsletter_to_subscribers(subject, body, [subscriber], request=request)
         NewsletterCampaign.objects.create(
@@ -2087,6 +2117,8 @@ def newsletter_subscriber_detail(request, subscriber_id):
             "draft_body": draft["body"],
             "segments": NewsletterSegment.objects.prefetch_related("subscribers"),
             "send_events": subscriber.send_events.select_related("campaign")[:10],
+            "email_delivery_issue": get_email_delivery_issue(),
+            "newsletter_from_email": getattr(settings, "NEWSLETTER_FROM_EMAIL", settings.DEFAULT_FROM_EMAIL),
         },
     )
 
