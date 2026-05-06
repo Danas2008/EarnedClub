@@ -790,13 +790,12 @@ class SubmissionFlowTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertIn("application/xml", response["Content-Type"])
-        self.assertContains(response, '<?xml-stylesheet type="text/xsl"', html=False)
+        self.assertNotContains(response, "<?xml-stylesheet", html=False)
         self.assertContains(response, "<urlset", html=False)
         self.assertIn("https://earnedclub.club/rank/", locs)
         self.assertIn("https://earnedclub.club/leaderboard/", locs)
         self.assertIn("https://earnedclub.club/challenge/", locs)
         self.assertIn("https://earnedclub.club/test/", locs)
-        self.assertIn('href="/sitemap.xsl"', response.content.decode())
 
     def test_sitemap_xml_lists_public_athlete_profiles(self):
         user = User.objects.create_user(username="sitemap-athlete", password="StrongPass12345")

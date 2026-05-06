@@ -373,6 +373,21 @@ Optional email:
 - `EMAIL_USE_SSL`
 - `EMAIL_TIMEOUT`
 - `NEWSLETTER_FROM_EMAIL`
+- Supported aliases: `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_FROM_EMAIL`, `EMAIL_PASSWORD`
+
+Recommended Gmail SMTP on Render:
+
+```text
+EMAIL_HOST=smtp.gmail.com
+EMAIL_PORT=587
+EMAIL_USE_TLS=True
+EMAIL_HOST_USER=earnedclub1@gmail.com
+EMAIL_HOST_PASSWORD=<Gmail app password>
+DEFAULT_FROM_EMAIL=Earned Club <earnedclub1@gmail.com>
+NEWSLETTER_FROM_EMAIL=Earned Club <earnedclub1@gmail.com>
+```
+
+For Gmail, use an App Password, not the normal Gmail account password.
 
 Optional Supabase Storage:
 
@@ -635,6 +650,25 @@ Usually touches:
 - `EMAIL_BACKEND` now automatically switches to SMTP when SMTP host/user/password environment variables are present and no explicit backend is set.
 - `NEWSLETTER_FROM_EMAIL` defaults to the SMTP user address when available.
 - Admin menu site health now shows the email delivery readiness message.
+
+### 2026-05-06 SMTP diagnostics correction
+
+- SMTP settings now support common Render/env aliases like `SMTP_HOST`, `SMTP_USER`, and `SMTP_PASSWORD`.
+- SMTP defaults now enable TLS automatically for port 587 and SSL automatically for port 465.
+- Direct newsletter send failures now display the actual SMTP exception instead of only saying to check settings.
+- Admin menu site health now shows SMTP port and TLS/SSL status.
+
+### 2026-05-06 sitemap, mobile admin pages, and homepage polish
+
+- `/sitemap.xml` now returns plain sitemap XML without an XSL stylesheet processing instruction.
+- `/sitemap.xsl` remains available as a human-readable stylesheet page, but it should not be submitted to Google Search Console as a sitemap.
+- `/sitemap.xsl` now sends `X-Robots-Tag: noindex`.
+- Google Search Console should be given only `https://earnedclub.club/sitemap.xml`.
+- Admin pages now include mobile cards so `/admin-menu/pages/` remains visible on small screens where tables are hidden.
+- Homepage was redesigned mobile-first around the primary CTA "Get Your Rank".
+- Homepage now includes hero, value strip, how-it-works, rank system, why-it-exists, feature preview, video/content placeholders, tools, and final CTA sections.
+- Homepage keeps YouTube/content placeholders and links to calculators/tools and `/rank/`.
+- Homepage copy now emphasizes "Don't just claim your strength. Prove it.", "Earn your rank.", "Verified status.", "Public leaderboard.", and "Real reps. Real proof."
 
 ## Short Glossary
 

@@ -45,5 +45,24 @@
             {% endfor %}
         </tbody>
     </table>
+
+    <div class="mobile-cards compact-board">
+        {% for page in page_rows %}
+            <div class="score-row">
+                <div class="score-row-main">
+                    <div class="submission-name">{{ page.name }}</div>
+                    <div class="submission-meta">{{ page.route }}</div>
+                    <span class="tag-pill" style="margin-top: 8px;">{{ page.access }}</span>
+                </div>
+                <div class="score-row-score">
+                    {% if page.url %}
+                        <a class="btn-secondary" style="min-height: 34px; padding: 6px 10px;" href="{{ page.url }}">Open</a>
+                    {% else %}
+                        <span class="submission-meta">Pattern</span>
+                    {% endif %}
+                </div>
+            </div>
+        {% endfor %}
+    </div>
 </section>
 {% endblock %}

@@ -292,9 +292,11 @@ def notify_user_email(user, subject, message):
 
 
 def safe_send_mail(subject, message, recipients, from_email=None):
+    safe_send_mail.last_error = ""
     issue = get_email_delivery_issue()
     if issue:
         logger.error("Email delivery skipped for subject %s to %s: %s", subject, recipients, issue)
+        safe_send_mail.last_error = issue
         return 0
     try:
         return send_mail(
@@ -304,8 +306,9 @@ def safe_send_mail(subject, message, recipients, from_email=None):
             recipients,
             fail_silently=False,
         )
-    except Exception:
+    except Exception as exc:
         logger.exception("Email delivery failed for subject %s to %s", subject, recipients)
+        safe_send_mail.last_error = f"{exc.__class__.__name__}: {exc}"
         return 0
 
 
@@ -320,6 +323,12 @@ def get_email_delivery_issue():
             return "EMAIL_HOST_USER is not configured."
         if not getattr(settings, "EMAIL_HOST_PASSWORD", ""):
             return "EMAIL_HOST_PASSWORD is not configured."
+        if settings.EMAIL_USE_TLS and settings.EMAIL_USE_SSL:
+            return "EMAIL_USE_TLS and EMAIL_USE_SSL cannot both be enabled."
+        if "gmail.com" in settings.EMAIL_HOST.lower() and settings.EMAIL_PORT == 587 and not settings.EMAIL_USE_TLS:
+            return "Gmail SMTP on port 587 requires EMAIL_USE_TLS=True."
+        if "gmail.com" in settings.EMAIL_HOST.lower() and settings.EMAIL_PORT == 465 and not settings.EMAIL_USE_SSL:
+            return "Gmail SMTP on port 465 requires EMAIL_USE_SSL=True."
     return ""
 
 
@@ -707,7 +716,8 @@ def send_newsletter_to_subscribers(subject, body, subscribers, campaign=None, re
             sent_count += delivered
             NewsletterSendEvent.objects.create(subscriber=subscriber, campaign=campaign, subject=subject)
         else:
-            failures.append(subscriber.email)
+            error = getattr(safe_send_mail, "last_error", "") or "Unknown SMTP error"
+            failures.append(f"{subscriber.email} ({error})")
     return sent_count, failures
 
 
@@ -1009,7 +1019,7 @@ def build_sitemap_entries(request):
     return entries
 
 
-def build_sitemap_xml(entries, stylesheet_url):
+def build_sitemap_xml(entries):
     urlset = Element(f"{{{SITEMAP_NAMESPACE}}}urlset")
     for entry in entries:
         url = SubElement(urlset, f"{{{SITEMAP_NAMESPACE}}}url")
@@ -1023,7 +1033,6 @@ def build_sitemap_xml(entries, stylesheet_url):
     return "\n".join(
         [
             '<?xml version="1.0" encoding="UTF-8"?>',
-            f'<?xml-stylesheet type="text/xsl" href={quoteattr(stylesheet_url)}?>',
             body,
         ]
     )
@@ -1094,15 +1103,14 @@ def rank(request):
 
 
 def sitemap_xml(request):
-    xml = build_sitemap_xml(
-        build_sitemap_entries(request),
-        reverse("sitemap_xsl"),
-    )
+    xml = build_sitemap_xml(build_sitemap_entries(request))
     return HttpResponse(xml, content_type="application/xml; charset=utf-8")
 
 
 def sitemap_xsl(request):
-    return render(request, "sitemap.xsl", content_type="text/xsl; charset=utf-8")
+    response = render(request, "sitemap.xsl", content_type="text/xsl; charset=utf-8")
+    response["X-Robots-Tag"] = "noindex"
+    return response
 
 
 
@@ -1782,6 +1790,9 @@ def admin_menu(request):
                 "default_from_email": settings.DEFAULT_FROM_EMAIL,
                 "email_host": settings.EMAIL_HOST,
                 "email_user": settings.EMAIL_HOST_USER or "Not configured",
+                "email_port": settings.EMAIL_PORT,
+                "email_tls": "On" if settings.EMAIL_USE_TLS else "Off",
+                "email_ssl": "On" if settings.EMAIL_USE_SSL else "Off",
                 "email_delivery_issue": get_email_delivery_issue() or "Ready",
                 "supabase_storage": "Enabled" if settings.SUPABASE_STORAGE_ENABLED else "Disabled",
                 "debug": "On" if settings.DEBUG else "Off",
@@ -2043,7 +2054,7 @@ def newsletter_admin(request):
             if sent_count:
                 messages.success(request, f"Newsletter sent to {sent_count} subscriber(s){destination}.")
             if failures:
-                messages.error(request, f"Email failed for {len(failures)} recipient(s): {', '.join(failures[:3])}. Check EMAIL_BACKEND/SMTP settings.")
+                messages.error(request, f"Email failed for {len(failures)} recipient(s): {', '.join(failures[:3])}.")
         elif request.POST.get("action") == "send":
             messages.info(request, "Newsletter draft saved. There are no subscribers yet.")
         else:
@@ -2105,7 +2116,8 @@ def newsletter_subscriber_detail(request, subscriber_id):
         if sent_count:
             messages.success(request, f"Email sent to {subscriber.email}.")
         else:
-            messages.error(request, f"Email failed for {subscriber.email}. Check EMAIL_BACKEND/SMTP settings.")
+            detail = failures[0] if failures else f"{subscriber.email} ({getattr(safe_send_mail, 'last_error', 'Unknown SMTP error')})"
+            messages.error(request, f"Email failed for {detail}.")
         return redirect("newsletter_subscriber_detail", subscriber_id=subscriber.id)
 
     return render(

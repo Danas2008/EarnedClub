@@ -160,14 +160,18 @@ SECURE_HSTS_PRELOAD = not DEBUG
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 LOGIN_URL = "login"
 LOGIN_REDIRECT_URL = "dashboard"
-DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "Earned Club <noreply@earnedclub.club>")
-EMAIL_HOST = os.getenv("EMAIL_HOST", "localhost")
-EMAIL_PORT = int(os.getenv("EMAIL_PORT", "25"))
-EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER", "")
-EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", "")
-EMAIL_USE_TLS = get_bool_env("EMAIL_USE_TLS", default=False)
-EMAIL_USE_SSL = get_bool_env("EMAIL_USE_SSL", default=False)
+EMAIL_HOST = os.getenv("EMAIL_HOST") or os.getenv("SMTP_HOST") or "localhost"
+EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER") or os.getenv("SMTP_USER") or os.getenv("SMTP_USERNAME") or ""
+EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD") or os.getenv("EMAIL_PASSWORD") or os.getenv("SMTP_PASSWORD") or ""
+EMAIL_PORT = int(os.getenv("EMAIL_PORT") or os.getenv("SMTP_PORT") or ("587" if EMAIL_HOST != "localhost" else "25"))
+EMAIL_USE_SSL = get_bool_env("EMAIL_USE_SSL", default=EMAIL_PORT == 465)
+EMAIL_USE_TLS = get_bool_env("EMAIL_USE_TLS", default=EMAIL_PORT == 587 and not EMAIL_USE_SSL)
 EMAIL_TIMEOUT = int(os.getenv("EMAIL_TIMEOUT", "20"))
+DEFAULT_FROM_EMAIL = (
+    os.getenv("DEFAULT_FROM_EMAIL")
+    or os.getenv("SMTP_FROM_EMAIL")
+    or (f"Earned Club <{EMAIL_HOST_USER}>" if EMAIL_HOST_USER else "Earned Club <noreply@earnedclub.club>")
+)
 EMAIL_BACKEND = os.getenv(
     "EMAIL_BACKEND",
     (

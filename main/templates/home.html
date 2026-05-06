@@ -1,136 +1,433 @@
 {% extends "base.html" %}
 
-{% block title %}Earned Club - Official Push-Up Test{% endblock %}
-{% block meta_description %}Take the Official Push-Up Test. Submit your max clean push-ups, add proof, and earn a verified public rank on Earned Club.{% endblock %}
+{% block title %}Earned Club - Get Your Push-Up Rank{% endblock %}
+{% block meta_description %}Earned Club is the proof-first push-up test. Get your rank, submit your max clean push-ups, upload proof, and earn verified public status.{% endblock %}
 
 {% block content %}
-<section class="hero-card" style="margin-bottom: 24px;">
-    <div class="hero-grid">
-        <div class="stack">
+<style>
+    .home-hero {
+        padding: 18px;
+    }
+
+    .home-hero-grid {
+        display: grid;
+        gap: 22px;
+        align-items: center;
+    }
+
+    .home-hero h1 {
+        font-size: clamp(2.55rem, 13vw, 5.2rem);
+        line-height: 0.92;
+        margin-bottom: 12px;
+    }
+
+    .home-lead {
+        font-size: clamp(1.08rem, 4vw, 1.35rem);
+        max-width: 640px;
+    }
+
+    .home-cta-row {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 10px;
+        margin-top: 18px;
+    }
+
+    .home-cta-row .btn-main,
+    .home-cta-row .btn-secondary,
+    .final-cta-row .btn-main,
+    .final-cta-row .btn-secondary {
+        min-height: 52px;
+        width: 100%;
+    }
+
+    .rank-preview {
+        display: grid;
+        gap: 12px;
+        padding: 16px;
+        background: rgba(255, 255, 255, 0.045);
+        border: 1px solid rgba(255, 255, 255, 0.09);
+        border-radius: var(--radius-lg);
+    }
+
+    .rank-preview-top {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        align-items: flex-start;
+    }
+
+    .rank-preview-score {
+        font-family: "Archivo", sans-serif;
+        font-size: clamp(2.4rem, 14vw, 4.8rem);
+        line-height: 0.9;
+        font-weight: 900;
+        color: var(--accent);
+    }
+
+    .rank-preview-row {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr) auto;
+        gap: 10px;
+        align-items: center;
+        padding: 10px;
+        border-radius: var(--radius-md);
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid rgba(255, 255, 255, 0.07);
+    }
+
+    .home-value-strip,
+    .home-feature-grid,
+    .home-tools-grid,
+    .home-rank-grid {
+        display: grid;
+        gap: 12px;
+    }
+
+    .home-value-strip {
+        grid-template-columns: 1fr;
+    }
+
+    .home-value-item,
+    .home-feature-card,
+    .home-video-card,
+    .home-tool-card {
+        padding: 14px;
+        border-radius: var(--radius-md);
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .home-value-item strong,
+    .home-feature-card strong,
+    .home-tool-card strong {
+        display: block;
+        margin-bottom: 6px;
+        font-family: "Archivo", sans-serif;
+        font-size: 1.05rem;
+    }
+
+    .home-section-head {
+        max-width: 760px;
+        margin-bottom: 18px;
+    }
+
+    .home-rank-card {
+        display: grid;
+        gap: 6px;
+        padding: 13px;
+        border-radius: var(--radius-md);
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .home-rank-card strong {
+        font-family: "Archivo", sans-serif;
+    }
+
+    .home-rank-card span {
+        color: var(--muted);
+    }
+
+    .home-video-grid {
+        display: grid;
+        gap: 14px;
+    }
+
+    .home-video-placeholder {
+        display: grid;
+        place-items: center;
+        min-height: 170px;
+        border-radius: var(--radius-md);
+        background:
+            linear-gradient(135deg, rgba(247, 183, 51, 0.14), rgba(252, 74, 26, 0.08)),
+            rgba(255, 255, 255, 0.035);
+        border: 1px solid rgba(255, 255, 255, 0.09);
+        text-align: center;
+        padding: 18px;
+    }
+
+    .final-cta {
+        text-align: center;
+        padding: 24px 18px;
+    }
+
+    .final-cta h2 {
+        font-size: clamp(2.2rem, 11vw, 4rem);
+        line-height: 0.95;
+        margin-bottom: 10px;
+    }
+
+    .final-cta-row {
+        display: grid;
+        gap: 10px;
+        max-width: 520px;
+        margin: 18px auto 0;
+    }
+
+    @media (min-width: 720px) {
+        .home-hero {
+            padding: 30px;
+        }
+
+        .home-hero-grid {
+            grid-template-columns: minmax(0, 1.1fr) minmax(320px, 0.9fr);
+        }
+
+        .home-cta-row,
+        .final-cta-row {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .home-value-strip {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+
+        .home-feature-grid {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+
+        .home-tools-grid,
+        .home-video-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .home-rank-grid {
+            grid-template-columns: repeat(5, minmax(0, 1fr));
+        }
+    }
+</style>
+
+<section class="hero-card home-hero">
+    <div class="home-hero-grid">
+        <div>
             <div class="eyebrow">Official Push-Up Test</div>
             <h1>Don't just claim your strength. Prove it.</h1>
-            <p class="muted">
-                Submit your max clean push-ups and earn your rank.
+            <p class="home-lead muted">
+                Submit your max clean push-ups, upload proof, and earn verified status on a public leaderboard.
             </p>
             <p>
-                Your result can go live immediately as unverified. Add proof to get reviewed and earn official public status.
+                Real reps. Real proof. Earn your rank.
             </p>
-            <div class="hero-actions">
-                <a class="btn-main" href="{% url 'challenge' %}#submit-form-top">Take the Official Push-Up Test</a>
+            <div class="home-cta-row">
+                <a class="btn-main" href="{% url 'rank' %}">Get Your Rank</a>
                 <a class="btn-secondary" href="{% url 'leaderboard' %}#full-leaderboard">View Leaderboard</a>
             </div>
-
-            <div class="trust-strip">
-                <div class="trust-item">
-                    <strong>{{ total_submissions }}</strong>
-                    <span class="muted">results shown</span>
-                </div>
-                <div class="trust-item">
-                    <strong>{{ total_verified }}</strong>
-                    <span class="muted">verified athletes</span>
-                </div>
-                <div class="trust-item">
-                    <strong>Proof</strong>
-                    <span class="muted">required for official rank</span>
-                </div>
-            </div>
+            <p class="muted" style="margin-top: 14px; margin-bottom: 0;">
+                Verified ranks. Public leaderboards. Real performance.
+            </p>
         </div>
 
-        <div class="submit-panel">
-            <div class="eyebrow">Fast entry</div>
-            <h2>Want your level first?</h2>
-            <p class="muted">
-                Enter your count, see your tier, then submit it officially.
-            </p>
-            <form class="submission-form" method="GET" action="{% url 'rank' %}">
+        <aside class="rank-preview" aria-label="Earned Club rank preview">
+            <div class="rank-preview-top">
                 <div>
-                    <label class="field-label" for="home-rank-reps">Max clean push-ups</label>
-                    <input id="home-rank-reps" class="input" type="number" name="reps" min="0" placeholder="42" inputmode="numeric">
+                    <span class="kicker">Rank preview</span>
+                    <h2 style="margin-bottom: 4px;">Advanced</h2>
+                    <p class="muted" style="margin-bottom: 0;">40-59 clean reps</p>
                 </div>
-                <button class="btn-main" type="submit">Get Your Rank</button>
-            </form>
+                <div class="rank-preview-score">42</div>
+            </div>
+            <div class="rank-preview-row">
+                <span class="position-pill">#?</span>
+                <div>
+                    <strong>Submit first</strong>
+                    <div class="submission-meta">Then upload proof for review.</div>
+                </div>
+                <span class="status-pill unverified">Unverified</span>
+            </div>
+            <div class="rank-preview-row">
+                <span class="position-pill">#</span>
+                <div>
+                    <strong>Verified status</strong>
+                    <div class="submission-meta">Official rank only after proof review.</div>
+                </div>
+                <span class="status-pill verified">Proof</span>
+            </div>
+        </aside>
+    </div>
+</section>
+
+<section class="card-dark">
+    <div class="home-value-strip">
+        <div class="home-value-item">
+            <span class="step-number">1</span>
+            <strong>Test your max</strong>
+            <p class="muted">One clean set. Full range. Honest reps.</p>
+        </div>
+        <div class="home-value-item">
+            <span class="step-number">2</span>
+            <strong>Prove your result</strong>
+            <p class="muted">Upload video proof when you want official status.</p>
+        </div>
+        <div class="home-value-item">
+            <span class="step-number">3</span>
+            <strong>Earn your rank</strong>
+            <p class="muted">Verified athletes earn public leaderboard status.</p>
         </div>
     </div>
 </section>
 
 <section class="card-dark">
-    <div class="section-spread">
-        <div>
-            <h2>How it works</h2>
-            <p class="muted">One clean set. One public result. Proof turns it official.</p>
-        </div>
-        <a class="btn-main" href="{% url 'challenge' %}#submit-form-top">Take the Test</a>
+    <div class="home-section-head">
+        <h2>How it works</h2>
+        <p class="muted">Simple enough for your first visit. Serious enough for public status.</p>
     </div>
     <div class="step-list">
         <div class="step-item">
             <span class="step-number">1</span>
             <div>
                 <strong>Do one max clean set</strong>
-                <div class="muted">Strict reps, full range, no cuts.</div>
+                <div class="muted">Strict push-ups. No cuts.</div>
             </div>
         </div>
         <div class="step-item">
             <span class="step-number">2</span>
             <div>
-                <strong>Submit your result</strong>
-                <div class="muted">Enter reps, name, and email in under a minute.</div>
+                <strong>Submit your score</strong>
+                <div class="muted">Enter reps, name, and email.</div>
             </div>
         </div>
         <div class="step-item">
             <span class="step-number">3</span>
             <div>
-                <strong>Add proof to get verified</strong>
-                <div class="muted">Video is optional to submit, but required for official rank.</div>
+                <strong>Add proof for verification</strong>
+                <div class="muted">Upload your set video to enter review.</div>
             </div>
         </div>
         <div class="step-item">
             <span class="step-number">4</span>
             <div>
                 <strong>Earn your public rank</strong>
-                <div class="muted">Verified athletes earn public status.</div>
+                <div class="muted">Approved results become official.</div>
             </div>
-        </div>
-    </div>
-</section>
-
-<section class="grid-2">
-    <div class="card-dark">
-        <h2>Status Benchmarks</h2>
-        <p class="muted">
-            Find your tier, then prove it officially on the leaderboard.
-        </p>
-        {% include "includes/rank_benchmark_carousel.html" %}
-    </div>
-
-    <div class="card-dark">
-        <h2>Official status rules</h2>
-        <ul class="rule-list">
-            <li>Official ranks require proof.</li>
-            <li>Unverified results are shown, but not official.</li>
-            <li>Verified athletes earn public status.</li>
-            <li>Your best verified result controls your official rank.</li>
-        </ul>
-        <div class="button-row">
-            <a class="btn-main" href="{% url 'challenge' %}#submit-form-top">Submit Official Result</a>
-            <a class="btn-secondary" href="{% url 'leaderboard' %}#full-leaderboard">View Leaderboard</a>
         </div>
     </div>
 </section>
 
 <section class="card-dark">
     <div class="section-spread">
-        <div>
-            <h2>Stay in the loop</h2>
-            <p class="muted">Get leaderboard movement, approved scores, and top performances by email.</p>
+        <div class="home-section-head" style="margin-bottom: 0;">
+            <h2>Rank system</h2>
+            <p class="muted">Unverified scores can be visible, but they are not official. Verified submissions can earn official rank.</p>
+        </div>
+        <a class="btn-main" href="{% url 'rank' %}">Get Your Rank</a>
+    </div>
+    <div class="home-rank-grid">
+        <div class="home-rank-card"><strong>Beginner</strong><span>0-19 reps</span></div>
+        <div class="home-rank-card"><strong>Intermediate</strong><span>20-39 reps</span></div>
+        <div class="home-rank-card"><strong>Advanced</strong><span>40-59 reps</span></div>
+        <div class="home-rank-card"><strong>Elite</strong><span>60-79 reps</span></div>
+        <div class="home-rank-card"><strong>Earned Legend</strong><span>80+ reps</span></div>
+    </div>
+</section>
+
+<section class="grid-2">
+    <div class="card-dark">
+        <h2>Why it exists</h2>
+        <p>
+            Most fitness apps let users track workouts. Earned Club is about proving real performance.
+        </p>
+        <p class="muted">
+            Status is not claimed. It is earned through clean reps, uploaded proof, and public verification.
+        </p>
+        <div class="button-row">
+            <a class="btn-main" href="{% url 'challenge' %}#submit-form-top">Submit Official Result</a>
         </div>
     </div>
-    <form class="newsletter-form" method="POST" action="{% url 'newsletter_signup' %}">
-        {% csrf_token %}
-        <div>
-            <label class="field-label" for="newsletter-email">Email</label>
-            <input id="newsletter-email" class="input" type="email" name="email" placeholder="you@example.com" required>
+
+    <div class="card-dark">
+        <h2>Live status</h2>
+        <div class="stat-grid">
+            <div class="stat-card">
+                <span class="kicker">Shown</span>
+                <span class="stat-value">{{ total_submissions }}</span>
+                <div class="muted">public results</div>
+            </div>
+            <div class="stat-card">
+                <span class="kicker">Verified</span>
+                <span class="stat-value">{{ total_verified }}</span>
+                <div class="muted">official athletes</div>
+            </div>
+            <div class="stat-card">
+                <span class="kicker">Elite</span>
+                <span class="stat-value">60+</span>
+                <div class="muted">status benchmark</div>
+            </div>
         </div>
-        <button class="btn-secondary" type="submit">Join Newsletter</button>
-    </form>
+    </div>
+</section>
+
+<section class="card-dark">
+    <div class="home-section-head">
+        <h2>What you get</h2>
+        <p class="muted">A competitive layer for people who want performance to mean something.</p>
+    </div>
+    <div class="home-feature-grid">
+        <div class="home-feature-card"><strong>Leaderboards</strong><p class="muted">Compare clean push-up results in public.</p></div>
+        <div class="home-feature-card"><strong>Athlete profiles</strong><p class="muted">Turn verified results into a public record.</p></div>
+        <div class="home-feature-card"><strong>Workout tracking</strong><p class="muted">Build sessions around your next rank jump.</p></div>
+        <div class="home-feature-card"><strong>Progress tracking</strong><p class="muted">See your best result and history improve.</p></div>
+        <div class="home-feature-card"><strong>Comparisons</strong><p class="muted">Match your rank against another athlete.</p></div>
+        <div class="home-feature-card"><strong>Verification</strong><p class="muted">Proof review keeps status trustworthy.</p></div>
+    </div>
+</section>
+
+<section class="card-dark">
+    <div class="section-spread">
+        <div class="home-section-head" style="margin-bottom: 0;">
+            <h2>Challenge content</h2>
+            <p class="muted">Motivation, challenge clips, and future YouTube embeds live here.</p>
+        </div>
+    </div>
+    <div class="home-video-grid">
+        <!-- Add future YouTube challenge embeds here. Keep iframe titles descriptive for accessibility. -->
+        <a class="home-video-card" href="https://www.youtube.com/watch?v=mgmVOuLgFB0" target="_blank" rel="noopener noreferrer">
+            <div class="home-video-placeholder">
+                <div>
+                    <span class="kicker">YouTube</span>
+                    <h3>Discipline</h3>
+                    <p class="muted">Open current motivation video.</p>
+                </div>
+            </div>
+        </a>
+        <!-- Add future short-form challenge or proof-example embed here. -->
+        <a class="home-video-card" href="https://www.youtube.com/watch?v=wnHW6o8WMas" target="_blank" rel="noopener noreferrer">
+            <div class="home-video-placeholder">
+                <div>
+                    <span class="kicker">YouTube</span>
+                    <h3>No Comfort Zone</h3>
+                    <p class="muted">Open current training mindset video.</p>
+                </div>
+            </div>
+        </a>
+    </div>
+</section>
+
+<section class="card-dark">
+    <div class="home-section-head">
+        <h2>Tools</h2>
+        <p class="muted">Use the quick rank check or open calculators before your next attempt.</p>
+    </div>
+    <div class="home-tools-grid">
+        <!-- Rank link is handled by the existing /rank/ route. -->
+        <a class="home-tool-card" href="{% url 'rank' %}">
+            <strong>Get Your Rank</strong>
+            <p class="muted">Enter reps and instantly see your tier.</p>
+        </a>
+        <!-- Calculator link is handled by the existing calculators route. -->
+        <a class="home-tool-card" href="{% url 'calculators' %}">
+            <strong>Calculators and tools</strong>
+            <p class="muted">Check targets, progress, and training context.</p>
+        </a>
+    </div>
+</section>
+
+<section class="hero-card final-cta">
+    <h2>Can you prove it?</h2>
+    <p class="muted">Take the test, upload proof, and earn verified status.</p>
+    <div class="final-cta-row">
+        <a class="btn-main" href="{% url 'rank' %}">Get Your Rank</a>
+        <a class="btn-secondary" href="{% url 'challenge' %}#submit-form-top">Submit Official Result</a>
+    </div>
 </section>
 {% endblock %}
