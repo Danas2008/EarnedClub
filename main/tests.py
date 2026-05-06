@@ -821,7 +821,7 @@ class SubmissionFlowTests(TestCase):
                 follow=True,
             )
 
-        self.assertContains(response, "SMTP network is unreachable")
+        self.assertContains(response, "Email server is unreachable")
         self.assertEqual(NewsletterSendEvent.objects.count(), 0)
 
     def test_sitemap_xml_lists_core_pages(self):

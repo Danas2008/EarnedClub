@@ -682,6 +682,13 @@ Usually touches:
 - Shared UI now has stronger focus-visible states and better long-text wrapping for admin health/email rows.
 - Homepage score preview now uses layout containment to reduce desktop paint/layout cost.
 
+### 2026-05-06 profile and hero refinement
+
+- Public athlete profile hero was redesigned into a stronger identity/status layout with a PR-focused card.
+- Homepage hero score preview now uses labels and status pills instead of repeated numbered steps.
+- Homepage value/how-it-works areas now use named phase labels to reduce the overused 1/2/3/4 pattern.
+- SMTP network failure copy was softened into an admin-friendly message about email server reachability and Render SMTP configuration.
+
 ### 2026-05-06 sitemap, mobile admin pages, and homepage polish
 
 - `/sitemap.xml` now returns plain sitemap XML without an XSL stylesheet processing instruction.

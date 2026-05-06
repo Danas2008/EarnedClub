@@ -309,7 +309,7 @@ def safe_send_mail(subject, message, recipients, from_email=None):
     except Exception as exc:
         logger.exception("Email delivery failed for subject %s to %s", subject, recipients)
         if isinstance(exc, OSError) and "Network is unreachable" in str(exc):
-            safe_send_mail.last_error = "SMTP network is unreachable from this environment. Check Render outbound network and SMTP host/port."
+            safe_send_mail.last_error = "Email server is unreachable from this environment. Check Render SMTP host, port, TLS, and outbound email access."
         else:
             safe_send_mail.last_error = f"{exc.__class__.__name__}: {exc}"
         return 0
@@ -2114,7 +2114,7 @@ def newsletter_subscriber_detail(request, subscriber_id):
             messages.success(request, f"Email sent to {subscriber.email}.")
         else:
             detail = failures[0] if failures else f"{subscriber.email} ({getattr(safe_send_mail, 'last_error', 'Unknown SMTP error')})"
-            messages.error(request, f"Email failed for {detail}.")
+            messages.error(request, f"Email was not sent: {detail}.")
         return redirect("newsletter_subscriber_detail", subscriber_id=subscriber.id)
 
     return render(

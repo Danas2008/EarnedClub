@@ -102,6 +102,10 @@
         box-shadow: 0 18px 48px rgba(0, 0, 0, 0.26);
     }
 
+    .score-rank-card .btn-secondary {
+        width: 100%;
+    }
+
     .score-rank-card::before {
         content: "";
         position: absolute;
@@ -142,7 +146,7 @@
 
     .score-rank-step {
         display: grid;
-        grid-template-columns: auto minmax(0, 1fr);
+        grid-template-columns: minmax(0, 1fr);
         gap: 10px;
         align-items: center;
         padding: 11px;
@@ -155,7 +159,22 @@
         display: none;
         color: var(--accent);
         font-family: "Archivo", sans-serif;
-        font-size: 1.4rem;
+        font-size: 0.82rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+    }
+
+    .flow-label {
+        display: inline-flex;
+        width: fit-content;
+        padding: 6px 9px;
+        border-radius: var(--radius-sm);
+        background: rgba(247, 183, 51, 0.13);
+        color: #ffd77b;
+        font-size: 0.82rem;
+        font-weight: 900;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
     }
 
     .home-value-strip,
@@ -365,7 +384,7 @@
         }
 
         .home-hero-grid {
-            grid-template-columns: minmax(0, 1.06fr) minmax(340px, 0.94fr);
+            grid-template-columns: minmax(0, 1.18fr) minmax(360px, 0.82fr);
         }
 
         .home-cta-row,
@@ -376,6 +395,10 @@
         .home-value-strip,
         .proof-grid {
             grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+
+        .how-flow.home-value-strip {
+            grid-template-columns: repeat(4, minmax(0, 1fr));
         }
 
         .home-feature-grid {
@@ -399,6 +422,17 @@
         .score-rank-arrow {
             display: grid;
             place-items: center;
+        }
+    }
+
+    @media (max-width: 719px) {
+        .score-rank-header {
+            grid-template-columns: 1fr;
+        }
+
+        .score-rank-number {
+            justify-self: start;
+            margin-top: -4px;
         }
     }
 </style>
@@ -433,21 +467,21 @@
             <aside class="score-rank-card" aria-label="Example score to rank preview">
                 <div class="score-rank-header">
                     <div>
-                        <span class="kicker">Sample rank result</span>
-                        <h2 style="margin-bottom: 6px;">42 clean reps</h2>
-                        <p class="muted" style="margin-bottom: 0;">You reached Advanced. Proof makes it official.</p>
+                        <span class="kicker">Score to status</span>
+                        <h2 style="margin-bottom: 6px;">Sample result</h2>
+                        <p class="muted" style="margin-bottom: 0;">42 clean reps reaches Advanced. Upload proof to make it official.</p>
                     </div>
                     <div class="score-rank-number">42</div>
                 </div>
                 <div class="score-rank-flow">
                     <div class="score-rank-step">
-                        <span class="step-number">1</span>
+                        <span class="flow-label">Score</span>
                         <div>
-                            <strong>Score</strong>
+                            <strong>Max clean set</strong>
                             <div class="submission-meta">Max clean set</div>
                         </div>
                     </div>
-                    <div class="score-rank-arrow">→</div>
+                    <div class="score-rank-arrow">Then</div>
                     <div class="score-rank-step">
                         <span class="status-pill unverified">Advanced</span>
                         <div>
@@ -455,7 +489,7 @@
                             <div class="submission-meta">40-59 reps</div>
                         </div>
                     </div>
-                    <div class="score-rank-arrow">→</div>
+                    <div class="score-rank-arrow">Then</div>
                     <div class="score-rank-step">
                         <span class="status-pill verified">Proof</span>
                         <div>
@@ -470,19 +504,19 @@
     </section>
 
     <section class="card-dark home-reveal">
-        <div class="home-value-strip">
+        <div class="home-value-strip how-flow">
             <div class="home-value-item home-reveal">
-                <span class="step-number">1</span>
+                <span class="flow-label">Test</span>
                 <strong>Test your max</strong>
                 <p class="muted">One clean set. Full range. Honest reps.</p>
             </div>
             <div class="home-value-item home-reveal">
-                <span class="step-number">2</span>
+                <span class="flow-label">Proof</span>
                 <strong>Prove your result</strong>
                 <p class="muted">Upload video proof when you want official status.</p>
             </div>
             <div class="home-value-item home-reveal">
-                <span class="step-number">3</span>
+                <span class="flow-label">Status</span>
                 <strong>Earn your rank</strong>
                 <p class="muted">Verified scores earn official status.</p>
             </div>
@@ -494,30 +528,30 @@
             <h2>How it works</h2>
             <p class="muted">Simple enough for your first visit. Serious enough for public status.</p>
         </div>
-        <div class="step-list">
-            <div class="step-item home-reveal">
-                <span class="step-number">1</span>
+        <div class="home-value-strip">
+            <div class="home-value-item home-reveal">
+                <span class="flow-label">Attempt</span>
                 <div>
                     <strong>Do one max clean set</strong>
                     <div class="muted">Strict push-ups. No cuts.</div>
                 </div>
             </div>
-            <div class="step-item home-reveal">
-                <span class="step-number">2</span>
+            <div class="home-value-item home-reveal">
+                <span class="flow-label">Submit</span>
                 <div>
                     <strong>Submit your score</strong>
                     <div class="muted">Enter reps, name, and email.</div>
                 </div>
             </div>
-            <div class="step-item home-reveal">
-                <span class="step-number">3</span>
+            <div class="home-value-item home-reveal">
+                <span class="flow-label">Review</span>
                 <div>
                     <strong>Add proof for verification</strong>
                     <div class="muted">Upload your set video to enter review.</div>
                 </div>
             </div>
-            <div class="step-item home-reveal">
-                <span class="step-number">4</span>
+            <div class="home-value-item home-reveal">
+                <span class="flow-label">Rank</span>
                 <div>
                     <strong>Earn your public rank</strong>
                     <div class="muted">Approved results become official.</div>

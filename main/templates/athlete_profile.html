@@ -13,60 +13,153 @@
 {% endblock %}
 
 {% block content %}
-<section class="hero-card profile-header">
-    <div class="profile-hero-meta">
-        {% if profile.profile_image_url %}
-            <img class="avatar avatar-lg" src="{{ profile.profile_image_url }}" alt="{{ profile.display_name }} profile picture">
-        {% else %}
-            <span class="avatar avatar-lg">{{ profile.display_name|first|upper }}</span>
-        {% endif %}
-        <div>
-            <div class="eyebrow">Athlete Profile</div>
-            <h1>{{ profile.display_name }}</h1>
-            <p class="muted">
-                {% if profile.country %}{{ profile.country }}{% endif %}
-                {% if profile.age %}{% if profile.country %} - {% endif %}{{ profile.age }} years old{% endif %}
-            </p>
-            {% if profile.bio %}<p>{{ profile.bio }}</p>{% endif %}
-            <p class="muted">
-                <a href="{% url 'social_list' profile.slug 'followers' %}">{{ followers_count }} followers</a>
-                -
-                <a href="{% url 'social_list' profile.slug 'following' %}">{{ following_count }} following</a>
-            </p>
-            <div class="button-row">
+<style>
+    .profile-hero {
+        max-width: none;
+    }
+
+    .profile-hero-grid {
+        display: grid;
+        gap: 22px;
+        align-items: stretch;
+    }
+
+    .profile-identity-card,
+    .profile-status-card {
+        position: relative;
+        z-index: 1;
+    }
+
+    .profile-identity-card {
+        display: grid;
+        gap: 18px;
+    }
+
+    .profile-avatar-wrap {
+        display: flex;
+        gap: 16px;
+        align-items: center;
+    }
+
+    .profile-avatar-wrap .avatar-lg {
+        width: 92px;
+        height: 92px;
+        font-size: 2.2rem;
+        border: 2px solid rgba(247, 183, 51, 0.34);
+        box-shadow: 0 16px 42px rgba(0, 0, 0, 0.28);
+    }
+
+    .profile-status-card {
+        display: grid;
+        gap: 14px;
+        padding: 18px;
+        border-radius: var(--radius-lg);
+        background:
+            linear-gradient(135deg, rgba(247, 183, 51, 0.12), rgba(30, 157, 116, 0.08)),
+            rgba(255, 255, 255, 0.04);
+        border: 1px solid rgba(255, 255, 255, 0.09);
+    }
+
+    .profile-pr-number {
+        font-family: "Archivo", sans-serif;
+        font-size: clamp(3.8rem, 20vw, 6.2rem);
+        line-height: 0.82;
+        color: var(--accent);
+        font-weight: 900;
+    }
+
+    .profile-status-grid {
+        display: grid;
+        gap: 10px;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .profile-mini-stat {
+        padding: 12px;
+        border-radius: var(--radius-md);
+        background: rgba(8, 11, 15, 0.32);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .profile-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+
+    .profile-actions .btn-main,
+    .profile-actions .btn-secondary {
+        min-height: 44px;
+    }
+
+    @media (min-width: 860px) {
+        .profile-hero-grid {
+            grid-template-columns: minmax(0, 1.1fr) minmax(320px, 0.9fr);
+        }
+    }
+</style>
+
+<section class="hero-card profile-hero">
+    <div class="profile-hero-grid">
+        <div class="profile-identity-card">
+            <div class="profile-avatar-wrap">
+                {% if profile.profile_image_url %}
+                    <img class="avatar avatar-lg" src="{{ profile.profile_image_url }}" alt="{{ profile.display_name }} profile picture">
+                {% else %}
+                    <span class="avatar avatar-lg">{{ profile.display_name|first|upper }}</span>
+                {% endif %}
+                <div>
+                    <div class="eyebrow">Athlete Profile</div>
+                    <h1>{{ profile.display_name }}</h1>
+                    <p class="muted">
+                        {% if profile.country %}{{ profile.country }}{% else %}Earned Club athlete{% endif %}
+                        {% if profile.age %} - {{ profile.age }} years old{% endif %}
+                    </p>
+                </div>
+            </div>
+            {% if profile.bio %}<p>{{ profile.bio }}</p>{% else %}<p class="muted">Public performance profile for verified push-up status, workouts, and progress.</p>{% endif %}
+            <div class="profile-actions">
                 <a class="btn-main" href="{% url 'challenge' %}#submit-form-top">Submit Your Score</a>
                 <a class="btn-secondary" href="{% url 'leaderboard' %}#full-leaderboard">Leaderboard</a>
                 {% if request.user.is_authenticated and request.user != profile.user %}
                     <a class="btn-secondary" href="{% url 'comparison' request.user.profile.slug profile.slug %}">1v1 Compare</a>
                 {% endif %}
+                {% if request.user.is_authenticated and request.user != profile.user %}
+                    <form method="POST" action="{% url 'toggle_follow' profile.slug %}">
+                        {% csrf_token %}
+                        <button class="btn-secondary" type="submit">{% if is_following %}Unfollow{% else %}Follow{% endif %}</button>
+                    </form>
+                {% endif %}
             </div>
         </div>
-    </div>
-    <div class="stat-grid">
-        <div class="stat-card">
-            <span class="kicker">Verified PR</span>
-            <span class="stat-value">{{ profile.personal_best_reps }}</span>
-        </div>
-        <div class="stat-card">
-            <span class="kicker">Rank</span>
-            <span class="stat-value">{% if profile.current_rank %}#{{ profile.current_rank }}{% else %}-{% endif %}</span>
-        </div>
-        <div class="stat-card">
-            <span class="kicker">Tier</span>
-            <span class="stat-value">{{ current_tier.name }}</span>
-        </div>
-    </div>
-    <div class="button-row">
-        {% if request.user.is_authenticated and request.user != profile.user %}
-            <form method="POST" action="{% url 'toggle_follow' profile.slug %}">
-                {% csrf_token %}
-                <button class="btn-main" type="submit">{% if is_following %}Unfollow{% else %}Follow{% endif %}</button>
-            </form>
-        {% endif %}
-        <button class="btn-secondary" type="button" data-share-text="{{ profile_share_message }}">Share Profile</button>
-        {% if profile.personal_best_reps %}
-            <button class="btn-secondary" type="button" data-share-text="{{ pr_share_message }}">Share PR</button>
-        {% endif %}
+
+        <aside class="profile-status-card">
+            <div>
+                <span class="kicker">Verified PR</span>
+                <div class="profile-pr-number">{{ profile.personal_best_reps }}</div>
+                <p class="muted">{% if profile.personal_best_reps %}{{ current_tier.name }} tier{% else %}No verified result yet{% endif %}</p>
+            </div>
+            <div class="profile-status-grid">
+                <div class="profile-mini-stat">
+                    <span class="kicker">Rank</span>
+                    <div class="submission-name">{% if profile.current_rank %}#{{ profile.current_rank }}{% else %}-{% endif %}</div>
+                </div>
+                <div class="profile-mini-stat">
+                    <span class="kicker">Social</span>
+                    <div class="submission-name">
+                        <a href="{% url 'social_list' profile.slug 'followers' %}">{{ followers_count }}</a>
+                        /
+                        <a href="{% url 'social_list' profile.slug 'following' %}">{{ following_count }}</a>
+                    </div>
+                </div>
+            </div>
+            <div class="profile-actions">
+                <button class="btn-secondary" type="button" data-share-text="{{ profile_share_message }}">Share Profile</button>
+                {% if profile.personal_best_reps %}
+                    <button class="btn-secondary" type="button" data-share-text="{{ pr_share_message }}">Share PR</button>
+                {% endif %}
+            </div>
+        </aside>
     </div>
 </section>
 
