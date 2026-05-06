@@ -725,6 +725,13 @@ Usually touches:
 - Mobile hero spacing was tightened so the first screen feels more visual and less text-heavy.
 - Scroll cue copy was shortened and styled to make the next section feel more inviting.
 
+### 2026-05-06 mobile hero fit and tier color pass
+
+- Mobile homepage hero was compressed so more of the sample rank result appears in the first view.
+- Mobile hero CTAs now sit side by side with smaller tap-friendly sizing.
+- Mobile sample result hides secondary descriptive copy so the `42`, Advanced status, and rank meter appear sooner.
+- Rank tier cards are now color-coded by level: Beginner, Intermediate, Advanced, Elite, and Earned Legend.
+
 ## Short Glossary
 
 - Official rank: rank based only on verified best submissions.

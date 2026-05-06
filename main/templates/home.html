@@ -341,6 +341,45 @@
         gap: 6px;
     }
 
+    .home-rank-card.rank-beginner {
+        border-color: rgba(148, 163, 184, 0.24);
+        background: linear-gradient(135deg, rgba(148, 163, 184, 0.1), rgba(255, 255, 255, 0.035));
+    }
+
+    .home-rank-card.rank-intermediate {
+        border-color: rgba(59, 130, 246, 0.24);
+        background: linear-gradient(135deg, rgba(59, 130, 246, 0.12), rgba(255, 255, 255, 0.035));
+    }
+
+    .home-rank-card.rank-advanced {
+        border-color: rgba(247, 183, 51, 0.32);
+        background: linear-gradient(135deg, rgba(247, 183, 51, 0.16), rgba(255, 255, 255, 0.035));
+    }
+
+    .home-rank-card.rank-elite {
+        border-color: rgba(252, 74, 26, 0.3);
+        background: linear-gradient(135deg, rgba(252, 74, 26, 0.14), rgba(255, 255, 255, 0.035));
+    }
+
+    .home-rank-card.rank-legend {
+        border-color: rgba(30, 157, 116, 0.34);
+        background: linear-gradient(135deg, rgba(30, 157, 116, 0.16), rgba(247, 183, 51, 0.08));
+    }
+
+    .home-rank-card::before {
+        content: "";
+        width: 34px;
+        height: 4px;
+        border-radius: 999px;
+        background: var(--tier-color, var(--accent));
+    }
+
+    .rank-beginner { --tier-color: #94a3b8; }
+    .rank-intermediate { --tier-color: #3b82f6; }
+    .rank-advanced { --tier-color: #f7b733; }
+    .rank-elite { --tier-color: #fc4a1a; }
+    .rank-legend { --tier-color: #1e9d74; }
+
     .home-rank-card span {
         color: var(--muted);
     }
@@ -553,46 +592,88 @@
         .home-hero {
             margin-left: -4px;
             margin-right: -4px;
-            padding-top: 20px;
-            padding-bottom: 16px;
+            padding: 14px;
         }
 
         .home-hero-grid {
-            gap: 16px;
+            gap: 12px;
         }
 
         .home-hero h1 {
             max-width: 9ch;
+            font-size: clamp(2.55rem, 12.4vw, 3.35rem);
             margin-bottom: 10px;
         }
 
         .home-lead {
-            font-size: 1.08rem;
-            line-height: 1.45;
-            margin-bottom: 12px;
+            font-size: 1.02rem;
+            line-height: 1.38;
+            margin-bottom: 8px;
         }
 
         .home-cta-row {
-            margin-top: 12px;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        .home-cta-row .btn-main,
+        .home-cta-row .btn-secondary {
+            min-height: 46px;
+            padding-left: 10px;
+            padding-right: 10px;
+            font-size: 0.95rem;
         }
 
         .score-rank-card {
             max-width: none;
+            gap: 10px;
+            padding: 12px;
         }
 
         .score-rank-result {
-            grid-template-columns: 1fr;
-            gap: 8px;
-            padding-top: 8px;
+            grid-template-columns: auto minmax(0, 1fr);
+            gap: 10px;
+            padding: 4px 0 4px;
+            align-items: end;
         }
 
         .score-rank-number {
             margin-top: 2px;
+            font-size: clamp(4.25rem, 22vw, 5.8rem);
+        }
+
+        .score-rank-result h2 {
+            font-size: 1.32rem;
+        }
+
+        .score-rank-result p {
+            display: none;
+        }
+
+        .rank-meter,
+        .score-rank-proof {
+            padding: 10px;
+        }
+
+        .rank-meter-labels,
+        .score-rank-proof .submission-meta {
+            font-size: 0.78rem;
+            line-height: 1.25;
+        }
+
+        .score-rank-card .btn-secondary {
+            min-height: 44px;
         }
 
         .hero-scroll-cue {
-            padding: 10px 12px;
-            font-size: 0.94rem;
+            padding: 9px 11px;
+            font-size: 0.88rem;
+        }
+
+        .scroll-dot {
+            width: 30px;
+            height: 30px;
         }
     }
 </style>
@@ -718,11 +799,11 @@
             <a class="btn-secondary" href="{% url 'challenge' %}#submit-form-top">Submit Official Result</a>
         </div>
         <div class="home-rank-grid" id="rank-tiers">
-            <div class="home-rank-card home-reveal"><strong>Beginner</strong><span>0-19 reps</span></div>
-            <div class="home-rank-card home-reveal"><strong>Intermediate</strong><span>20-39 reps</span></div>
-            <div class="home-rank-card home-reveal"><strong>Advanced</strong><span>40-59 reps</span></div>
-            <div class="home-rank-card home-reveal"><strong>Elite</strong><span>60-79 reps</span></div>
-            <div class="home-rank-card home-reveal"><strong>Earned Legend</strong><span>80+ reps</span></div>
+            <div class="home-rank-card rank-beginner home-reveal"><strong>Beginner</strong><span>0-19 reps</span></div>
+            <div class="home-rank-card rank-intermediate home-reveal"><strong>Intermediate</strong><span>20-39 reps</span></div>
+            <div class="home-rank-card rank-advanced home-reveal"><strong>Advanced</strong><span>40-59 reps</span></div>
+            <div class="home-rank-card rank-elite home-reveal"><strong>Elite</strong><span>60-79 reps</span></div>
+            <div class="home-rank-card rank-legend home-reveal"><strong>Earned Legend</strong><span>80+ reps</span></div>
         </div>
     </section>
 
