@@ -1784,7 +1784,7 @@
             const toggleFloatingCta = () => {
                 const footer = document.querySelector(".footer");
                 const footerRect = footer.getBoundingClientRect();
-                const shouldShow = window.scrollY > 520 && footerRect.top > window.innerHeight - 120;
+                const shouldShow = window.scrollY > 180 && footerRect.top > window.innerHeight - 120;
                 floatingCta.classList.toggle("is-visible", shouldShow);
             };
 
