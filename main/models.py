@@ -49,8 +49,8 @@ RANK_TIERS = [
 
 DISCIPLINE_PUSHUPS = "pushups"
 DISCIPLINE_PULLUPS = "pullups"
-DISCIPLINE_5K = "5k"
-DISCIPLINE_10K = "10k"
+DISCIPLINE_5K = "run_5k"
+DISCIPLINE_10K = "run_10k"
 
 DISCIPLINE_CHOICES = [
     (DISCIPLINE_PUSHUPS, "Push-ups"),
@@ -70,6 +70,10 @@ DISCIPLINE_CONFIG = {
         "higher_is_better": True,
         "input_label": "Max clean push-ups",
         "placeholder": "42",
+        "elite_threshold": 60,
+        "world_record": None,
+        "proof_label": "Proof video or result link",
+        "points_target": 80,
     },
     DISCIPLINE_PULLUPS: {
         "key": DISCIPLINE_PULLUPS,
@@ -81,6 +85,10 @@ DISCIPLINE_CONFIG = {
         "higher_is_better": True,
         "input_label": "Max clean pull-ups",
         "placeholder": "12",
+        "elite_threshold": 20,
+        "world_record": 82,
+        "proof_label": "Proof video or result link",
+        "points_target": 30,
     },
     DISCIPLINE_5K: {
         "key": DISCIPLINE_5K,
@@ -91,7 +99,11 @@ DISCIPLINE_CONFIG = {
         "unit": "time",
         "higher_is_better": False,
         "input_label": "5K time",
-        "placeholder": "21:34",
+        "placeholder": "00:21:34 or 21:34",
+        "elite_threshold": 18 * 60,
+        "world_record": 12 * 60 + 49,
+        "proof_label": "Race or Strava result link",
+        "points_floor": 45 * 60,
     },
     DISCIPLINE_10K: {
         "key": DISCIPLINE_10K,
@@ -102,17 +114,62 @@ DISCIPLINE_CONFIG = {
         "unit": "time",
         "higher_is_better": False,
         "input_label": "10K time",
-        "placeholder": "44:20",
+        "placeholder": "00:44:20 or 44:20",
+        "elite_threshold": 38 * 60,
+        "world_record": 26 * 60 + 24,
+        "proof_label": "Race or Strava result link",
+        "points_floor": 90 * 60,
     },
 }
 
+DISCIPLINE_ALIASES = {
+    "5k": DISCIPLINE_5K,
+    "10k": DISCIPLINE_10K,
+}
+
+HYBRID_RANKS = [
+    {
+        "name": "Beginner Hybrid",
+        "min_score": 0,
+        "description": "Building the first verified pieces of a hybrid profile.",
+    },
+    {
+        "name": "Intermediate Hybrid",
+        "min_score": 350,
+        "description": "A balanced athlete base is starting to show.",
+    },
+    {
+        "name": "Advanced Hybrid",
+        "min_score": 550,
+        "description": "Strong verified capability across more than one lane.",
+    },
+    {
+        "name": "Elite Hybrid Athlete",
+        "min_score": 750,
+        "description": "High-level verified performance with real hybrid range.",
+    },
+    {
+        "name": "Earned Legend",
+        "min_score": 900,
+        "description": "Rare overall athletic status across the Earned Club board.",
+    },
+]
+
 
 def get_discipline_config(discipline):
+    discipline = DISCIPLINE_ALIASES.get(discipline, discipline)
     return DISCIPLINE_CONFIG.get(discipline, DISCIPLINE_CONFIG[DISCIPLINE_PUSHUPS])
+
+
+def normalize_discipline(discipline):
+    return get_discipline_config(discipline)["key"]
 
 
 def format_duration(seconds):
     minutes, remaining_seconds = divmod(max(0, int(seconds)), 60)
+    hours, minutes = divmod(minutes, 60)
+    if hours:
+        return f"{hours}:{minutes:02d}:{remaining_seconds:02d}"
     return f"{minutes}:{remaining_seconds:02d}"
 
 
@@ -122,6 +179,83 @@ def get_rank_tier(reps):
         if reps >= tier["min_reps"] and (max_reps is None or reps <= max_reps):
             return tier
     return RANK_TIERS[0]
+
+
+def get_hybrid_rank(score):
+    rank = HYBRID_RANKS[0]
+    for candidate in HYBRID_RANKS:
+        if score >= candidate["min_score"]:
+            rank = candidate
+    return rank
+
+
+def calculate_submission_points(submission):
+    config = submission.discipline_config
+    if config["score_type"] == "reps":
+        target = config["points_target"]
+        return min(1000, max(0, round((submission.reps / target) * 1000)))
+
+    floor = config["points_floor"]
+    world_record = config["world_record"]
+    if submission.reps <= world_record:
+        return 1000
+    if submission.reps >= floor:
+        return 0
+    return min(1000, max(0, round(((floor - submission.reps) / (floor - world_record)) * 1000)))
+
+
+def get_pullup_rank_tier(reps):
+    if reps >= 30:
+        return {
+            "name": "Earned Legend",
+            "benchmark": "30+ strict pull-ups",
+            "description": "Exceptional pulling strength that needs proof to count.",
+        }
+    if reps >= 20:
+        return {
+            "name": "Elite",
+            "benchmark": "20+ strict pull-ups",
+            "description": "Elite pull-up strength. Proof is required for official rank.",
+        }
+    if reps >= 10:
+        return {
+            "name": "Advanced",
+            "benchmark": "10-19 strict pull-ups",
+            "description": "Strong pulling capacity with room to chase elite status.",
+        }
+    if reps >= 5:
+        return {
+            "name": "Intermediate",
+            "benchmark": "5-9 strict pull-ups",
+            "description": "A real baseline for strict pull-up performance.",
+        }
+    return {
+        "name": "Beginner",
+        "benchmark": "0-4 strict pull-ups",
+        "description": "Build clean reps before chasing the top of the board.",
+    }
+
+
+def get_running_rank_tier(seconds, discipline):
+    if discipline == DISCIPLINE_5K:
+        if seconds < 16 * 60:
+            return {"name": "Earned Legend", "benchmark": "Sub-16 5K", "description": "Rare 5K performance. Proof is required for official rank."}
+        if seconds < 18 * 60:
+            return {"name": "Elite", "benchmark": "Sub-18 5K", "description": "Elite 5K standard. Proof is required for official rank."}
+        if seconds < 25 * 60:
+            return {"name": "Advanced", "benchmark": "Sub-25 5K", "description": "Strong recreational race performance."}
+        if seconds < 30 * 60:
+            return {"name": "Intermediate", "benchmark": "Sub-30 5K", "description": "Solid 5K fitness with a clear next target."}
+        return {"name": "Beginner", "benchmark": "30:00+ 5K", "description": "You are on the board. Keep building the engine."}
+    if seconds < 32 * 60:
+        return {"name": "Earned Legend", "benchmark": "Sub-32 10K", "description": "Rare 10K performance. Proof is required for official rank."}
+    if seconds < 38 * 60:
+        return {"name": "Elite", "benchmark": "Sub-38 10K", "description": "Elite 10K standard. Proof is required for official rank."}
+    if seconds < 50 * 60:
+        return {"name": "Advanced", "benchmark": "Sub-50 10K", "description": "Strong 10K race performance."}
+    if seconds < 60 * 60:
+        return {"name": "Intermediate", "benchmark": "Sub-60 10K", "description": "Solid 10K fitness with a clear next target."}
+    return {"name": "Beginner", "benchmark": "60:00+ 10K", "description": "You are on the board. Keep building the engine."}
 
 
 def get_submission_identity(submission):
@@ -135,7 +269,7 @@ def get_submission_identity(submission):
 def get_official_verified_submissions(discipline=DISCIPLINE_PUSHUPS):
     official = {}
     submissions = (
-        Submission.objects.filter(status=Submission.STATUS_VERIFIED, discipline=discipline)
+        Submission.objects.filter(status=Submission.STATUS_VERIFIED, discipline=normalize_discipline(discipline))
         .select_related("user", "user__profile")
         .order_by("-reps" if get_discipline_config(discipline)["higher_is_better"] else "reps", "created_at")
     )
@@ -147,6 +281,7 @@ def get_official_verified_submissions(discipline=DISCIPLINE_PUSHUPS):
 
 
 def get_best_verified_submission_for_user(user, discipline=DISCIPLINE_PUSHUPS):
+    discipline = normalize_discipline(discipline)
     order = "-reps" if get_discipline_config(discipline)["higher_is_better"] else "reps"
     return user.submission_set.filter(status=Submission.STATUS_VERIFIED, discipline=discipline).order_by(order, "created_at").first()
 
@@ -250,12 +385,10 @@ class Submission(models.Model):
 
     @property
     def rank_tier(self):
-        if self.discipline != self.DISCIPLINE_PUSHUPS:
-            return {
-                "name": "Verified Performance" if self.is_verified else "Performance",
-                "benchmark": self.discipline_label,
-                "description": "Official status comes from verified proof.",
-            }
+        if self.discipline == self.DISCIPLINE_PULLUPS:
+            return get_pullup_rank_tier(self.reps)
+        if self.discipline in {self.DISCIPLINE_5K, self.DISCIPLINE_10K}:
+            return get_running_rank_tier(self.reps, self.discipline)
         return get_rank_tier(self.reps)
 
     @property
@@ -297,6 +430,10 @@ class Submission(models.Model):
         return get_discipline_config(self.discipline)
 
     @property
+    def normalized_discipline(self):
+        return self.discipline_config["key"]
+
+    @property
     def discipline_label(self):
         return self.discipline_config["label"]
 
@@ -319,6 +456,10 @@ class Submission(models.Model):
     @property
     def score_heading(self):
         return "Time" if self.is_time_based else "Reps"
+
+    @property
+    def hybrid_points(self):
+        return calculate_submission_points(self)
 
 
 class VerificationEvent(models.Model):

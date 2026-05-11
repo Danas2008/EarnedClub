@@ -1,9 +1,9 @@
 {% extends "base.html" %}
 
 {% block title %}{{ profile.display_name }} - Earned Club Athlete{% endblock %}
-{% block meta_description %}{{ profile_description }} View verified push-up history, current rank, athlete details, and public progress tracking on Earned Club.{% endblock %}
+{% block meta_description %}{{ profile_description }} View Hybrid Score, verified discipline breakdown, current rank, and public progress tracking on Earned Club.{% endblock %}
 {% block og_type %}profile{% endblock %}
-{% block og_title %}{{ profile.display_name }} - {{ profile.personal_best_reps }} verified reps{% endblock %}
+{% block og_title %}{{ profile.display_name }} - Hybrid Score {{ hybrid_summary.score }}{% endblock %}
 {% block og_description %}{{ profile_description }}{% endblock %}
 {% block og_image %}{% if profile_og_image %}{{ profile_og_image }}{% else %}{{ og_image_url }}{% endif %}{% endblock %}
 {% block twitter_title %}{{ profile.display_name }} - Earned Club Athlete{% endblock %}
@@ -68,6 +68,22 @@
         font-weight: 900;
     }
 
+    .hybrid-breakdown {
+        display: grid;
+        gap: 10px;
+    }
+
+    .hybrid-breakdown-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 10px;
+        align-items: center;
+        padding: 11px 12px;
+        border-radius: var(--radius-md);
+        background: rgba(8, 11, 15, 0.32);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
     .profile-status-grid {
         display: grid;
         gap: 10px;
@@ -117,7 +133,7 @@
                     </p>
                 </div>
             </div>
-            {% if profile.bio %}<p>{{ profile.bio }}</p>{% else %}<p class="muted">Public performance profile for verified push-up status, workouts, and progress.</p>{% endif %}
+            {% if profile.bio %}<p>{{ profile.bio }}</p>{% else %}<p class="muted">Public hybrid athlete profile for verified strength, running, workouts, and progress.</p>{% endif %}
             <div class="profile-actions">
                 <a class="btn-main" href="{% url 'challenge' %}#submit-form-top">Submit Your Score</a>
                 <a class="btn-secondary" href="{% url 'leaderboard' %}#full-leaderboard">Leaderboard</a>
@@ -135,23 +151,30 @@
 
         <aside class="profile-status-card">
             <div>
-                <span class="kicker">Verified PR</span>
-                <div class="profile-pr-number">{{ profile.personal_best_reps }}</div>
-                <p class="muted">{% if profile.personal_best_reps %}{{ current_tier.name }} tier{% else %}No verified result yet{% endif %}</p>
+                <span class="kicker">Hybrid Score</span>
+                <div class="profile-pr-number">{{ hybrid_summary.score }}</div>
+                <p class="muted">{{ hybrid_summary.rank.name }}</p>
             </div>
             <div class="profile-status-grid">
                 <div class="profile-mini-stat">
-                    <span class="kicker">Rank</span>
-                    <div class="submission-name">{% if profile.current_rank %}#{{ profile.current_rank }}{% else %}-{% endif %}</div>
+                    <span class="kicker">Hybrid Rank</span>
+                    <div class="submission-name">{% if hybrid_rank_position %}#{{ hybrid_rank_position }}{% else %}-{% endif %}</div>
                 </div>
                 <div class="profile-mini-stat">
-                    <span class="kicker">Social</span>
-                    <div class="submission-name">
-                        <a href="{% url 'social_list' profile.slug 'followers' %}">{{ followers_count }}</a>
-                        /
-                        <a href="{% url 'social_list' profile.slug 'following' %}">{{ following_count }}</a>
-                    </div>
+                    <span class="kicker">Verified</span>
+                    <div class="submission-name">{{ hybrid_summary.verified_count }}/{{ hybrid_summary.max_disciplines }}</div>
                 </div>
+            </div>
+            <div class="hybrid-breakdown">
+                {% for item in hybrid_summary.breakdown %}
+                    <div class="hybrid-breakdown-row">
+                        <div>
+                            <div class="submission-name">{{ item.discipline.short_label }}</div>
+                            <div class="submission-meta">{{ item.display_score }} - {{ item.status }}</div>
+                        </div>
+                        <strong>{{ item.points }} pts</strong>
+                    </div>
+                {% endfor %}
             </div>
             <div class="profile-actions">
                 <button class="btn-secondary" type="button" data-share-text="{{ profile_share_message }}">Share Profile</button>
@@ -166,7 +189,7 @@
 <section class="grid-2 profile-lower-section">
     <div class="card-dark">
         <h2>Verified Progress</h2>
-        <p class="muted">Best verified performance by date. The graph is zoomed tighter so the movement is easier to read.</p>
+        <p class="muted">Verified push-up progress remains tracked while Hybrid Score becomes the main public status metric.</p>
         <div class="progress-chart progress-chart-large">
             <svg id="progress-chart" class="chart-area" role="img" aria-label="Athlete verified progress chart"></svg>
         </div>
@@ -270,18 +293,18 @@
         <div class="grid-4">
             <div class="metric-card">
                 <span class="kicker">You</span>
-                <span class="stat-value">{{ comparison.my_reps }}</span>
-                <div class="muted">{% if comparison.my_rank %}Rank #{{ comparison.my_rank }}{% else %}No verified rank{% endif %}</div>
+                <span class="stat-value">{{ comparison.my_hybrid_score }}</span>
+                <div class="muted">Hybrid Score</div>
             </div>
             <div class="metric-card">
                 <span class="kicker">{{ profile.display_name }}</span>
-                <span class="stat-value">{{ comparison.their_reps }}</span>
-                <div class="muted">{% if comparison.their_rank %}Rank #{{ comparison.their_rank }}{% else %}No verified rank{% endif %}</div>
+                <span class="stat-value">{{ comparison.their_hybrid_score }}</span>
+                <div class="muted">Hybrid Score</div>
             </div>
             <div class="metric-card">
-                <span class="kicker">Rep Difference</span>
+                <span class="kicker">Push-up Delta</span>
                 <span class="stat-value">{{ comparison.rep_delta }}</span>
-                <div class="muted">Positive means you are ahead.</div>
+                <div class="muted">Legacy push-up comparison.</div>
             </div>
             <div class="metric-card">
                 <span class="kicker">Challenge</span>

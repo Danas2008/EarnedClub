@@ -75,10 +75,10 @@ class SubmissionFlowTests(TestCase):
         user = User.objects.create_user(username="elite-no-proof", password="StrongPass12345")
         self.client.force_login(user)
 
-        response = self.client.post(reverse("challenge"), {"reps": 61}, follow=True)
+        response = self.client.post(reverse("challenge"), {"reps": 60}, follow=True)
 
         self.assertEqual(Submission.objects.filter(user=user).count(), 0)
-        self.assertContains(response, "Scores above 60 need video proof")
+        self.assertContains(response, "elite-level results need proof")
 
     def test_challenge_submission_without_proof_becomes_unverified(self):
         response = self.client.post(
@@ -158,13 +158,20 @@ class SubmissionFlowTests(TestCase):
             video_link="https://example.com/hidden",
             status=Submission.STATUS_PENDING,
         )
+        Submission.objects.create(
+            name="Open Board Athlete",
+            reps=25,
+            status=Submission.STATUS_UNVERIFIED,
+        )
 
-        response = self.client.get(reverse("leaderboard"))
+        response = self.client.get(f"{reverse('leaderboard')}?discipline={Submission.DISCIPLINE_PUSHUPS}")
 
         self.assertContains(response, "Visible Athlete")
         self.assertContains(response, "Hidden Athlete")
+        self.assertContains(response, "Open Board Athlete")
         self.assertContains(response, "Verified")
         self.assertContains(response, "Pending")
+        self.assertContains(response, "Unverified")
         self.assertContains(response, "Waiting for verification")
 
     def test_leaderboard_verified_mode_uses_official_results_only(self):
@@ -181,11 +188,65 @@ class SubmissionFlowTests(TestCase):
             status=Submission.STATUS_PENDING,
         )
 
-        response = self.client.get(f"{reverse('leaderboard')}?mode=verified")
+        response = self.client.get(f"{reverse('leaderboard')}?discipline={Submission.DISCIPLINE_PUSHUPS}&mode=verified")
         rows = list(response.context["leaderboard_rows"].object_list)
 
         self.assertEqual([row["submission"] for row in rows], [verified])
         self.assertEqual(response.context["active_mode"]["key"], "verified")
+
+    def test_default_leaderboard_is_hybrid_score(self):
+        user = User.objects.create_user(username="hybrid-default", password="StrongPass12345")
+        user.profile.display_name = "Hybrid Default"
+        user.profile.save()
+        Submission.objects.create(user=user, name="Hybrid Default", reps=40, status=Submission.STATUS_VERIFIED)
+
+        response = self.client.get(reverse("leaderboard"))
+
+        self.assertTrue(response.context["is_hybrid_leaderboard"])
+        self.assertContains(response, "Hybrid Default")
+        self.assertContains(response, "Hybrid Score")
+
+    def test_hybrid_score_averages_verified_discipline_points_only(self):
+        user = User.objects.create_user(username="hybrid-score", password="StrongPass12345")
+        Submission.objects.create(user=user, name="Hybrid Score", reps=40, discipline=Submission.DISCIPLINE_PUSHUPS, status=Submission.STATUS_VERIFIED)
+        Submission.objects.create(user=user, name="Hybrid Score", reps=15, discipline=Submission.DISCIPLINE_PULLUPS, status=Submission.STATUS_VERIFIED)
+        Submission.objects.create(user=user, name="Hybrid Score", reps=80, discipline=Submission.DISCIPLINE_PUSHUPS, status=Submission.STATUS_UNVERIFIED)
+        self.client.force_login(user)
+
+        response = self.client.get(reverse("dashboard"))
+
+        self.assertEqual(response.context["hybrid_summary"]["score"], 500)
+        pushups = next(item for item in response.context["hybrid_summary"]["breakdown"] if item["discipline"]["key"] == Submission.DISCIPLINE_PUSHUPS)
+        pullups = next(item for item in response.context["hybrid_summary"]["breakdown"] if item["discipline"]["key"] == Submission.DISCIPLINE_PULLUPS)
+        self.assertEqual(pushups["points"], 500)
+        self.assertEqual(pullups["points"], 500)
+
+    def test_hybrid_leaderboard_sorts_by_hybrid_score(self):
+        lower = User.objects.create_user(username="lower-hybrid", password="StrongPass12345")
+        higher = User.objects.create_user(username="higher-hybrid", password="StrongPass12345")
+        lower.profile.display_name = "Lower Hybrid"
+        lower.profile.save()
+        higher.profile.display_name = "Higher Hybrid"
+        higher.profile.save()
+        Submission.objects.create(user=lower, name="Lower Hybrid", reps=24, discipline=Submission.DISCIPLINE_PUSHUPS, status=Submission.STATUS_VERIFIED)
+        Submission.objects.create(user=higher, name="Higher Hybrid", reps=72, discipline=Submission.DISCIPLINE_PUSHUPS, status=Submission.STATUS_VERIFIED)
+
+        response = self.client.get(reverse("leaderboard"))
+        rows = list(response.context["leaderboard_rows"].object_list)
+
+        self.assertEqual([row["profile"].display_name for row in rows], ["Higher Hybrid", "Lower Hybrid"])
+
+    def test_profile_prioritizes_hybrid_score_and_breakdown(self):
+        user = User.objects.create_user(username="hybrid-profile", password="StrongPass12345")
+        Submission.objects.create(user=user, name="Hybrid Profile", reps=40, discipline=Submission.DISCIPLINE_PUSHUPS, status=Submission.STATUS_VERIFIED)
+        Submission.objects.create(user=user, name="Hybrid Profile", reps=15, discipline=Submission.DISCIPLINE_PULLUPS, status=Submission.STATUS_VERIFIED)
+
+        response = self.client.get(reverse("athlete_profile", args=[user.profile.slug]))
+
+        self.assertContains(response, "Hybrid Score")
+        self.assertContains(response, "500")
+        self.assertContains(response, "Push-ups")
+        self.assertContains(response, "Pull-ups")
 
     def test_legacy_submission_defaults_to_pushups(self):
         submission = Submission.objects.create(name="Legacy", reps=42, status=Submission.STATUS_VERIFIED)
@@ -237,6 +298,100 @@ class SubmissionFlowTests(TestCase):
         self.assertEqual(five.display_score, "21:34")
         self.assertEqual(ten.reps, 2660)
         self.assertEqual(ten.display_score, "44:20")
+
+    def test_run_time_rejects_seconds_only_format(self):
+        response = self.client.post(
+            reverse("challenge"),
+            {
+                "name": "Bad Runner",
+                "email": "bad-run@example.com",
+                "discipline": Submission.DISCIPLINE_5K,
+                "score": "930",
+            },
+            follow=True,
+        )
+
+        self.assertFalse(Submission.objects.filter(email="bad-run@example.com").exists())
+        self.assertContains(response, "Use HH:MM:SS or MM:SS")
+
+    def test_running_elite_requires_result_link_or_video(self):
+        response = self.client.post(
+            reverse("challenge"),
+            {
+                "name": "Elite Runner",
+                "email": "elite-run@example.com",
+                "discipline": Submission.DISCIPLINE_5K,
+                "score": "17:59",
+            },
+            follow=True,
+        )
+
+        self.assertFalse(Submission.objects.filter(email="elite-run@example.com").exists())
+        self.assertContains(response, "elite-level results need proof")
+
+    def test_running_elite_accepts_proof_link(self):
+        response = self.client.post(
+            reverse("challenge"),
+            {
+                "name": "Linked Runner",
+                "email": "linked-run@example.com",
+                "discipline": Submission.DISCIPLINE_5K,
+                "score": "17:59",
+                "proof_link": "https://www.strava.com/activities/123",
+            },
+        )
+
+        self.assertRedirects(response, reverse("challenge"))
+        submission = Submission.objects.get(email="linked-run@example.com")
+        self.assertEqual(submission.status, Submission.STATUS_PENDING)
+        self.assertEqual(submission.video_link, "https://www.strava.com/activities/123")
+
+    def test_running_score_cannot_be_faster_than_world_record(self):
+        response = self.client.post(
+            reverse("challenge"),
+            {
+                "name": "Impossible Runner",
+                "email": "impossible@example.com",
+                "discipline": Submission.DISCIPLINE_5K,
+                "score": "12:30",
+                "proof_link": "https://www.strava.com/activities/999",
+            },
+            follow=True,
+        )
+
+        self.assertFalse(Submission.objects.filter(email="impossible@example.com").exists())
+        self.assertContains(response, "cannot be faster than")
+
+    def test_pullup_elite_requires_proof(self):
+        response = self.client.post(
+            reverse("challenge"),
+            {
+                "name": "Pull Elite",
+                "email": "pull-elite@example.com",
+                "discipline": Submission.DISCIPLINE_PULLUPS,
+                "score": "20",
+            },
+            follow=True,
+        )
+
+        self.assertFalse(Submission.objects.filter(email="pull-elite@example.com").exists())
+        self.assertContains(response, "elite-level results need proof")
+
+    def test_pullup_score_cannot_exceed_world_record_benchmark(self):
+        response = self.client.post(
+            reverse("challenge"),
+            {
+                "name": "Impossible Pull",
+                "email": "impossible-pull@example.com",
+                "discipline": Submission.DISCIPLINE_PULLUPS,
+                "score": "83",
+                "proof_link": "https://example.com/proof",
+            },
+            follow=True,
+        )
+
+        self.assertFalse(Submission.objects.filter(email="impossible-pull@example.com").exists())
+        self.assertContains(response, "cannot be above")
 
     def test_leaderboard_sorts_reps_descending_and_time_ascending(self):
         low = Submission.objects.create(name="Lower Pull", reps=8, discipline=Submission.DISCIPLINE_PULLUPS, status=Submission.STATUS_VERIFIED)
@@ -601,7 +756,7 @@ class SubmissionFlowTests(TestCase):
         Submission.objects.create(user=user, name="One Row", reps=40, status=Submission.STATUS_VERIFIED)
         Submission.objects.create(user=user, name="One Row", reps=55, status=Submission.STATUS_PENDING, video_link="https://example.com/proof")
 
-        response = self.client.get(reverse("leaderboard"))
+        response = self.client.get(f"{reverse('leaderboard')}?discipline={Submission.DISCIPLINE_PUSHUPS}")
 
         self.assertContains(response, "55")
         self.assertContains(response, "Pending")

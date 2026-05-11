@@ -672,14 +672,14 @@
     <section class="hero-card home-hero home-reveal">
         <div class="home-hero-grid">
             <div class="home-hero-copy">
-                <div class="eyebrow">Real Performance Leaderboards</div>
-                <h1>The fitness leaderboard for real performance.</h1>
+                <div class="eyebrow">Hybrid Athlete Rankings</div>
+                <h1>The fitness leaderboard for hybrid athletes.</h1>
                 <p class="home-lead muted">
-                    Submit your best performance. Get ranked. Prove it.
+                    Build your Hybrid Score across strength and running. Submit your best performance. Get ranked. Prove it.
                 </p>
                 <div class="home-cta-row">
                     <a class="btn-main" href="{% url 'rank' %}">Get Your Rank</a>
-                    <a class="btn-secondary" href="{% url 'leaderboard' %}#full-leaderboard">View Leaderboard</a>
+                    <a class="btn-secondary" href="{% url 'leaderboard' %}#full-leaderboard">Hybrid Rankings</a>
                 </div>
             </div>
 
@@ -721,6 +721,38 @@
                 <span class="scroll-dot" aria-hidden="true">&darr;</span>
             </a>
         </div>
+    </section>
+
+    <section class="card-dark home-reveal">
+        <div class="home-section-head">
+            <h2>Hybrid Score</h2>
+            <p class="muted">Your Overall Athlete Rating is the average of your verified discipline points. Incomplete athletes can still rank, but balanced performance wins status.</p>
+        </div>
+        {% if hybrid_top_five %}
+            <div class="compact-board">
+                {% for row in hybrid_top_five %}
+                    <div class="score-row">
+                        {% if row.profile and row.profile.profile_image_url %}
+                            <img class="avatar" src="{{ row.profile.profile_image_url }}" alt="{{ row.profile.display_name }} profile picture">
+                        {% elif row.profile %}
+                            <span class="avatar">{{ row.profile.display_name|first|upper }}</span>
+                        {% else %}
+                            <span class="avatar">{{ row.user.username|first|upper }}</span>
+                        {% endif %}
+                        <div class="score-row-main">
+                            <div class="submission-name">{% if row.profile %}<a href="{% url 'athlete_profile' row.profile.slug %}">{{ row.profile.display_name }}</a>{% else %}{{ row.user.username }}{% endif %}</div>
+                            <div class="submission-meta">{{ row.hybrid_rank.name }} - {{ row.verified_count }}/4 verified</div>
+                        </div>
+                        <div class="score-row-score">
+                            <span class="position-pill">#{{ row.position }}</span>
+                            <div class="score">{{ row.hybrid_score }}</div>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p class="muted">The first verified athletes will define the Hybrid Leaderboard.</p>
+        {% endif %}
     </section>
 
     <section class="card-dark home-reveal">

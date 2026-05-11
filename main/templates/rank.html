@@ -238,9 +238,9 @@
     <section class="rank-stage{% if result %} has-result{% endif %}" aria-labelledby="rank-title">
         <div class="rank-hero">
             <div class="rank-copy">
-                <div class="eyebrow">Official Push-Up Test</div>
+                <div class="eyebrow">Performance Rank Check</div>
                 <h1 id="rank-title">Get Your Rank</h1>
-                <p class="muted">Enter your max clean push-ups. See your tier instantly. Then prove it for official status.</p>
+                <p class="muted">Choose your challenge, enter your result, and see your tier instantly. Then prove it for official status.</p>
                 <div class="rank-microcopy" aria-label="Rank rules">
                     <span>One clean set</span>
                     <span>Instant tier</span>
@@ -251,10 +251,10 @@
             {% if result %}
                 <div id="rank-result" class="rank-result-ticket" tabindex="-1">
                     <div class="rank-result-main">
-                        <div class="rank-score">{{ result.reps }}</div>
+                        <div class="rank-score">{{ result.display_score }}</div>
                         <div class="rank-result-copy">
                             <div class="rank-status-row">
-                                <span class="status-pill unverified">{{ result.reps }} reps</span>
+                                <span class="status-pill unverified">{{ result.discipline.label }}</span>
                                 <span class="status-pill verified">{{ result.tier.name }}</span>
                             </div>
                             <h2>{{ result.message }}</h2>
@@ -271,19 +271,29 @@
                 </div>
             {% else %}
                 <form class="rank-entry-form" method="GET" action="{% url 'rank' %}">
+                    <select id="rank-discipline" class="select" name="discipline">
+                        {% for discipline in discipline_cards %}
+                            <option
+                                value="{{ discipline.key }}"
+                                data-input-label="{{ discipline.input_label }}"
+                                data-placeholder="{{ discipline.placeholder }}"
+                                data-score-type="{{ discipline.score_type }}"
+                                {% if discipline.key == active_discipline.key %} selected{% endif %}
+                            >{{ discipline.label }}</option>
+                        {% endfor %}
+                    </select>
                     <div class="rank-input-wrap">
-                        <label class="field-label" for="rank-reps">Max clean push-ups</label>
+                        <label class="field-label" for="rank-reps">{{ active_discipline.input_label }}</label>
                         <input
                             id="rank-reps"
                             class="input"
-                            type="number"
-                            name="reps"
-                            min="0"
-                            placeholder="42"
+                            type="text"
+                            name="score"
+                            placeholder="{{ active_discipline.placeholder }}"
                             inputmode="numeric"
                             required
                         >
-                        <span class="rank-input-suffix">reps</span>
+                        <span class="rank-input-suffix">{% if active_discipline.score_type == "time" %}time{% else %}reps{% endif %}</span>
                     </div>
                     <button class="btn-main" type="submit">Show My Rank</button>
                 </form>
@@ -298,7 +308,7 @@
         </div>
         <div class="rank-context-card">
             <strong>Proof earns status</strong>
-            <p class="muted">Upload a clean video with your official result for review.</p>
+            <p class="muted">Add a clean video, race result, or Strava link with your official result for review.</p>
         </div>
         <div class="rank-context-card">
             <strong>Rank is public</strong>
@@ -319,4 +329,19 @@
         })();
     </script>
 {% endif %}
+<script>
+    (() => {
+        const discipline = document.getElementById("rank-discipline");
+        const input = document.getElementById("rank-reps");
+        const label = document.querySelector("label[for='rank-reps']");
+        const suffix = document.querySelector(".rank-input-suffix");
+        if (!discipline || !input || !label || !suffix) return;
+        discipline.addEventListener("change", () => {
+            const option = discipline.selectedOptions[0];
+            label.textContent = option.dataset.inputLabel || "Result";
+            input.placeholder = option.dataset.placeholder || "";
+            suffix.textContent = option.dataset.scoreType === "time" ? "time" : "reps";
+        });
+    })();
+</script>
 {% endblock %}

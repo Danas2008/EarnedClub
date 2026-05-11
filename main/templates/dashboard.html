@@ -97,10 +97,30 @@
 {% endif %}
 
 <section class="grid-4">
+    <div class="metric-card"><span class="kicker">Hybrid Score</span><span class="stat-value">{{ hybrid_summary.score }}</span><div class="muted">{{ hybrid_summary.rank.name }}</div></div>
+    <div class="metric-card"><span class="kicker">Hybrid Rank</span><span class="stat-value">{% if hybrid_rank_position %}#{{ hybrid_rank_position }}{% else %}-{% endif %}</span><div class="muted">{{ hybrid_summary.verified_count }}/{{ hybrid_summary.max_disciplines }} verified disciplines</div></div>
     <div class="metric-card"><span class="kicker">Push-up PR</span><span class="stat-value">{{ current_pr }}</span><div class="muted">{{ current_tier.name }}</div></div>
-    <div class="metric-card"><span class="kicker">Rank</span><span class="stat-value">{% if current_rank %}#{{ current_rank }}{% else %}-{% endif %}</span><div class="muted">{{ rank_movement }}</div></div>
     <div class="metric-card"><span class="kicker">Submissions</span><span class="stat-value">{{ total_submissions }}</span><div class="muted">{{ total_verified }} verified</div></div>
-    <div class="metric-card"><span class="kicker">Suggestion</span><p class="muted">{{ daily_suggestion }}</p></div>
+</section>
+
+<section class="card-dark">
+    <div class="section-spread">
+        <div>
+            <h2>Hybrid Score Breakdown</h2>
+            <p class="muted">Only verified performances count toward the official Overall Athlete Rating.</p>
+        </div>
+        <a class="btn-secondary" href="{% url 'leaderboard' %}#full-leaderboard">Hybrid Rankings</a>
+    </div>
+    <div class="grid-4">
+        {% for item in hybrid_summary.breakdown %}
+            <div class="feature-card">
+                <span class="kicker">{{ item.status }}</span>
+                <h3>{{ item.discipline.short_label }}</h3>
+                <div class="stat-value">{{ item.points }}</div>
+                <p class="muted">{{ item.display_score }}{% if item.submission %} - {{ item.submission.rank_name }}{% endif %}</p>
+            </div>
+        {% endfor %}
+    </div>
 </section>
 
 <section class="grid-2">
@@ -226,7 +246,11 @@
                         <summary>Add proof</summary>
                         <form class="submission-form" method="POST" action="{% url 'add_submission_proof' submission.id %}" enctype="multipart/form-data" style="margin-top: 12px;">
                             {% csrf_token %}
+                            <input class="input" type="url" name="proof_link" placeholder="{% if submission.is_time_based %}Race or Strava result link{% else %}Proof link{% endif %}">
+                            <div class="hint">Use a race result, Strava activity, or another public proof link.</div>
+                            {% if not submission.is_time_based %}
                             <input class="input" type="file" name="video_file" accept="video/*">
+                            {% endif %}
                             <button class="btn-main" type="submit">Submit Proof</button>
                         </form>
                     </details>

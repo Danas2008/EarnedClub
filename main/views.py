@@ -39,6 +39,7 @@ from .models import (
     RANK_TIERS,
     DISCIPLINE_CONFIG,
     DISCIPLINE_PUSHUPS,
+    HYBRID_RANKS,
     Submission,
     VerificationEvent,
     Workout,
@@ -47,11 +48,14 @@ from .models import (
     WorkoutSessionExercise,
     WorkoutTemplate,
     get_best_verified_submission_for_user,
+    get_hybrid_rank,
     get_discipline_config,
+    format_duration,
     get_official_rank_for_submission,
     get_official_verified_submissions,
     get_rank_tier,
     get_submission_identity,
+    normalize_discipline,
 )
 from .media_utils import store_profile_image, store_submission_video
 
@@ -194,6 +198,17 @@ LEADERBOARD_MODES = [
     },
 ]
 LEADERBOARD_MODE_LOOKUP = {mode["key"]: mode for mode in LEADERBOARD_MODES}
+HYBRID_LEADERBOARD_CONFIG = {
+    "key": "hybrid",
+    "label": "Hybrid Score",
+    "title": "Hybrid Leaderboard",
+    "short_label": "Hybrid",
+    "score_type": "hybrid",
+    "unit": "points",
+    "higher_is_better": True,
+    "input_label": "Hybrid Score",
+    "placeholder": "",
+}
 
 
 def build_leaderboard_rows(submissions):
@@ -216,6 +231,71 @@ def build_leaderboard_rows(submissions):
                 "profile": profile,
             }
         )
+    return rows
+
+
+def build_hybrid_breakdown(user):
+    rows = []
+    verified_points = []
+    verified_submissions = user.submission_set.filter(status=Submission.STATUS_VERIFIED).select_related("user")
+    for config in DISCIPLINE_CONFIG.values():
+        best_submission = None
+        for submission in verified_submissions:
+            if submission.normalized_discipline != config["key"]:
+                continue
+            if best_submission is None or is_better_submission(submission, best_submission):
+                best_submission = submission
+        points = best_submission.hybrid_points if best_submission else 0
+        if best_submission:
+            verified_points.append(points)
+        rows.append(
+            {
+                "discipline": config,
+                "submission": best_submission,
+                "points": points,
+                "display_score": best_submission.display_score if best_submission else "-",
+                "status": "Verified" if best_submission else "Missing",
+            }
+        )
+    hybrid_score = round(sum(verified_points) / len(verified_points)) if verified_points else 0
+    return {
+        "score": hybrid_score,
+        "rank": get_hybrid_rank(hybrid_score),
+        "breakdown": rows,
+        "verified_count": len(verified_points),
+        "max_disciplines": len(DISCIPLINE_CONFIG),
+    }
+
+
+def build_hybrid_leaderboard_rows(query=""):
+    rows = []
+    users = User.objects.filter(submission__status=Submission.STATUS_VERIFIED).select_related("profile").distinct()
+    if query:
+        users = users.filter(
+            Q(username__icontains=query)
+            | Q(profile__display_name__icontains=query)
+            | Q(profile__country__icontains=query)
+        )
+    for user in users:
+        summary = build_hybrid_breakdown(user)
+        if summary["score"] <= 0:
+            continue
+        rows.append(
+            {
+                "position": 0,
+                "medal_place": None,
+                "user": user,
+                "profile": getattr(user, "profile", None),
+                "hybrid_score": summary["score"],
+                "hybrid_rank": summary["rank"],
+                "breakdown": summary["breakdown"],
+                "verified_count": summary["verified_count"],
+            }
+        )
+    rows = sorted(rows, key=lambda row: (-row["hybrid_score"], getattr(row["profile"], "display_name", row["user"].username)))
+    for index, row in enumerate(rows, start=1):
+        row["position"] = index
+        row["medal_place"] = index if index <= 3 else None
     return rows
 
 
@@ -422,6 +502,7 @@ def verified_submission_queryset():
 
 
 def public_submission_queryset(since=None, discipline=DISCIPLINE_PUSHUPS):
+    discipline = normalize_discipline(discipline)
     visible = {}
     if since:
         verified_pool = (
@@ -450,20 +531,33 @@ def public_submission_queryset(since=None, discipline=DISCIPLINE_PUSHUPS):
         if current is None or is_better_submission(submission, current):
             visible[identity] = submission
 
+    unverified_submissions = (
+        Submission.objects.filter(status=Submission.STATUS_UNVERIFIED, discipline=discipline)
+        .select_related("user", "user__profile")
+        .order_by("-reps" if get_discipline_config(discipline)["higher_is_better"] else "reps", "created_at")
+    )
+    if since:
+        unverified_submissions = unverified_submissions.filter(created_at__gte=since)
+    for submission in unverified_submissions:
+        identity = get_submission_identity(submission)
+        current = visible.get(identity)
+        if current is None or is_better_submission(submission, current):
+            visible[identity] = submission
+
     return sort_submissions_for_discipline(visible.values(), discipline)
 
 
 def pending_submission_queryset(discipline=None):
     submissions = Submission.objects.filter(status=Submission.STATUS_PENDING)
     if discipline:
-        submissions = submissions.filter(discipline=discipline)
+        submissions = submissions.filter(discipline=normalize_discipline(discipline))
     return submissions
 
 
 def active_submission_queryset(discipline=None):
     submissions = Submission.objects.filter(status__in=[Submission.STATUS_UNVERIFIED, Submission.STATUS_PENDING])
     if discipline:
-        submissions = submissions.filter(discipline=discipline)
+        submissions = submissions.filter(discipline=normalize_discipline(discipline))
     return submissions
 
 
@@ -474,7 +568,7 @@ def blocking_submission_queryset(discipline=None):
         Q(status=Submission.STATUS_UNVERIFIED, created_at__gte=recent_cutoff)
     )
     if discipline:
-        submissions = submissions.filter(discipline=discipline)
+        submissions = submissions.filter(discipline=normalize_discipline(discipline))
     return submissions
 
 
@@ -498,7 +592,9 @@ def estimate_verified_position(score, discipline=DISCIPLINE_PUSHUPS):
 
 
 def get_leaderboard_discipline(request, discipline_key=None):
-    requested = (discipline_key or request.GET.get("discipline") or DISCIPLINE_PUSHUPS).strip().lower()
+    requested = (discipline_key or request.GET.get("discipline") or "hybrid").strip().lower()
+    if requested == "hybrid":
+        return HYBRID_LEADERBOARD_CONFIG
     return get_discipline_config(requested)
 
 
@@ -507,21 +603,22 @@ def parse_duration_to_seconds(value):
     if not raw:
         raise ValueError("Enter a time.")
     parts = raw.split(":")
-    if len(parts) == 1:
-        seconds = int(parts[0])
-        if seconds <= 0:
-            raise ValueError("Time must be greater than zero.")
-        return seconds
-    if len(parts) != 2:
-        raise ValueError("Use a time like 21:34.")
-    minutes = int(parts[0])
-    seconds = int(parts[1])
-    if minutes < 0 or seconds < 0 or seconds > 59 or (minutes == 0 and seconds == 0):
-        raise ValueError("Use a valid time like 21:34.")
-    return minutes * 60 + seconds
+    if len(parts) not in {2, 3}:
+        raise ValueError("Use HH:MM:SS or MM:SS, like 00:21:34 or 21:34.")
+    if not all(part.isdigit() for part in parts):
+        raise ValueError("Use numbers only in HH:MM:SS or MM:SS format.")
+    if len(parts) == 2:
+        hours = 0
+        minutes, seconds = (int(part) for part in parts)
+    else:
+        hours, minutes, seconds = (int(part) for part in parts)
+    if minutes > 59 or seconds > 59 or (hours == 0 and minutes == 0 and seconds == 0):
+        raise ValueError("Use a valid time like 00:21:34 or 21:34.")
+    return hours * 3600 + minutes * 60 + seconds
 
 
 def parse_submission_score(raw_value, discipline):
+    discipline = normalize_discipline(discipline)
     config = get_discipline_config(discipline)
     if config["score_type"] == "time":
         return parse_duration_to_seconds(raw_value)
@@ -529,6 +626,32 @@ def parse_submission_score(raw_value, discipline):
     if reps_value <= 0:
         raise ValueError("Reps must be greater than zero.")
     return reps_value
+
+
+def validate_submission_score(score, discipline):
+    discipline = normalize_discipline(discipline)
+    config = get_discipline_config(discipline)
+    if not config.get("world_record"):
+        return ""
+    if config["higher_is_better"]:
+        if score > config["world_record"]:
+            return f"{config['label']} cannot be above the current listed world-record benchmark of {config['world_record']} reps."
+    elif score < config["world_record"]:
+        return f"{config['label']} cannot be faster than the current listed world-record benchmark of {format_duration(config['world_record'])}."
+    return ""
+
+
+def is_elite_score(score, discipline):
+    discipline = normalize_discipline(discipline)
+    config = get_discipline_config(discipline)
+    threshold = config["elite_threshold"]
+    if config["higher_is_better"]:
+        return score >= threshold
+    return score < threshold
+
+
+def requires_proof(score, discipline):
+    return is_elite_score(score, discipline)
 
 
 def user_display_name(user):
@@ -626,6 +749,7 @@ def get_leaderboard_mode(request):
 
 
 def get_leaderboard_submissions(mode_key, discipline=DISCIPLINE_PUSHUPS):
+    discipline = normalize_discipline(discipline)
     order = "-reps" if get_discipline_config(discipline)["higher_is_better"] else "reps"
     if mode_key == "verified":
         return get_official_verified_submissions(discipline)
@@ -1113,6 +1237,7 @@ def home(request):
     context = {
         "rank_tiers": RANK_TIERS,
         "discipline_cards": DISCIPLINE_CONFIG.values(),
+        "hybrid_top_five": build_hybrid_leaderboard_rows()[:5],
         "total_verified": len(verified_submissions),
         "total_submissions": len(public_submissions),
         "top_three": leaderboard_rows[:3],
@@ -1136,25 +1261,33 @@ def level_test(request):
 
 
 def rank(request):
-    reps_raw = (request.GET.get("reps") or "").strip()
+    active_discipline = get_discipline_config(request.GET.get("discipline") or DISCIPLINE_PUSHUPS)
+    score_raw = (request.GET.get("score") or request.GET.get("reps") or "").strip()
     result = None
     submit_url = f"{reverse('challenge')}#submit-form-top"
-    if reps_raw:
+    if score_raw:
         try:
-            reps_value = int(reps_raw)
-        except ValueError:
-            messages.error(request, "Enter your push-up count as a whole number.")
+            score_value = parse_submission_score(score_raw, active_discipline["key"])
+        except ValueError as exc:
+            messages.error(request, str(exc) if active_discipline["score_type"] == "time" else "Enter your rep count as a whole number.")
         else:
-            if reps_value < 0:
-                messages.error(request, "Push-up count cannot be negative.")
+            score_error = validate_submission_score(score_value, active_discipline["key"])
+            if score_error:
+                messages.error(request, score_error)
             else:
-                tier = get_rank_tier(reps_value)
+                preview = Submission(discipline=active_discipline["key"], reps=score_value)
+                tier = preview.rank_tier
                 result = {
-                    "reps": reps_value,
+                    "score": score_value,
+                    "display_score": preview.display_score,
+                    "reps": score_value,
                     "tier": tier,
+                    "discipline": active_discipline,
                     "message": f"You reached {tier['name']}.",
                 }
-                params = urlencode({"reps": reps_value})
+                params = urlencode({"discipline": active_discipline["key"], "score": score_raw})
+                if active_discipline["key"] == Submission.DISCIPLINE_PUSHUPS:
+                    params = urlencode({"reps": score_value})
                 submit_url = f"{reverse('challenge')}?{params}#submit-form-top"
 
     return render(
@@ -1164,6 +1297,8 @@ def rank(request):
             "result": result,
             "submit_url": submit_url,
             "rank_tiers": RANK_TIERS,
+            "discipline_cards": DISCIPLINE_CONFIG.values(),
+            "active_discipline": active_discipline,
         },
     )
 
@@ -1194,13 +1329,26 @@ def leaderboard(request, discipline_key=None):
     query = (request.GET.get("q") or "").strip()
     active_mode = get_leaderboard_mode(request)
     active_discipline = get_leaderboard_discipline(request, discipline_key)
-    verified_submissions = get_official_verified_submissions(active_discipline["key"])
-    public_submissions = list(get_leaderboard_submissions(active_mode["key"], active_discipline["key"]))
-    public_submissions = search_submissions(public_submissions, query)
     weekly_cutoff = get_weekly_window()
     monthly_cutoff = get_monthly_window()
 
-    leaderboard_rows = build_leaderboard_rows(public_submissions)
+    is_hybrid_leaderboard = active_discipline["key"] == "hybrid"
+    if is_hybrid_leaderboard:
+        leaderboard_rows = build_hybrid_leaderboard_rows(query)
+        verified_count = len(leaderboard_rows)
+        submission_count = len(leaderboard_rows)
+        pending_count = pending_submission_queryset().count()
+        weekly_count = len(leaderboard_rows)
+    else:
+        verified_submissions = get_official_verified_submissions(active_discipline["key"])
+        public_submissions = list(get_leaderboard_submissions(active_mode["key"], active_discipline["key"]))
+        public_submissions = search_submissions(public_submissions, query)
+        leaderboard_rows = build_leaderboard_rows(public_submissions)
+        verified_count = len(verified_submissions)
+        submission_count = len(public_submissions)
+        pending_count = pending_submission_queryset(active_discipline["key"]).count()
+        weekly_count = len(public_submission_queryset(since=weekly_cutoff, discipline=active_discipline["key"]))
+
     leaderboard_page = paginate_items(request, leaderboard_rows, per_page=10)
 
     context = {
@@ -1212,15 +1360,17 @@ def leaderboard(request, discipline_key=None):
         ),
         "leaderboard_modes": LEADERBOARD_MODES,
         "discipline_cards": DISCIPLINE_CONFIG.values(),
+        "hybrid_leaderboard": HYBRID_LEADERBOARD_CONFIG,
         "active_discipline": active_discipline,
+        "is_hybrid_leaderboard": is_hybrid_leaderboard,
         "active_mode": active_mode,
         "weekly_cutoff": weekly_cutoff.isoformat(),
         "monthly_cutoff": monthly_cutoff.isoformat(),
         "rank_tiers": RANK_TIERS,
-        "verified_count": len(verified_submissions),
-        "submission_count": len(public_submissions),
-        "pending_count": pending_submission_queryset(active_discipline["key"]).count(),
-        "weekly_count": len(public_submission_queryset(since=weekly_cutoff, discipline=active_discipline["key"])),
+        "verified_count": verified_count,
+        "submission_count": submission_count,
+        "pending_count": pending_count,
+        "weekly_count": weekly_count,
         "query": query,
     }
     return render(request, "leaderboard.html", context)
@@ -1396,6 +1546,11 @@ def dashboard(request):
     workouts = request.user.workouts.prefetch_related("exercises").order_by("-created_at")
     active_workout_session = request.user.workout_sessions.filter(status=WorkoutSession.STATUS_ACTIVE).select_related("workout").prefetch_related("exercise_sessions").first()
     progress_summary = get_progress_summary(verified_submissions)
+    hybrid_summary = build_hybrid_breakdown(request.user)
+    hybrid_rank_position = next(
+        (row["position"] for row in build_hybrid_leaderboard_rows() if row["user"].id == request.user.id),
+        None,
+    )
     recommendation = get_daily_suggestion(profile, verified_submissions.count(), workouts.count())
     active_goals = request.user.goals.filter(is_active=True)[:5]
     current_pr = best_submission.reps if best_submission else 0
@@ -1418,6 +1573,8 @@ def dashboard(request):
         "all_time_pr": current_pr,
         "current_rank": current_rank,
         "current_tier": current_tier,
+        "hybrid_summary": hybrid_summary,
+        "hybrid_rank_position": hybrid_rank_position,
         "rank_movement": "New season baseline",
         "total_submissions": request.user.submission_set.count(),
         "total_verified": verified_submissions.count(),
@@ -1503,10 +1660,15 @@ def athlete_profile(request, slug):
     verified_submissions = profile.user.submission_set.filter(status=Submission.STATUS_VERIFIED)
     best_submission = get_best_verified_submission_for_user(profile.user)
     profile.refresh_verified_stats()
+    hybrid_summary = build_hybrid_breakdown(profile.user)
+    hybrid_rank_position = next(
+        (row["position"] for row in build_hybrid_leaderboard_rows() if row["user"].id == profile.user.id),
+        None,
+    )
     profile_description = (
-        f"{profile.display_name} has a verified Earned Club push-up PR of "
-        f"{profile.personal_best_reps} reps"
-        + (f" and is ranked #{profile.current_rank}" if profile.current_rank else "")
+        f"{profile.display_name} has an Earned Club Hybrid Score of "
+        f"{hybrid_summary['score']}"
+        + (f" and is ranked #{hybrid_rank_position} on the Hybrid Leaderboard" if hybrid_rank_position else "")
         + "."
     )
     is_following = False
@@ -1524,6 +1686,8 @@ def athlete_profile(request, slug):
                 "rep_delta": my_profile.personal_best_reps - profile.personal_best_reps,
                 "my_rank": get_official_rank_for_submission(my_best) if my_best else None,
                 "their_rank": profile.current_rank,
+                "my_hybrid_score": build_hybrid_breakdown(request.user)["score"],
+                "their_hybrid_score": hybrid_summary["score"],
             }
     verified_history = paginate_items(request, verified_submissions.order_by("-created_at"), per_page=5)
     context = {
@@ -1539,6 +1703,8 @@ def athlete_profile(request, slug):
         "progress_data": get_progress_data(verified_submissions),
         "profile_description": profile_description,
         "profile_schema_json": json_ld(build_profile_schema(profile, best_submission)),
+        "hybrid_summary": hybrid_summary,
+        "hybrid_rank_position": hybrid_rank_position,
         "profile_og_image": build_public_url(profile.profile_image_url) if profile.profile_image_url and profile.profile_image_url.startswith("/") else (profile.profile_image_url or ""),
         "badges": profile.earned_badges,
         "followers_count": profile.user.follower_links.count(),
@@ -1626,7 +1792,7 @@ def challenge(request):
         email = (request.POST.get("email") or "").strip().lower()
         discipline = selected_discipline["key"]
         score_raw = (request.POST.get("score") or request.POST.get("reps") or "").strip()
-        video_link = ""
+        proof_link = (request.POST.get("proof_link") or "").strip()
         video_file = request.FILES.get("video_file")
 
         if request.user.is_authenticated:
@@ -1653,6 +1819,14 @@ def challenge(request):
             context["show_submit_help"] = True
             return render(request, "challenge.html", context)
 
+        score_error = validate_submission_score(score_value, discipline)
+        if score_error:
+            messages.error(request, score_error)
+            context["form_data"] = request.POST
+            context["form_score"] = score_raw
+            context["show_submit_help"] = True
+            return render(request, "challenge.html", context)
+
         if discipline == Submission.DISCIPLINE_PUSHUPS and not request.user.is_authenticated and score_value > 40:
             messages.error(request, "Anonymous submissions are capped at 40 push-ups. Log in and add video proof to submit more.")
             context["form_data"] = request.POST
@@ -1660,8 +1834,8 @@ def challenge(request):
             context["show_submit_help"] = True
             return render(request, "challenge.html", context)
 
-        if discipline == Submission.DISCIPLINE_PUSHUPS and request.user.is_authenticated and score_value > 60 and not video_file:
-            messages.error(request, "Scores above 60 need video proof.")
+        if requires_proof(score_value, discipline) and not (video_file or proof_link):
+            messages.error(request, f"{selected_discipline['label']} elite-level results need proof before they can be submitted.")
             context["form_data"] = request.POST
             context["form_score"] = score_raw
             context["show_submit_help"] = True
@@ -1674,15 +1848,16 @@ def challenge(request):
             active_submission = active_filter.filter(email=email).first()
 
         if active_submission:
-            if active_submission.status == Submission.STATUS_UNVERIFIED and video_file:
+            if active_submission.status == Submission.STATUS_UNVERIFIED and (video_file or proof_link):
                 active_submission.name = name
                 active_submission.email = email
                 active_submission.discipline = discipline
                 active_submission.reps = score_value
-                active_submission.video_link = ""
-                stored_video = store_submission_video(active_submission, video_file)
-                active_submission.video_storage_path = stored_video["storage_path"]
-                active_submission.video_file = stored_video["local_file"] or ""
+                active_submission.video_link = proof_link
+                if video_file:
+                    stored_video = store_submission_video(active_submission, video_file)
+                    active_submission.video_storage_path = stored_video["storage_path"]
+                    active_submission.video_file = stored_video["local_file"] or ""
                 active_submission.status = Submission.STATUS_PENDING
                 active_submission.verified = False
                 active_submission.save(
@@ -1749,12 +1924,17 @@ def challenge(request):
             video_link="",
             status=Submission.STATUS_PENDING if video_file else Submission.STATUS_UNVERIFIED,
         )
+        submission.video_link = proof_link
+        if proof_link and not video_file:
+            submission.status = Submission.STATUS_PENDING
+            submission.save(update_fields=["video_link", "status"])
         if video_file:
             stored_video = store_submission_video(submission, video_file)
             submission.video_storage_path = stored_video["storage_path"]
             submission.video_file = stored_video["local_file"] or ""
+            submission.video_link = proof_link
             submission.status = Submission.STATUS_PENDING
-            submission.save(update_fields=["video_storage_path", "video_file", "status"])
+            submission.save(update_fields=["video_link", "video_storage_path", "video_file", "status"])
 
         create_verification_event(submission, VerificationEvent.ACTION_SUBMITTED)
         admin_notified = notify_admin_submission(submission, "A new result was submitted.")
@@ -1770,13 +1950,6 @@ def challenge(request):
                 )
             ),
         )
-
-        for subscriber in NewsletterSubscriber.objects.exclude(email=email)[:50]:
-            safe_send_mail(
-                "New EarnedClub challenge result",
-                f"{name} just submitted {submission.discipline_label} {submission.display_score}. Check the leaderboard to see if you can beat it.",
-                [subscriber.email],
-            )
 
         messages.success(
             request,
@@ -1799,6 +1972,7 @@ def challenge(request):
 def add_submission_proof(request, submission_id):
     submission = get_object_or_404(Submission, pk=submission_id, user=request.user)
     video_file = request.FILES.get("video_file")
+    proof_link = (request.POST.get("proof_link") or "").strip()
 
     if submission.status != Submission.STATUS_UNVERIFIED:
         messages.error(request, "Proof can only be added to unverified submissions.")
@@ -1808,14 +1982,15 @@ def add_submission_proof(request, submission_id):
         messages.error(request, "You already have a submission waiting for verification.")
         return redirect("dashboard")
 
-    if not video_file:
-        messages.error(request, "Upload a proof video file.")
+    if not video_file and not proof_link:
+        messages.error(request, "Add a proof link or upload a proof video file.")
         return redirect("dashboard")
 
-    submission.video_link = ""
-    stored_video = store_submission_video(submission, video_file)
-    submission.video_storage_path = stored_video["storage_path"]
-    submission.video_file = stored_video["local_file"] or ""
+    submission.video_link = proof_link
+    if video_file:
+        stored_video = store_submission_video(submission, video_file)
+        submission.video_storage_path = stored_video["storage_path"]
+        submission.video_file = stored_video["local_file"] or ""
     submission.status = Submission.STATUS_PENDING
     submission.verified = False
     submission.save(update_fields=["video_link", "video_storage_path", "video_file", "status", "verified"])
@@ -1824,7 +1999,7 @@ def add_submission_proof(request, submission_id):
     send_submission_notification(
         submission,
         "Earned Club proof received",
-        f"Your proof video for {submission.discipline_label} {submission.display_score} was added. The submission is now waiting for review.",
+        f"Your proof for {submission.discipline_label} {submission.display_score} was added. The submission is now waiting for review.",
     )
     messages.success(request, "Proof added. Your submission is back in pending review.")
     return redirect("dashboard")

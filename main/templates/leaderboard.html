@@ -9,14 +9,14 @@
         <div>
             <div class="eyebrow">Leaderboard</div>
             <h1>{{ active_discipline.title }}</h1>
-            <p class="muted">The fitness leaderboard for real performance. Official ranks require proof. Unverified results are shown, but not official.</p>
+            <p class="muted">{% if is_hybrid_leaderboard %}The fitness leaderboard for hybrid athletes. Hybrid Score is the overall athlete rating built from verified performances.{% else %}The fitness leaderboard for real performance. Official ranks require proof. Unverified results are shown, but not official.{% endif %}</p>
             <div class="button-row">
                 <a class="btn-main" href="{% url 'challenge' %}?discipline={{ active_discipline.key }}#submit-form-top">Submit Performance</a>
             </div>
         </div>
         <div class="stat-grid">
-            <div class="stat-card"><span class="kicker">Verified</span><span class="stat-value">{{ verified_count }}</span></div>
-            <div class="stat-card"><span class="kicker">Shown</span><span class="stat-value">{{ submission_count }}</span></div>
+            <div class="stat-card"><span class="kicker">{% if is_hybrid_leaderboard %}Athletes{% else %}Verified{% endif %}</span><span class="stat-value">{{ verified_count }}</span></div>
+            <div class="stat-card"><span class="kicker">{% if is_hybrid_leaderboard %}Ranked{% else %}Shown{% endif %}</span><span class="stat-value">{{ submission_count }}</span></div>
             <div class="stat-card"><span class="kicker">Pending</span><span class="stat-value">{{ pending_count }}</span></div>
         </div>
     </div>
@@ -26,10 +26,15 @@
     <div class="section-spread">
         <div>
             <h2>Choose your leaderboard.</h2>
-            <p class="muted">Submit your best performance. Get ranked. Prove it.</p>
+            <p class="muted">Hybrid Rankings first. Discipline boards underneath. Submit your best performance. Get ranked. Prove it.</p>
         </div>
     </div>
     <div class="grid-4">
+        <a class="feature-card" href="{% url 'leaderboard' %}#full-leaderboard">
+            <span class="kicker">Overall athlete rating</span>
+            <h3>Hybrid Leaderboard</h3>
+            <p class="muted">Verified discipline points averaged into Hybrid Score.</p>
+        </a>
         {% for discipline in discipline_cards %}
             <a class="feature-card" href="{% url 'leaderboard_discipline' discipline.key %}#full-leaderboard">
                 <span class="kicker">{% if discipline.score_type == "time" %}Lower time wins{% else %}Higher score wins{% endif %}</span>
@@ -43,8 +48,8 @@
 <section id="full-leaderboard" class="card-dark full-leaderboard-section">
     <div class="section-spread">
         <div>
-            <h2>{{ active_discipline.label }} Results</h2>
-            <p class="muted">Verified rows can earn official rank. Pending and unverified rows show the chase, not official status.</p>
+            <h2>{% if is_hybrid_leaderboard %}Hybrid Rankings{% else %}{{ active_discipline.label }} Results{% endif %}</h2>
+            <p class="muted">{% if is_hybrid_leaderboard %}Only verified performances count toward official Hybrid Score. Incomplete athletes can still rank.{% else %}Verified rows can earn official rank. Pending and unverified rows show the chase, not official status.{% endif %}</p>
         </div>
     </div>
     <form class="search-row" method="GET" action="{% url 'leaderboard' %}#full-leaderboard">
@@ -52,13 +57,70 @@
         <input type="hidden" name="discipline" value="{{ active_discipline.key }}">
         <button class="btn-secondary" type="submit">Search</button>
     </form>
-    <div class="button-row" style="margin-top: 0; margin-bottom: 16px;">
+    {% if not is_hybrid_leaderboard %}<div class="button-row" style="margin-top: 0; margin-bottom: 16px;">
         {% for mode in leaderboard_modes %}
             <a class="{% if mode.key == active_mode.key %}btn-main{% else %}btn-secondary{% endif %}" href="?discipline={{ active_discipline.key }}&mode={{ mode.key }}{% if query %}&q={{ query|urlencode }}{% endif %}#full-leaderboard">{{ mode.label }}</a>
         {% endfor %}
-    </div>
+    </div>{% endif %}
 
     {% if leaderboard_rows %}
+        {% if is_hybrid_leaderboard %}
+        <table class="leaderboard-table">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Athlete</th>
+                    <th>Hybrid Score</th>
+                    <th>Hybrid Rank</th>
+                    <th>Verified</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in leaderboard_rows %}
+                    <tr>
+                        <td><span class="position-pill">#{{ row.position }}</span></td>
+                        <td>
+                            <div class="submission-name">
+                                {% if row.profile %}
+                                    <a href="{% url 'athlete_profile' row.profile.slug %}" style="display: inline-flex; align-items: center; gap: 10px;">
+                                        {% if row.profile.profile_image_url %}<img class="avatar" src="{{ row.profile.profile_image_url }}" alt="{{ row.profile.display_name }} profile picture">{% else %}<span class="avatar">{{ row.profile.display_name|first|upper }}</span>{% endif %}
+                                        {{ row.profile.display_name }}
+                                    </a>
+                                {% else %}
+                                    {{ row.user.username }}
+                                {% endif %}
+                            </div>
+                        </td>
+                        <td><span class="score">{{ row.hybrid_score }}</span></td>
+                        <td><span class="tag-pill">{{ row.hybrid_rank.name }}</span></td>
+                        <td>{{ row.verified_count }}/4 disciplines</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <div class="mobile-cards compact-board">
+            {% for row in leaderboard_rows %}
+                <div class="score-row">
+                    {% if row.profile and row.profile.profile_image_url %}
+                        <img class="avatar" src="{{ row.profile.profile_image_url }}" alt="{{ row.profile.display_name }} profile picture">
+                    {% elif row.profile %}
+                        <span class="avatar">{{ row.profile.display_name|first|upper }}</span>
+                    {% else %}
+                        <span class="avatar">{{ row.user.username|first|upper }}</span>
+                    {% endif %}
+                    <div class="score-row-main">
+                        <div class="submission-name">{% if row.profile %}<a href="{% url 'athlete_profile' row.profile.slug %}">{{ row.profile.display_name }}</a>{% else %}{{ row.user.username }}{% endif %}</div>
+                        <div class="submission-meta">{{ row.hybrid_rank.name }} - {{ row.verified_count }}/4 verified disciplines</div>
+                    </div>
+                    <div class="score-row-score">
+                        <span class="position-pill">#{{ row.position }}</span>
+                        <div class="score">{{ row.hybrid_score }}</div>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+        {% else %}
         <table class="leaderboard-table">
             <thead>
                 <tr>
@@ -124,6 +186,7 @@
                 </div>
             {% endfor %}
         </div>
+        {% endif %}
     {% else %}
         <p class="muted">No submissions yet.</p>
     {% endif %}
