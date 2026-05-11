@@ -1,13 +1,13 @@
 {% extends "base.html" %}
 
 {% block title %}Profiles{% endblock %}
-{% block meta_description %}Browse Earned Club athlete profiles, public push-up ranks, verified personal bests, and progress history from registered competitors.{% endblock %}
+{% block meta_description %}Browse Earned Club athlete profiles, Hybrid Scores, verified discipline results, and public progress history from registered competitors.{% endblock %}
 
 {% block content %}
 <section class="hero-card" style="margin-bottom: 24px;">
     <div class="eyebrow">Athlete Directory</div>
     <h1>Profiles.</h1>
-    <p class="muted">Find athletes, compare ranks, and open public progress profiles.</p>
+    <p class="muted">Find athletes, compare Hybrid Scores, and open public performance profiles.</p>
 </section>
 
 <section class="card-dark">
@@ -32,7 +32,7 @@
                     {% if profile.country %}{{ profile.country }}{% elif profile.personal_best_reps %}Verified athlete{% else %}Building profile{% endif %}
                 </div>
             </div>
-            <span class="tag-pill hide-mobile">{% if profile.personal_best_reps %}{{ profile.personal_best_reps }} reps{% else %}No verified PR{% endif %}</span>
+            <span class="tag-pill hide-mobile">{% if profile.personal_best_reps %}Verified athlete{% else %}Building score{% endif %}</span>
             <span class="position-pill">{% if profile.current_rank %}#{{ profile.current_rank }}{% else %}-{% endif %}</span>
             <span class="btn-secondary hide-mobile" style="min-height: 36px; padding: 7px 11px;">View</span>
         </a>
@@ -67,7 +67,7 @@
     <div class="grid-3">
         <div class="feature-card">
             <h3>Profile Proof</h3>
-            <p class="muted">Every profile links to a clear verified PR, rank, and progress graph.</p>
+            <p class="muted">Every profile highlights verified results, Hybrid Score, rank, and progress history.</p>
         </div>
         <div class="feature-card">
             <h3>Searchable Names</h3>

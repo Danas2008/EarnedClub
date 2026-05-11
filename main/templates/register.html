@@ -1,13 +1,13 @@
 {% extends "base.html" %}
 
 {% block title %}Register{% endblock %}
-{% block meta_description %}Create your Earned Club athlete account to build a public push-up profile, submit results, and track verified progress over time.{% endblock %}
+{% block meta_description %}Create your Earned Club athlete account to build a public Hybrid Score profile, submit performances, and track verified progress over time.{% endblock %}
 
 {% block content %}
 <section class="card-dark auth-card">
     <div class="eyebrow">Create Athlete Account</div>
     <h1>Register.</h1>
-    <p class="muted">Create a push-up profile, submit strict push-up results under your username, and start building verified progress history.</p>
+    <p class="muted">Create a hybrid athlete profile, submit verified performances, and start building your public Hybrid Score.</p>
 
     <form class="submission-form" method="POST">
         {% csrf_token %}

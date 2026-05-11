@@ -543,6 +543,14 @@ class SubmissionFlowTests(TestCase):
         self.assertContains(response, "Check Again")
         self.assertNotContains(response, 'id="rank-reps"', html=False)
         self.assertContains(response, f"{reverse('challenge')}?reps=42#submit-form-top")
+        self.assertContains(response, "Hybrid Score Calculator")
+
+    def test_calculators_page_includes_hybrid_score_and_discipline_tiers(self):
+        response = self.client.get(reverse("calculators"))
+
+        self.assertContains(response, "Hybrid Score")
+        self.assertContains(response, "Discipline Tier")
+        self.assertContains(response, "run_5k")
 
     def test_registration_creates_user_and_profile(self):
         response = self.client.post(
@@ -678,6 +686,24 @@ class SubmissionFlowTests(TestCase):
         self.assertEqual(response.context["total_verified"], 1)
         self.assertEqual(response.context["total_pending"], 1)
         self.assertEqual([point["reps"] for point in response.context["progress_data"]], [55])
+        self.assertIn("hybrid", response.context["performance_progress"])
+        self.assertIn("pushups", response.context["performance_progress"])
+
+    def test_dashboard_exposes_selectable_hybrid_progress_series(self):
+        user = User.objects.create_user(username="series", password="StrongPass12345")
+        self.client.force_login(user)
+        Submission.objects.create(user=user, name="Series", reps=40, discipline=Submission.DISCIPLINE_PUSHUPS, status=Submission.STATUS_VERIFIED)
+        Submission.objects.create(user=user, name="Series", reps=12, discipline=Submission.DISCIPLINE_PULLUPS, status=Submission.STATUS_VERIFIED)
+        Submission.objects.create(user=user, name="Series", reps=1294, discipline=Submission.DISCIPLINE_5K, status=Submission.STATUS_VERIFIED)
+
+        response = self.client.get(reverse("dashboard"))
+        progress = response.context["performance_progress"]
+
+        self.assertContains(response, "Performance Progress")
+        self.assertContains(response, "Hybrid Score")
+        self.assertTrue(progress["hybrid"]["points"])
+        self.assertEqual(progress["pullups"]["points"][-1]["display"], "12 reps")
+        self.assertEqual(progress["run_5k"]["points"][-1]["display"], "21:34")
 
     def test_verified_checkbox_updates_status_for_admin_workflow(self):
         submission = Submission.objects.create(name="Manual", reps=44, status=Submission.STATUS_PENDING, video_link="https://example.com/proof")
@@ -746,7 +772,7 @@ class SubmissionFlowTests(TestCase):
         response = self.client.get(reverse("profiles"))
 
         self.assertContains(response, "Real Account")
-        self.assertContains(response, "No verified PR")
+        self.assertContains(response, "Building score")
         self.assertNotContains(response, "Anonymous Submitter")
 
     def test_leaderboard_shows_best_pending_instead_of_lower_verified_for_user(self):

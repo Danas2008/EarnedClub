@@ -3,18 +3,123 @@
 {% block title %}Dashboard{% endblock %}
 
 {% block content %}
-<section class="hero-card profile-header">
-    <div class="profile-hero-meta">
-        {% if profile.profile_image_url %}<img class="avatar avatar-lg" src="{{ profile.profile_image_url }}" alt="{{ profile.display_name }} profile picture">{% else %}<span class="avatar avatar-lg">{{ profile.display_name|first|upper }}</span>{% endif %}
-        <div>
-            <div class="eyebrow">Dashboard</div>
-            <h1>{{ profile.display_name }}</h1>
-            <p class="muted">
-                <a href="{% url 'social_list' profile.slug 'followers' %}">{{ followers_count }} followers</a>
-                -
-                <a href="{% url 'social_list' profile.slug 'following' %}">{{ following_count }} following</a>
-            </p>
+<style>
+    .dashboard-hero {
+        display: grid;
+        grid-template-columns: minmax(0, 1.2fr) minmax(260px, .8fr);
+        gap: 20px;
+        align-items: stretch;
+    }
+
+    .dashboard-identity {
+        display: flex;
+        align-items: center;
+        gap: 18px;
+        min-width: 0;
+    }
+
+    .dashboard-status-card {
+        border: 1px solid rgba(247, 183, 51, .32);
+        background: linear-gradient(160deg, rgba(247, 183, 51, .16), rgba(18, 25, 34, .94));
+        border-radius: var(--radius-lg);
+        padding: 22px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        min-height: 210px;
+    }
+
+    .dashboard-score-number {
+        font-family: "Archivo", sans-serif;
+        font-size: clamp(3rem, 9vw, 6.8rem);
+        line-height: .9;
+        font-weight: 900;
+        color: #fff;
+        margin: 12px 0 8px;
+        letter-spacing: 0;
+    }
+
+    .dashboard-discipline-strip {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 10px;
+        margin-top: 18px;
+    }
+
+    .dashboard-discipline-strip .feature-card {
+        padding: 14px;
+        min-height: 116px;
+    }
+
+    .progress-header {
+        display: flex;
+        justify-content: space-between;
+        gap: 14px;
+        align-items: start;
+        margin-bottom: 14px;
+    }
+
+    .progress-metric-control {
+        min-width: 180px;
+        max-width: 260px;
+    }
+
+    .dashboard-hero > .hero-action-row,
+    .dashboard-hero > .settings-inline-panel {
+        grid-column: 1 / -1;
+    }
+
+    @media (max-width: 860px) {
+        .dashboard-hero,
+        .dashboard-discipline-strip,
+        .progress-header {
+            grid-template-columns: 1fr;
+            display: grid;
+        }
+
+        .dashboard-identity {
+            align-items: flex-start;
+        }
+
+        .progress-metric-control {
+            max-width: none;
+            width: 100%;
+        }
+    }
+</style>
+
+<section class="hero-card dashboard-hero">
+    <div>
+        <div class="dashboard-identity">
+            {% if profile.profile_image_url %}<img class="avatar avatar-lg" src="{{ profile.profile_image_url }}" alt="{{ profile.display_name }} profile picture">{% else %}<span class="avatar avatar-lg">{{ profile.display_name|first|upper }}</span>{% endif %}
+            <div>
+                <div class="eyebrow">Athlete Dashboard</div>
+                <h1>{{ profile.display_name }}</h1>
+                <p class="muted">
+                    <a href="{% url 'social_list' profile.slug 'followers' %}">{{ followers_count }} followers</a>
+                    -
+                    <a href="{% url 'social_list' profile.slug 'following' %}">{{ following_count }} following</a>
+                </p>
+            </div>
         </div>
+        <div class="dashboard-discipline-strip">
+            {% for item in hybrid_summary.breakdown %}
+                <div class="feature-card">
+                    <span class="kicker">{{ item.discipline.short_label }}</span>
+                    <h3>{{ item.points }} pts</h3>
+                    <p class="muted">{{ item.display_score }}</p>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+    <div class="dashboard-status-card">
+        <div>
+            <span class="kicker">Hybrid Score</span>
+            <div class="dashboard-score-number">{{ hybrid_summary.score }}</div>
+            <h2>{{ hybrid_summary.rank.name }}</h2>
+            <p class="muted">{{ hybrid_summary.verified_count }}/{{ hybrid_summary.max_disciplines }} verified disciplines count toward official status.</p>
+        </div>
+        <a class="btn-main" href="{% url 'leaderboard' %}#full-leaderboard">View Hybrid Rank</a>
     </div>
     <div class="button-row hero-action-row">
         <a class="btn-main" href="{% url 'challenge' %}#submit-form-top">Submit</a>
@@ -125,7 +230,19 @@
 
 <section class="grid-2">
     <div class="card-dark">
-        <h2>Progress</h2>
+        <div class="progress-header">
+            <div>
+                <h2>Performance Progress</h2>
+                <p class="muted">Switch between Hybrid Score and each discipline to see what is improving.</p>
+            </div>
+            <select id="progress-metric" class="select progress-metric-control" aria-label="Progress metric">
+                <option value="hybrid">Hybrid Score</option>
+                <option value="pushups">Push-ups</option>
+                <option value="pullups">Pull-ups</option>
+                <option value="run_5k">5K</option>
+                <option value="run_10k">10K</option>
+            </select>
+        </div>
         <div class="grid-4" style="margin-bottom: 14px;">
             <div class="feature-card"><span class="kicker">Attempts</span><span class="stat-value">{{ progress_summary.attempts }}</span></div>
             <div class="feature-card"><span class="kicker">Best</span><span class="stat-value">{{ progress_summary.best }}</span></div>
@@ -137,7 +254,7 @@
             <button class="btn-secondary" type="button" data-zoom="1">+</button>
         </div>
         <div class="progress-chart progress-chart-large" style="overflow-x: auto;">
-            <svg id="progress-chart" class="chart-area" role="img" aria-label="Verified push-up progress chart"></svg>
+            <svg id="progress-chart" class="chart-area" role="img" aria-label="Verified performance progress chart"></svg>
         </div>
         <div id="progress-detail" class="hint" style="margin-top: 10px;">Tap a point for details.</div>
     </div>
@@ -152,7 +269,7 @@
                 </div>
                 <p class="muted">You completed this goal with your current {{ current_pr }}-rep PR.</p>
                 <div class="button-row" style="margin-top: 0;">
-                    <button class="btn-main" type="button" data-share-text="I completed my EarnedClub goal: {% if goal.goal_type == 'rank' %}{{ goal.target_value }}+ reps{% else %}{{ goal.target_value }} push-ups{% endif %}. {{ profile_share_message }}">Share Goal</button>
+                    <button class="btn-main" type="button" data-share-text="I completed my EarnedClub goal: {% if goal.goal_type == 'rank' %}{{ goal.target_value }}+ reps{% else %}{{ goal.target_value }} verified reps{% endif %}. {{ profile_share_message }}">Share Goal</button>
                     <form method="POST" action="{% url 'delete_goal' goal.id %}">
                         {% csrf_token %}
                         <button class="btn-secondary" type="submit">Delete</button>
@@ -164,7 +281,7 @@
             {% csrf_token %}
             <input type="hidden" name="form_type" value="goal">
             <select class="select" name="goal_type" data-goal-type>
-                <option value="pushups">Push-up target</option>
+                <option value="pushups">Rep target</option>
                 <option value="rank">Rank target</option>
             </select>
             <input class="input" type="number" min="1" name="target_value" data-goal-reps placeholder="Target reps">
@@ -293,52 +410,77 @@
 </section>
 
 {{ progress_data|json_script:"progress-data" }}
+{{ performance_progress|json_script:"performance-progress-data" }}
 <script>
-    const progressData = JSON.parse(document.getElementById("progress-data").textContent);
+    const performanceProgress = JSON.parse(document.getElementById("performance-progress-data").textContent);
     const svg = document.getElementById("progress-chart");
     const chartWrapper = svg?.closest(".progress-chart");
+    const metricSelect = document.getElementById("progress-metric");
     let zoom = 1;
     const isMobileChart = window.matchMedia("(max-width: 768px)").matches;
     const baseWidth = isMobileChart ? 760 : 1100;
     const height = isMobileChart ? 280 : 390;
     const pad = isMobileChart ? 38 : 58;
     const detail = document.getElementById("progress-detail");
+    function compactLabel(value, display) {
+        if (display && display.length <= 7) return display;
+        return String(Math.round(value));
+    }
     function renderChart() {
+        const activeKey = metricSelect?.value || "hybrid";
+        const activeSeries = performanceProgress[activeKey] || performanceProgress.hybrid || { points: [], unit: "points", label: "Hybrid Score", higher_is_better: true };
+        const progressData = activeSeries.points || [];
         const width = Math.round(baseWidth * zoom);
         svg.style.minWidth = `${width}px`;
         svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
         if (!progressData.length) {
-            svg.innerHTML = `<text x="${pad}" y="${height / 2}" fill="rgba(245,247,251,.72)" font-size="18">No verified data yet.</text>`;
+            svg.innerHTML = `<text x="${pad}" y="${height / 2}" fill="rgba(245,247,251,.72)" font-size="18">No verified ${activeSeries.label.toLowerCase()} data yet.</text>`;
+            detail.textContent = "Submit verified performances to build this graph.";
             return;
         }
-        const repsValues = progressData.map((point) => point.reps);
-        const minReps = Math.max(0, Math.min(...repsValues) - 5);
-        const maxReps = Math.max(...repsValues, 60) + 5;
+        detail.textContent = `${activeSeries.label}: ${activeSeries.higher_is_better ? "higher is better" : "lower is better"}. Tap a point for details.`;
+        const rawValues = progressData.map((point) => Number(point.value || 0));
+        const minRaw = Math.min(...rawValues);
+        const maxRaw = Math.max(...rawValues);
+        const padding = activeSeries.unit === "points" ? 30 : activeSeries.unit === "time" ? 15 : 3;
+        const minValue = Math.max(0, minRaw - padding);
+        const maxValue = Math.max(maxRaw + padding, activeSeries.unit === "points" ? 100 : maxRaw + padding);
         const step = progressData.length > 1 ? (width - pad * 2) / (progressData.length - 1) : 0;
         const points = progressData.map((point, index) => {
+            const value = Number(point.value || 0);
             const x = progressData.length > 1 ? pad + index * step : width / 2;
-            const y = height - pad - ((point.reps - minReps) / Math.max(1, maxReps - minReps)) * (height - pad * 2);
-            return { ...point, x, y };
+            const chartValue = activeSeries.higher_is_better ? value : maxValue + minValue - value;
+            const y = height - pad - ((chartValue - minValue) / Math.max(1, maxValue - minValue)) * (height - pad * 2);
+            return { ...point, value, x, y };
         });
         const path = points.map((point, index) => `${index === 0 ? "M" : "L"} ${point.x} ${point.y}`).join(" ");
         const guides = [0, .25, .5, .75, 1].map((ratio) => {
-            const value = Math.round(minReps + (maxReps - minReps) * ratio);
+            const guideValue = activeSeries.higher_is_better ? minValue + (maxValue - minValue) * ratio : maxValue - (maxValue - minValue) * ratio;
             const y = height - pad - ratio * (height - pad * 2);
-            return { value, y };
+            return { value: Math.round(guideValue), y };
         });
         svg.innerHTML = `
             ${guides.map((guide) => `<g><line x1="${pad}" y1="${guide.y}" x2="${width - pad}" y2="${guide.y}" stroke="rgba(255,255,255,.1)" /><text x="${pad - 12}" y="${guide.y + 5}" text-anchor="end" fill="rgba(245,247,251,.75)" font-size="14">${guide.value}</text></g>`).join("")}
             <path d="${path}" fill="none" stroke="#f7b733" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" />
-            ${points.map((point, index) => `<g data-point="${index}" style="cursor:pointer"><circle cx="${point.x}" cy="${point.y}" r="${isMobileChart ? 9 : 11}" fill="#ffd77b" stroke="#111" stroke-width="3"><title>${point.label}: ${point.reps} reps</title></circle><text x="${point.x}" y="${point.y - 18}" text-anchor="middle" fill="#f5f7fb" font-size="${isMobileChart ? 12 : 15}" font-weight="700">${point.reps}</text><text x="${point.x}" y="${height - pad + 24}" text-anchor="middle" fill="rgba(245,247,251,.65)" font-size="12">${point.date.slice(5)}</text>${index > 0 && !isMobileChart ? `<text x="${(points[index - 1].x + point.x) / 2}" y="${Math.min(points[index - 1].y, point.y) - 30}" text-anchor="middle" fill="#8df0c9" font-size="13">${point.reps - points[index - 1].reps >= 0 ? "+" : ""}${point.reps - points[index - 1].reps}</text>` : ""}</g>`).join("")}
+            ${points.map((point, index) => {
+                const delta = index > 0 ? point.value - points[index - 1].value : 0;
+                const goodDelta = activeSeries.higher_is_better ? delta : -delta;
+                const deltaLabel = activeSeries.unit === "time" ? `${delta > 0 ? "+" : ""}${delta}s` : `${delta >= 0 ? "+" : ""}${Math.round(delta)}`;
+                return `<g data-point="${index}" style="cursor:pointer"><circle cx="${point.x}" cy="${point.y}" r="${isMobileChart ? 9 : 11}" fill="#ffd77b" stroke="#111" stroke-width="3"><title>${point.label}: ${point.display || point.value}</title></circle><text x="${point.x}" y="${point.y - 18}" text-anchor="middle" fill="#f5f7fb" font-size="${isMobileChart ? 12 : 15}" font-weight="700">${compactLabel(point.value, point.display)}</text><text x="${point.x}" y="${height - pad + 24}" text-anchor="middle" fill="rgba(245,247,251,.65)" font-size="12">${point.date.slice(5)}</text>${index > 0 && !isMobileChart ? `<text x="${(points[index - 1].x + point.x) / 2}" y="${Math.min(points[index - 1].y, point.y) - 30}" text-anchor="middle" fill="${goodDelta >= 0 ? "#8df0c9" : "#ff8c7a"}" font-size="13">${deltaLabel}</text>` : ""}</g>`;
+            }).join("")}
         `;
         svg.querySelectorAll("[data-point]").forEach((node) => {
             node.addEventListener("click", () => {
                 const point = points[parseInt(node.dataset.point, 10)];
-                detail.textContent = `${point.label}: ${point.reps} reps. Best so far ${point.best}. Gain ${point.gain >= 0 ? "+" : ""}${point.gain}.`;
+                detail.textContent = `${point.label}: ${point.display || point.value} ${activeSeries.unit === "points" ? "points" : ""}. ${activeSeries.higher_is_better ? "Higher" : "Lower"} is better.`;
             });
         });
     }
     renderChart();
+    metricSelect?.addEventListener("change", () => {
+        zoom = 1;
+        renderChart();
+    });
     document.querySelectorAll("[data-zoom]").forEach((button) => button.addEventListener("click", () => {
         zoom = Math.max(1, Math.min(2.8, zoom + Number(button.dataset.zoom) * 0.25));
         renderChart();

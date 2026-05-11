@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 
 {% block title %}Calculators{% endblock %}
-{% block meta_description %}Useful fitness calculators for one-rep max, BMI, running pace, and Earned Club push-up tier targets.{% endblock %}
+{% block meta_description %}Useful fitness calculators for Hybrid Score, one-rep max, BMI, running pace, and Earned Club discipline targets.{% endblock %}
 
 {% block content %}
 <section class="hero-card" style="margin-bottom: 24px;">
@@ -9,13 +9,27 @@
         <div>
             <div class="eyebrow">Useful tools</div>
             <h1>Calculators.</h1>
-            <p class="muted">Simple numbers you can use in training today.</p>
+            <p class="muted">Simple numbers for Hybrid Score, balanced performance, and training context.</p>
         </div>
-        <a class="btn-main" href="{% url 'challenge' %}#submit-form-top">Submit Push-ups</a>
+        <a class="btn-main" href="{% url 'challenge' %}#submit-form-top">Submit Performance</a>
     </div>
 </section>
 
 <section class="grid-2">
+    <div class="card-dark calculator-card">
+        <h2>Hybrid Score</h2>
+        <form class="calculator-form" onsubmit="return false;">
+            <div class="grid-2">
+                <input id="hybrid-pushups" class="input" type="number" min="0" step="1" placeholder="Push-ups">
+                <input id="hybrid-pullups" class="input" type="number" min="0" step="1" placeholder="Pull-ups">
+                <input id="hybrid-5k" class="input" type="text" placeholder="5K time 21:34">
+                <input id="hybrid-10k" class="input" type="text" placeholder="10K time 44:20">
+            </div>
+            <button class="btn-main" type="button" onclick="calculateHybridScore()">Calculate</button>
+            <div id="hybrid-result" class="hint">Estimate your Overall Athlete Rating. Verified submissions make it official.</div>
+        </form>
+    </div>
+
     <div class="card-dark calculator-card">
         <h2>One Rep Max</h2>
         <form class="calculator-form" onsubmit="return false;">
@@ -60,8 +74,14 @@
     </div>
 
     <div class="card-dark calculator-card">
-        <h2>Push-up Tier</h2>
+        <h2>Discipline Tier</h2>
         <form class="calculator-form" onsubmit="return false;">
+            <select id="tier-discipline" class="select">
+                <option value="pushups">Push-ups</option>
+                <option value="pullups">Pull-ups</option>
+                <option value="run_5k">5K</option>
+                <option value="run_10k">10K</option>
+            </select>
             <input id="current-reps" class="input" type="number" min="0" step="1" placeholder="Strict push-ups">
             <button class="btn-main" type="button" onclick="calculateRank()">Show Tier</button>
             <div id="rank-result" class="hint">Check your Earned Club tier.</div>
@@ -81,6 +101,48 @@
     }));
     function getTier(reps) {
         return tiers.find((tier) => reps >= tier.min && (tier.max === null || reps <= tier.max)) || tiers[0];
+    }
+    function parseTimeToSeconds(value) {
+        const raw = (value || "").trim();
+        if (!raw) return null;
+        const parts = raw.split(":").map((part) => Number(part));
+        if (!parts.every((part) => Number.isInteger(part) && part >= 0)) return null;
+        if (parts.length === 2) return parts[0] * 60 + parts[1];
+        if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
+        return null;
+    }
+    function repPoints(value, target) {
+        return Math.max(0, Math.min(1000, Math.round((value / target) * 1000)));
+    }
+    function timePoints(seconds, worldRecord, floor) {
+        if (!seconds) return null;
+        if (seconds <= worldRecord) return 1000;
+        if (seconds >= floor) return 0;
+        return Math.max(0, Math.min(1000, Math.round(((floor - seconds) / (floor - worldRecord)) * 1000)));
+    }
+    function hybridRank(score) {
+        if (score >= 900) return "Earned Legend";
+        if (score >= 750) return "Elite Hybrid Athlete";
+        if (score >= 550) return "Advanced Hybrid";
+        if (score >= 350) return "Intermediate Hybrid";
+        return "Beginner Hybrid";
+    }
+    function calculateHybridScore() {
+        const values = [];
+        const pushups = Number(document.getElementById("hybrid-pushups").value);
+        const pullups = Number(document.getElementById("hybrid-pullups").value);
+        const fiveK = parseTimeToSeconds(document.getElementById("hybrid-5k").value);
+        const tenK = parseTimeToSeconds(document.getElementById("hybrid-10k").value);
+        if (pushups > 0) values.push(repPoints(pushups, 80));
+        if (pullups > 0) values.push(repPoints(pullups, 30));
+        const fivePoints = timePoints(fiveK, 769, 2700);
+        const tenPoints = timePoints(tenK, 1584, 5400);
+        if (fivePoints !== null) values.push(fivePoints);
+        if (tenPoints !== null) values.push(tenPoints);
+        const result = document.getElementById("hybrid-result");
+        if (!values.length) return result.textContent = "Add at least one discipline result.";
+        const score = Math.round(values.reduce((sum, value) => sum + value, 0) / values.length);
+        result.textContent = `Hybrid Score ${score}. ${hybridRank(score)}. Official score uses verified performances only.`;
     }
     function calculateOneRepMax() {
         const exercise = document.getElementById("orm-exercise").value;
@@ -114,11 +176,33 @@
         result.textContent = `Pace ${normalizedMinutes}:${String(normalizedSeconds).padStart(2, "0")}/km. Estimated 5K: ${fiveK.toFixed(1)} min.`;
     }
     function calculateRank() {
-        const reps = parseInt(document.getElementById("current-reps").value, 10);
+        const discipline = document.getElementById("tier-discipline").value;
+        const raw = document.getElementById("current-reps").value;
         const result = document.getElementById("rank-result");
+        if (discipline === "run_5k" || discipline === "run_10k") {
+            const seconds = parseTimeToSeconds(raw);
+            if (!seconds) return result.textContent = "Enter time as MM:SS or HH:MM:SS.";
+            if (discipline === "run_5k") {
+                const label = seconds < 960 ? "Earned Legend" : seconds < 1080 ? "Elite" : seconds < 1500 ? "Advanced" : seconds < 1800 ? "Intermediate" : "Beginner";
+                return result.textContent = `5K: ${label}. Sub-18 is Elite.`;
+            }
+            const label = seconds < 1920 ? "Earned Legend" : seconds < 2280 ? "Elite" : seconds < 3000 ? "Advanced" : seconds < 3600 ? "Intermediate" : "Beginner";
+            return result.textContent = `10K: ${label}. Sub-38 is Elite.`;
+        }
+        const reps = parseInt(raw, 10);
         if (Number.isNaN(reps) || reps < 0) return result.textContent = "Enter strict reps.";
+        if (discipline === "pullups") {
+            const label = reps >= 30 ? "Earned Legend" : reps >= 20 ? "Elite" : reps >= 10 ? "Advanced" : reps >= 5 ? "Intermediate" : "Beginner";
+            return result.textContent = `${reps} pull-ups: ${label}. ${Math.max(0, 20 - reps)} reps to Elite.`;
+        }
         const tier = getTier(reps);
-        result.textContent = `${reps} reps: ${tier.name}. ${Math.max(0, 60 - reps)} reps to Elite.`;
+        result.textContent = `${reps} push-ups: ${tier.name}. ${Math.max(0, 60 - reps)} reps to Elite.`;
     }
+    document.getElementById("tier-discipline").addEventListener("change", (event) => {
+        const input = document.getElementById("current-reps");
+        input.value = "";
+        input.type = event.target.value.startsWith("run_") ? "text" : "number";
+        input.placeholder = event.target.value === "run_5k" ? "21:34" : event.target.value === "run_10k" ? "44:20" : event.target.value === "pullups" ? "Strict pull-ups" : "Strict push-ups";
+    });
 </script>
 {% endblock %}

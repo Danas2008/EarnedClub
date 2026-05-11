@@ -442,37 +442,37 @@ def get_profile_share_message(profile, request):
 
 def get_pr_share_message(profile, request):
     url = request.build_absolute_uri(reverse("athlete_profile", args=[profile.slug]))
-    return f"Hey, I just did {profile.personal_best_reps} push-ups on earnedclub.club. Can you beat it? {url}"
+    return f"Hey, I am building my verified Hybrid Score on earnedclub.club. Can you beat it? {url}"
 
 
 def get_daily_suggestion(profile, verified_count, workout_count):
     quotes = [
         "Small proof beats loud claims.",
-        "Make today's set clean enough to count.",
+        "Make today's result clean enough to count.",
         "Consistency is the quiet part of status.",
-        "Train the rep you want verified.",
+        "Train the performance you want verified.",
         "Good training is boring until the numbers move.",
-        "Win today's clean set.",
+        "Win today's focused session.",
     ]
     if profile.personal_best_reps >= 80:
         tasks = [
             "Keep today submax: push, pull, core, then stop before form breaks.",
             "Do a quality density session with no failed reps.",
             "Train recovery and shoulder stability so your next test is sharp.",
-            "Run a balanced full-body workout instead of another max push day.",
+            "Run a balanced full-body workout instead of another max-test day.",
         ]
     elif profile.personal_best_reps >= 60:
         tasks = [
-            "Do 4 controlled push-up sets at about 65% of your PR.",
-            "Pair push-ups with rows and core so your shoulders stay balanced.",
+            "Do 4 controlled strength sets at about 65% effort.",
+            "Pair pushing with rows and core so your shoulders stay balanced.",
             "Use an advanced workout today, but leave one rep in reserve.",
             "Retest one strong set only if you feel sharp.",
         ]
     elif profile.personal_best_reps >= 40:
         tasks = [
-            "Do 4 push-up sets at 60-70% of your PR.",
+            "Do 4 controlled sets at 60-70% of your current best.",
             "Add one pull exercise today.",
-            "Try a clean 40-rep pace set.",
+            "Try a clean pace set before you submit again.",
             "Start your highlighted workout and finish every set.",
             "Use a shorter recovery workout and protect form.",
         ]
@@ -480,15 +480,15 @@ def get_daily_suggestion(profile, verified_count, workout_count):
         tasks = [
             "Repeat your last workout and add one clean rep.",
             "Quick log one exercise now.",
-            "Do push-ups, rows, and core.",
+            "Do push, pull, legs, and core.",
             "Start one saved workout and complete every planned set.",
             "Pick a random recommended session and finish it today.",
         ]
     else:
         tasks = [
-            "Test push-ups today.",
-            "Start with Push Day.",
-            "Log one honest set.",
+            "Submit your first performance today.",
+            "Start with a balanced training session.",
+            "Log one honest result.",
             "Open a beginner workout and finish the first round.",
             "Build one simple 15-minute session and complete it.",
         ]
@@ -695,6 +695,55 @@ def get_progress_summary(submissions):
     }
 
 
+def build_performance_progress_series(user):
+    submissions = list(user.submission_set.filter(status=Submission.STATUS_VERIFIED).order_by("created_at", "id"))
+    best_by_discipline = {}
+    series = {
+        "hybrid": {
+            "label": "Hybrid Score",
+            "unit": "pts",
+            "higher_is_better": True,
+            "points": [],
+        }
+    }
+    for config in DISCIPLINE_CONFIG.values():
+        series[config["key"]] = {
+            "label": config["short_label"],
+            "unit": "time" if config["score_type"] == "time" else "reps",
+            "higher_is_better": config["higher_is_better"],
+            "points": [],
+        }
+
+    for submission in submissions:
+        key = submission.normalized_discipline
+        current_best = best_by_discipline.get(key)
+        if current_best is None or is_better_submission(submission, current_best):
+            best_by_discipline[key] = submission
+
+        verified_points = [item.hybrid_points for item in best_by_discipline.values()]
+        hybrid_score = round(sum(verified_points) / len(verified_points)) if verified_points else 0
+        label = submission.created_at.strftime("%b %d, %H:%M")
+        date = submission.created_at.strftime("%Y-%m-%d")
+        series["hybrid"]["points"].append(
+            {
+                "date": date,
+                "label": label,
+                "value": hybrid_score,
+                "display": f"{hybrid_score} pts",
+            }
+        )
+        best_submission = best_by_discipline[key]
+        series[key]["points"].append(
+            {
+                "date": date,
+                "label": label,
+                "value": best_submission.reps,
+                "display": best_submission.display_score,
+            }
+        )
+    return series
+
+
 def paginate_items(request, items, per_page=10, page_param="page"):
     paginator = Paginator(items, per_page)
     return paginator.get_page(request.GET.get(page_param))
@@ -826,8 +875,8 @@ def build_profile_schema(profile, best_submission):
         "name": profile.display_name,
         "url": build_public_url(reverse("athlete_profile", args=[profile.slug])),
         "description": (
-            f"{profile.display_name} has a verified Earned Club push-up PR of "
-            f"{profile.personal_best_reps} reps."
+            f"{profile.display_name} has a verified Earned Club athlete profile "
+            "with public performance results."
         ),
         "memberOf": {
             "@type": "SportsOrganization",
@@ -841,7 +890,7 @@ def build_profile_schema(profile, best_submission):
         schema["image"] = build_public_url(image_url) if image_url.startswith("/") else image_url
     if best_submission:
         schema["knowsAbout"] = [
-            f"Verified strict push-up personal record: {best_submission.reps} reps",
+            f"Verified {best_submission.discipline_label} result: {best_submission.display_score}",
             f"Earned Club rank tier: {best_submission.rank_name}",
         ]
     return schema
@@ -861,7 +910,7 @@ def profile_completion_items(user):
         {"label": "Add profile photo", "done": bool(profile.profile_image_url), "url": reverse("dashboard")},
         {"label": "Add country", "done": bool(profile.country), "url": reverse("dashboard")},
         {"label": "Add bio", "done": bool(profile.bio), "url": reverse("dashboard")},
-        {"label": "Get first verified push-up attempt", "done": user.submission_set.filter(status=Submission.STATUS_VERIFIED).exists(), "url": reverse("challenge")},
+        {"label": "Get first verified performance", "done": user.submission_set.filter(status=Submission.STATUS_VERIFIED).exists(), "url": reverse("challenge")},
         {"label": "Publish one workout", "done": user.workouts.filter(is_public=True).exists(), "url": reverse("workouts")},
     ]
     completed = sum(1 for item in items if item["done"])
@@ -870,7 +919,7 @@ def profile_completion_items(user):
 
 def build_onboarding_checklist(user):
     return [
-        {"label": "Test your push-up level", "done": user.submission_set.exists(), "url": reverse("level_test")},
+        {"label": "Test your flagship push-up level", "done": user.submission_set.exists(), "url": reverse("level_test")},
         {"label": "Submit proof", "done": user.submission_set.filter(status__in=[Submission.STATUS_PENDING, Submission.STATUS_VERIFIED]).exists(), "url": reverse("challenge")},
         {"label": "Create a workout", "done": user.workouts.exists(), "url": reverse("workouts")},
         {"label": "Set a goal", "done": user.goals.exists(), "url": reverse("dashboard")},
@@ -880,13 +929,13 @@ def build_onboarding_checklist(user):
 
 def build_next_action(user):
     if not user.submission_set.exists():
-        return {"label": "Test your push-up level", "url": reverse("level_test"), "text": "Start with a quick push-up level test."}
+        return {"label": "Submit a performance", "url": reverse("challenge"), "text": "Choose a discipline and start your Hybrid Score."}
     if user.submission_set.filter(status=Submission.STATUS_UNVERIFIED).exists():
-        return {"label": "Add proof", "url": reverse("dashboard"), "text": "Upload proof so your push-up result can be reviewed."}
+        return {"label": "Add proof", "url": reverse("dashboard"), "text": "Add proof so your performance can be reviewed."}
     if not user.workouts.exists():
-        return {"label": "Create workout", "url": reverse("workouts"), "text": "Build a push-up workout plan for the next 14 days."}
+        return {"label": "Create workout", "url": reverse("workouts"), "text": "Build a training plan for your next verified result."}
     if not user.goals.exists():
-        return {"label": "Set goal", "url": reverse("dashboard"), "text": "Pick the next push-up number you want to reach."}
+        return {"label": "Set goal", "url": reverse("dashboard"), "text": "Pick the next performance target you want to reach."}
     return {"label": "Share profile", "url": reverse("athlete_profile", args=[user.profile.slug]), "text": "Share your public profile and keep building proof."}
 
 
@@ -1592,6 +1641,7 @@ def dashboard(request):
         ),
         "rejected_count": rejected_submissions.count(),
         "progress_data": get_progress_data(verified_submissions),
+        "performance_progress": build_performance_progress_series(request.user),
         "progress_summary": progress_summary,
         "country_choices": COUNTRY_CHOICES,
         "badges": profile.earned_badges,
@@ -2390,7 +2440,16 @@ def newsletter_unsubscribe(request, token):
 
 def calculators(request):
     prompts = ContentEnginePrompt.objects.filter(is_active=True)
-    return render(request, "calculators.html", {"rank_tiers": RANK_TIERS, "content_prompts": prompts})
+    return render(
+        request,
+        "calculators.html",
+        {
+            "rank_tiers": RANK_TIERS,
+            "content_prompts": prompts,
+            "discipline_cards": DISCIPLINE_CONFIG.values(),
+            "hybrid_ranks": HYBRID_RANKS,
+        },
+    )
 
 
 def workout_detail(request, slug):

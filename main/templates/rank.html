@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 
-{% block title %}Get Your Rank{% endblock %}
-{% block meta_description %}Enter your max clean push-ups and instantly see your Earned Club rank tier, then submit your official result for verification.{% endblock %}
+{% block title %}Hybrid Score and Rank Check{% endblock %}
+{% block meta_description %}Check Earned Club discipline ranks and estimate your Hybrid Score across push-ups, pull-ups, 5K, and 10K before submitting proof.{% endblock %}
 
 {% block content %}
 <style>
@@ -172,6 +172,18 @@
         gap: 12px;
     }
 
+    .hybrid-mini-calc {
+        display: grid;
+        gap: 12px;
+    }
+
+    .hybrid-mini-result {
+        padding: 16px;
+        border-radius: var(--radius-md);
+        background: rgba(8, 11, 15, 0.42);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
     .rank-context-card {
         padding: 14px;
         border-radius: var(--radius-md);
@@ -240,7 +252,7 @@
             <div class="rank-copy">
                 <div class="eyebrow">Performance Rank Check</div>
                 <h1 id="rank-title">Get Your Rank</h1>
-                <p class="muted">Choose your challenge, enter your result, and see your tier instantly. Then prove it for official status.</p>
+                <p class="muted">Choose a discipline, check the tier, then use the Hybrid Score calculator to estimate your overall athlete rating.</p>
                 <div class="rank-microcopy" aria-label="Rank rules">
                     <span>One clean set</span>
                     <span>Instant tier</span>
@@ -301,6 +313,25 @@
         </div>
     </section>
 
+    <section class="card-dark">
+        <div class="section-spread">
+            <div>
+                <h2>Hybrid Score Calculator</h2>
+                <p class="muted">Estimate your Overall Athlete Rating. Official Hybrid Score still requires verified submissions.</p>
+            </div>
+        </div>
+        <form class="hybrid-mini-calc" onsubmit="return false;">
+            <div class="grid-4">
+                <input id="hybrid-pushups" class="input" type="number" min="0" step="1" placeholder="Push-ups">
+                <input id="hybrid-pullups" class="input" type="number" min="0" step="1" placeholder="Pull-ups">
+                <input id="hybrid-5k" class="input" type="text" placeholder="5K e.g. 21:34">
+                <input id="hybrid-10k" class="input" type="text" placeholder="10K e.g. 44:20">
+            </div>
+            <button class="btn-main" type="button" data-hybrid-calc>Calculate Hybrid Score</button>
+            <div id="hybrid-result" class="hybrid-mini-result muted">Add one or more performances to estimate your Hybrid Score.</div>
+        </form>
+    </section>
+
     <section class="rank-context" aria-label="What happens after rank check">
         <div class="rank-context-card">
             <strong>Unverified is visible</strong>
@@ -341,6 +372,47 @@
             label.textContent = option.dataset.inputLabel || "Result";
             input.placeholder = option.dataset.placeholder || "";
             suffix.textContent = option.dataset.scoreType === "time" ? "time" : "reps";
+        });
+    })();
+</script>
+<script>
+    (() => {
+        const parseTime = (value) => {
+            const raw = (value || "").trim();
+            if (!raw) return null;
+            const parts = raw.split(":").map((part) => Number(part));
+            if (!parts.every((part) => Number.isInteger(part) && part >= 0)) return null;
+            if (parts.length === 2) return parts[0] * 60 + parts[1];
+            if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
+            return null;
+        };
+        const repPoints = (value, target) => Math.max(0, Math.min(1000, Math.round((value / target) * 1000)));
+        const timePoints = (seconds, worldRecord, floor) => {
+            if (!seconds) return null;
+            if (seconds <= worldRecord) return 1000;
+            if (seconds >= floor) return 0;
+            return Math.max(0, Math.min(1000, Math.round(((floor - seconds) / (floor - worldRecord)) * 1000)));
+        };
+        const rankFor = (score) => score >= 900 ? "Earned Legend" : score >= 750 ? "Elite Hybrid Athlete" : score >= 550 ? "Advanced Hybrid" : score >= 350 ? "Intermediate Hybrid" : "Beginner Hybrid";
+        document.querySelector("[data-hybrid-calc]")?.addEventListener("click", () => {
+            const values = [];
+            const pushups = Number(document.getElementById("hybrid-pushups").value);
+            const pullups = Number(document.getElementById("hybrid-pullups").value);
+            const fiveK = parseTime(document.getElementById("hybrid-5k").value);
+            const tenK = parseTime(document.getElementById("hybrid-10k").value);
+            if (pushups > 0) values.push(repPoints(pushups, 80));
+            if (pullups > 0) values.push(repPoints(pullups, 30));
+            const fivePoints = timePoints(fiveK, 769, 2700);
+            const tenPoints = timePoints(tenK, 1584, 5400);
+            if (fivePoints !== null) values.push(fivePoints);
+            if (tenPoints !== null) values.push(tenPoints);
+            const result = document.getElementById("hybrid-result");
+            if (!values.length) {
+                result.textContent = "Add one or more performances to estimate your Hybrid Score.";
+                return;
+            }
+            const score = Math.round(values.reduce((sum, value) => sum + value, 0) / values.length);
+            result.textContent = `Estimated Hybrid Score ${score}. ${rankFor(score)}. Official score requires verified submissions.`;
         });
     })();
 </script>
