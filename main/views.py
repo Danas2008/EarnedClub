@@ -945,7 +945,7 @@ def profile_completion_items(user):
 
 def build_onboarding_checklist(user):
     return [
-        {"label": "Test your flagship push-up level", "done": user.submission_set.exists(), "url": reverse("level_test")},
+        {"label": "Run the Hybrid Score check", "done": user.submission_set.exists(), "url": reverse("level_test")},
         {"label": "Submit proof", "done": user.submission_set.filter(status__in=[Submission.STATUS_PENDING, Submission.STATUS_VERIFIED]).exists(), "url": reverse("challenge")},
         {"label": "Create a workout", "done": user.workouts.exists(), "url": reverse("workouts")},
         {"label": "Set a goal", "done": user.goals.exists(), "url": reverse("dashboard")},
@@ -1433,9 +1433,10 @@ def rank(request):
                     "score": score_value,
                     "display_score": preview.display_score,
                     "reps": score_value,
+                    "points": preview.hybrid_points,
                     "tier": tier,
                     "discipline": active_discipline,
-                    "message": f"You reached {tier['name']}.",
+                    "message": f"{preview.hybrid_points} discipline points.",
                 }
                 params = urlencode({"discipline": active_discipline["key"], "score": score_raw})
                 if active_discipline["key"] == Submission.DISCIPLINE_PUSHUPS:
@@ -1792,20 +1793,27 @@ def delete_goal(request, goal_id):
 
 def profiles(request):
     query = (request.GET.get("q") or "").strip()
-    profiles_with_scores = Profile.objects.select_related("user").order_by(
-        F("current_rank").asc(nulls_last=True), "-personal_best_reps", "display_name"
-    )
+    profiles_with_scores = Profile.objects.select_related("user").order_by("display_name")
     if query:
         profiles_with_scores = profiles_with_scores.filter(
             Q(display_name__icontains=query)
             | Q(user__username__icontains=query)
             | Q(country__icontains=query)
         )
+    hybrid_positions = {row["user"].id: row["position"] for row in build_hybrid_leaderboard_rows()}
+    profile_rows = [
+        {
+            "profile": profile,
+            "hybrid_summary": build_hybrid_breakdown(profile.user),
+            "hybrid_rank_position": hybrid_positions.get(profile.user_id),
+        }
+        for profile in profiles_with_scores
+    ]
     return render(
         request,
         "profiles.html",
         {
-            "profiles": paginate_items(request, profiles_with_scores, per_page=10),
+            "profiles": paginate_items(request, profile_rows, per_page=10),
             "query": query,
         },
     )
@@ -1846,6 +1854,7 @@ def athlete_profile(request, slug):
                 "their_hybrid_score": hybrid_summary["score"],
             }
     verified_history = paginate_items(request, verified_submissions.order_by("-created_at"), per_page=5)
+    public_progress_series = build_performance_progress_series(profile.user)
     context = {
         "profile": profile,
         "best_submission": best_submission,
@@ -1856,7 +1865,7 @@ def athlete_profile(request, slug):
             on_each_side=1,
             on_ends=1,
         ),
-        "progress_data": get_progress_data(verified_submissions),
+        "progress_data": public_progress_series.get("hybrid", {}).get("points", []),
         "profile_description": profile_description,
         "profile_schema_json": json_ld(build_profile_schema(profile, best_submission)),
         "hybrid_summary": hybrid_summary,
@@ -2045,7 +2054,7 @@ def challenge(request):
                     request,
                     "Your result is pending review. If approved, your official rank will update.",
                 )
-                messages.info(request, "Next: retest your strict push-ups in 14 days or start a support workout today.")
+                messages.info(request, "Next: open your dashboard, watch review status, and build the next discipline.")
                 return redirect("challenge")
 
             messages.error(

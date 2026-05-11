@@ -290,7 +290,7 @@ Important distinction:
 ### Visitor
 
 1. Lands on home page.
-2. Chooses a leaderboard discipline or uses the flagship push-up level test.
+2. Chooses a leaderboard discipline or uses the Hybrid Score check.
 3. Enters name, email, discipline result, and optional proof.
 4. Can register/login and connect activity to a profile.
 5. Can browse Hybrid Leaderboard, discipline leaderboards, profiles, public workouts, calculators, privacy, and terms.
@@ -381,7 +381,7 @@ Main templates:
 
 - `base.html`: shared layout.
 - `home.html`: first public page.
-- `test_landing.html`: flagship push-up level test page.
+- `test_landing.html`: Hybrid Score check page with optional/skippable inputs.
 - `challenge.html`: multi-discipline submission workflow.
 - `leaderboard.html`: Hybrid Leaderboard, discipline cards, discipline leaderboard modes, and ranking display.
 - `rank.html`: discipline rank check and Hybrid Score calculator.
@@ -709,9 +709,9 @@ Note: the newest entry is authoritative for current product direction. Older ent
 
 - Added `/rank/` as a minimal mobile-first conversion page for social traffic.
 - `/rank/` uses the existing `get_rank_tier` / `RANK_TIERS` logic and does not change verified ranking rules.
-- Home page now focuses on the primary CTA: "Take the Official Push-Up Test".
+- Superseded by the hybrid positioning update: home page now focuses on Hybrid Score and Hybrid Rankings.
 - Home secondary CTA is "View Leaderboard".
-- Main conversion copy is now centered on: "Don't just claim your strength. Prove it." and "Submit your max clean push-ups and earn your rank."
+- Superseded by the hybrid positioning update: conversion copy now centers on verified multi-discipline performance and Hybrid Score.
 - Challenge page copy now makes proof optional but clearly recommended.
 - Challenge page explains that unverified results are visible but not official, and proof is required for official rank.
 - Challenge form now uses uploaded video proof only; proof links are not user-facing.
@@ -770,7 +770,7 @@ Note: the newest entry is authoritative for current product direction. Older ent
 
 ### 2026-05-06 homepage second-pass polish
 
-- Homepage hero now uses one primary "Get Your Rank" CTA and varies later CTAs by context.
+- Superseded by the hybrid positioning update: homepage hero now uses Hybrid Score as the primary CTA concept.
 - The large `42` visual was redesigned into an intentional score-to-rank preview card.
 - Removed the small live-count/status emphasis from the homepage so the early-stage community does not feel artificially inflated.
 - Added a "How ranks are earned" proof/status section focused on unverified, review, and official status.
@@ -806,7 +806,7 @@ Note: the newest entry is authoritative for current product direction. Older ent
 - `/sitemap.xsl` now sends `X-Robots-Tag: noindex`.
 - Google Search Console should be given only `https://earnedclub.club/sitemap.xml`.
 - Admin pages now include mobile cards so `/admin-menu/pages/` remains visible on small screens where tables are hidden.
-- Homepage was redesigned mobile-first around the primary CTA "Get Your Rank".
+- Superseded by the hybrid positioning update: homepage is now centered on Hybrid Score and Hybrid Rankings.
 - Homepage now includes hero, value strip, how-it-works, rank system, why-it-exists, feature preview, video/content placeholders, tools, and final CTA sections.
 - Homepage keeps YouTube/content placeholders and links to calculators/tools and `/rank/`.
 - Homepage copy now emphasizes "Don't just claim your strength. Prove it.", "Earn your rank.", "Verified status.", "Public leaderboard.", and "Real reps. Real proof."

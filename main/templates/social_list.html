@@ -19,7 +19,7 @@
             {% endif %}
             <div class="row-title">
                 <div class="submission-name">{{ user.profile.display_name }}</div>
-                <div class="submission-meta">{{ user.profile.personal_best_reps }} PR{% if user.profile.current_rank %} - Rank #{{ user.profile.current_rank }}{% endif %}</div>
+                <div class="submission-meta">{% if user.profile.personal_best_reps %}Verified athlete{% else %}Building Hybrid Score{% endif %}</div>
             </div>
         </a>
     {% empty %}

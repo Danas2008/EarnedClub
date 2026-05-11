@@ -19,21 +19,21 @@
         <button class="btn-secondary" type="submit">Search</button>
     </form>
 
-    {% for profile in profiles %}
-        <a class="athlete-row" href="{% url 'athlete_profile' profile.slug %}">
-            {% if profile.profile_image_url %}
-                <img class="avatar" src="{{ profile.profile_image_url }}" alt="{{ profile.display_name }} profile picture">
+    {% for row in profiles %}
+        <a class="athlete-row" href="{% url 'athlete_profile' row.profile.slug %}">
+            {% if row.profile.profile_image_url %}
+                <img class="avatar" src="{{ row.profile.profile_image_url }}" alt="{{ row.profile.display_name }} profile picture">
             {% else %}
-                <span class="avatar">{{ profile.display_name|first|upper }}</span>
+                <span class="avatar">{{ row.profile.display_name|first|upper }}</span>
             {% endif %}
             <div class="row-title">
-                <div class="submission-name">{{ profile.display_name }}</div>
+                <div class="submission-name">{{ row.profile.display_name }}</div>
                 <div class="submission-meta">
-                    {% if profile.country %}{{ profile.country }}{% elif profile.personal_best_reps %}Verified athlete{% else %}Building profile{% endif %}
+                    {{ row.hybrid_summary.rank.name }} - {{ row.hybrid_summary.verified_count }}/{{ row.hybrid_summary.max_disciplines }} verified
                 </div>
             </div>
-            <span class="tag-pill hide-mobile">{% if profile.personal_best_reps %}Verified athlete{% else %}Building score{% endif %}</span>
-            <span class="position-pill">{% if profile.current_rank %}#{{ profile.current_rank }}{% else %}-{% endif %}</span>
+            <span class="tag-pill hide-mobile">Hybrid {{ row.hybrid_summary.score }}</span>
+            <span class="position-pill">{% if row.hybrid_rank_position %}#{{ row.hybrid_rank_position }}{% else %}-{% endif %}</span>
             <span class="btn-secondary hide-mobile" style="min-height: 36px; padding: 7px 11px;">View</span>
         </a>
     {% empty %}

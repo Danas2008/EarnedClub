@@ -6,9 +6,9 @@
 <style>
     .dashboard-hero {
         display: grid;
-        grid-template-columns: minmax(0, 1.2fr) minmax(260px, .8fr);
-        gap: 20px;
-        align-items: stretch;
+        grid-template-columns: minmax(0, .95fr) minmax(280px, 1.05fr);
+        gap: 16px;
+        align-items: start;
     }
 
     .dashboard-identity {
@@ -22,11 +22,11 @@
         border: 1px solid rgba(247, 183, 51, .32);
         background: linear-gradient(160deg, rgba(247, 183, 51, .16), rgba(18, 25, 34, .94));
         border-radius: var(--radius-lg);
-        padding: 22px;
+        padding: 18px;
         display: flex;
         flex-direction: column;
         justify-content: space-between;
-        min-height: 210px;
+        min-height: 0;
     }
 
     .status-chip-row,
@@ -39,7 +39,7 @@
     }
 
     .dashboard-insight {
-        padding: 12px;
+        padding: 10px 11px;
         border: 1px solid rgba(255, 255, 255, .08);
         background: rgba(8, 11, 15, .34);
         border-radius: var(--radius-md);
@@ -53,7 +53,7 @@
 
     .dashboard-score-number {
         font-family: "Archivo", sans-serif;
-        font-size: clamp(3rem, 9vw, 6.8rem);
+        font-size: clamp(2.6rem, 7vw, 4.8rem);
         line-height: .9;
         font-weight: 900;
         color: #fff;
@@ -63,14 +63,28 @@
 
     .dashboard-discipline-strip {
         display: grid;
-        grid-template-columns: repeat(4, minmax(0, 1fr));
-        gap: 10px;
-        margin-top: 18px;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+        margin-top: 14px;
     }
 
     .dashboard-discipline-strip .feature-card {
-        padding: 14px;
-        min-height: 116px;
+        padding: 11px;
+        min-height: 86px;
+    }
+
+    .dashboard-discipline-strip h3 {
+        font-size: 1.25rem;
+        margin-bottom: 4px;
+    }
+
+    .hero-action-row {
+        margin-top: 4px;
+    }
+
+    .hero-action-row .btn-main,
+    .hero-action-row .btn-secondary {
+        min-height: 42px;
     }
 
     .discipline-card-premium {
@@ -211,10 +225,13 @@
 
     @media (max-width: 860px) {
         .dashboard-hero,
-        .dashboard-discipline-strip,
         .progress-header {
             grid-template-columns: 1fr;
             display: grid;
+        }
+
+        .dashboard-discipline-strip {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
         }
 
         .dashboard-identity {

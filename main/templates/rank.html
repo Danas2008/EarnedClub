@@ -251,8 +251,8 @@
         <div class="rank-hero">
             <div class="rank-copy">
                 <div class="eyebrow">Performance Rank Check</div>
-                <h1 id="rank-title">Get Your Rank</h1>
-                <p class="muted">Choose a discipline, check the tier, then use the Hybrid Score calculator to estimate your overall athlete rating.</p>
+                <h1 id="rank-title">Check Hybrid Points</h1>
+                <p class="muted">Choose a discipline, see the point value, then estimate your overall Hybrid Score.</p>
                 <div class="rank-microcopy" aria-label="Rank rules">
                     <span>One clean set</span>
                     <span>Instant tier</span>
@@ -263,16 +263,16 @@
             {% if result %}
                 <div id="rank-result" class="rank-result-ticket" tabindex="-1">
                     <div class="rank-result-main">
-                        <div class="rank-score">{{ result.display_score }}</div>
+                        <div class="rank-score">{{ result.points }}</div>
                         <div class="rank-result-copy">
                             <div class="rank-status-row">
                                 <span class="status-pill unverified">{{ result.discipline.label }}</span>
-                                <span class="status-pill verified">{{ result.tier.name }}</span>
+                                <span class="status-pill verified">{{ result.points }} pts</span>
                             </div>
                             <h2>{{ result.message }}</h2>
-                            <p class="muted">{{ result.tier.description }}</p>
+                            <p class="muted">{{ result.display_score }} is currently {{ result.tier.name }} for {{ result.discipline.label }}.</p>
                             <p>Can you prove it officially?</p>
-                            <p class="muted">Submit your result, upload proof, and earn verified public status.</p>
+                            <p class="muted">Submit your result, add proof, and turn points into official public status.</p>
                         </div>
                     </div>
                     <div class="rank-actions">

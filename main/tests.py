@@ -555,8 +555,8 @@ class SubmissionFlowTests(TestCase):
         response = self.client.get(f"{reverse('rank')}?reps=42")
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Get Your Rank")
-        self.assertContains(response, "You reached Advanced.")
+        self.assertContains(response, "Check Hybrid Points")
+        self.assertContains(response, "525 discipline points.")
         self.assertContains(response, "Submit Official Result")
         self.assertContains(response, "Check Again")
         self.assertNotContains(response, 'id="rank-reps"', html=False)
@@ -836,7 +836,7 @@ class SubmissionFlowTests(TestCase):
         response = self.client.get(reverse("profiles"))
 
         self.assertContains(response, "Real Account")
-        self.assertContains(response, "Building score")
+        self.assertContains(response, "Hybrid 0")
         self.assertNotContains(response, "Anonymous Submitter")
 
     def test_leaderboard_shows_best_pending_instead_of_lower_verified_for_user(self):

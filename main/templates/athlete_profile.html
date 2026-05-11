@@ -20,7 +20,7 @@
 
     .profile-hero-grid {
         display: grid;
-        gap: 22px;
+        gap: 18px;
         align-items: stretch;
     }
 
@@ -32,7 +32,8 @@
 
     .profile-identity-card {
         display: grid;
-        gap: 18px;
+        gap: 14px;
+        align-content: start;
     }
 
     .profile-avatar-wrap {
@@ -51,8 +52,8 @@
 
     .profile-status-card {
         display: grid;
-        gap: 14px;
-        padding: 18px;
+        gap: 12px;
+        padding: 16px;
         border-radius: var(--radius-lg);
         background:
             linear-gradient(135deg, rgba(247, 183, 51, 0.12), rgba(30, 157, 116, 0.08)),
@@ -62,7 +63,7 @@
 
     .profile-pr-number {
         font-family: "Archivo", sans-serif;
-        font-size: clamp(3.8rem, 20vw, 6.2rem);
+        font-size: clamp(3.2rem, 14vw, 5.2rem);
         line-height: 0.82;
         color: var(--accent);
         font-weight: 900;
@@ -108,9 +109,91 @@
         min-height: 44px;
     }
 
+    .profile-badge-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(72px, max-content));
+        gap: 8px;
+    }
+
+    .profile-badge {
+        width: 72px;
+        min-height: 72px;
+        display: grid;
+        justify-items: center;
+        align-content: center;
+        gap: 5px;
+        padding: 7px 5px;
+        border-radius: var(--radius-md);
+        border: 1px solid rgba(247, 183, 51, 0.22);
+        background: radial-gradient(circle at top left, rgba(247, 183, 51, 0.18), rgba(255, 255, 255, 0.04) 52%);
+        color: var(--text);
+        cursor: pointer;
+        transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+    }
+
+    .profile-badge:hover,
+    .profile-badge:focus-visible {
+        transform: translateY(-2px);
+        border-color: rgba(247, 183, 51, 0.55);
+        box-shadow: 0 0 22px rgba(247, 183, 51, 0.12);
+        outline: none;
+    }
+
+    .profile-badge-icon {
+        width: 30px;
+        height: 30px;
+        display: grid;
+        place-items: center;
+        border-radius: 50%;
+        background: linear-gradient(145deg, #f7b733, #fff0bd);
+        color: #111;
+        font-family: "Archivo", sans-serif;
+        font-weight: 900;
+        font-size: .78rem;
+    }
+
+    .profile-badge strong {
+        font-size: .72rem;
+        line-height: 1.05;
+        text-align: center;
+    }
+
+    .profile-badge-modal {
+        position: fixed;
+        inset: 0;
+        z-index: 50;
+        display: none;
+        place-items: center;
+        padding: 20px;
+        background: rgba(0, 0, 0, .62);
+    }
+
+    .profile-badge-modal.is-open {
+        display: grid;
+    }
+
+    .profile-badge-modal-panel {
+        width: min(420px, 100%);
+        padding: 20px;
+        border-radius: var(--radius-lg);
+        background: #101821;
+        border: 1px solid rgba(247, 183, 51, .26);
+        box-shadow: var(--shadow);
+    }
+
     @media (min-width: 860px) {
         .profile-hero-grid {
-            grid-template-columns: minmax(0, 1.1fr) minmax(320px, 0.9fr);
+            grid-template-columns: minmax(0, 1.12fr) minmax(330px, 0.88fr);
+        }
+
+        .profile-actions .btn-main,
+        .profile-actions .btn-secondary,
+        .profile-actions form {
+            flex: 0 1 auto;
+        }
+
+        .profile-actions form .btn-secondary {
+            width: auto;
         }
     }
 </style>
@@ -188,10 +271,10 @@
 
 <section class="grid-2 profile-lower-section">
     <div class="card-dark">
-        <h2>Verified Progress</h2>
-        <p class="muted">Verified push-up progress remains tracked while Hybrid Score becomes the main public status metric.</p>
+        <h2>Hybrid Score Progress</h2>
+        <p class="muted">Verified performances build the public athlete rating over time.</p>
         <div class="progress-chart progress-chart-large">
-            <svg id="progress-chart" class="chart-area" role="img" aria-label="Athlete verified progress chart"></svg>
+            <svg id="progress-chart" class="chart-area" role="img" aria-label="Athlete Hybrid Score progress chart"></svg>
         </div>
         <div id="progress-detail" class="hint" style="margin-top: 10px;">Tap a point for details.</div>
     </div>
@@ -243,9 +326,20 @@
     <div class="card-dark">
         <h2>Badges</h2>
         {% if badges %}
-            <div class="button-row" style="margin-top: 0;">
+            <div class="profile-badge-grid">
                 {% for badge in badges %}
-                    <span class="tag-pill" title="{{ badge.description }}">{{ badge.name }}</span>
+                    <button
+                        class="profile-badge"
+                        type="button"
+                        data-badge-name="{{ badge.name }}"
+                        data-badge-icon="{{ badge.icon }}"
+                        data-badge-description="{{ badge.description }}"
+                        data-badge-reason="{{ badge.earned_reason }}"
+                        data-badge-share-text="I earned the {{ badge.name }} badge on Earned Club. {{ profile_share_message }}"
+                    >
+                        <span class="profile-badge-icon">{{ badge.icon }}</span>
+                        <strong>{{ badge.name }}</strong>
+                    </button>
                 {% endfor %}
             </div>
         {% else %}
@@ -286,6 +380,22 @@
 </section>
 
 <div class="profile-footer-spacer" aria-hidden="true"></div>
+
+<div class="profile-badge-modal" data-badge-modal aria-hidden="true">
+    <div class="profile-badge-modal-panel" role="dialog" aria-modal="true" aria-labelledby="badge-modal-title">
+        <div class="section-spread">
+            <span class="profile-badge-icon" data-modal-badge-icon>V</span>
+            <button class="btn-secondary" type="button" data-close-badge style="min-height: 34px; padding: 6px 10px;">Close</button>
+        </div>
+        <h2 id="badge-modal-title" data-modal-badge-name>Badge</h2>
+        <p class="muted" data-modal-badge-description></p>
+        <div class="mini-card">
+            <span class="kicker">Why earned</span>
+            <div class="submission-name" data-modal-badge-reason></div>
+        </div>
+        <button class="btn-main" type="button" data-modal-badge-share style="margin-top: 14px;">Share Badge</button>
+    </div>
+</div>
 
 {% if comparison %}
     <section class="card-dark">
@@ -335,20 +445,21 @@
             svg.innerHTML = `<text x="${pad}" y="${height / 2}" fill="rgba(245,247,251,.72)" font-size="18">No verified data yet.</text>`;
             return;
         }
-        const repsValues = progressData.map((point) => point.reps);
-        const minReps = Math.max(0, Math.min.apply(null, repsValues) - 4);
-        const maxReps = Math.max.apply(null, repsValues.concat([60])) + 4;
+        const scoreValues = progressData.map((point) => Number(point.value || 0));
+        const minScore = Math.max(0, Math.min.apply(null, scoreValues) - 30);
+        const maxScore = Math.max.apply(null, scoreValues.concat([100])) + 30;
         const step = progressData.length > 1 ? (width - pad * 2) / (progressData.length - 1) : 0;
         const yTicks = 4;
         const points = progressData.map((point, index) => {
             const x = progressData.length > 1 ? pad + index * step : width / 2;
-            const y = height - pad - ((point.reps - minReps) / Math.max(1, maxReps - minReps)) * (height - pad * 2);
-            return { x, y, reps: point.reps, date: point.date, label: point.label };
+            const value = Number(point.value || 0);
+            const y = height - pad - ((value - minScore) / Math.max(1, maxScore - minScore)) * (height - pad * 2);
+            return { x, y, value, display: point.display, date: point.date, label: point.label };
         });
         const path = points.map((point, index) => `${index === 0 ? "M" : "L"} ${point.x} ${point.y}`).join(" ");
         const yGuides = Array.from({ length: yTicks + 1 }, (_, index) => {
-            const value = minReps + ((maxReps - minReps) / yTicks) * index;
-            const y = height - pad - ((value - minReps) / Math.max(1, maxReps - minReps)) * (height - pad * 2);
+            const value = minScore + ((maxScore - minScore) / yTicks) * index;
+            const y = height - pad - ((value - minScore) / Math.max(1, maxScore - minScore)) * (height - pad * 2);
             return { value: Math.round(value), y };
         });
         svg.innerHTML = `
@@ -356,15 +467,15 @@
             <line x1="${pad}" y1="${height - pad}" x2="${width - pad}" y2="${height - pad}" stroke="rgba(255,255,255,.2)" />
             <line x1="${pad}" y1="${pad}" x2="${pad}" y2="${height - pad}" stroke="rgba(255,255,255,.2)" />
             <text x="${width / 2}" y="${height - 8}" text-anchor="middle" fill="rgba(245,247,251,.68)" font-size="13">Date</text>
-            <text x="16" y="${height / 2}" transform="rotate(-90 16 ${height / 2})" text-anchor="middle" fill="rgba(245,247,251,.68)" font-size="13">Reps</text>
+            <text x="16" y="${height / 2}" transform="rotate(-90 16 ${height / 2})" text-anchor="middle" fill="rgba(245,247,251,.68)" font-size="13">Hybrid Points</text>
             ${points.map((point, index) => index % Math.max(1, Math.ceil(points.length / 4)) === 0 ? `<text x="${point.x}" y="${height - pad + 20}" text-anchor="middle" fill="rgba(245,247,251,.58)" font-size="12">${point.date.slice(5)}</text>` : "").join("")}
             <path d="${path}" fill="none" stroke="#f7b733" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" />
-            ${points.map((point, index) => `<g data-point="${index}" style="cursor:pointer"><circle cx="${point.x}" cy="${point.y}" r="${isMobileChart ? 9 : 8}" fill="#ffd77b" stroke="#111" stroke-width="2.5"><title>${point.label}: ${point.reps} reps</title></circle><text x="${point.x}" y="${point.y - 14}" text-anchor="middle" fill="#f5f7fb" font-size="14" font-weight="700">${point.reps}</text>${index > 0 && !isMobileChart ? `<text x="${(points[index - 1].x + point.x) / 2}" y="${Math.min(points[index - 1].y, point.y) - 18}" text-anchor="middle" fill="#8df0c9" font-size="12">${point.reps - points[index - 1].reps >= 0 ? "+" : ""}${point.reps - points[index - 1].reps}</text>` : ""}</g>`).join("")}
+            ${points.map((point, index) => `<g data-point="${index}" style="cursor:pointer"><circle cx="${point.x}" cy="${point.y}" r="${isMobileChart ? 9 : 8}" fill="#ffd77b" stroke="#111" stroke-width="2.5"><title>${point.label}: ${point.display || `${point.value} pts`}</title></circle><text x="${point.x}" y="${point.y - 14}" text-anchor="middle" fill="#f5f7fb" font-size="14" font-weight="700">${point.value}</text>${index > 0 && !isMobileChart ? `<text x="${(points[index - 1].x + point.x) / 2}" y="${Math.min(points[index - 1].y, point.y) - 18}" text-anchor="middle" fill="#8df0c9" font-size="12">${point.value - points[index - 1].value >= 0 ? "+" : ""}${point.value - points[index - 1].value}</text>` : ""}</g>`).join("")}
         `;
         svg.querySelectorAll("[data-point]").forEach((node) => {
             node.addEventListener("click", () => {
                 const point = points[parseInt(node.dataset.point, 10)];
-                detail.textContent = `${point.label}: ${point.reps} reps.`;
+                detail.textContent = `${point.label}: ${point.display || `${point.value} pts`}.`;
             });
         });
     }
@@ -407,5 +518,35 @@
             }
         });
     }
+    const badgeModal = document.querySelector("[data-badge-modal]");
+    const modalShare = document.querySelector("[data-modal-badge-share]");
+    function closeBadgeModal() {
+        badgeModal?.classList.remove("is-open");
+        badgeModal?.setAttribute("aria-hidden", "true");
+    }
+    for (const badge of document.querySelectorAll(".profile-badge")) {
+        badge.addEventListener("click", () => {
+            document.querySelector("[data-modal-badge-icon]").textContent = badge.dataset.badgeIcon || "";
+            document.querySelector("[data-modal-badge-name]").textContent = badge.dataset.badgeName || "";
+            document.querySelector("[data-modal-badge-description]").textContent = badge.dataset.badgeDescription || "";
+            document.querySelector("[data-modal-badge-reason]").textContent = badge.dataset.badgeReason || "";
+            modalShare.dataset.shareText = badge.dataset.badgeShareText || "";
+            badgeModal?.classList.add("is-open");
+            badgeModal?.setAttribute("aria-hidden", "false");
+        });
+    }
+    document.querySelector("[data-close-badge]")?.addEventListener("click", closeBadgeModal);
+    badgeModal?.addEventListener("click", (event) => {
+        if (event.target === badgeModal) closeBadgeModal();
+    });
+    modalShare?.addEventListener("click", async () => {
+        const text = modalShare.dataset.shareText || "I earned a badge on Earned Club.";
+        if (navigator.share) await navigator.share({ text });
+        else {
+            await navigator.clipboard.writeText(text);
+            modalShare.textContent = "Copied";
+            setTimeout(() => modalShare.textContent = "Share Badge", 1200);
+        }
+    });
 </script>
 {% endblock %}
