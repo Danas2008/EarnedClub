@@ -22,6 +22,7 @@ from .models import (
     VerificationEvent,
     Workout,
     WorkoutSession,
+    calculate_submission_points,
     get_rank_tier,
 )
 
@@ -215,11 +216,31 @@ class SubmissionFlowTests(TestCase):
 
         response = self.client.get(reverse("dashboard"))
 
-        self.assertEqual(response.context["hybrid_summary"]["score"], 500)
+        self.assertEqual(response.context["hybrid_summary"]["score"], 562)
         pushups = next(item for item in response.context["hybrid_summary"]["breakdown"] if item["discipline"]["key"] == Submission.DISCIPLINE_PUSHUPS)
         pullups = next(item for item in response.context["hybrid_summary"]["breakdown"] if item["discipline"]["key"] == Submission.DISCIPLINE_PULLUPS)
         self.assertEqual(pushups["points"], 500)
-        self.assertEqual(pullups["points"], 500)
+        self.assertEqual(pullups["points"], 625)
+
+    def test_discipline_points_are_balanced_by_rank_tier(self):
+        advanced_scores = [
+            calculate_submission_points(Submission(reps=42, discipline=Submission.DISCIPLINE_PUSHUPS)),
+            calculate_submission_points(Submission(reps=11, discipline=Submission.DISCIPLINE_PULLUPS)),
+            calculate_submission_points(Submission(reps=21 * 60 + 34, discipline=Submission.DISCIPLINE_5K)),
+            calculate_submission_points(Submission(reps=45 * 60, discipline=Submission.DISCIPLINE_10K)),
+        ]
+
+        for score in advanced_scores:
+            self.assertGreaterEqual(score, 500)
+            self.assertLessEqual(score, 750)
+
+        elite_scores = [
+            calculate_submission_points(Submission(reps=60, discipline=Submission.DISCIPLINE_PUSHUPS)),
+            calculate_submission_points(Submission(reps=20, discipline=Submission.DISCIPLINE_PULLUPS)),
+            calculate_submission_points(Submission(reps=18 * 60, discipline=Submission.DISCIPLINE_5K)),
+            calculate_submission_points(Submission(reps=38 * 60, discipline=Submission.DISCIPLINE_10K)),
+        ]
+        self.assertTrue(all(score >= 750 for score in elite_scores))
 
     def test_hybrid_leaderboard_sorts_by_hybrid_score(self):
         lower = User.objects.create_user(username="lower-hybrid", password="StrongPass12345")
@@ -704,6 +725,52 @@ class SubmissionFlowTests(TestCase):
         self.assertTrue(progress["hybrid"]["points"])
         self.assertEqual(progress["pullups"]["points"][-1]["display"], "12 reps")
         self.assertEqual(progress["run_5k"]["points"][-1]["display"], "21:34")
+
+    def test_dashboard_supports_discipline_and_running_goals(self):
+        user = User.objects.create_user(username="goal-disciplines", password="StrongPass12345")
+        self.client.force_login(user)
+
+        response = self.client.post(
+            reverse("dashboard"),
+            {
+                "form_type": "goal",
+                "goal_type": Submission.DISCIPLINE_5K,
+                "target_value": "21:34",
+                "note": "Race target",
+                "is_public": "on",
+            },
+        )
+
+        self.assertRedirects(response, reverse("dashboard"))
+        goal = user.goals.get(goal_type=Submission.DISCIPLINE_5K)
+        self.assertEqual(goal.target_value, 1294)
+        self.assertEqual(goal.display_target, "21:34")
+
+    def test_legacy_pushup_goal_still_works(self):
+        user = User.objects.create_user(username="legacy-goal", password="StrongPass12345")
+        self.client.force_login(user)
+
+        response = self.client.post(
+            reverse("dashboard"),
+            {"form_type": "goal", "goal_type": "pushups", "target_value": "50"},
+        )
+
+        self.assertRedirects(response, reverse("dashboard"))
+        self.assertTrue(user.goals.filter(goal_type="pushups", target_value=50).exists())
+
+    def test_dashboard_badges_use_verified_hybrid_achievements(self):
+        user = User.objects.create_user(username="badge-user", password="StrongPass12345")
+        Submission.objects.create(user=user, name="Badge", reps=45, discipline=Submission.DISCIPLINE_PUSHUPS, status=Submission.STATUS_VERIFIED)
+        Submission.objects.create(user=user, name="Badge", reps=1300, discipline=Submission.DISCIPLINE_5K, status=Submission.STATUS_VERIFIED)
+        self.client.force_login(user)
+
+        response = self.client.get(reverse("dashboard"))
+        badge_names = [badge["name"] for badge in response.context["badges"]]
+
+        self.assertIn("Verified Athlete", badge_names)
+        self.assertIn("Hybrid Starter", badge_names)
+        self.assertIn("Balanced Athlete", badge_names)
+        self.assertContains(response, "badge-modal")
 
     def test_verified_checkbox_updates_status_for_admin_workflow(self):
         submission = Submission.objects.create(name="Manual", reps=44, status=Submission.STATUS_PENDING, video_link="https://example.com/proof")

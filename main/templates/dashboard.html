@@ -29,6 +29,28 @@
         min-height: 210px;
     }
 
+    .status-chip-row,
+    .dashboard-insights,
+    .discipline-meta-row {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        align-items: center;
+    }
+
+    .dashboard-insight {
+        padding: 12px;
+        border: 1px solid rgba(255, 255, 255, .08);
+        background: rgba(8, 11, 15, .34);
+        border-radius: var(--radius-md);
+        min-width: 150px;
+        flex: 1;
+    }
+
+    .dashboard-insights {
+        grid-column: 1 / -1;
+    }
+
     .dashboard-score-number {
         font-family: "Archivo", sans-serif;
         font-size: clamp(3rem, 9vw, 6.8rem);
@@ -49,6 +71,91 @@
     .dashboard-discipline-strip .feature-card {
         padding: 14px;
         min-height: 116px;
+    }
+
+    .discipline-card-premium {
+        display: grid;
+        gap: 12px;
+        min-height: 190px;
+    }
+
+    .discipline-meter {
+        height: 8px;
+        overflow: hidden;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, .08);
+    }
+
+    .discipline-meter span {
+        display: block;
+        height: 100%;
+        width: var(--meter-width, 0%);
+        background: linear-gradient(90deg, #f7b733, #8df0c9);
+    }
+
+    .next-action-card {
+        border-color: rgba(141, 240, 201, .24);
+        background: linear-gradient(150deg, rgba(141, 240, 201, .10), rgba(15, 20, 27, .92));
+    }
+
+    .badge-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 12px;
+    }
+
+    .badge-card {
+        width: 100%;
+        text-align: left;
+        border: 1px solid rgba(247, 183, 51, .22);
+        border-radius: var(--radius-md);
+        padding: 14px;
+        color: var(--text);
+        background: radial-gradient(circle at top left, rgba(247, 183, 51, .20), rgba(15, 20, 27, .92) 48%);
+        display: grid;
+        gap: 8px;
+        cursor: pointer;
+    }
+
+    .badge-card[data-tier="premium"],
+    .badge-card[data-tier="legend"] {
+        border-color: rgba(141, 240, 201, .30);
+        box-shadow: 0 0 28px rgba(141, 240, 201, .08);
+    }
+
+    .badge-icon {
+        width: 38px;
+        height: 38px;
+        display: inline-grid;
+        place-items: center;
+        border-radius: 50%;
+        background: linear-gradient(145deg, #f7b733, #fff0bd);
+        color: #111;
+        font-family: "Archivo", sans-serif;
+        font-weight: 900;
+    }
+
+    .badge-modal {
+        position: fixed;
+        inset: 0;
+        z-index: 50;
+        display: none;
+        place-items: center;
+        padding: 20px;
+        background: rgba(0, 0, 0, .62);
+    }
+
+    .badge-modal.is-open {
+        display: grid;
+    }
+
+    .badge-modal-panel {
+        width: min(440px, 100%);
+        border: 1px solid rgba(247, 183, 51, .26);
+        border-radius: var(--radius-lg);
+        padding: 22px;
+        background: #101821;
+        box-shadow: var(--shadow);
     }
 
     .progress-header {
@@ -85,6 +192,11 @@
             max-width: none;
             width: 100%;
         }
+
+        .dashboard-insights {
+            display: grid;
+            grid-template-columns: 1fr;
+        }
     }
 </style>
 
@@ -117,9 +229,30 @@
             <span class="kicker">Hybrid Score</span>
             <div class="dashboard-score-number">{{ hybrid_summary.score }}</div>
             <h2>{{ hybrid_summary.rank.name }}</h2>
-            <p class="muted">{{ hybrid_summary.verified_count }}/{{ hybrid_summary.max_disciplines }} verified disciplines count toward official status.</p>
+            <div class="status-chip-row">
+                <span class="status-pill verified">Official</span>
+                <span class="tag-pill">{{ hybrid_summary.verified_count }}/{{ hybrid_summary.max_disciplines }} verified</span>
+            </div>
+            <p class="muted">Official score uses verified performances. Earned status, not claimed stats.</p>
         </div>
         <a class="btn-main" href="{% url 'leaderboard' %}#full-leaderboard">View Hybrid Rank</a>
+    </div>
+    <div class="dashboard-insights">
+        <div class="dashboard-insight">
+            <span class="kicker">Best discipline</span>
+            <strong>{% if hybrid_summary.best_discipline %}{{ hybrid_summary.best_discipline.discipline.short_label }}{% else %}-{% endif %}</strong>
+            <div class="muted">{% if hybrid_summary.best_discipline %}{{ hybrid_summary.best_discipline.points }} pts{% else %}Verify a result to start.{% endif %}</div>
+        </div>
+        <div class="dashboard-insight">
+            <span class="kicker">Weakest discipline</span>
+            <strong>{% if hybrid_summary.weakest_discipline %}{{ hybrid_summary.weakest_discipline.discipline.short_label }}{% else %}-{% endif %}</strong>
+            <div class="muted">Improve your weakest discipline.</div>
+        </div>
+        <div class="dashboard-insight">
+            <span class="kicker">Next target</span>
+            <strong>{% if hybrid_summary.next_target_points %}+{{ hybrid_summary.next_target_points }} pts{% else %}Hold the top line{% endif %}</strong>
+            <div class="muted">To the next Hybrid title.</div>
+        </div>
     </div>
     <div class="button-row hero-action-row">
         <a class="btn-main" href="{% url 'challenge' %}#submit-form-top">Submit</a>
@@ -147,16 +280,18 @@
 </section>
 
 <section class="grid-2">
-    <details class="card-dark compact-details">
-        <summary>Next Action</summary>
-        <div class="compact-details-body">
-            <div class="section-spread" style="margin-bottom: 0;">
-                <div>
-                    <h2>{{ next_action.label }}</h2>
-                    <p class="muted">{{ next_action.text }}</p>
-                </div>
-                <a class="btn-main" href="{{ next_action.url }}">Open</a>
+    <div class="card-dark next-action-card">
+        <div class="section-spread" style="margin-bottom: 16px;">
+            <div>
+                <div class="eyebrow">Next best action</div>
+                <h2>{{ next_action.label }}</h2>
+                <p class="muted">{{ next_action.text }}</p>
             </div>
+            <a class="btn-main" href="{{ next_action.url }}">Open</a>
+        </div>
+        <details class="compact-details">
+            <summary>Onboarding</summary>
+            <div class="compact-details-body">
             <h3>Onboarding</h3>
             {% for item in onboarding_checklist %}
                 <div class="score-row">
@@ -167,8 +302,9 @@
                     <a class="btn-secondary" href="{{ item.url }}">{% if item.done %}View{% else %}Do{% endif %}</a>
                 </div>
             {% endfor %}
-        </div>
-    </details>
+            </div>
+        </details>
+    </div>
     {% if profile_completion_percent < 100 %}
         <details class="card-dark compact-details">
             <summary>Profile Completion - {{ profile_completion_percent }}%</summary>
@@ -218,11 +354,20 @@
     </div>
     <div class="grid-4">
         {% for item in hybrid_summary.breakdown %}
-            <div class="feature-card">
-                <span class="kicker">{{ item.status }}</span>
-                <h3>{{ item.discipline.short_label }}</h3>
-                <div class="stat-value">{{ item.points }}</div>
-                <p class="muted">{{ item.display_score }}{% if item.submission %} - {{ item.submission.rank_name }}{% endif %}</p>
+            <div class="feature-card discipline-card-premium">
+                <div class="section-spread" style="margin-bottom: 0;">
+                    <div>
+                        <span class="kicker">{{ item.status }}</span>
+                        <h3>{{ item.discipline.short_label }}</h3>
+                    </div>
+                    <span class="status-pill {% if item.submission %}verified{% else %}unverified{% endif %}">{{ item.points }} pts</span>
+                </div>
+                <div class="discipline-meter" style="--meter-width: {{ item.progress_percent }}%;"><span></span></div>
+                <div>
+                    <div class="submission-name">{{ item.display_score }}</div>
+                    <div class="submission-meta">{{ item.rank_name }}{% if item.latest_unverified %} - {{ item.latest_unverified.public_status_label }} waiting{% endif %}</div>
+                </div>
+                <a class="btn-secondary" href="{{ item.action_url }}">{{ item.action_label }}</a>
             </div>
         {% endfor %}
     </div>
@@ -261,30 +406,36 @@
 
     <div class="card-dark">
         <h2>Goals</h2>
-        {% for goal in completed_goals %}
+        {% for row in goal_rows %}
+            {% if row.completed %}
             <div class="mini-card" style="margin-bottom: 12px;">
                 <span class="status-pill verified">Goal completed</span>
                 <div class="submission-name" style="margin-top: 10px;">
-                    {% if goal.goal_type == "rank" %}Reached {{ goal.target_value }}+ reps{% else %}Hit {{ goal.target_value }} reps{% endif %}
+                    {{ row.goal.get_goal_type_display }} - {{ row.goal.display_target }}
                 </div>
-                <p class="muted">You completed this goal with your current {{ current_pr }}-rep PR.</p>
+                <p class="muted">Current: {{ row.current_display }}.</p>
                 <div class="button-row" style="margin-top: 0;">
-                    <button class="btn-main" type="button" data-share-text="I completed my EarnedClub goal: {% if goal.goal_type == 'rank' %}{{ goal.target_value }}+ reps{% else %}{{ goal.target_value }} verified reps{% endif %}. {{ profile_share_message }}">Share Goal</button>
-                    <form method="POST" action="{% url 'delete_goal' goal.id %}">
+                    <button class="btn-main" type="button" data-share-text="I completed my EarnedClub goal: {{ row.goal.get_goal_type_display }} {{ row.goal.display_target }}. {{ profile_share_message }}">Share Goal</button>
+                    <form method="POST" action="{% url 'delete_goal' row.goal.id %}">
                         {% csrf_token %}
                         <button class="btn-secondary" type="submit">Delete</button>
                     </form>
                 </div>
             </div>
+            {% endif %}
         {% endfor %}
         <form class="submission-form" method="POST">
             {% csrf_token %}
             <input type="hidden" name="form_type" value="goal">
             <select class="select" name="goal_type" data-goal-type>
-                <option value="pushups">Rep target</option>
-                <option value="rank">Rank target</option>
+                <option value="pushups">Push-up target</option>
+                <option value="pullups">Pull-up target</option>
+                <option value="run_5k">5K target</option>
+                <option value="run_10k">10K target</option>
+                <option value="hybrid_score">Hybrid Score target</option>
+                <option value="rank">Push-up rank target</option>
             </select>
-            <input class="input" type="number" min="1" name="target_value" data-goal-reps placeholder="Target reps">
+            <input class="input" type="number" min="1" name="target_value" data-goal-value placeholder="Target reps">
             <select class="select" name="target_value" data-goal-rank disabled hidden>
                 {% for option in rank_goal_options %}<option value="{{ option.value }}">{{ option.label }}{% if option.distance %} - {{ option.distance }} reps away{% else %} - reached{% endif %}</option>{% endfor %}
             </select>
@@ -292,15 +443,16 @@
             <label class="tag-pill"><input type="checkbox" name="is_public" checked> Public</label>
             <button class="btn-secondary" type="submit">Save Goal</button>
         </form>
-        {% for goal in active_goals %}
+        {% for row in goal_rows %}
             <div class="score-row" style="margin-top: 10px;">
                 <div class="score-row-main">
-                    <div class="submission-name">{{ goal.get_goal_type_display }}: {% if goal.goal_type == "rank" %}{{ goal.target_value }}+ reps{% else %}{{ goal.target_value }} reps{% endif %}</div>
+                    <div class="submission-name">{{ row.goal.get_goal_type_display }}: {{ row.goal.display_target }}</div>
                     <div class="submission-meta">
-                        {% if goal in completed_goals %}Completed{% else %}{{ goal.note|default:"No note." }}{% endif %}
+                        {% if row.completed %}Completed{% else %}Current {{ row.current_display }}{% if row.goal.note %} - {{ row.goal.note }}{% endif %}{% endif %}
                     </div>
+                    <div class="discipline-meter" style="--meter-width: {{ row.progress_percent }}%;"><span></span></div>
                 </div>
-                <form method="POST" action="{% url 'delete_goal' goal.id %}">
+                <form method="POST" action="{% url 'delete_goal' row.goal.id %}">
                     {% csrf_token %}
                     <button class="btn-secondary" type="submit">Delete</button>
                 </form>
@@ -313,9 +465,31 @@
 
 <section class="grid-2">
     <div class="card-dark">
-        <h2>Badges</h2>
+        <div class="section-spread">
+            <div>
+                <h2>Badges</h2>
+                <p class="muted">Status achievements from verified performance.</p>
+            </div>
+        </div>
         {% if badges %}
-            <div class="button-row" style="margin-top: 0;">{% for badge in badges %}<span class="tag-pill" title="{{ badge.description }}">{{ badge.name }}</span>{% endfor %}</div>
+            <div class="badge-grid">
+                {% for badge in badges %}
+                    <button
+                        class="badge-card"
+                        type="button"
+                        data-badge-name="{{ badge.name }}"
+                        data-badge-icon="{{ badge.icon }}"
+                        data-badge-description="{{ badge.description }}"
+                        data-badge-reason="{{ badge.earned_reason }}"
+                        data-badge-share-text="I earned the {{ badge.name }} badge on Earned Club. {{ profile_share_message }}"
+                        data-tier="{{ badge.tier }}"
+                    >
+                        <span class="badge-icon">{{ badge.icon }}</span>
+                        <strong>{{ badge.name }}</strong>
+                        <span class="submission-meta">{{ badge.description }}</span>
+                    </button>
+                {% endfor %}
+            </div>
         {% else %}<p class="muted">Badges unlock from verified results.</p>{% endif %}
     </div>
     <div class="card-dark">
@@ -357,7 +531,7 @@
             <span class="status-pill {{ submission.status }}">{{ submission.public_status_label }}</span>
             <div class="row-title">
                 <div class="submission-name">{{ submission.discipline_label }} - {{ submission.display_score }}</div>
-                <div class="submission-meta">{{ submission.rank_name }}{% if submission.has_proof %} - Proof attached{% endif %}</div>
+                <div class="submission-meta">{{ submission.rank_name }}{% if submission.status == "verified" %} - {{ submission.hybrid_points }} pts{% endif %}{% if submission.has_proof %} - Proof attached{% else %} - Proof missing{% endif %}</div>
                 {% if submission.status == "unverified" %}
                     <details class="score-details" style="margin-top: 10px;">
                         <summary>Add proof</summary>
@@ -408,6 +582,22 @@
         </div>
     {% endif %}
 </section>
+
+<div class="badge-modal" data-badge-modal aria-hidden="true">
+    <div class="badge-modal-panel" role="dialog" aria-modal="true" aria-labelledby="badge-modal-title">
+        <div class="section-spread">
+            <span class="badge-icon" data-modal-badge-icon>V</span>
+            <button class="btn-secondary" type="button" data-close-badge style="min-height: 34px; padding: 6px 10px;">Close</button>
+        </div>
+        <h2 id="badge-modal-title" data-modal-badge-name>Badge</h2>
+        <p class="muted" data-modal-badge-description></p>
+        <div class="mini-card">
+            <span class="kicker">Why earned</span>
+            <div class="submission-name" data-modal-badge-reason></div>
+        </div>
+        <button class="btn-main" type="button" data-modal-badge-share style="margin-top: 14px;">Share Badge</button>
+    </div>
+</div>
 
 {{ progress_data|json_script:"progress-data" }}
 {{ performance_progress|json_script:"performance-progress-data" }}
@@ -521,11 +711,16 @@
         });
     }
     function syncGoalTarget() {
-        const rank = document.querySelector("[data-goal-type]")?.value === "rank";
-        const repsInput = document.querySelector("[data-goal-reps]");
+        const type = document.querySelector("[data-goal-type]")?.value;
+        const rank = type === "rank";
+        const timeGoal = type === "run_5k" || type === "run_10k";
+        const hybridGoal = type === "hybrid_score";
+        const repsInput = document.querySelector("[data-goal-value]");
         const rankSelect = document.querySelector("[data-goal-rank]");
         repsInput.hidden = rank;
         repsInput.disabled = rank;
+        repsInput.type = timeGoal ? "text" : "number";
+        repsInput.placeholder = timeGoal ? "Target time, e.g. 21:34" : hybridGoal ? "Target Hybrid Score" : "Target reps";
         rankSelect.hidden = !rank;
         rankSelect.disabled = !rank;
     }
@@ -543,5 +738,35 @@
             }
         });
     }
+    const badgeModal = document.querySelector("[data-badge-modal]");
+    const modalShare = document.querySelector("[data-modal-badge-share]");
+    function closeBadgeModal() {
+        badgeModal?.classList.remove("is-open");
+        badgeModal?.setAttribute("aria-hidden", "true");
+    }
+    for (const badge of document.querySelectorAll(".badge-card")) {
+        badge.addEventListener("click", () => {
+            document.querySelector("[data-modal-badge-icon]").textContent = badge.dataset.badgeIcon || "";
+            document.querySelector("[data-modal-badge-name]").textContent = badge.dataset.badgeName || "";
+            document.querySelector("[data-modal-badge-description]").textContent = badge.dataset.badgeDescription || "";
+            document.querySelector("[data-modal-badge-reason]").textContent = badge.dataset.badgeReason || "";
+            modalShare.dataset.shareText = badge.dataset.badgeShareText || "";
+            badgeModal?.classList.add("is-open");
+            badgeModal?.setAttribute("aria-hidden", "false");
+        });
+    }
+    document.querySelector("[data-close-badge]")?.addEventListener("click", closeBadgeModal);
+    badgeModal?.addEventListener("click", (event) => {
+        if (event.target === badgeModal) closeBadgeModal();
+    });
+    modalShare?.addEventListener("click", async () => {
+        const text = modalShare.dataset.shareText || "I earned a badge on Earned Club.";
+        if (navigator.share) await navigator.share({ text });
+        else {
+            await navigator.clipboard.writeText(text);
+            modalShare.textContent = "Copied";
+            setTimeout(() => modalShare.textContent = "Share Badge", 1200);
+        }
+    });
 </script>
 {% endblock %}

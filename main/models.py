@@ -122,6 +122,41 @@ DISCIPLINE_CONFIG = {
     },
 }
 
+DISCIPLINE_POINT_CURVES = {
+    DISCIPLINE_PUSHUPS: [
+        (0, 0),
+        (20, 250),
+        (40, 500),
+        (60, 750),
+        (80, 900),
+        (100, 1000),
+    ],
+    DISCIPLINE_PULLUPS: [
+        (0, 0),
+        (5, 250),
+        (10, 500),
+        (20, 750),
+        (30, 900),
+        (40, 1000),
+    ],
+    DISCIPLINE_5K: [
+        (45 * 60, 0),
+        (30 * 60, 250),
+        (25 * 60, 500),
+        (18 * 60, 750),
+        (16 * 60, 900),
+        (12 * 60 + 49, 1000),
+    ],
+    DISCIPLINE_10K: [
+        (90 * 60, 0),
+        (60 * 60, 250),
+        (50 * 60, 500),
+        (38 * 60, 750),
+        (32 * 60, 900),
+        (26 * 60 + 24, 1000),
+    ],
+}
+
 DISCIPLINE_ALIASES = {
     "5k": DISCIPLINE_5K,
     "10k": DISCIPLINE_10K,
@@ -189,19 +224,37 @@ def get_hybrid_rank(score):
     return rank
 
 
-def calculate_submission_points(submission):
-    config = submission.discipline_config
-    if config["score_type"] == "reps":
-        target = config["points_target"]
-        return min(1000, max(0, round((submission.reps / target) * 1000)))
+def interpolate_points(value, low_value, low_points, high_value, high_points):
+    if high_value == low_value:
+        return high_points
+    ratio = (value - low_value) / (high_value - low_value)
+    return round(low_points + ratio * (high_points - low_points))
 
-    floor = config["points_floor"]
-    world_record = config["world_record"]
-    if submission.reps <= world_record:
+
+def calculate_submission_points(submission):
+    discipline = submission.normalized_discipline
+    config = submission.discipline_config
+    curve = DISCIPLINE_POINT_CURVES[discipline]
+    value = submission.reps
+
+    if config["higher_is_better"]:
+        if value <= curve[0][0]:
+            return curve[0][1]
+        for index in range(1, len(curve)):
+            high_value, high_points = curve[index]
+            low_value, low_points = curve[index - 1]
+            if value <= high_value:
+                return min(1000, max(0, interpolate_points(value, low_value, low_points, high_value, high_points)))
         return 1000
-    if submission.reps >= floor:
-        return 0
-    return min(1000, max(0, round(((floor - submission.reps) / (floor - world_record)) * 1000)))
+
+    if value >= curve[0][0]:
+        return curve[0][1]
+    for index in range(1, len(curve)):
+        high_value, high_points = curve[index]
+        low_value, low_points = curve[index - 1]
+        if value >= high_value:
+            return min(1000, max(0, interpolate_points(value, low_value, low_points, high_value, high_points)))
+    return 1000
 
 
 def get_pullup_rank_tier(reps):
@@ -543,16 +596,52 @@ class Profile(models.Model):
     @property
     def earned_badges(self):
         badges = []
-        if self.personal_best_reps >= 40:
-            badges.append({"name": "40 Club", "description": "Hit at least 40 verified strict push-ups."})
-        if self.personal_best_reps >= 60:
-            badges.append({"name": "Elite Line", "description": "Reached the Elite benchmark."})
-        if self.personal_best_reps >= 80:
-            badges.append({"name": "Earned Legend", "description": "Reached the top public benchmark."})
+        verified = list(self.user.submission_set.filter(status=Submission.STATUS_VERIFIED))
+        verified_disciplines = {submission.normalized_discipline for submission in verified}
+        strength_verified = bool(verified_disciplines & {DISCIPLINE_PUSHUPS, DISCIPLINE_PULLUPS})
+        running_verified = bool(verified_disciplines & {DISCIPLINE_5K, DISCIPLINE_10K})
+        best_by_discipline = {}
+        for submission in verified:
+            current = best_by_discipline.get(submission.normalized_discipline)
+            if current is None:
+                best_by_discipline[submission.normalized_discipline] = submission
+            elif submission.discipline_config["higher_is_better"] and submission.reps > current.reps:
+                best_by_discipline[submission.normalized_discipline] = submission
+            elif not submission.discipline_config["higher_is_better"] and submission.reps < current.reps:
+                best_by_discipline[submission.normalized_discipline] = submission
+        points = [submission.hybrid_points for submission in best_by_discipline.values()]
+        hybrid_score = round(sum(points) / len(points)) if points else 0
+
+        def badge(key, name, icon, description, reason, tier="standard"):
+            badges.append(
+                {
+                    "key": key,
+                    "name": name,
+                    "icon": icon,
+                    "description": description,
+                    "earned_reason": reason,
+                    "tier": tier,
+                }
+            )
+
+        if verified:
+            badge("verified-athlete", "Verified Athlete", "V", "At least one verified performance is official.", "First verified result accepted.")
+        if len(verified_disciplines) >= 2:
+            badge("hybrid-starter", "Hybrid Starter", "H", "Verified performances in at least two disciplines.", f"{len(verified_disciplines)} disciplines verified.")
+        if strength_verified and running_verified:
+            badge("balanced-athlete", "Balanced Athlete", "B", "Verified strength and running performance.", "Strength and running are both on the board.", "premium")
+        if any(submission.normalized_discipline == DISCIPLINE_PUSHUPS and submission.rank_name in {"Advanced", "Elite", "Earned Legend"} for submission in verified):
+            badge("pushup-advanced", "Push-Up Advanced", "P", "Advanced or better verified push-up performance.", "Verified push-up result reached Advanced tier.")
+        if any(submission.normalized_discipline == DISCIPLINE_PULLUPS and submission.rank_name in {"Advanced", "Elite", "Earned Legend"} for submission in verified):
+            badge("pullup-advanced", "Pull-Up Advanced", "U", "Advanced or better verified pull-up performance.", "Verified pull-up result reached Advanced tier.")
+        if any(submission.normalized_discipline == DISCIPLINE_5K and submission.rank_name in {"Advanced", "Elite", "Earned Legend"} for submission in verified):
+            badge("fivek-advanced", "5K Advanced", "5", "Advanced or better verified 5K performance.", "Verified 5K result reached Advanced tier.")
+        if any(submission.normalized_discipline == DISCIPLINE_10K and submission.rank_name in {"Advanced", "Elite", "Earned Legend"} for submission in verified):
+            badge("tenk-advanced", "10K Advanced", "10", "Advanced or better verified 10K performance.", "Verified 10K result reached Advanced tier.")
+        if hybrid_score >= 750:
+            badge("elite-hybrid", "Elite Hybrid", "E", "Hybrid Score reached Elite range.", f"Official Hybrid Score is {hybrid_score}.", "legend")
         if self.current_rank and self.current_rank <= 10:
-            badges.append({"name": "Top 10", "description": "Ranked inside the verified top 10."})
-        if self.user.submission_set.filter(status=Submission.STATUS_VERIFIED).count() >= 3:
-            badges.append({"name": "Consistent", "description": "Built a verified history."})
+            badge("top-10", "Top 10", "#", "Ranked inside the verified push-up top 10.", f"Current push-up rank is #{self.current_rank}.", "premium")
         return badges
 
 
@@ -571,9 +660,17 @@ class Follow(models.Model):
 
 class Goal(models.Model):
     GOAL_PUSHUPS = "pushups"
+    GOAL_PULLUPS = "pullups"
+    GOAL_5K = "run_5k"
+    GOAL_10K = "run_10k"
+    GOAL_HYBRID_SCORE = "hybrid_score"
     GOAL_RANK = "rank"
     GOAL_CHOICES = [
         (GOAL_PUSHUPS, "Push-up target"),
+        (GOAL_PULLUPS, "Pull-up target"),
+        (GOAL_5K, "5K target"),
+        (GOAL_10K, "10K target"),
+        (GOAL_HYBRID_SCORE, "Hybrid Score target"),
         (GOAL_RANK, "Rank target"),
     ]
 
@@ -590,6 +687,20 @@ class Goal(models.Model):
 
     def __str__(self):
         return f"{self.user} goal {self.target_value}"
+
+    @property
+    def is_time_goal(self):
+        return self.goal_type in {self.GOAL_5K, self.GOAL_10K}
+
+    @property
+    def display_target(self):
+        if self.is_time_goal:
+            return format_duration(self.target_value)
+        if self.goal_type == self.GOAL_HYBRID_SCORE:
+            return f"{self.target_value} score"
+        if self.goal_type == self.GOAL_RANK:
+            return f"{self.target_value}+ reps"
+        return f"{self.target_value} reps"
 
 
 class WorkoutTemplate(models.Model):

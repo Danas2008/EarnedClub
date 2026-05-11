@@ -238,6 +238,7 @@ def build_hybrid_breakdown(user):
     rows = []
     verified_points = []
     verified_submissions = user.submission_set.filter(status=Submission.STATUS_VERIFIED).select_related("user")
+    all_submissions = user.submission_set.all()
     for config in DISCIPLINE_CONFIG.values():
         best_submission = None
         for submission in verified_submissions:
@@ -245,6 +246,12 @@ def build_hybrid_breakdown(user):
                 continue
             if best_submission is None or is_better_submission(submission, best_submission):
                 best_submission = submission
+        latest_unverified = (
+            all_submissions.filter(discipline=config["key"])
+            .exclude(status=Submission.STATUS_VERIFIED)
+            .order_by("-created_at")
+            .first()
+        )
         points = best_submission.hybrid_points if best_submission else 0
         if best_submission:
             verified_points.append(points)
@@ -252,16 +259,28 @@ def build_hybrid_breakdown(user):
             {
                 "discipline": config,
                 "submission": best_submission,
+                "latest_unverified": latest_unverified,
                 "points": points,
+                "progress_percent": min(100, round((points / 1000) * 100)),
                 "display_score": best_submission.display_score if best_submission else "-",
                 "status": "Verified" if best_submission else "Missing",
+                "rank_name": best_submission.rank_name if best_submission else "No verified result",
+                "action_label": "Improve" if best_submission else ("Add proof" if latest_unverified and latest_unverified.status == Submission.STATUS_UNVERIFIED else "Submit result"),
+                "action_url": reverse("dashboard") if latest_unverified and latest_unverified.status == Submission.STATUS_UNVERIFIED else f"{reverse('challenge')}?discipline={config['key']}#submit-form-top",
             }
         )
     hybrid_score = round(sum(verified_points) / len(verified_points)) if verified_points else 0
+    verified_rows = [row for row in rows if row["submission"]]
+    best_row = max(verified_rows, key=lambda row: row["points"], default=None)
+    weakest_row = min(verified_rows, key=lambda row: row["points"], default=None)
+    missing_row = next((row for row in rows if not row["submission"]), None)
     return {
         "score": hybrid_score,
         "rank": get_hybrid_rank(hybrid_score),
         "breakdown": rows,
+        "best_discipline": best_row,
+        "weakest_discipline": weakest_row or missing_row,
+        "next_target_points": max(0, next((rank["min_score"] for rank in HYBRID_RANKS if rank["min_score"] > hybrid_score), 1000) - hybrid_score),
         "verified_count": len(verified_points),
         "max_disciplines": len(DISCIPLINE_CONFIG),
     }
@@ -939,6 +958,83 @@ def build_next_action(user):
     return {"label": "Share profile", "url": reverse("athlete_profile", args=[user.profile.slug]), "text": "Share your public profile and keep building proof."}
 
 
+def get_goal_current_value(user, goal_type, hybrid_summary=None):
+    if goal_type == Goal.GOAL_HYBRID_SCORE:
+        return (hybrid_summary or build_hybrid_breakdown(user))["score"]
+    if goal_type == Goal.GOAL_RANK:
+        best = get_best_verified_submission_for_user(user, Submission.DISCIPLINE_PUSHUPS)
+        return best.reps if best else 0
+    if goal_type in {Goal.GOAL_PUSHUPS, Goal.GOAL_PULLUPS, Goal.GOAL_5K, Goal.GOAL_10K}:
+        best = get_best_verified_submission_for_user(user, goal_type)
+        return best.reps if best else None
+    return 0
+
+
+def is_goal_completed(user, goal, hybrid_summary=None):
+    current = get_goal_current_value(user, goal.goal_type, hybrid_summary=hybrid_summary)
+    if current is None:
+        return False
+    if goal.is_time_goal:
+        return current <= goal.target_value
+    return current >= goal.target_value
+
+
+def build_goal_rows(user, goals, hybrid_summary):
+    rows = []
+    for goal in goals:
+        current = get_goal_current_value(user, goal.goal_type, hybrid_summary=hybrid_summary)
+        if goal.is_time_goal:
+            current_display = format_duration(current) if current else "No verified time"
+            progress = min(100, round((goal.target_value / current) * 100)) if current else 0
+        elif goal.goal_type == Goal.GOAL_HYBRID_SCORE:
+            current_display = f"{current} score"
+            progress = min(100, round((current / goal.target_value) * 100)) if goal.target_value else 0
+        else:
+            current_display = f"{current or 0} reps"
+            progress = min(100, round(((current or 0) / goal.target_value) * 100)) if goal.target_value else 0
+        rows.append(
+            {
+                "goal": goal,
+                "completed": is_goal_completed(user, goal, hybrid_summary=hybrid_summary),
+                "current_display": current_display,
+                "progress_percent": progress,
+            }
+        )
+    return rows
+
+
+def build_dashboard_next_action(user, hybrid_summary):
+    unverified = user.submission_set.filter(status=Submission.STATUS_UNVERIFIED).order_by("-created_at").first()
+    if unverified:
+        return {
+            "label": f"Add proof to {unverified.discipline_label}",
+            "text": f"Proof makes your {unverified.display_score} result count toward official status.",
+            "url": reverse("dashboard"),
+        }
+    missing = next((row for row in hybrid_summary["breakdown"] if not row["submission"]), None)
+    if missing:
+        return {
+            "label": f"Submit your first {missing['discipline']['short_label']} result",
+            "text": "Build your Hybrid Score by filling the empty discipline lanes.",
+            "url": f"{reverse('challenge')}?discipline={missing['discipline']['key']}#submit-form-top",
+        }
+    next_points = hybrid_summary["next_target_points"]
+    if next_points:
+        return {
+            "label": f"{next_points} points to the next Hybrid title",
+            "text": "Improve your weakest discipline to move the overall score fastest.",
+            "url": reverse("rank"),
+        }
+    weakest = hybrid_summary.get("weakest_discipline")
+    if weakest:
+        return {
+            "label": f"Improve your {weakest['discipline']['short_label']}",
+            "text": "Your weakest verified discipline is the fastest path to a higher Hybrid Score.",
+            "url": f"{reverse('challenge')}?discipline={weakest['discipline']['key']}#submit-form-top",
+        }
+    return build_next_action(user)
+
+
 def send_newsletter_to_subscribers(subject, body, subscribers, campaign=None, request=None):
     sent_count = 0
     failures = []
@@ -1485,17 +1581,25 @@ def dashboard(request):
 
         if form_type == "goal":
             goal_type = request.POST.get("goal_type") or Goal.GOAL_PUSHUPS
-            target_value = request.POST.get("target_value")
+            target_raw = request.POST.get("target_value")
             note = (request.POST.get("note") or "").strip()
             is_public = request.POST.get("is_public") == "on"
             try:
-                target_value = int(target_value)
+                if goal_type in {Goal.GOAL_5K, Goal.GOAL_10K}:
+                    target_value = parse_duration_to_seconds(target_raw)
+                else:
+                    target_value = int(target_raw)
             except (TypeError, ValueError):
-                messages.error(request, "Goal target must be a whole number.")
+                messages.error(request, "Goal target must be a whole number or a valid time.")
                 return redirect("dashboard")
             if target_value <= 0:
                 messages.error(request, "Goal target must be greater than zero.")
                 return redirect("dashboard")
+            if goal_type in {Goal.GOAL_5K, Goal.GOAL_10K}:
+                score_error = validate_submission_score(target_value, goal_type)
+                if score_error:
+                    messages.error(request, score_error)
+                    return redirect("dashboard")
             Goal.objects.create(user=request.user, goal_type=goal_type, target_value=target_value, note=note, is_public=is_public)
             messages.success(request, "Goal saved.")
             return redirect("dashboard")
@@ -1601,16 +1705,10 @@ def dashboard(request):
         None,
     )
     recommendation = get_daily_suggestion(profile, verified_submissions.count(), workouts.count())
-    active_goals = request.user.goals.filter(is_active=True)[:5]
+    active_goals = list(request.user.goals.filter(is_active=True)[:5])
     current_pr = best_submission.reps if best_submission else 0
-    completed_goals = [
-        goal
-        for goal in active_goals
-        if (
-            (goal.goal_type == Goal.GOAL_PUSHUPS and current_pr >= goal.target_value)
-            or (goal.goal_type == Goal.GOAL_RANK and current_pr >= goal.target_value)
-        )
-    ]
+    goal_rows = build_goal_rows(request.user, active_goals, hybrid_summary)
+    completed_goals = [row["goal"] for row in goal_rows if row["completed"]]
     history_submissions = paginate_items(request, request.user.submission_set.order_by("-created_at"), per_page=5)
     workout_page = paginate_items(request, workouts, per_page=5, page_param="workout_page")
     profile_completion, profile_completion_percent = profile_completion_items(request.user)
@@ -1655,6 +1753,7 @@ def dashboard(request):
         ),
         "active_workout_session": active_workout_session,
         "active_goals": active_goals,
+        "goal_rows": goal_rows,
         "completed_goals": completed_goals,
         "rank_goal_options": [
             {
@@ -1668,7 +1767,7 @@ def dashboard(request):
         "profile_completion": profile_completion,
         "profile_completion_percent": profile_completion_percent,
         "onboarding_checklist": build_onboarding_checklist(request.user),
-        "next_action": build_next_action(request.user),
+        "next_action": build_dashboard_next_action(request.user, hybrid_summary),
         "profile_share_message": get_profile_share_message(profile, request),
         "pr_share_message": get_pr_share_message(profile, request),
     }
