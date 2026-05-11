@@ -6,13 +6,16 @@ This document is the shared project map for Earned Club. Use it at the start of 
 
 Earned Club is a Django fitness web app built around one core promise: athletes earn public status by proving real performance.
 
-The main challenge is strict push-up performance. Users submit a rep count, optionally attach proof, and can earn an official verified rank after review. The product also includes athlete profiles, public leaderboards, workout planning, active workout sessions, goals, following/social pages, newsletter tools, SEO pages, and staff review/admin workflows.
+The product is now a hybrid fitness leaderboard platform. Athletes submit performances across push-ups, pull-ups, 5K, and 10K. Each discipline converts into points, and verified discipline points combine into the athlete's public Hybrid Score. Push-ups remain the flagship challenge and level test, but the main identity/status metric across the platform is now Hybrid Score.
+
+The product also includes athlete profiles, public leaderboards, discipline leaderboards, workout planning, active workout sessions, goals, following/social pages, newsletter tools, SEO pages, and staff review/admin workflows.
 
 Core positioning:
 
-- Earn your rank.
-- Prove your performance.
-- Unlock status-based fitness rewards.
+- The fitness leaderboard for real performance.
+- Submit your best performance. Get ranked. Prove it.
+- Hybrid Score is the public athlete status metric.
+- Proof makes official rank credible.
 - Public trust matters more than vanity metrics.
 
 ## Tech Stack
@@ -73,14 +76,25 @@ Important dependencies:
 
 ### Submission
 
-Represents a push-up challenge submission.
+Represents a performance submission for one leaderboard discipline.
+
+Supported disciplines:
+
+- `pushups`
+- `pullups`
+- `run_5k`
+- `run_10k`
+
+Legacy aliases such as `5k` and `10k` are normalized to the current running discipline keys. Existing submissions default safely to `pushups`.
 
 Key fields:
 
 - `user`: optional linked Django user.
 - `name`, `email`: public/contact identity fields.
-- `reps`: push-up count.
-- `video_file`, `video_storage_path`: active proof sources. `video_link` remains in the model for legacy records/admin display, but new user-facing proof submission should use uploaded video only.
+- `discipline`: leaderboard discipline key.
+- `reps`: stored performance value. For rep-based disciplines this is the rep count; for running disciplines this stores total seconds.
+- `video_file`, `video_storage_path`: uploaded proof sources, mainly for strength submissions.
+- `video_link`: proof link source, used for race results, Strava activities, and legacy proof links.
 - `status`: `unverified`, `pending`, `verified`, or `rejected`.
 - `verified`: legacy/synced boolean derived from status.
 - `created_at`: submission time.
@@ -91,8 +105,13 @@ Important behavior:
 - New submissions with proof become `pending` unless explicitly verified.
 - Verified submissions set `verified=True`.
 - Pending submissions without proof are forced back to `unverified`.
-- Saving a submission refreshes affected profile stats and official ranks.
-- `proof_url` returns a Supabase signed URL, local file URL, or legacy plain video link depending on storage.
+- Saving a submission refreshes affected profile stats, Hybrid Score context, and official ranks.
+- `proof_url` returns a Supabase signed URL, local file URL, or plain proof link depending on storage/source.
+- Rep-based disciplines rank higher values above lower values.
+- Time-based disciplines rank lower values above higher values.
+- Running input accepts `MM:SS` or `HH:MM:SS` and displays times such as `21:34`.
+- Running submissions cannot go below the configured world-record floor.
+- Elite-level running and pull-up submissions require proof before they can be reviewed as official.
 
 ### VerificationEvent
 
@@ -128,7 +147,8 @@ Important behavior:
 
 - Created automatically when a new user is created.
 - Slugs are generated from display name or username and made unique.
-- Verified stats are refreshed from the best verified submission.
+- Verified legacy push-up stats are refreshed from the best verified push-up submission.
+- Public profile pages now prioritize Hybrid Score, Hybrid rank/title, discipline breakdown, and verified status.
 - Earned badges are based on verified performance and rank.
 
 ### Follow
@@ -219,9 +239,9 @@ Types:
 
 Newsletter system for subscribers, campaign drafts/sends, manual segments, automatic segments, unsubscribe tokens, and send history.
 
-## Ranking Rules
+## Ranking And Scoring Rules
 
-Rank tiers live in `main/models.py` as `RANK_TIERS`.
+Push-up rank tiers live in `main/models.py` as `RANK_TIERS`.
 
 - Beginner: 0-19 reps
 - Intermediate: 20-39 reps
@@ -229,30 +249,58 @@ Rank tiers live in `main/models.py` as `RANK_TIERS`.
 - Elite: 60-79 reps
 - Earned Legend: 80+ reps
 
-Official ranks are based only on verified submissions. A person is ranked by their best verified submission, not every submission they have ever made.
+Discipline-specific rank helpers also exist for pull-ups, 5K, and 10K. Do not blindly apply push-up tiers to every discipline.
+
+Current discipline standards:
+
+- Push-ups: existing `RANK_TIERS`.
+- Pull-ups: Beginner 0-4, Intermediate 5-9, Advanced 10-19, Elite 20-29, Earned Legend 30+.
+- 5K: Beginner 30:00+, Intermediate sub-30, Advanced sub-25, Elite sub-18, Earned Legend sub-16.
+- 10K: Beginner 60:00+, Intermediate sub-60, Advanced sub-50, Elite sub-38, Earned Legend sub-32.
+
+Hybrid Score:
+
+- Each verified discipline performance converts into roughly 0-1000 points.
+- Rep-based scores use higher-is-better logic.
+- Running scores use lower-is-better inverse logic.
+- Official Hybrid Score is the average of verified discipline points.
+- Athletes with incomplete discipline sets can still have a Hybrid Score.
+- Unverified and pending submissions can be visible but must not inflate official Hybrid Score.
+
+Hybrid titles:
+
+- Beginner Hybrid
+- Intermediate Hybrid
+- Advanced Hybrid
+- Elite Hybrid Athlete
+- Earned Legend
+
+Official ranks are based only on verified submissions. A person is ranked by their best verified submission per discipline, and by verified discipline points for Hybrid Score.
 
 Important distinction:
 
 - Public/open leaderboards can show pending or unverified context depending on selected mode.
 - Official status, rank, badges, and profile stats should come from verified submissions.
+- The default `/leaderboard/` view is the Hybrid Leaderboard.
+- Discipline leaderboards remain available for push-ups, pull-ups, 5K, and 10K.
 
 ## Core User Workflows
 
 ### Visitor
 
 1. Lands on home page.
-2. Takes level test or goes to challenge.
-3. Enters name, email, reps, and optional proof.
+2. Chooses a leaderboard discipline or uses the flagship push-up level test.
+3. Enters name, email, discipline result, and optional proof.
 4. Can register/login and connect activity to a profile.
-5. Can browse leaderboard, profiles, public workouts, calculators, privacy, and terms.
+5. Can browse Hybrid Leaderboard, discipline leaderboards, profiles, public workouts, calculators, privacy, and terms.
 
 ### Athlete
 
 1. Registers or logs in.
-2. Uses dashboard to manage profile, goals, submissions, proof, and workouts.
-3. Submits challenge results.
+2. Uses dashboard to manage profile, Hybrid Score status, goals, submissions, proof, and workouts.
+3. Submits challenge results across push-ups, pull-ups, 5K, and 10K.
 4. Adds proof for unverified submissions.
-5. Tracks personal best and rank after verification.
+5. Tracks Hybrid Score, discipline breakdown, personal bests, and rank after verification.
 6. Creates workouts, starts sessions, logs completed sets, and highlights one public workout.
 7. Follows other athletes and shares profile/comparison pages.
 
@@ -272,7 +320,9 @@ Public:
 - `/`: home
 - `/test/`: level test
 - `/challenge/`: challenge submission
-- `/leaderboard/`: leaderboard
+- `/rank/`: discipline rank check and Hybrid Score calculator
+- `/leaderboard/`: default Hybrid Leaderboard
+- `/leaderboard/<discipline_key>/`: discipline leaderboard, including pushups, pullups, run_5k, run_10k, plus legacy aliases such as 5k and 10k
 - `/profiles/`: athlete directory
 - `/athlete/<slug>/`: public athlete profile
 - `/athlete/<slug>/follow/`: follow toggle
@@ -330,11 +380,12 @@ Main templates:
 
 - `base.html`: shared layout.
 - `home.html`: first public page.
-- `test_landing.html`: level test page.
-- `challenge.html`: submission workflow.
-- `leaderboard.html`: leaderboard modes and ranking display.
-- `dashboard.html`: logged-in athlete dashboard.
-- `athlete_profile.html`: public profile.
+- `test_landing.html`: flagship push-up level test page.
+- `challenge.html`: multi-discipline submission workflow.
+- `leaderboard.html`: Hybrid Leaderboard, discipline cards, discipline leaderboard modes, and ranking display.
+- `rank.html`: discipline rank check and Hybrid Score calculator.
+- `dashboard.html`: logged-in athlete dashboard with Hybrid Score hero, discipline breakdown, and selectable progress graph.
+- `athlete_profile.html`: public profile centered on Hybrid Score and verified discipline breakdown.
 - `profiles.html`: profile directory.
 - `comparison.html`: athlete comparison page.
 - `social_list.html`: followers/following lists.
@@ -447,17 +498,22 @@ The main regression suite is in `main/tests.py`.
 Coverage currently includes:
 
 - challenge submission creation and validation
+- discipline support for push-ups, pull-ups, 5K, and 10K
+- running time parsing and display
+- Hybrid Score calculation
+- verified-only official Hybrid Score logic
 - anonymous and logged-in submission rules
-- proof upload behavior
+- proof upload/link behavior
 - duplicate proof/submission blockers
 - honeypot handling
 - verification status synchronization
 - audit events and email notifications
 - registration/profile creation
 - profile slug uniqueness
-- dashboard stats and profile updates
+- dashboard stats, profile updates, Hybrid Score context, and selectable performance progress series
 - public profile visibility rules
-- leaderboard modes and verified ranking behavior
+- Hybrid Leaderboard, discipline leaderboard modes, verified ranking behavior, reps-desc sorting, and time-asc sorting
+- calculators and rank page Hybrid Score UI
 - goals and workouts
 - workout generation and active sessions
 - highlighted workout constraint
@@ -503,9 +559,14 @@ SEO checks:
 
 - Do not treat unverified submissions as official rank.
 - Do not award official profile status from pending or rejected submissions.
+- Do not count unverified or pending submissions toward official Hybrid Score.
+- Do not apply push-up rank tiers blindly to pull-ups or running disciplines.
+- Do not allow time-based running submissions below configured world-record benchmarks.
+- Do require proof for elite-level running and pull-up submissions.
 - Do not lose the audit trail when review actions happen.
 - A submission with proof should move toward review; a submission without proof should stay unverified.
 - A user's personal best should come from verified submissions only.
+- Legacy push-up profile stats should keep working while Hybrid Score becomes the main public status metric.
 - Only one workout per user can be highlighted on profile.
 - Public workout/profile pages should remain crawlable and sitemap-friendly.
 - Unsubscribe tokens must remain unique.
@@ -557,7 +618,7 @@ Usually touches:
 - `main/tests.py`
 - `admin_review.html` or `challenge.html`
 
-Be careful with rank, profile stats, status synchronization, and proof requirements.
+Be careful with discipline normalization, rank, Hybrid Score, profile stats, status synchronization, proof requirements, world-record floors for running, and verified-only official logic.
 
 ### Change profile behavior
 
@@ -569,6 +630,8 @@ Usually touches:
 - `athlete_profile.html`
 - `profiles.html`
 - profile-related tests
+
+Hybrid Score is now the main public profile metric. Legacy push-up PR fields still exist and should not be removed casually because existing tests, rankings, badges, and comparisons may depend on them.
 
 ### Change workouts
 
@@ -604,11 +667,42 @@ Usually touches:
 
 - `main/views.py` is large and contains many helper functions plus page controllers. Be extra careful with unrelated behavior when editing it.
 - Submission `status` and `verified` are intentionally synchronized. Changes here can affect leaderboard, dashboard, profiles, and tests.
+- Submission `reps` is a legacy field name but now stores either reps or running seconds depending on `discipline`.
+- `discipline` defaults to pushups for backwards compatibility. Do not remove this default without a migration/backfill plan.
+- Hybrid Score is official only when built from verified submissions.
+- Open discipline leaderboards can show unverified/pending context, but official rank/status must remain verified-only.
 - Supabase Storage is optional. Code should keep working locally with normal Django media files.
 - Public URLs and sitemap behavior depend on `SITE_URL`; deployment mistakes can hurt SEO.
 - Some docs folders have naming typos from earlier history (`implementation-pan`, `implemetation-plans`). Avoid moving them casually unless cleaning docs is the explicit task.
 
 ## Change Log
+
+Note: the newest entry is authoritative for current product direction. Older entries are preserved as historical implementation notes and may describe behavior that was later superseded.
+
+### 2026-05-11 hybrid leaderboard platform update
+
+- Earned Club repositioned from a push-up-focused ranking app into a hybrid fitness leaderboard platform.
+- Added multi-discipline submission support for push-ups, pull-ups, 5K, and 10K.
+- Existing submissions default/backfill safely to pushups.
+- Running disciplines use time-based scoring with lower-is-better sorting and `MM:SS` / `HH:MM:SS` display.
+- Proof links are supported for race results, Strava activities, and legacy proof records.
+- Strength proof can still use uploaded video.
+- Elite-level running and pull-up submissions require proof for official review.
+- Running submissions are guarded against impossible below-world-record times.
+- Added discipline-specific rank logic instead of using push-up tiers everywhere.
+- Added normalized 0-1000 discipline point scoring.
+- Added Hybrid Score as the main overall athlete rating, based only on verified discipline performances.
+- Added Hybrid titles: Beginner Hybrid, Intermediate Hybrid, Advanced Hybrid, Elite Hybrid Athlete, and Earned Legend.
+- `/leaderboard/` now defaults to Hybrid Rankings.
+- Discipline leaderboard routes are available under `/leaderboard/<discipline_key>/`.
+- Open discipline leaderboards can show unverified/pending results while official ranks remain verified-only.
+- Homepage sample rank card now promotes Hybrid Score rather than only push-up reps.
+- `/rank/` now supports discipline rank checking and includes a Hybrid Score calculator.
+- `/calculators/` now includes a Hybrid Score calculator and discipline tier calculator.
+- Public athlete profiles prioritize Hybrid Score, Hybrid title/rank, verified status, and discipline breakdown.
+- Dashboard now uses a Hybrid Score hero/status layout and includes a selectable progress graph for Hybrid Score, push-ups, pull-ups, 5K, and 10K.
+- Admin review and dashboard submission areas display discipline and formatted score/time clearly.
+- Tests were expanded for Hybrid Score, discipline submissions, running time parsing, leaderboard sorting, verified-only official logic, calculators, rank page, dashboard progress series, profile rendering, and admin review compatibility.
 
 ### 2026-05-06 conversion and rank flow update
 
@@ -640,6 +734,7 @@ Usually touches:
 - New challenge submissions ignore posted `video_link` values so hidden/manual link posts cannot create proof-backed results.
 - Kept `video_link` in the database/model for legacy submissions and admin review visibility only.
 - Video processing now falls back to the original upload if `ffmpeg` is unavailable.
+- Superseded by the 2026-05-11 hybrid update for running submissions: proof links are again user-facing where appropriate for race results and Strava activities.
 
 ### 2026-05-06 admin pages and email delivery correction
 
@@ -742,9 +837,11 @@ Usually touches:
 
 ## Short Glossary
 
-- Official rank: rank based only on verified best submissions.
+- Hybrid Score: overall athlete rating from verified discipline points.
+- Discipline: one leaderboard category such as pushups, pullups, run_5k, or run_10k.
+- Official rank: rank/status based only on verified best submissions.
 - Open leaderboard: broader leaderboard display that may include non-official statuses.
-- Proof: video link, uploaded file, or Supabase-stored video.
+- Proof: race result link, Strava link, video link, uploaded file, or Supabase-stored video.
 - Athlete: a registered user with a profile.
 - Staff review: in-app or Django-admin verification workflow.
 - Highlighted workout: the single workout shown prominently on an athlete profile.
