@@ -1177,6 +1177,23 @@ class SubmissionFlowTests(TestCase):
             ).exists()
         )
 
+    def test_review_action_failure_redirects_instead_of_500(self):
+        admin = User.objects.create_user(username="review-failure-staff", password="StrongPass12345", is_staff=True)
+        self.client.force_login(admin)
+        submission = Submission.objects.create(name="Review Fails", reps=48, status=Submission.STATUS_PENDING, video_link="https://example.com/proof")
+
+        with patch("main.views.create_verification_event", side_effect=RuntimeError("review write failed")):
+            response = self.client.post(
+                reverse("review_submission", args=[submission.id]),
+                {"action": "approve"},
+                follow=True,
+            )
+
+        submission.refresh_from_db()
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(submission.status, Submission.STATUS_PENDING)
+        self.assertContains(response, "Review action failed")
+
     def test_staff_can_view_admin_pages_index(self):
         staff = User.objects.create_user(username="pages-staff", password="StrongPass12345", is_staff=True)
         self.client.force_login(staff)

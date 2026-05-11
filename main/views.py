@@ -16,7 +16,7 @@ from django.contrib.auth.models import User
 from django.core.mail import send_mail
 from django.core.serializers.json import DjangoJSONEncoder
 from django.http import HttpResponse
-from django.db import IntegrityError
+from django.db import IntegrityError, transaction
 from django.core.paginator import Paginator
 from django.db.models import F, Q
 from django.views.decorators.http import require_POST
@@ -2188,73 +2188,6 @@ def review_submission(request, submission_id):
     action = request.POST.get("action")
     review_note = (request.POST.get("review_note") or "").strip()
 
-    if action == "approve":
-        submission.status = Submission.STATUS_VERIFIED
-        submission.verified = True
-        submission.save(update_fields=["status", "verified"])
-        create_verification_event(
-            submission,
-            VerificationEvent.ACTION_APPROVED,
-            reviewer=request.user,
-            note=review_note,
-        )
-        send_submission_notification(
-            submission,
-            "Earned Club submission approved",
-            f"Your {submission.discipline_label} {submission.display_score} submission was approved. Your verified result is now live on Earned Club.",
-        )
-        if submission.user_id:
-            rank = get_official_rank_for_submission(submission)
-            notify_user_email(
-                submission.user,
-                "Your EarnedClub result was verified",
-                f"Your {submission.discipline_label} {submission.display_score} result was verified. Your official rank is currently #{rank}.",
-            )
-        messages.success(request, f"{submission.name} was approved with {submission.discipline_label} {submission.display_score}.")
-    elif action == "reject":
-        submission.status = Submission.STATUS_REJECTED
-        submission.verified = False
-        submission.save(update_fields=["status", "verified"])
-        create_verification_event(
-            submission,
-            VerificationEvent.ACTION_REJECTED,
-            reviewer=request.user,
-            note=review_note,
-        )
-        send_submission_notification(
-            submission,
-            "Earned Club submission update",
-            (
-                f"Your {submission.discipline_label} {submission.display_score} submission was reviewed but not approved."
-                + (f" Reviewer note: {review_note}" if review_note else " You can submit again with clearer proof.")
-            ),
-        )
-        if submission.user_id:
-            notify_user_email(
-                submission.user,
-                "Your EarnedClub result needs another try",
-                "Your latest result was not verified. Check the rules and submit a clearer proof video when you are ready.",
-            )
-        messages.info(request, f"{submission.name} was rejected.")
-    elif action == "mark_pending":
-        if not submission.has_proof:
-            messages.error(request, "This submission cannot move to pending without proof.")
-        else:
-            submission.status = Submission.STATUS_PENDING
-            submission.verified = False
-            submission.save(update_fields=["status", "verified"])
-            messages.success(request, f"{submission.name} was moved back to pending review.")
-    elif action == "mark_unverified":
-        submission.status = Submission.STATUS_UNVERIFIED
-        submission.verified = False
-        submission.save(update_fields=["status", "verified"])
-        messages.success(request, f"{submission.name} was marked unverified.")
-    elif action == "delete":
-        submission.delete()
-        messages.info(request, f"{submission.name}'s submission was deleted.")
-    else:
-        messages.error(request, "Unknown review action.")
-
     params = build_querystring(
         status=request.POST.get("status_filter") or Submission.STATUS_PENDING,
         proof=request.POST.get("proof_filter") or "all",
@@ -2264,6 +2197,80 @@ def review_submission(request, submission_id):
     redirect_url = reverse("admin_review")
     if params:
         redirect_url = f"{redirect_url}?{params}"
+
+    try:
+        with transaction.atomic():
+            if action == "approve":
+                submission.status = Submission.STATUS_VERIFIED
+                submission.verified = True
+                submission.save(update_fields=["status", "verified"])
+                create_verification_event(
+                    submission,
+                    VerificationEvent.ACTION_APPROVED,
+                    reviewer=request.user,
+                    note=review_note,
+                )
+                send_submission_notification(
+                    submission,
+                    "Earned Club submission approved",
+                    f"Your {submission.discipline_label} {submission.display_score} submission was approved. Your verified result is now live on Earned Club.",
+                )
+                if submission.user_id:
+                    rank = get_official_rank_for_submission(submission)
+                    notify_user_email(
+                        submission.user,
+                        "Your EarnedClub result was verified",
+                        f"Your {submission.discipline_label} {submission.display_score} result was verified. Your official rank is currently #{rank}.",
+                    )
+                messages.success(request, f"{submission.name} was approved with {submission.discipline_label} {submission.display_score}.")
+            elif action == "reject":
+                submission.status = Submission.STATUS_REJECTED
+                submission.verified = False
+                submission.save(update_fields=["status", "verified"])
+                create_verification_event(
+                    submission,
+                    VerificationEvent.ACTION_REJECTED,
+                    reviewer=request.user,
+                    note=review_note,
+                )
+                send_submission_notification(
+                    submission,
+                    "Earned Club submission update",
+                    (
+                        f"Your {submission.discipline_label} {submission.display_score} submission was reviewed but not approved."
+                        + (f" Reviewer note: {review_note}" if review_note else " You can submit again with clearer proof.")
+                    ),
+                )
+                if submission.user_id:
+                    notify_user_email(
+                        submission.user,
+                        "Your EarnedClub result needs another try",
+                        "Your latest result was not verified. Check the rules and submit a clearer proof video when you are ready.",
+                    )
+                messages.info(request, f"{submission.name} was rejected.")
+            elif action == "mark_pending":
+                if not submission.has_proof:
+                    messages.error(request, "This submission cannot move to pending without proof.")
+                    return redirect(redirect_url)
+                submission.status = Submission.STATUS_PENDING
+                submission.verified = False
+                submission.save(update_fields=["status", "verified"])
+                messages.success(request, f"{submission.name} was moved back to pending review.")
+            elif action == "mark_unverified":
+                submission.status = Submission.STATUS_UNVERIFIED
+                submission.verified = False
+                submission.save(update_fields=["status", "verified"])
+                messages.success(request, f"{submission.name} was marked unverified.")
+            elif action == "delete":
+                submission_name = submission.name
+                submission.delete()
+                messages.info(request, f"{submission_name}'s submission was deleted.")
+            else:
+                messages.error(request, "Unknown review action.")
+    except Exception as exc:
+        logger.exception("Admin review action %s failed for submission %s", action, submission_id)
+        messages.error(request, f"Review action failed: {exc.__class__.__name__}. Check server logs for details.")
+
     return redirect(redirect_url)
 
 
