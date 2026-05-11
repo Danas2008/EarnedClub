@@ -97,7 +97,7 @@
 {% endif %}
 
 <section class="grid-4">
-    <div class="metric-card"><span class="kicker">PR</span><span class="stat-value">{{ current_pr }}</span><div class="muted">{{ current_tier.name }}</div></div>
+    <div class="metric-card"><span class="kicker">Push-up PR</span><span class="stat-value">{{ current_pr }}</span><div class="muted">{{ current_tier.name }}</div></div>
     <div class="metric-card"><span class="kicker">Rank</span><span class="stat-value">{% if current_rank %}#{{ current_rank }}{% else %}-{% endif %}</span><div class="muted">{{ rank_movement }}</div></div>
     <div class="metric-card"><span class="kicker">Submissions</span><span class="stat-value">{{ total_submissions }}</span><div class="muted">{{ total_verified }} verified</div></div>
     <div class="metric-card"><span class="kicker">Suggestion</span><p class="muted">{{ daily_suggestion }}</p></div>
@@ -214,12 +214,12 @@
 </section>
 
 <section class="card-dark">
-    <h2>Attempts</h2>
+        <h2>Submissions</h2>
     {% for submission in history_submissions %}
         <div class="athlete-row">
             <span class="status-pill {{ submission.status }}">{{ submission.public_status_label }}</span>
             <div class="row-title">
-                <div class="submission-name">{{ submission.reps }} reps</div>
+                <div class="submission-name">{{ submission.discipline_label }} - {{ submission.display_score }}</div>
                 <div class="submission-meta">{{ submission.rank_name }}{% if submission.has_proof %} - Proof attached{% endif %}</div>
                 {% if submission.status == "unverified" %}
                     <details class="score-details" style="margin-top: 10px;">

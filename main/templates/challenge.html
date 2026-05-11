@@ -1,19 +1,19 @@
 {% extends "base.html" %}
 
-{% block title %}Challenge - Submit for Verification{% endblock %}
-{% block meta_description %}Submit your strict push-up result to Earned Club, add video proof, and earn a verified public leaderboard rank.{% endblock %}
+{% block title %}Submit Performance - Earned Club{% endblock %}
+{% block meta_description %}Submit your best performance to Earned Club, add video proof, and earn a verified public leaderboard rank.{% endblock %}
 
 {% block content %}
 <section class="hero-card" style="margin-bottom: 24px;">
     <div class="content-split">
         <div class="stack">
             <div class="eyebrow">Submit Your Result</div>
-            <h1>Take the Official Push-Up Test.</h1>
+            <h1>Submit your performance.</h1>
             <p class="muted">
-                Don't just claim your strength. Prove it.
+                Get ranked. Prove it.
             </p>
             <p>
-                Submit your max clean push-ups and earn your rank. Video proof is optional to submit, but recommended because official ranks require proof.
+                Choose your leaderboard, submit your best performance, and earn verified rank. Video proof is optional to submit, but proof makes it official.
             </p>
             <div class="button-row">
                 <a class="btn-main" href="#submit-form-top">Submit Official Result</a>
@@ -44,7 +44,7 @@
                     </p>
                 {% else %}
                     <p class="muted">
-                        Enter reps, name, and email. Your result can appear as unverified immediately; proof moves it into official review.
+                        Enter your result, name, and email. Your result can appear as unverified immediately; proof moves it into official review.
                     </p>
                 {% endif %}
 
@@ -53,9 +53,9 @@
                         <span class="status-pill {{ active_submission.status }}">{{ active_submission.public_status_label }}</span>
                         <p class="muted" style="margin: 12px 0 0;">
                             {% if active_submission.status == "unverified" %}
-                                You already have an unverified submission without proof. Open your dashboard and upload a video.
+                                You already have an unverified {{ active_submission.discipline_label }} submission without proof. Open your dashboard and upload a video.
                             {% else %}
-                                You already have a submission waiting for verification. Please wait until it is reviewed before submitting again.
+                                You already have a {{ active_submission.discipline_label }} submission waiting for verification. Please wait until it is reviewed before submitting again.
                             {% endif %}
                         </p>
                     </div>
@@ -95,17 +95,33 @@
                         {% endif %}
 
                         <div>
-                            <label class="field-label" for="reps">Max clean push-ups</label>
+                            <label class="field-label" for="discipline">Choose your leaderboard</label>
+                            <select id="discipline" class="select" name="discipline">
+                                {% for discipline in discipline_cards %}
+                                    <option
+                                        value="{{ discipline.key }}"
+                                        data-input-label="{{ discipline.input_label }}"
+                                        data-placeholder="{{ discipline.placeholder }}"
+                                        data-score-type="{{ discipline.score_type }}"
+                                        {% if discipline.key == selected_discipline.key %} selected{% endif %}
+                                    >{{ discipline.label }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="field-label" for="score">{{ selected_discipline.input_label }}</label>
                             <input
-                                id="reps"
+                                id="score"
                                 class="input"
-                                type="number"
-                                name="reps"
-                                min="1"
-                                placeholder="42"
-                                value="{{ form_data.reps|default:'' }}"
+                                type="text"
+                                name="score"
+                                inputmode="{% if selected_discipline.score_type == 'time' %}numeric{% else %}decimal{% endif %}"
+                                placeholder="{{ selected_discipline.placeholder }}"
+                                value="{{ form_score }}"
                                 required
                             >
+                            <div class="hint">{% if selected_discipline.score_type == "time" %}Use minutes and seconds, like 21:34. Lower time ranks higher.{% else %}Enter strict reps. Higher score ranks higher.{% endif %}</div>
                         </div>
 
                         <div>
@@ -114,7 +130,7 @@
                             <div class="hint">Without proof, your result is visible but unverified. With proof, it can earn official rank after review.</div>
                         </div>
 
-                        <button type="submit" class="btn-main">Submit Official Result</button>
+                        <button type="submit" class="btn-main">Submit Performance</button>
                         <div class="result-note">
                             Official ranks require proof. Unverified results are shown, but not official.
                         </div>
@@ -127,15 +143,15 @@
                     <div class="step-item">
                         <span class="step-number">1</span>
                         <div>
-                            <strong>Do one max clean set</strong>
-                            <div class="muted">Strict reps, full range, no cuts.</div>
+                            <strong>Record your performance</strong>
+                            <div class="muted">Strict reps or a clear run time.</div>
                         </div>
                     </div>
                     <div class="step-item">
                         <span class="step-number">2</span>
                         <div>
                             <strong>Submit your result</strong>
-                            <div class="muted">Reps, name, email, and optional proof.</div>
+                            <div class="muted">Discipline, result, name, email, and optional proof.</div>
                         </div>
                     </div>
                     <div class="step-item">
@@ -162,7 +178,7 @@
     <div class="section-spread">
         <div>
             <h2>Current athletes to chase</h2>
-            <p class="muted">See the standard before you submit. A clean verified result can move you onto this board.</p>
+            <p class="muted">See the standard before you submit. A clean verified result can move you onto this {{ selected_discipline.short_label }} board.</p>
         </div>
         <a class="btn-secondary" href="/leaderboard/#full-leaderboard">Open Leaderboard</a>
     </div>
@@ -179,17 +195,17 @@
                     {% endif %}
                     <div class="score-row-main">
                         <div class="submission-name">{{ row.submission.name }}</div>
-                        <div class="submission-meta">{{ row.submission.rank_name }} - {{ row.submission.public_status_label }}</div>
+                        <div class="submission-meta">{{ row.submission.discipline_label }} - {{ row.submission.public_status_label }}</div>
                     </div>
                     <div class="score-row-score">
                         <span class="position-pill">#{{ row.position }}</span>
-                        <div class="score">{{ row.submission.reps }}</div>
+                        <div class="score">{{ row.submission.compact_score }}</div>
                     </div>
                 </div>
             {% endfor %}
         </div>
     {% else %}
-        <p class="muted">No scores yet. The first verified results will define the board.</p>
+            <p class="muted">No scores yet. The first verified results will define this board.</p>
     {% endif %}
 </section>
 
@@ -217,4 +233,19 @@
         </div>
     </div>
 </section>
+<script>
+    (() => {
+        const discipline = document.getElementById("discipline");
+        const score = document.getElementById("score");
+        const label = document.querySelector("label[for='score']");
+        if (!discipline || !score || !label) return;
+
+        discipline.addEventListener("change", () => {
+            const option = discipline.selectedOptions[0];
+            label.textContent = option.dataset.inputLabel || "Performance";
+            score.placeholder = option.dataset.placeholder || "";
+            score.inputMode = option.dataset.scoreType === "time" ? "numeric" : "decimal";
+        });
+    })();
+</script>
 {% endblock %}

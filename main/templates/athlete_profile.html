@@ -181,7 +181,7 @@
                     <div class="athlete-row">
                         <span class="status-pill verified">{{ submission.status }}</span>
                         <div class="row-title">
-                            <div class="submission-name">{{ submission.reps }} reps</div>
+                            <div class="submission-name">{{ submission.discipline_label }} - {{ submission.display_score }}</div>
                             <div class="submission-meta">{{ submission.rank_name }}</div>
                         </div>
                         <div class="submission-meta">{{ submission.created_at|date:"M j, Y" }}</div>

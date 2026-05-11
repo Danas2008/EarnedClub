@@ -42,6 +42,7 @@ urlpatterns = [
     path("workout/<slug:slug>/", views.workout_detail, name="workout_detail"),
     path("challenge/", views.challenge, name="challenge"),
     path("leaderboard/", views.leaderboard, name="leaderboard"),
+    path("leaderboard/<str:discipline_key>/", views.leaderboard, name="leaderboard_discipline"),
     path("calculators/", views.calculators, name="calculators"),
     path("newsletter-signup/", views.newsletter_signup, name="newsletter_signup"),
     path("privacy/", views.privacy, name="privacy"),

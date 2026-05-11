@@ -32,7 +32,7 @@
     <div class="section-spread">
         <div>
             <h2>Review Queue</h2>
-            <p class="muted">Open the proof, check the rep count, add an optional note, then move to the next submission.</p>
+            <p class="muted">Open the proof, check the discipline result, add an optional note, then move to the next submission.</p>
         </div>
     </div>
 
@@ -60,8 +60,8 @@
             <select class="select" id="order" name="order">
                 <option value="newest"{% if order_filter == "newest" %} selected{% endif %}>Newest first</option>
                 <option value="oldest"{% if order_filter == "oldest" %} selected{% endif %}>Oldest first</option>
-                <option value="highest"{% if order_filter == "highest" %} selected{% endif %}>Highest reps</option>
-                <option value="lowest"{% if order_filter == "lowest" %} selected{% endif %}>Lowest reps</option>
+                <option value="highest"{% if order_filter == "highest" %} selected{% endif %}>Highest score</option>
+                <option value="lowest"{% if order_filter == "lowest" %} selected{% endif %}>Lowest score</option>
             </select>
         </div>
         <div><label class="field-label" for="q">Search</label><input id="q" class="input" type="search" name="q" value="{{ query }}" placeholder="Name, email, username"></div>
@@ -78,7 +78,7 @@
             <div class="stack" style="gap: 12px;">
                 <div class="submission-name">{{ submission.name }}</div>
                 <div class="submission-meta">
-                    {{ submission.reps }} reps submitted {{ submission.created_at|date:"M j, Y H:i" }}
+                    {{ submission.discipline_label }} - {{ submission.display_score }} submitted {{ submission.created_at|date:"M j, Y H:i" }}
                     {% if submission.email %} - {{ submission.email }}{% endif %}
                 </div>
                 <div class="review-proof-actions">

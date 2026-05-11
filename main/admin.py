@@ -20,8 +20,8 @@ from .models import (
 
 @admin.register(Submission)
 class SubmissionAdmin(admin.ModelAdmin):
-    list_display = ("name", "email", "reps", "rank_name", "status", "verified", "proof_access", "created_at")
-    list_filter = ("status", "verified", "created_at")
+    list_display = ("name", "email", "discipline", "score_display", "rank_name", "status", "verified", "proof_access", "created_at")
+    list_filter = ("discipline", "status", "verified", "created_at")
     search_fields = ("name", "email", "video_link")
     ordering = ("-created_at",)
     readonly_fields = ("proof_access",)
@@ -31,6 +31,10 @@ class SubmissionAdmin(admin.ModelAdmin):
         if not obj.proof_url:
             return "No proof"
         return format_html('<a href="{}" target="_blank" rel="noopener noreferrer">View video</a>', obj.proof_url)
+
+    @admin.display(description="Result")
+    def score_display(self, obj):
+        return obj.display_score
 
 
 @admin.register(Profile)

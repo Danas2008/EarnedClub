@@ -187,6 +187,92 @@ class SubmissionFlowTests(TestCase):
         self.assertEqual([row["submission"] for row in rows], [verified])
         self.assertEqual(response.context["active_mode"]["key"], "verified")
 
+    def test_legacy_submission_defaults_to_pushups(self):
+        submission = Submission.objects.create(name="Legacy", reps=42, status=Submission.STATUS_VERIFIED)
+
+        self.assertEqual(submission.discipline, Submission.DISCIPLINE_PUSHUPS)
+        self.assertEqual(submission.display_score, "42 reps")
+
+    def test_pullup_submission_works(self):
+        response = self.client.post(
+            reverse("challenge"),
+            {
+                "name": "Pull Athlete",
+                "email": "pull@example.com",
+                "discipline": Submission.DISCIPLINE_PULLUPS,
+                "score": "14",
+            },
+            follow=True,
+        )
+
+        submission = Submission.objects.get(email="pull@example.com")
+        self.assertRedirects(response, reverse("challenge"))
+        self.assertEqual(submission.discipline, Submission.DISCIPLINE_PULLUPS)
+        self.assertEqual(submission.reps, 14)
+        self.assertEqual(submission.display_score, "14 reps")
+
+    def test_run_time_submissions_work(self):
+        self.client.post(
+            reverse("challenge"),
+            {
+                "name": "Five Runner",
+                "email": "five@example.com",
+                "discipline": Submission.DISCIPLINE_5K,
+                "score": "21:34",
+            },
+        )
+        self.client.post(
+            reverse("challenge"),
+            {
+                "name": "Ten Runner",
+                "email": "ten@example.com",
+                "discipline": Submission.DISCIPLINE_10K,
+                "score": "44:20",
+            },
+        )
+
+        five = Submission.objects.get(email="five@example.com")
+        ten = Submission.objects.get(email="ten@example.com")
+        self.assertEqual(five.reps, 1294)
+        self.assertEqual(five.display_score, "21:34")
+        self.assertEqual(ten.reps, 2660)
+        self.assertEqual(ten.display_score, "44:20")
+
+    def test_leaderboard_sorts_reps_descending_and_time_ascending(self):
+        low = Submission.objects.create(name="Lower Pull", reps=8, discipline=Submission.DISCIPLINE_PULLUPS, status=Submission.STATUS_VERIFIED)
+        high = Submission.objects.create(name="Higher Pull", reps=18, discipline=Submission.DISCIPLINE_PULLUPS, status=Submission.STATUS_VERIFIED)
+        fast = Submission.objects.create(name="Fast 5K", reps=1200, discipline=Submission.DISCIPLINE_5K, status=Submission.STATUS_VERIFIED)
+        slow = Submission.objects.create(name="Slow 5K", reps=1500, discipline=Submission.DISCIPLINE_5K, status=Submission.STATUS_VERIFIED)
+
+        pull_response = self.client.get(reverse("leaderboard_discipline", args=[Submission.DISCIPLINE_PULLUPS]))
+        run_response = self.client.get(reverse("leaderboard_discipline", args=[Submission.DISCIPLINE_5K]))
+
+        pull_rows = [row["submission"] for row in pull_response.context["leaderboard_rows"].object_list]
+        run_rows = [row["submission"] for row in run_response.context["leaderboard_rows"].object_list]
+        self.assertEqual(pull_rows, [high, low])
+        self.assertEqual(run_rows, [fast, slow])
+
+    def test_verified_only_official_logic_is_discipline_specific(self):
+        Submission.objects.create(name="Pending Fast", reps=1100, discipline=Submission.DISCIPLINE_5K, status=Submission.STATUS_PENDING, video_link="https://example.com/proof")
+        verified = Submission.objects.create(name="Verified Run", reps=1300, discipline=Submission.DISCIPLINE_5K, status=Submission.STATUS_VERIFIED)
+        Submission.objects.create(name="Push Leader", reps=90, discipline=Submission.DISCIPLINE_PUSHUPS, status=Submission.STATUS_VERIFIED)
+
+        response = self.client.get(f"{reverse('leaderboard_discipline', args=[Submission.DISCIPLINE_5K])}?mode=verified")
+        rows = list(response.context["leaderboard_rows"].object_list)
+
+        self.assertEqual([row["submission"] for row in rows], [verified])
+        self.assertContains(response, "Official rank #1")
+
+    def test_admin_review_shows_discipline_and_formatted_result(self):
+        staff = User.objects.create_user(username="staff", password="StrongPass12345", is_staff=True)
+        self.client.force_login(staff)
+        Submission.objects.create(name="Review Run", reps=1294, discipline=Submission.DISCIPLINE_5K, status=Submission.STATUS_PENDING, video_link="https://example.com/proof")
+
+        response = self.client.get(reverse("admin_review"))
+
+        self.assertContains(response, "5K run")
+        self.assertContains(response, "21:34")
+
     @override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
     def test_challenge_submission_creates_audit_event_and_email(self):
         response = self.client.post(

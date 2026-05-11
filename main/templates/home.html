@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 
-{% block title %}Earned Club - Get Your Push-Up Rank{% endblock %}
-{% block meta_description %}Earned Club is the proof-first push-up test. Get your rank, submit your max clean push-ups, upload proof, and earn verified public status.{% endblock %}
+{% block title %}Earned Club - Fitness Leaderboard for Real Performance{% endblock %}
+{% block meta_description %}Earned Club is the fitness leaderboard for real performance. Submit your best push-ups, pull-ups, 5K, or 10K, upload proof, and earn verified rank.{% endblock %}
 
 {% block content %}
 <style>
@@ -672,10 +672,10 @@
     <section class="hero-card home-hero home-reveal">
         <div class="home-hero-grid">
             <div class="home-hero-copy">
-                <div class="eyebrow">Official Push-Up Test</div>
-                <h1>Don't just claim it. Prove it.</h1>
+                <div class="eyebrow">Real Performance Leaderboards</div>
+                <h1>The fitness leaderboard for real performance.</h1>
                 <p class="home-lead muted">
-                    One max clean set. Instant rank. Proof makes it official.
+                    Submit your best performance. Get ranked. Prove it.
                 </p>
                 <div class="home-cta-row">
                     <a class="btn-main" href="{% url 'rank' %}">Get Your Rank</a>
@@ -687,7 +687,7 @@
                 <div class="score-rank-top">
                     <div>
                         <span class="kicker">Sample rank check</span>
-                        <strong>Official Push-Up Test</strong>
+                        <strong>Flagship Push-Up Test</strong>
                     </div>
                     <span class="status-pill unverified">Example</span>
                 </div>
@@ -713,7 +713,7 @@
                         <div class="submission-meta">Unverified scores can show, but official rank is earned after review.</div>
                     </div>
                 </div>
-                <a class="btn-secondary" href="{% url 'challenge' %}#submit-form-top">Prove Your Score</a>
+                <a class="btn-secondary" href="{% url 'challenge' %}#submit-form-top">Submit Performance</a>
             </aside>
 
             <a class="hero-scroll-cue" href="#rank-tiers" aria-label="Scroll to rank tiers">
@@ -724,11 +724,26 @@
     </section>
 
     <section class="card-dark home-reveal">
+        <div class="home-section-head">
+            <h2>Choose your leaderboard.</h2>
+            <p class="muted">Starting with push-ups, pull-ups, 5K, and 10K. Proof makes official rank real.</p>
+        </div>
+        <div class="home-feature-grid">
+            {% for discipline in discipline_cards %}
+                <a class="home-feature-card home-reveal" href="{% url 'leaderboard_discipline' discipline.key %}">
+                    <strong>{{ discipline.title }}</strong>
+                    <p class="muted">{% if discipline.score_type == "time" %}Lower time ranks higher.{% else %}Higher score ranks higher.{% endif %}</p>
+                </a>
+            {% endfor %}
+        </div>
+    </section>
+
+    <section class="card-dark home-reveal">
         <div class="home-value-strip how-flow">
             <div class="home-value-item home-reveal">
                 <span class="flow-label">Test</span>
-                <strong>Test your max</strong>
-                <p class="muted">One clean set. Full range. Honest reps.</p>
+                <strong>Submit your best</strong>
+                <p class="muted">One clean set or one clear run.</p>
             </div>
             <div class="home-value-item home-reveal">
                 <span class="flow-label">Proof</span>
@@ -737,7 +752,7 @@
             </div>
             <div class="home-value-item home-reveal">
                 <span class="flow-label">Status</span>
-                <strong>Earn your rank</strong>
+                <strong>Earn your verified rank</strong>
                 <p class="muted">Verified scores earn official status.</p>
             </div>
         </div>
@@ -752,15 +767,15 @@
             <div class="home-value-item home-reveal">
                 <span class="flow-label">Attempt</span>
                 <div>
-                    <strong>Do one max clean set</strong>
-                    <div class="muted">Strict push-ups. No cuts.</div>
+                    <strong>Choose a discipline</strong>
+                    <div class="muted">Push-ups, pull-ups, 5K, or 10K.</div>
                 </div>
             </div>
             <div class="home-value-item home-reveal">
                 <span class="flow-label">Submit</span>
                 <div>
-                    <strong>Submit your score</strong>
-                    <div class="muted">Enter reps, name, and email.</div>
+                    <strong>Submit your performance</strong>
+                    <div class="muted">Enter reps or time, name, and email.</div>
                 </div>
             </div>
             <div class="home-value-item home-reveal">
@@ -836,10 +851,10 @@
     <section class="card-dark home-reveal">
         <div class="home-section-head">
             <h2>What you get</h2>
-            <p class="muted">A competitive layer for people who want performance to mean something.</p>
+                <p class="muted">A competitive layer for people who want performance to mean something.</p>
         </div>
         <div class="home-feature-grid">
-            <div class="home-feature-card home-reveal"><strong>Leaderboards</strong><p class="muted">Compare clean push-up results in public.</p></div>
+            <div class="home-feature-card home-reveal"><strong>Leaderboards</strong><p class="muted">Compare real strength and running performances in public.</p></div>
             <div class="home-feature-card home-reveal"><strong>Athlete profiles</strong><p class="muted">Turn verified results into a public record.</p></div>
             <div class="home-feature-card home-reveal"><strong>Workout tracking</strong><p class="muted">Build sessions around your next rank jump.</p></div>
             <div class="home-feature-card home-reveal"><strong>Progress tracking</strong><p class="muted">See your best result and history improve.</p></div>

@@ -1,17 +1,17 @@
 {% extends "base.html" %}
 
-{% block title %}Leaderboard{% endblock %}
-{% block meta_description %}Compare Earned Club push-up scores across all, verified, weekly, monthly, pending, and unverified views without reloading.{% endblock %}
+{% block title %}{{ active_discipline.title }}{% endblock %}
+{% block meta_description %}Compare Earned Club performance leaderboards for push-ups, pull-ups, 5K, and 10K with verified official rankings.{% endblock %}
 
 {% block content %}
 <section class="hero-card" style="margin-bottom: 24px;">
     <div class="content-split">
         <div>
             <div class="eyebrow">Leaderboard</div>
-            <h1>Chase the board.</h1>
-            <p class="muted">Official ranks require proof. Unverified results are shown, but not official. Verified athletes earn public status.</p>
+            <h1>{{ active_discipline.title }}</h1>
+            <p class="muted">The fitness leaderboard for real performance. Official ranks require proof. Unverified results are shown, but not official.</p>
             <div class="button-row">
-                <a class="btn-main" href="{% url 'challenge' %}#submit-form-top">Take the Official Push-Up Test</a>
+                <a class="btn-main" href="{% url 'challenge' %}?discipline={{ active_discipline.key }}#submit-form-top">Submit Performance</a>
             </div>
         </div>
         <div class="stat-grid">
@@ -22,20 +22,39 @@
     </div>
 </section>
 
+<section class="card-dark" style="margin-bottom: 24px;">
+    <div class="section-spread">
+        <div>
+            <h2>Choose your leaderboard.</h2>
+            <p class="muted">Submit your best performance. Get ranked. Prove it.</p>
+        </div>
+    </div>
+    <div class="grid-4">
+        {% for discipline in discipline_cards %}
+            <a class="feature-card" href="{% url 'leaderboard_discipline' discipline.key %}#full-leaderboard">
+                <span class="kicker">{% if discipline.score_type == "time" %}Lower time wins{% else %}Higher score wins{% endif %}</span>
+                <h3>{{ discipline.title }}</h3>
+                <p class="muted">Proof makes it official.</p>
+            </a>
+        {% endfor %}
+    </div>
+</section>
+
 <section id="full-leaderboard" class="card-dark full-leaderboard-section">
     <div class="section-spread">
         <div>
-            <h2>Results</h2>
+            <h2>{{ active_discipline.label }} Results</h2>
             <p class="muted">Verified rows can earn official rank. Pending and unverified rows show the chase, not official status.</p>
         </div>
     </div>
     <form class="search-row" method="GET" action="{% url 'leaderboard' %}#full-leaderboard">
         <input id="leaderboard-search" class="input" type="search" name="q" value="{{ query }}" placeholder="Search athletes">
+        <input type="hidden" name="discipline" value="{{ active_discipline.key }}">
         <button class="btn-secondary" type="submit">Search</button>
     </form>
     <div class="button-row" style="margin-top: 0; margin-bottom: 16px;">
         {% for mode in leaderboard_modes %}
-            <a class="{% if mode.key == active_mode.key %}btn-main{% else %}btn-secondary{% endif %}" href="?mode={{ mode.key }}{% if query %}&q={{ query|urlencode }}{% endif %}#full-leaderboard">{{ mode.label }}</a>
+            <a class="{% if mode.key == active_mode.key %}btn-main{% else %}btn-secondary{% endif %}" href="?discipline={{ active_discipline.key }}&mode={{ mode.key }}{% if query %}&q={{ query|urlencode }}{% endif %}#full-leaderboard">{{ mode.label }}</a>
         {% endfor %}
     </div>
 
@@ -44,9 +63,10 @@
             <thead>
                 <tr>
                     <th>#</th>
+                    <th>Discipline</th>
                     <th>Athlete</th>
-                    <th>Reps</th>
-                    <th>Tier</th>
+                    <th>{{ leaderboard_rows.0.submission.score_heading|default:"Score" }}</th>
+                    <th>Label</th>
                     <th>Status</th>
                     <th>Rank</th>
                 </tr>
@@ -55,6 +75,7 @@
                 {% for row in leaderboard_rows %}
                     <tr data-board-row data-status="{{ row.submission.status }}" data-created="{{ row.submission.created_at|date:'c' }}">
                         <td><span class="position-pill">#{{ row.position }}</span></td>
+                        <td>{{ row.submission.discipline_label }}</td>
                         <td>
                             <div class="submission-name">
                                 {% if row.profile %}
@@ -67,7 +88,7 @@
                                 {% endif %}
                             </div>
                         </td>
-                        <td><span class="score">{{ row.submission.reps }}</span></td>
+                        <td><span class="score">{{ row.submission.compact_score }}</span></td>
                         <td><span class="tag-pill">{{ row.submission.rank_name }}</span></td>
                         <td><span class="status-pill {{ row.submission.status }}">{{ row.submission.public_status_label }}</span></td>
                         <td>
@@ -94,11 +115,11 @@
                     {% endif %}
                     <div class="score-row-main">
                         <div class="submission-name">{% if row.profile %}<a href="{% url 'athlete_profile' row.profile.slug %}">{{ row.submission.name }}</a>{% else %}{{ row.submission.name }}{% endif %}</div>
-                        <div class="submission-meta">{{ row.submission.rank_name }} - {{ row.submission.public_status_label }}</div>
+                        <div class="submission-meta">{{ row.submission.discipline_label }} - {{ row.submission.display_score }} - {{ row.submission.public_status_label }}</div>
                     </div>
                     <div class="score-row-score">
                         <span class="position-pill">#{{ row.position }}</span>
-                        <div class="score">{{ row.submission.reps }}</div>
+                        <div class="score">{{ row.submission.compact_score }}</div>
                     </div>
                 </div>
             {% endfor %}
@@ -112,7 +133,7 @@
             <div class="muted">Page {{ leaderboard_rows.number }} of {{ leaderboard_rows.paginator.num_pages }}</div>
             <div class="button-row" style="margin-top: 0;">
                 {% if leaderboard_rows.has_previous %}
-                    <a class="btn-secondary" href="?mode={{ active_mode.key }}{% if query %}&q={{ query|urlencode }}{% endif %}&page={{ leaderboard_rows.previous_page_number }}#full-leaderboard" aria-label="Previous page">&#8592;</a>
+                    <a class="btn-secondary" href="?discipline={{ active_discipline.key }}&mode={{ active_mode.key }}{% if query %}&q={{ query|urlencode }}{% endif %}&page={{ leaderboard_rows.previous_page_number }}#full-leaderboard" aria-label="Previous page">&#8592;</a>
                 {% endif %}
                 {% for page_number in leaderboard_pages %}
                     {% if page_number == leaderboard_rows.paginator.ELLIPSIS %}
@@ -120,11 +141,11 @@
                     {% elif page_number == leaderboard_rows.number %}
                         <span class="btn-main">{{ page_number }}</span>
                     {% else %}
-                        <a class="btn-secondary" href="?mode={{ active_mode.key }}{% if query %}&q={{ query|urlencode }}{% endif %}&page={{ page_number }}#full-leaderboard">{{ page_number }}</a>
+                        <a class="btn-secondary" href="?discipline={{ active_discipline.key }}&mode={{ active_mode.key }}{% if query %}&q={{ query|urlencode }}{% endif %}&page={{ page_number }}#full-leaderboard">{{ page_number }}</a>
                     {% endif %}
                 {% endfor %}
                 {% if leaderboard_rows.has_next %}
-                    <a class="btn-secondary" href="?mode={{ active_mode.key }}{% if query %}&q={{ query|urlencode }}{% endif %}&page={{ leaderboard_rows.next_page_number }}#full-leaderboard" aria-label="Next page">&#8594;</a>
+                    <a class="btn-secondary" href="?discipline={{ active_discipline.key }}&mode={{ active_mode.key }}{% if query %}&q={{ query|urlencode }}{% endif %}&page={{ leaderboard_rows.next_page_number }}#full-leaderboard" aria-label="Next page">&#8594;</a>
                 {% endif %}
             </div>
         </div>

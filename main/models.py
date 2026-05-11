@@ -47,6 +47,74 @@ RANK_TIERS = [
     },
 ]
 
+DISCIPLINE_PUSHUPS = "pushups"
+DISCIPLINE_PULLUPS = "pullups"
+DISCIPLINE_5K = "5k"
+DISCIPLINE_10K = "10k"
+
+DISCIPLINE_CHOICES = [
+    (DISCIPLINE_PUSHUPS, "Push-ups"),
+    (DISCIPLINE_PULLUPS, "Pull-ups"),
+    (DISCIPLINE_5K, "5K run"),
+    (DISCIPLINE_10K, "10K run"),
+]
+
+DISCIPLINE_CONFIG = {
+    DISCIPLINE_PUSHUPS: {
+        "key": DISCIPLINE_PUSHUPS,
+        "label": "Push-ups",
+        "title": "Push-Up Leaderboard",
+        "short_label": "Push-ups",
+        "score_type": "reps",
+        "unit": "reps",
+        "higher_is_better": True,
+        "input_label": "Max clean push-ups",
+        "placeholder": "42",
+    },
+    DISCIPLINE_PULLUPS: {
+        "key": DISCIPLINE_PULLUPS,
+        "label": "Pull-ups",
+        "title": "Pull-Up Leaderboard",
+        "short_label": "Pull-ups",
+        "score_type": "reps",
+        "unit": "reps",
+        "higher_is_better": True,
+        "input_label": "Max clean pull-ups",
+        "placeholder": "12",
+    },
+    DISCIPLINE_5K: {
+        "key": DISCIPLINE_5K,
+        "label": "5K run",
+        "title": "5K Leaderboard",
+        "short_label": "5K",
+        "score_type": "time",
+        "unit": "time",
+        "higher_is_better": False,
+        "input_label": "5K time",
+        "placeholder": "21:34",
+    },
+    DISCIPLINE_10K: {
+        "key": DISCIPLINE_10K,
+        "label": "10K run",
+        "title": "10K Leaderboard",
+        "short_label": "10K",
+        "score_type": "time",
+        "unit": "time",
+        "higher_is_better": False,
+        "input_label": "10K time",
+        "placeholder": "44:20",
+    },
+}
+
+
+def get_discipline_config(discipline):
+    return DISCIPLINE_CONFIG.get(discipline, DISCIPLINE_CONFIG[DISCIPLINE_PUSHUPS])
+
+
+def format_duration(seconds):
+    minutes, remaining_seconds = divmod(max(0, int(seconds)), 60)
+    return f"{minutes}:{remaining_seconds:02d}"
+
 
 def get_rank_tier(reps):
     for tier in RANK_TIERS:
@@ -64,12 +132,12 @@ def get_submission_identity(submission):
     return ("submission", submission.pk)
 
 
-def get_official_verified_submissions():
+def get_official_verified_submissions(discipline=DISCIPLINE_PUSHUPS):
     official = {}
     submissions = (
-        Submission.objects.filter(status=Submission.STATUS_VERIFIED)
+        Submission.objects.filter(status=Submission.STATUS_VERIFIED, discipline=discipline)
         .select_related("user", "user__profile")
-        .order_by("-reps", "created_at")
+        .order_by("-reps" if get_discipline_config(discipline)["higher_is_better"] else "reps", "created_at")
     )
     for submission in submissions:
         identity = get_submission_identity(submission)
@@ -78,17 +146,27 @@ def get_official_verified_submissions():
     return list(official.values())
 
 
-def get_best_verified_submission_for_user(user):
-    return user.submission_set.filter(status=Submission.STATUS_VERIFIED).order_by("-reps", "created_at").first()
+def get_best_verified_submission_for_user(user, discipline=DISCIPLINE_PUSHUPS):
+    order = "-reps" if get_discipline_config(discipline)["higher_is_better"] else "reps"
+    return user.submission_set.filter(status=Submission.STATUS_VERIFIED, discipline=discipline).order_by(order, "created_at").first()
 
 
 def get_official_rank_for_submission(submission):
     if not submission:
         return None
-    return sum(1 for item in get_official_verified_submissions() if item.reps > submission.reps) + 1
+    config = get_discipline_config(submission.discipline)
+    if config["higher_is_better"]:
+        return sum(1 for item in get_official_verified_submissions(submission.discipline) if item.reps > submission.reps) + 1
+    return sum(1 for item in get_official_verified_submissions(submission.discipline) if item.reps < submission.reps) + 1
 
 
 class Submission(models.Model):
+    DISCIPLINE_PUSHUPS = DISCIPLINE_PUSHUPS
+    DISCIPLINE_PULLUPS = DISCIPLINE_PULLUPS
+    DISCIPLINE_5K = DISCIPLINE_5K
+    DISCIPLINE_10K = DISCIPLINE_10K
+    DISCIPLINE_CHOICES = DISCIPLINE_CHOICES
+
     STATUS_UNVERIFIED = "unverified"
     STATUS_PENDING = "pending"
     STATUS_VERIFIED = "verified"
@@ -103,6 +181,7 @@ class Submission(models.Model):
     user = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL)
     name = models.CharField(max_length=100)
     email = models.EmailField(blank=True)
+    discipline = models.CharField(max_length=16, choices=DISCIPLINE_CHOICES, default=DISCIPLINE_PUSHUPS)
     reps = models.IntegerField()
     video_link = models.URLField(blank=True)
     video_file = models.FileField(upload_to="submission_videos/", blank=True)
@@ -115,7 +194,7 @@ class Submission(models.Model):
         ordering = ("-reps", "created_at")
 
     def __str__(self):
-        return f"{self.name} - {self.reps}"
+        return f"{self.name} - {self.discipline_label}: {self.display_score}"
 
     def save(self, *args, **kwargs):
         previous = None
@@ -171,6 +250,12 @@ class Submission(models.Model):
 
     @property
     def rank_tier(self):
+        if self.discipline != self.DISCIPLINE_PUSHUPS:
+            return {
+                "name": "Verified Performance" if self.is_verified else "Performance",
+                "benchmark": self.discipline_label,
+                "description": "Official status comes from verified proof.",
+            }
         return get_rank_tier(self.reps)
 
     @property
@@ -206,6 +291,34 @@ class Submission(models.Model):
     @property
     def has_proof(self):
         return bool(self.video_link or self.video_storage_path or self.video_file)
+
+    @property
+    def discipline_config(self):
+        return get_discipline_config(self.discipline)
+
+    @property
+    def discipline_label(self):
+        return self.discipline_config["label"]
+
+    @property
+    def is_time_based(self):
+        return self.discipline_config["score_type"] == "time"
+
+    @property
+    def display_score(self):
+        if self.is_time_based:
+            return format_duration(self.reps)
+        return f"{self.reps} reps"
+
+    @property
+    def compact_score(self):
+        if self.is_time_based:
+            return format_duration(self.reps)
+        return str(self.reps)
+
+    @property
+    def score_heading(self):
+        return "Time" if self.is_time_based else "Reps"
 
 
 class VerificationEvent(models.Model):

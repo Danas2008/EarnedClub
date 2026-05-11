@@ -37,6 +37,8 @@ from .models import (
     NewsletterSubscriber,
     Profile,
     RANK_TIERS,
+    DISCIPLINE_CONFIG,
+    DISCIPLINE_PUSHUPS,
     Submission,
     VerificationEvent,
     Workout,
@@ -45,6 +47,7 @@ from .models import (
     WorkoutSessionExercise,
     WorkoutTemplate,
     get_best_verified_submission_for_user,
+    get_discipline_config,
     get_official_rank_for_submission,
     get_official_verified_submissions,
     get_rank_tier,
@@ -338,12 +341,13 @@ def get_email_delivery_issue():
 def notify_admin_submission(submission, event_label):
     proof = submission.proof_url or "No proof attached"
     return safe_send_mail(
-        f"Earned Club result submitted: {submission.reps} reps",
+        f"Earned Club result submitted: {submission.discipline_label} {submission.display_score}",
         (
             f"{event_label}\n\n"
             f"Name: {submission.name}\n"
             f"Email: {submission.email or 'No email'}\n"
-            f"Reps: {submission.reps}\n"
+            f"Discipline: {submission.discipline_label}\n"
+            f"Result: {submission.display_score}\n"
             f"Status: {submission.public_status_label}\n"
             f"Proof: {proof}"
         ),
@@ -417,57 +421,114 @@ def verified_submission_queryset():
     return Submission.objects.filter(status=Submission.STATUS_VERIFIED)
 
 
-def public_submission_queryset(since=None):
+def public_submission_queryset(since=None, discipline=DISCIPLINE_PUSHUPS):
     visible = {}
     if since:
         verified_pool = (
-            Submission.objects.filter(status=Submission.STATUS_VERIFIED, created_at__gte=since)
+            Submission.objects.filter(status=Submission.STATUS_VERIFIED, discipline=discipline, created_at__gte=since)
             .select_related("user", "user__profile")
-            .order_by("-reps", "created_at")
+            .order_by("-reps" if get_discipline_config(discipline)["higher_is_better"] else "reps", "created_at")
         )
     else:
-        verified_pool = get_official_verified_submissions()
+        verified_pool = get_official_verified_submissions(discipline)
     for submission in verified_pool:
         identity = get_submission_identity(submission)
         current = visible.get(identity)
-        if current is None or submission.reps > current.reps:
+        if current is None or is_better_submission(submission, current):
             visible[identity] = submission
 
     pending_submissions = (
-        Submission.objects.filter(status=Submission.STATUS_PENDING)
+        Submission.objects.filter(status=Submission.STATUS_PENDING, discipline=discipline)
         .select_related("user", "user__profile")
-        .order_by("-reps", "created_at")
+        .order_by("-reps" if get_discipline_config(discipline)["higher_is_better"] else "reps", "created_at")
     )
     if since:
         pending_submissions = pending_submissions.filter(created_at__gte=since)
     for submission in pending_submissions:
         identity = get_submission_identity(submission)
         current = visible.get(identity)
-        if current is None or submission.reps > current.reps:
+        if current is None or is_better_submission(submission, current):
             visible[identity] = submission
 
-    return sorted(visible.values(), key=lambda item: (-item.reps, item.created_at))
+    return sort_submissions_for_discipline(visible.values(), discipline)
 
 
-def pending_submission_queryset():
-    return Submission.objects.filter(status=Submission.STATUS_PENDING)
+def pending_submission_queryset(discipline=None):
+    submissions = Submission.objects.filter(status=Submission.STATUS_PENDING)
+    if discipline:
+        submissions = submissions.filter(discipline=discipline)
+    return submissions
 
 
-def active_submission_queryset():
-    return Submission.objects.filter(status__in=[Submission.STATUS_UNVERIFIED, Submission.STATUS_PENDING])
+def active_submission_queryset(discipline=None):
+    submissions = Submission.objects.filter(status__in=[Submission.STATUS_UNVERIFIED, Submission.STATUS_PENDING])
+    if discipline:
+        submissions = submissions.filter(discipline=discipline)
+    return submissions
 
 
-def blocking_submission_queryset():
+def blocking_submission_queryset(discipline=None):
     recent_cutoff = timezone.now() - timedelta(minutes=1)
-    return Submission.objects.filter(
+    submissions = Submission.objects.filter(
         Q(status=Submission.STATUS_PENDING) |
         Q(status=Submission.STATUS_UNVERIFIED, created_at__gte=recent_cutoff)
     )
+    if discipline:
+        submissions = submissions.filter(discipline=discipline)
+    return submissions
 
 
-def estimate_verified_position(reps):
-    equal_or_better = sum(1 for item in get_official_verified_submissions() if item.reps >= reps)
+def is_better_submission(candidate, current):
+    if candidate.discipline_config["higher_is_better"]:
+        return candidate.reps > current.reps
+    return candidate.reps < current.reps
+
+
+def sort_submissions_for_discipline(submissions, discipline):
+    reverse = get_discipline_config(discipline)["higher_is_better"]
+    return sorted(submissions, key=lambda item: (item.reps if not reverse else -item.reps, item.created_at))
+
+
+def estimate_verified_position(score, discipline=DISCIPLINE_PUSHUPS):
+    if get_discipline_config(discipline)["higher_is_better"]:
+        equal_or_better = sum(1 for item in get_official_verified_submissions(discipline) if item.reps >= score)
+    else:
+        equal_or_better = sum(1 for item in get_official_verified_submissions(discipline) if item.reps <= score)
     return equal_or_better + 1
+
+
+def get_leaderboard_discipline(request, discipline_key=None):
+    requested = (discipline_key or request.GET.get("discipline") or DISCIPLINE_PUSHUPS).strip().lower()
+    return get_discipline_config(requested)
+
+
+def parse_duration_to_seconds(value):
+    raw = (value or "").strip()
+    if not raw:
+        raise ValueError("Enter a time.")
+    parts = raw.split(":")
+    if len(parts) == 1:
+        seconds = int(parts[0])
+        if seconds <= 0:
+            raise ValueError("Time must be greater than zero.")
+        return seconds
+    if len(parts) != 2:
+        raise ValueError("Use a time like 21:34.")
+    minutes = int(parts[0])
+    seconds = int(parts[1])
+    if minutes < 0 or seconds < 0 or seconds > 59 or (minutes == 0 and seconds == 0):
+        raise ValueError("Use a valid time like 21:34.")
+    return minutes * 60 + seconds
+
+
+def parse_submission_score(raw_value, discipline):
+    config = get_discipline_config(discipline)
+    if config["score_type"] == "time":
+        return parse_duration_to_seconds(raw_value)
+    reps_value = int((raw_value or "").strip())
+    if reps_value <= 0:
+        raise ValueError("Reps must be greater than zero.")
+    return reps_value
 
 
 def user_display_name(user):
@@ -564,18 +625,19 @@ def get_leaderboard_mode(request):
     return LEADERBOARD_MODE_LOOKUP.get(requested_mode, LEADERBOARD_MODE_LOOKUP["all"])
 
 
-def get_leaderboard_submissions(mode_key):
+def get_leaderboard_submissions(mode_key, discipline=DISCIPLINE_PUSHUPS):
+    order = "-reps" if get_discipline_config(discipline)["higher_is_better"] else "reps"
     if mode_key == "verified":
-        return get_official_verified_submissions()
+        return get_official_verified_submissions(discipline)
     if mode_key == "week":
-        return public_submission_queryset(since=get_weekly_window())
+        return public_submission_queryset(since=get_weekly_window(), discipline=discipline)
     if mode_key == "month":
-        return public_submission_queryset(since=get_monthly_window())
+        return public_submission_queryset(since=get_monthly_window(), discipline=discipline)
     if mode_key == "pending":
-        return pending_submission_queryset().select_related("user", "user__profile").order_by("-reps", "created_at")
+        return pending_submission_queryset(discipline).select_related("user", "user__profile").order_by(order, "created_at")
     if mode_key == "unverified":
-        return Submission.objects.filter(status=Submission.STATUS_UNVERIFIED).select_related("user", "user__profile").order_by("-reps", "created_at")
-    return public_submission_queryset()
+        return Submission.objects.filter(status=Submission.STATUS_UNVERIFIED, discipline=discipline).select_related("user", "user__profile").order_by(order, "created_at")
+    return public_submission_queryset(discipline=discipline)
 
 
 def build_querystring(**params):
@@ -616,12 +678,12 @@ def send_submission_notification(submission, subject, message):
     safe_send_mail(subject, message, [recipient])
 
 
-def find_submission_blocker(request, name, email, reps):
+def find_submission_blocker(request, name, email, reps, discipline=DISCIPLINE_PUSHUPS):
     if request.POST.get("website"):
         return "silent"
 
     cooldown = timezone.now() - timedelta(minutes=1)
-    recent_duplicate = Submission.objects.filter(created_at__gte=cooldown, reps=reps)
+    recent_duplicate = Submission.objects.filter(created_at__gte=cooldown, reps=reps, discipline=discipline)
     if request.user.is_authenticated:
         recent_duplicate = recent_duplicate.filter(user=request.user)
     else:
@@ -1050,6 +1112,7 @@ def home(request):
 
     context = {
         "rank_tiers": RANK_TIERS,
+        "discipline_cards": DISCIPLINE_CONFIG.values(),
         "total_verified": len(verified_submissions),
         "total_submissions": len(public_submissions),
         "top_three": leaderboard_rows[:3],
@@ -1127,11 +1190,12 @@ def robots_txt(request):
     return HttpResponse("\n".join(lines), content_type="text/plain")
 
 
-def leaderboard(request):
+def leaderboard(request, discipline_key=None):
     query = (request.GET.get("q") or "").strip()
     active_mode = get_leaderboard_mode(request)
-    verified_submissions = get_official_verified_submissions()
-    public_submissions = list(get_leaderboard_submissions(active_mode["key"]))
+    active_discipline = get_leaderboard_discipline(request, discipline_key)
+    verified_submissions = get_official_verified_submissions(active_discipline["key"])
+    public_submissions = list(get_leaderboard_submissions(active_mode["key"], active_discipline["key"]))
     public_submissions = search_submissions(public_submissions, query)
     weekly_cutoff = get_weekly_window()
     monthly_cutoff = get_monthly_window()
@@ -1147,14 +1211,16 @@ def leaderboard(request):
             on_ends=1,
         ),
         "leaderboard_modes": LEADERBOARD_MODES,
+        "discipline_cards": DISCIPLINE_CONFIG.values(),
+        "active_discipline": active_discipline,
         "active_mode": active_mode,
         "weekly_cutoff": weekly_cutoff.isoformat(),
         "monthly_cutoff": monthly_cutoff.isoformat(),
         "rank_tiers": RANK_TIERS,
         "verified_count": len(verified_submissions),
         "submission_count": len(public_submissions),
-        "pending_count": pending_submission_queryset().count(),
-        "weekly_count": len(public_submission_queryset(since=weekly_cutoff)),
+        "pending_count": pending_submission_queryset(active_discipline["key"]).count(),
+        "weekly_count": len(public_submission_queryset(since=weekly_cutoff, discipline=active_discipline["key"])),
         "query": query,
     }
     return render(request, "leaderboard.html", context)
@@ -1540,21 +1606,26 @@ def toggle_follow(request, slug):
 
 def challenge(request):
     verified_submissions = get_official_verified_submissions()
+    selected_discipline = get_discipline_config((request.POST.get("discipline") if request.method == "POST" else request.GET.get("discipline")) or DISCIPLINE_PUSHUPS)
     context = {
         "rank_tiers": RANK_TIERS,
+        "discipline_cards": DISCIPLINE_CONFIG.values(),
+        "selected_discipline": selected_discipline,
         "verified_count": len(verified_submissions),
-        "leaderboard_preview": build_leaderboard_rows(list(public_submission_queryset())[:3]),
+        "leaderboard_preview": build_leaderboard_rows(list(public_submission_queryset(discipline=selected_discipline["key"]))[:3]),
         "form_data": request.GET,
+        "form_score": request.GET.get("score") or request.GET.get("reps") or "",
         "show_submit_help": False,
     }
     if request.user.is_authenticated:
         context["profile"] = request.user.profile
-        context["active_submission"] = blocking_submission_queryset().filter(user=request.user).order_by("-created_at").first()
+        context["active_submission"] = blocking_submission_queryset(selected_discipline["key"]).filter(user=request.user).order_by("-created_at").first()
 
     if request.method == "POST":
         name = (request.POST.get("name") or "").strip()
         email = (request.POST.get("email") or "").strip().lower()
-        reps = (request.POST.get("reps") or "").strip()
+        discipline = selected_discipline["key"]
+        score_raw = (request.POST.get("score") or request.POST.get("reps") or "").strip()
         video_link = ""
         video_file = request.FILES.get("video_file")
 
@@ -1566,39 +1637,37 @@ def challenge(request):
             messages.success(request, "Submission received. If it passes review, it will appear on the leaderboard.")
             return redirect("challenge")
 
-        if not name or not reps or (not request.user.is_authenticated and not email):
-            messages.error(request, "Please fill in your name, email, and reps before submitting.")
+        if not name or not score_raw or (not request.user.is_authenticated and not email):
+            messages.error(request, "Please fill in your name, email, and performance before submitting.")
             context["form_data"] = request.POST
+            context["form_score"] = score_raw
             context["show_submit_help"] = True
             return render(request, "challenge.html", context)
 
         try:
-            reps_value = int(reps)
-        except ValueError:
-            messages.error(request, "Reps must be a whole number.")
+            score_value = parse_submission_score(score_raw, discipline)
+        except ValueError as exc:
+            messages.error(request, str(exc) if selected_discipline["score_type"] == "time" else "Reps must be a whole number greater than zero.")
             context["form_data"] = request.POST
+            context["form_score"] = score_raw
             context["show_submit_help"] = True
             return render(request, "challenge.html", context)
 
-        if reps_value <= 0:
-            messages.error(request, "Reps must be greater than zero.")
-            context["form_data"] = request.POST
-            context["show_submit_help"] = True
-            return render(request, "challenge.html", context)
-
-        if not request.user.is_authenticated and reps_value > 40:
+        if discipline == Submission.DISCIPLINE_PUSHUPS and not request.user.is_authenticated and score_value > 40:
             messages.error(request, "Anonymous submissions are capped at 40 push-ups. Log in and add video proof to submit more.")
             context["form_data"] = request.POST
+            context["form_score"] = score_raw
             context["show_submit_help"] = True
             return render(request, "challenge.html", context)
 
-        if request.user.is_authenticated and reps_value > 60 and not video_file:
+        if discipline == Submission.DISCIPLINE_PUSHUPS and request.user.is_authenticated and score_value > 60 and not video_file:
             messages.error(request, "Scores above 60 need video proof.")
             context["form_data"] = request.POST
+            context["form_score"] = score_raw
             context["show_submit_help"] = True
             return render(request, "challenge.html", context)
 
-        active_filter = blocking_submission_queryset()
+        active_filter = blocking_submission_queryset(discipline)
         if request.user.is_authenticated:
             active_submission = active_filter.filter(user=request.user).first()
         else:
@@ -1608,7 +1677,8 @@ def challenge(request):
             if active_submission.status == Submission.STATUS_UNVERIFIED and video_file:
                 active_submission.name = name
                 active_submission.email = email
-                active_submission.reps = reps_value
+                active_submission.discipline = discipline
+                active_submission.reps = score_value
                 active_submission.video_link = ""
                 stored_video = store_submission_video(active_submission, video_file)
                 active_submission.video_storage_path = stored_video["storage_path"]
@@ -1619,6 +1689,7 @@ def challenge(request):
                     update_fields=[
                         "name",
                         "email",
+                        "discipline",
                         "reps",
                         "video_link",
                         "video_storage_path",
@@ -1629,12 +1700,12 @@ def challenge(request):
                 )
                 create_verification_event(active_submission, VerificationEvent.ACTION_PROOF_ADDED)
                 admin_notified = notify_admin_submission(active_submission, "Proof was added to an existing result.")
-                estimated_position = estimate_verified_position(reps_value)
+                estimated_position = estimate_verified_position(score_value, discipline)
                 send_submission_notification(
                     active_submission,
                     "Earned Club proof received",
                     (
-                        f"Your proof for {active_submission.reps} reps was added and is now waiting for review. "
+                        f"Your proof for {active_submission.discipline_label} {active_submission.display_score} was added and is now waiting for review. "
                         f"If verified, it would currently rank #{estimated_position}."
                     ),
                 )
@@ -1652,26 +1723,29 @@ def challenge(request):
                 "You already have an active submission. Add proof to your current entry or wait until it is reviewed before submitting again.",
             )
             context["form_data"] = request.POST
+            context["form_score"] = score_raw
             context["active_submission"] = active_submission
             context["show_submit_help"] = True
             return render(request, "challenge.html", context)
 
-        blocker = find_submission_blocker(request, name, email, reps_value)
+        blocker = find_submission_blocker(request, name, email, score_value, discipline)
         if blocker == "silent":
             messages.success(request, "Submission received. If it passes review, it will appear on the leaderboard.")
             return redirect("challenge")
         if blocker:
             messages.error(request, blocker)
             context["form_data"] = request.POST
+            context["form_score"] = score_raw
             context["show_submit_help"] = True
             return render(request, "challenge.html", context)
 
-        estimated_position = estimate_verified_position(reps_value)
+        estimated_position = estimate_verified_position(score_value, discipline)
         submission = Submission.objects.create(
             user=request.user if request.user.is_authenticated else None,
             name=name,
             email=email,
-            reps=reps_value,
+            discipline=discipline,
+            reps=score_value,
             video_link="",
             status=Submission.STATUS_PENDING if video_file else Submission.STATUS_UNVERIFIED,
         )
@@ -1688,7 +1762,7 @@ def challenge(request):
             submission,
             "Earned Club submission received",
             (
-                f"Your Earned Club submission for {submission.reps} reps was received. "
+                f"Your Earned Club submission for {submission.discipline_label} {submission.display_score} was received. "
                 + (
                     f"It is waiting for verification and would currently rank #{estimated_position} if approved."
                     if submission.has_proof else
@@ -1700,7 +1774,7 @@ def challenge(request):
         for subscriber in NewsletterSubscriber.objects.exclude(email=email)[:50]:
             safe_send_mail(
                 "New EarnedClub challenge result",
-                f"{name} just submitted {reps_value} push-ups. Check the leaderboard to see if you can beat it.",
+                f"{name} just submitted {submission.discipline_label} {submission.display_score}. Check the leaderboard to see if you can beat it.",
                 [subscriber.email],
             )
 
@@ -1714,7 +1788,7 @@ def challenge(request):
         )
         if not admin_notified:
             messages.warning(request, "Your result was saved, but the admin email could not be delivered. Staff can still see it in review.")
-        messages.info(request, "Next: open your dashboard to track review status, then retest your strict push-ups in 14 days.")
+        messages.info(request, "Next: open your dashboard to track review status, then come back with a stronger verified performance.")
         return redirect("challenge")
 
     return render(request, "challenge.html", context)
@@ -1750,7 +1824,7 @@ def add_submission_proof(request, submission_id):
     send_submission_notification(
         submission,
         "Earned Club proof received",
-        f"Your proof video for {submission.reps} reps was added. The submission is now waiting for review.",
+        f"Your proof video for {submission.discipline_label} {submission.display_score} was added. The submission is now waiting for review.",
     )
     messages.success(request, "Proof added. Your submission is back in pending review.")
     return redirect("dashboard")
@@ -1902,16 +1976,16 @@ def review_submission(request, submission_id):
         send_submission_notification(
             submission,
             "Earned Club submission approved",
-            f"Your {submission.reps}-rep submission was approved. Your verified result is now live on Earned Club.",
+            f"Your {submission.discipline_label} {submission.display_score} submission was approved. Your verified result is now live on Earned Club.",
         )
         if submission.user_id:
             rank = get_official_rank_for_submission(submission)
             notify_user_email(
                 submission.user,
                 "Your EarnedClub result was verified",
-                f"Your {submission.reps}-rep result was verified. Your official rank is currently #{rank}.",
+                f"Your {submission.discipline_label} {submission.display_score} result was verified. Your official rank is currently #{rank}.",
             )
-        messages.success(request, f"{submission.name} was approved with {submission.reps} reps.")
+        messages.success(request, f"{submission.name} was approved with {submission.discipline_label} {submission.display_score}.")
     elif action == "reject":
         submission.status = Submission.STATUS_REJECTED
         submission.verified = False
@@ -1926,7 +2000,7 @@ def review_submission(request, submission_id):
             submission,
             "Earned Club submission update",
             (
-                f"Your {submission.reps}-rep submission was reviewed but not approved."
+                f"Your {submission.discipline_label} {submission.display_score} submission was reviewed but not approved."
                 + (f" Reviewer note: {review_note}" if review_note else " You can submit again with clearer proof.")
             ),
         )
