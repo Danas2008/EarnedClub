@@ -3,7 +3,6 @@ import tempfile
 from unittest.mock import patch
 from xml.etree import ElementTree
 
-from django.core import mail
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.contrib.auth.models import User
 from django.db import IntegrityError
@@ -450,7 +449,7 @@ class SubmissionFlowTests(TestCase):
         self.assertContains(response, "21:34")
 
     @override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
-    def test_challenge_submission_creates_audit_event_and_email(self):
+    def test_challenge_submission_creates_audit_event_with_email_disabled(self):
         response = self.client.post(
             reverse("challenge"),
             {
@@ -470,9 +469,7 @@ class SubmissionFlowTests(TestCase):
                 action=VerificationEvent.ACTION_SUBMITTED,
             ).exists()
         )
-        self.assertEqual(len(mail.outbox), 2)
-        self.assertTrue(any("submission received" in message.subject.lower() for message in mail.outbox))
-        self.assertTrue(any("daniel.havlicek1@seznam.cz" in message.to for message in mail.outbox))
+        self.assertNotContains(response, "admin email could not be delivered")
 
     def test_proof_link_post_is_ignored_for_new_submissions(self):
         Submission.objects.create(
@@ -1072,7 +1069,7 @@ class SubmissionFlowTests(TestCase):
         self.assertEqual(segment.subscribers.count(), 2)
 
     @override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
-    def test_staff_can_send_newsletter_to_segment(self):
+    def test_newsletter_segment_send_is_disabled_for_now(self):
         staff = User.objects.create_user(username="segment-send-staff", password="StrongPass12345", is_staff=True)
         included = NewsletterSubscriber.objects.create(email="included@example.com")
         NewsletterSubscriber.objects.create(email="excluded@example.com")
@@ -1092,11 +1089,10 @@ class SubmissionFlowTests(TestCase):
         )
 
         self.assertRedirects(response, reverse("newsletter_admin"))
-        self.assertEqual(len(mail.outbox), 1)
-        self.assertEqual(mail.outbox[0].to, ["included@example.com"])
+        self.assertEqual(NewsletterSendEvent.objects.count(), 0)
 
     @override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
-    def test_staff_can_send_newsletter_to_auto_segment(self):
+    def test_newsletter_auto_segment_send_is_disabled_for_now(self):
         staff = User.objects.create_user(username="auto-segment-staff", password="StrongPass12345", is_staff=True)
         verified_user = User.objects.create_user(username="verified-email", email="verified@example.com", password="StrongPass12345")
         NewsletterSubscriber.objects.create(email="verified@example.com")
@@ -1116,11 +1112,10 @@ class SubmissionFlowTests(TestCase):
         )
 
         self.assertRedirects(response, reverse("newsletter_admin"))
-        self.assertEqual(len(mail.outbox), 1)
-        self.assertEqual(mail.outbox[0].to, ["verified@example.com"])
+        self.assertEqual(NewsletterSendEvent.objects.count(), 0)
 
     @override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
-    def test_staff_can_send_direct_newsletter_email(self):
+    def test_direct_newsletter_email_is_disabled_for_now(self):
         staff = User.objects.create_user(username="direct-staff", password="StrongPass12345", is_staff=True)
         subscriber = NewsletterSubscriber.objects.create(email="direct@example.com")
         self.client.force_login(staff)
@@ -1131,8 +1126,7 @@ class SubmissionFlowTests(TestCase):
         )
 
         self.assertRedirects(response, reverse("newsletter_subscriber_detail", args=[subscriber.id]))
-        self.assertEqual(len(mail.outbox), 1)
-        self.assertEqual(mail.outbox[0].to, ["direct@example.com"])
+        self.assertEqual(NewsletterSendEvent.objects.count(), 0)
 
     @override_settings(
         EMAIL_BACKEND="django.core.mail.backends.smtp.EmailBackend",
@@ -1143,19 +1137,18 @@ class SubmissionFlowTests(TestCase):
         EMAIL_HOST_USER="earnedclub1@gmail.com",
         EMAIL_HOST_PASSWORD="app-password",
     )
-    def test_direct_newsletter_email_reports_network_failure_without_send_event(self):
+    def test_direct_newsletter_email_reports_disabled_delivery_without_send_event(self):
         staff = User.objects.create_user(username="network-staff", password="StrongPass12345", is_staff=True)
         subscriber = NewsletterSubscriber.objects.create(email="network@example.com")
         self.client.force_login(staff)
 
-        with patch("main.views.send_mail", side_effect=OSError("[Errno 101] Network is unreachable")):
-            response = self.client.post(
-                reverse("newsletter_subscriber_detail", args=[subscriber.id]),
-                {"subject": "Network hello", "body": "Only for this subscriber."},
-                follow=True,
-            )
+        response = self.client.post(
+            reverse("newsletter_subscriber_detail", args=[subscriber.id]),
+            {"subject": "Network hello", "body": "Only for this subscriber."},
+            follow=True,
+        )
 
-        self.assertContains(response, "Email server is unreachable")
+        self.assertContains(response, "Email delivery is temporarily disabled")
         self.assertEqual(NewsletterSendEvent.objects.count(), 0)
 
     def test_sitemap_xml_lists_core_pages(self):

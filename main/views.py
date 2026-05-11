@@ -13,7 +13,6 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.decorators import user_passes_test
 from django.contrib.auth.forms import AuthenticationForm
 from django.contrib.auth.models import User
-from django.core.mail import send_mail
 from django.core.serializers.json import DjangoJSONEncoder
 from django.http import HttpResponse
 from django.db import IntegrityError, transaction
@@ -145,6 +144,9 @@ SYSTEM_WORKOUT_TEMPLATES = [
 ]
 
 ADMIN_SUBMISSION_EMAIL = "daniel.havlicek1@seznam.cz"
+EMAIL_SYSTEM_DISABLED_MESSAGE = (
+    "Email delivery is temporarily disabled. Newsletter and notification data is kept for later reactivation."
+)
 logger = logging.getLogger(__name__)
 
 
@@ -394,30 +396,16 @@ def notify_user_email(user, subject, message):
 
 
 def safe_send_mail(subject, message, recipients, from_email=None):
-    safe_send_mail.last_error = ""
-    issue = get_email_delivery_issue()
-    if issue:
-        logger.error("Email delivery skipped for subject %s to %s: %s", subject, recipients, issue)
-        safe_send_mail.last_error = issue
-        return 0
-    try:
-        return send_mail(
-            subject,
-            message,
-            from_email or getattr(settings, "DEFAULT_FROM_EMAIL", "noreply@earnedclub.club"),
-            recipients,
-            fail_silently=False,
-        )
-    except Exception as exc:
-        logger.exception("Email delivery failed for subject %s to %s", subject, recipients)
-        if isinstance(exc, OSError) and "Network is unreachable" in str(exc):
-            safe_send_mail.last_error = "Email server is unreachable from this environment. Check Render SMTP host, port, TLS, and outbound email access."
-        else:
-            safe_send_mail.last_error = f"{exc.__class__.__name__}: {exc}"
-        return 0
+    safe_send_mail.last_error = EMAIL_SYSTEM_DISABLED_MESSAGE
+    logger.info("Email delivery disabled for subject %s to %s.", subject, recipients)
+    return 0
 
 
 def get_email_delivery_issue():
+    return EMAIL_SYSTEM_DISABLED_MESSAGE
+
+
+def get_configured_email_delivery_issue():
     backend = getattr(settings, "EMAIL_BACKEND", "")
     if backend == "django.core.mail.backends.console.EmailBackend":
         return "EMAIL_BACKEND is console-only, so messages are printed to logs instead of delivered."
@@ -2042,7 +2030,7 @@ def challenge(request):
                     ]
                 )
                 estimated_position = estimate_verified_position(score_value, discipline)
-                admin_notified = safe_post_submission_side_effects(
+                safe_post_submission_side_effects(
                     active_submission,
                     VerificationEvent.ACTION_PROOF_ADDED,
                     "Proof was added to an existing result.",
@@ -2057,8 +2045,6 @@ def challenge(request):
                     request,
                     "Your result is pending review. If approved, your official rank will update.",
                 )
-                if not admin_notified:
-                    messages.warning(request, "Your proof was saved, but the admin email could not be delivered. Staff can still see it in review.")
                 messages.info(request, "Next: retest your strict push-ups in 14 days or start a support workout today.")
                 return redirect("challenge")
 
@@ -2105,7 +2091,7 @@ def challenge(request):
             submission.status = Submission.STATUS_PENDING
             submission.save(update_fields=["video_link", "video_storage_path", "video_file", "status"])
 
-        admin_notified = safe_post_submission_side_effects(
+        safe_post_submission_side_effects(
             submission,
             VerificationEvent.ACTION_SUBMITTED,
             "A new result was submitted.",
@@ -2129,8 +2115,6 @@ def challenge(request):
                 "Your result is live as unverified. Add proof to earn official rank."
             ),
         )
-        if not admin_notified:
-            messages.warning(request, "Your result was saved, but the admin email could not be delivered. Staff can still see it in review.")
         messages.info(request, "Next: open your dashboard to track review status, then come back with a stronger verified performance.")
         return redirect("challenge")
 

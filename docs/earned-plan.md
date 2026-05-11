@@ -31,8 +31,9 @@ Core positioning:
   - Optional Supabase Storage for profile images and submission videos
 - Deployment target: Render
 - Email:
-  - Console backend by default
-  - Configurable SMTP/backend through environment variables
+  - Temporarily disabled in the web app
+  - Newsletter/submission notification models and admin screens are kept for later reactivation
+  - SMTP/backend configuration notes are preserved below, but no web action should attempt real delivery right now
 
 Important dependencies:
 
@@ -752,6 +753,20 @@ Note: the newest entry is authoritative for current product direction. Older ent
 - SMTP defaults now enable TLS automatically for port 587 and SSL automatically for port 465.
 - Direct newsletter send failures now display the actual SMTP exception instead of only saying to check settings.
 - Admin menu site health now shows SMTP port and TLS/SSL status.
+
+### 2026-05-11 email system parked
+
+- Email delivery is intentionally disabled in the web app for now.
+- Reason: submission/review database actions were succeeding, but follow-up mail side effects could still produce production 500s.
+- Current behavior: `safe_send_mail()` is a no-op, newsletter send buttons remain disabled, submission/admin/review flows keep saving data without trying SMTP.
+- Kept for later: newsletter subscribers, segments, campaigns, send history, admin newsletter screens, submission notification helper names, and SMTP settings notes.
+- Previous design: submission flows called admin/user notifications after saving; admin review sent accepted/rejected emails; newsletter admin used `send_newsletter_to_subscribers()`.
+- Reintroduction plan:
+  - Add an explicit feature flag such as `EMAIL_SYSTEM_ENABLED=True`.
+  - Keep email sending outside critical database transactions and never let delivery failure roll back a saved result or review.
+  - Configure production SMTP through Render environment variables.
+  - Re-enable `safe_send_mail()` to call Django `send_mail()` only when the flag and SMTP health checks pass.
+  - Restore/update newsletter delivery tests and keep failure-path tests proving saves do not 500 when mail fails.
 
 ### 2026-05-06 homepage second-pass polish
 
