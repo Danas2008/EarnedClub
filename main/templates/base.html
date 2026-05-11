@@ -164,6 +164,10 @@
             padding: 6px 10px;
         }
 
+        .mobile-dashboard-link {
+            display: none;
+        }
+
         .nav-link {
             color: var(--muted) !important;
             font-weight: 600;
@@ -1440,6 +1444,20 @@
                 border-top: 1px solid rgba(255, 255, 255, 0.08);
             }
 
+            .mobile-dashboard-link {
+                display: inline-flex;
+                align-items: center;
+                min-height: 36px;
+                padding: 6px 10px;
+                margin-left: auto;
+                margin-right: 8px;
+                border: 1px solid rgba(247, 183, 51, 0.35);
+                border-radius: var(--radius-sm);
+                color: var(--text);
+                font-weight: 800;
+                background: rgba(247, 183, 51, 0.12);
+            }
+
             .nav-link {
                 margin-bottom: 6px;
             }
@@ -1645,6 +1663,10 @@
                                 <span class="brand-tagline">Public proof. Real rank. Future status.</span>
                             </span>
                         </a>
+
+                        {% if request.user.is_authenticated %}
+                            <a class="mobile-dashboard-link" href="{% url 'dashboard' %}">Dashboard</a>
+                        {% endif %}
 
                         <button
                             class="navbar-toggler"

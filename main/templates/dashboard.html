@@ -100,21 +100,42 @@
 
     .badge-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-        gap: 12px;
+        grid-template-columns: repeat(auto-fit, minmax(74px, max-content));
+        gap: 8px;
     }
 
     .badge-card {
-        width: 100%;
-        text-align: left;
+        width: 74px;
+        min-height: 74px;
+        text-align: center;
         border: 1px solid rgba(247, 183, 51, .22);
         border-radius: var(--radius-md);
-        padding: 14px;
+        padding: 8px 6px;
         color: var(--text);
         background: radial-gradient(circle at top left, rgba(247, 183, 51, .20), rgba(15, 20, 27, .92) 48%);
         display: grid;
-        gap: 8px;
+        justify-items: center;
+        align-content: center;
+        gap: 5px;
         cursor: pointer;
+        transition: border-color .18s ease, box-shadow .18s ease, transform .18s ease, background .18s ease;
+    }
+
+    .badge-card:hover,
+    .badge-card:focus-visible {
+        border-color: rgba(247, 183, 51, .55);
+        box-shadow: 0 0 22px rgba(247, 183, 51, .12);
+        transform: translateY(-2px);
+        outline: none;
+    }
+
+    .badge-card strong {
+        font-size: .72rem;
+        line-height: 1.05;
+    }
+
+    .badge-card .submission-meta {
+        display: none;
     }
 
     .badge-card[data-tier="premium"],
@@ -133,6 +154,12 @@
         color: #111;
         font-family: "Archivo", sans-serif;
         font-weight: 900;
+    }
+
+    .badge-card .badge-icon {
+        width: 30px;
+        height: 30px;
+        font-size: .78rem;
     }
 
     .badge-modal {
@@ -156,6 +183,12 @@
         padding: 22px;
         background: #101821;
         box-shadow: var(--shadow);
+    }
+
+    .badge-modal-panel .badge-icon {
+        width: 54px;
+        height: 54px;
+        font-size: 1.1rem;
     }
 
     .progress-header {

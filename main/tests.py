@@ -1261,6 +1261,23 @@ class SubmissionFlowTests(TestCase):
         self.assertEqual(submission.status, Submission.STATUS_PENDING)
         self.assertContains(response, "Review action failed")
 
+    def test_review_notification_failure_does_not_rollback_approval(self):
+        admin = User.objects.create_user(username="notify-failure-staff", password="StrongPass12345", is_staff=True)
+        self.client.force_login(admin)
+        submission = Submission.objects.create(name="Notify Fails", reps=48, status=Submission.STATUS_PENDING, video_link="https://example.com/proof")
+
+        with patch("main.views.send_submission_notification", side_effect=RuntimeError("email failed")):
+            response = self.client.post(
+                reverse("review_submission", args=[submission.id]),
+                {"action": "approve"},
+                follow=True,
+            )
+
+        submission.refresh_from_db()
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(submission.status, Submission.STATUS_VERIFIED)
+        self.assertContains(response, "Review was saved")
+
     def test_staff_can_view_admin_pages_index(self):
         staff = User.objects.create_user(username="pages-staff", password="StrongPass12345", is_staff=True)
         self.client.force_login(staff)

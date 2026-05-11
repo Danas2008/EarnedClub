@@ -870,6 +870,25 @@ def send_submission_notification(submission, subject, message):
     safe_send_mail(subject, message, [recipient])
 
 
+def safe_post_submission_side_effects(submission, event_action, event_label, email_subject, email_body, request=None):
+    admin_notified = 0
+    try:
+        create_verification_event(submission, event_action)
+    except Exception:
+        logger.exception("Verification event creation failed for submission %s", submission.pk)
+        if request:
+            messages.warning(request, "Your result was saved, but the audit event could not be written. Staff can still review it.")
+    try:
+        admin_notified = notify_admin_submission(submission, event_label)
+    except Exception:
+        logger.exception("Admin notification failed for submission %s", submission.pk)
+    try:
+        send_submission_notification(submission, email_subject, email_body)
+    except Exception:
+        logger.exception("Submitter notification failed for submission %s", submission.pk)
+    return admin_notified
+
+
 def find_submission_blocker(request, name, email, reps, discipline=DISCIPLINE_PUSHUPS):
     if request.POST.get("website"):
         return "silent"
@@ -2022,16 +2041,17 @@ def challenge(request):
                         "verified",
                     ]
                 )
-                create_verification_event(active_submission, VerificationEvent.ACTION_PROOF_ADDED)
-                admin_notified = notify_admin_submission(active_submission, "Proof was added to an existing result.")
                 estimated_position = estimate_verified_position(score_value, discipline)
-                send_submission_notification(
+                admin_notified = safe_post_submission_side_effects(
                     active_submission,
+                    VerificationEvent.ACTION_PROOF_ADDED,
+                    "Proof was added to an existing result.",
                     "Earned Club proof received",
                     (
                         f"Your proof for {active_submission.discipline_label} {active_submission.display_score} was added and is now waiting for review. "
                         f"If verified, it would currently rank #{estimated_position}."
                     ),
+                    request=request,
                 )
                 messages.success(
                     request,
@@ -2085,10 +2105,10 @@ def challenge(request):
             submission.status = Submission.STATUS_PENDING
             submission.save(update_fields=["video_link", "video_storage_path", "video_file", "status"])
 
-        create_verification_event(submission, VerificationEvent.ACTION_SUBMITTED)
-        admin_notified = notify_admin_submission(submission, "A new result was submitted.")
-        send_submission_notification(
+        admin_notified = safe_post_submission_side_effects(
             submission,
+            VerificationEvent.ACTION_SUBMITTED,
+            "A new result was submitted.",
             "Earned Club submission received",
             (
                 f"Your Earned Club submission for {submission.discipline_label} {submission.display_score} was received. "
@@ -2098,6 +2118,7 @@ def challenge(request):
                     "Upload proof from your profile dashboard to move it into review."
                 )
             ),
+            request=request,
         )
 
         messages.success(
@@ -2143,12 +2164,13 @@ def add_submission_proof(request, submission_id):
     submission.status = Submission.STATUS_PENDING
     submission.verified = False
     submission.save(update_fields=["video_link", "video_storage_path", "video_file", "status", "verified"])
-    create_verification_event(submission, VerificationEvent.ACTION_PROOF_ADDED)
-    notify_admin_submission(submission, "Proof was added from the dashboard.")
-    send_submission_notification(
+    safe_post_submission_side_effects(
         submission,
+        VerificationEvent.ACTION_PROOF_ADDED,
+        "Proof was added from the dashboard.",
         "Earned Club proof received",
         f"Your proof for {submission.discipline_label} {submission.display_score} was added. The submission is now waiting for review.",
+        request=request,
     )
     messages.success(request, "Proof added. Your submission is back in pending review.")
     return redirect("dashboard")
@@ -2309,18 +2331,6 @@ def review_submission(request, submission_id):
                     reviewer=request.user,
                     note=review_note,
                 )
-                send_submission_notification(
-                    submission,
-                    "Earned Club submission approved",
-                    f"Your {submission.discipline_label} {submission.display_score} submission was approved. Your verified result is now live on Earned Club.",
-                )
-                if submission.user_id:
-                    rank = get_official_rank_for_submission(submission)
-                    notify_user_email(
-                        submission.user,
-                        "Your EarnedClub result was verified",
-                        f"Your {submission.discipline_label} {submission.display_score} result was verified. Your official rank is currently #{rank}.",
-                    )
                 messages.success(request, f"{submission.name} was approved with {submission.discipline_label} {submission.display_score}.")
             elif action == "reject":
                 submission.status = Submission.STATUS_REJECTED
@@ -2332,20 +2342,6 @@ def review_submission(request, submission_id):
                     reviewer=request.user,
                     note=review_note,
                 )
-                send_submission_notification(
-                    submission,
-                    "Earned Club submission update",
-                    (
-                        f"Your {submission.discipline_label} {submission.display_score} submission was reviewed but not approved."
-                        + (f" Reviewer note: {review_note}" if review_note else " You can submit again with clearer proof.")
-                    ),
-                )
-                if submission.user_id:
-                    notify_user_email(
-                        submission.user,
-                        "Your EarnedClub result needs another try",
-                        "Your latest result was not verified. Check the rules and submit a clearer proof video when you are ready.",
-                    )
                 messages.info(request, f"{submission.name} was rejected.")
             elif action == "mark_pending":
                 if not submission.has_proof:
@@ -2369,6 +2365,39 @@ def review_submission(request, submission_id):
     except Exception as exc:
         logger.exception("Admin review action %s failed for submission %s", action, submission_id)
         messages.error(request, f"Review action failed: {exc.__class__.__name__}. Check server logs for details.")
+    else:
+        try:
+            if action == "approve":
+                send_submission_notification(
+                    submission,
+                    "Earned Club submission approved",
+                    f"Your {submission.discipline_label} {submission.display_score} submission was approved. Your verified result is now live on Earned Club.",
+                )
+                if submission.user_id:
+                    rank = get_official_rank_for_submission(submission)
+                    notify_user_email(
+                        submission.user,
+                        "Your EarnedClub result was verified",
+                        f"Your {submission.discipline_label} {submission.display_score} result was verified. Your official rank is currently #{rank}.",
+                    )
+            elif action == "reject":
+                send_submission_notification(
+                    submission,
+                    "Earned Club submission update",
+                    (
+                        f"Your {submission.discipline_label} {submission.display_score} submission was reviewed but not approved."
+                        + (f" Reviewer note: {review_note}" if review_note else " You can submit again with clearer proof.")
+                    ),
+                )
+                if submission.user_id:
+                    notify_user_email(
+                        submission.user,
+                        "Your EarnedClub result needs another try",
+                        "Your latest result was not verified. Check the rules and submit a clearer proof video when you are ready.",
+                    )
+        except Exception:
+            logger.exception("Admin review notification failed for submission %s", submission_id)
+            messages.warning(request, "Review was saved, but a notification failed. Check server logs for details.")
 
     return redirect(redirect_url)
 
