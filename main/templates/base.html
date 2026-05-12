@@ -122,19 +122,20 @@
         .navbar-brand {
             display: flex;
             align-items: center;
-            gap: 12px;
+            gap: 0;
             margin: 0;
             min-width: 0;
         }
 
         .brand-logo {
-            height: 54px;
+            height: 58px;
             width: auto;
+            max-width: min(220px, 48vw);
             object-fit: contain;
         }
 
         .brand-copy {
-            display: flex;
+            display: none;
             flex-direction: column;
             gap: 2px;
         }
@@ -1550,10 +1551,11 @@
 
             .brand-logo {
                 height: 46px;
+                max-width: 156px;
             }
 
             .brand-copy {
-                display: flex;
+                display: none;
             }
 
             .brand-title {
