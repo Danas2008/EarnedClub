@@ -481,7 +481,7 @@
     .home-reveal.is-reveal-ready {
         opacity: 0;
         transform: translateY(22px);
-        transition: opacity 0.86s ease, transform 0.86s ease;
+        transition: opacity 0.68s ease, transform 0.68s ease;
         transition-delay: var(--reveal-delay, 0ms);
     }
 
@@ -684,7 +684,7 @@
                 <div class="eyebrow">Hybrid Athlete Rankings</div>
                 <h1>The fitness leaderboard for hybrid athletes.</h1>
                 <p class="home-lead muted">
-                    Build your Hybrid Score across strength and running. Submit your best performance. Get ranked. Prove it.
+                    Build your Hybrid Score across strength and running. Specialist ranks stay yours, and every verified discipline increases your completion.
                 </p>
                 <div class="home-cta-row">
                     <a class="btn-main" href="{% url 'rank' %}">Check Hybrid Score</a>
@@ -735,7 +735,7 @@
     <section id="hybrid-score" class="card-dark home-reveal">
         <div class="home-section-head">
             <h2>Hybrid Score</h2>
-            <p class="muted">Your Overall Athlete Rating is the average of your verified discipline points. Incomplete athletes can still rank, but balanced performance wins status.</p>
+            <p class="muted">Your Overall Athlete Rating is built from verified discipline points. Adding more disciplines builds completion and makes your athlete profile stronger.</p>
         </div>
         {% if hybrid_top_five %}
             <div class="compact-board">
@@ -1012,7 +1012,7 @@
                 entry.target.classList.add("is-visible");
                 observer.unobserve(entry.target);
             });
-        }, { threshold: 0.16, rootMargin: "0px 0px -12% 0px" });
+        }, { threshold: 0.1, rootMargin: "0px 0px -50px 0px" });
 
         revealItems.forEach((item) => observer.observe(item));
     })();

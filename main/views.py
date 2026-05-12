@@ -257,12 +257,24 @@ def build_hybrid_breakdown(user):
         points = best_submission.hybrid_points if best_submission else 0
         if best_submission:
             verified_points.append(points)
+        intensity = "empty"
+        if points >= 900:
+            intensity = "legend"
+        elif points >= 750:
+            intensity = "elite"
+        elif points >= 550:
+            intensity = "advanced"
+        elif points >= 350:
+            intensity = "intermediate"
+        elif points > 0:
+            intensity = "starter"
         rows.append(
             {
                 "discipline": config,
                 "submission": best_submission,
                 "latest_unverified": latest_unverified,
                 "points": points,
+                "intensity": intensity,
                 "progress_percent": min(100, round((points / 1000) * 100)),
                 "display_score": best_submission.display_score if best_submission else "-",
                 "status": "Verified" if best_submission else "Missing",
@@ -285,7 +297,133 @@ def build_hybrid_breakdown(user):
         "next_target_points": max(0, next((rank["min_score"] for rank in HYBRID_RANKS if rank["min_score"] > hybrid_score), 1000) - hybrid_score),
         "verified_count": len(verified_points),
         "max_disciplines": len(DISCIPLINE_CONFIG),
+        "completion_percent": round((len(verified_points) / len(DISCIPLINE_CONFIG)) * 100),
     }
+
+
+DISCIPLINE_TIER_TARGETS = {
+    Submission.DISCIPLINE_PUSHUPS: [
+        {"name": "Intermediate", "value": 20},
+        {"name": "Advanced", "value": 40},
+        {"name": "Elite", "value": 60},
+        {"name": "Earned Legend", "value": 80},
+    ],
+    Submission.DISCIPLINE_PULLUPS: [
+        {"name": "Intermediate", "value": 5},
+        {"name": "Advanced", "value": 10},
+        {"name": "Elite", "value": 20},
+        {"name": "Earned Legend", "value": 30},
+    ],
+    Submission.DISCIPLINE_5K: [
+        {"name": "Intermediate", "value": 30 * 60},
+        {"name": "Advanced", "value": 25 * 60},
+        {"name": "Elite", "value": 18 * 60},
+        {"name": "Earned Legend", "value": 16 * 60},
+    ],
+    Submission.DISCIPLINE_10K: [
+        {"name": "Intermediate", "value": 60 * 60},
+        {"name": "Advanced", "value": 50 * 60},
+        {"name": "Elite", "value": 38 * 60},
+        {"name": "Earned Legend", "value": 32 * 60},
+    ],
+}
+
+
+def get_next_discipline_target(current_value, discipline):
+    config = get_discipline_config(discipline)
+    targets = DISCIPLINE_TIER_TARGETS[config["key"]]
+    if current_value is None:
+        return targets[0]
+    if config["higher_is_better"]:
+        return next((target for target in targets if target["value"] > current_value), None)
+    return next((target for target in targets if target["value"] < current_value), None)
+
+
+def format_goal_value(value, discipline):
+    config = get_discipline_config(discipline)
+    return format_duration(value) if config["score_type"] == "time" else str(value)
+
+
+def build_improvement_recommendation(user, hybrid_summary=None):
+    summary = hybrid_summary or build_hybrid_breakdown(user)
+    candidates = []
+    for row in summary["breakdown"]:
+        discipline = row["discipline"]["key"]
+        current = row["submission"].reps if row["submission"] else None
+        target = get_next_discipline_target(current, discipline)
+        if not target:
+            continue
+        config = row["discipline"]
+        if current is None:
+            text = f"Submit your first verified {config['short_label']} result to increase Hybrid completion."
+            priority = -1
+        elif config["higher_is_better"]:
+            text = f"Go from {current} to {target['value']} {config['unit']} to reach {target['name']}."
+            priority = target["value"] - current
+        else:
+            text = f"Improve your {config['short_label']} from {format_duration(current)} to {format_duration(target['value'])} to reach {target['name']}."
+            priority = current - target["value"]
+        candidates.append(
+            {
+                "discipline": config,
+                "current": current,
+                "target": target,
+                "text": text,
+                "priority": priority,
+                "url": f"{reverse('challenge')}?discipline={discipline}#submit-form-top",
+            }
+        )
+    if not candidates:
+        return {
+            "label": "Defend your Hybrid status",
+            "text": "You have cleared the current discipline tier targets. Keep improving any verified lane.",
+            "url": reverse("challenge"),
+        }
+    missing = [item for item in candidates if item["current"] is None]
+    if missing:
+        item = missing[0]
+        return {
+            "label": f"Complete {item['discipline']['short_label']}",
+            "text": item["text"],
+            "url": item["url"],
+        }
+    weakest_key = summary.get("weakest_discipline", {}).get("discipline", {}).get("key")
+    item = next((candidate for candidate in candidates if candidate["discipline"]["key"] == weakest_key), min(candidates, key=lambda candidate: candidate["priority"]))
+    return {
+        "label": f"Fastest path: {item['discipline']['short_label']}",
+        "text": item["text"],
+        "url": item["url"],
+    }
+
+
+def build_goal_rank_options(user, hybrid_summary):
+    options = {}
+    for key, config in DISCIPLINE_CONFIG.items():
+        current = get_goal_current_value(user, key, hybrid_summary=hybrid_summary)
+        rows = []
+        for target in DISCIPLINE_TIER_TARGETS[key]:
+            if current is None:
+                available = True
+            elif config["higher_is_better"]:
+                available = target["value"] > current
+            else:
+                available = target["value"] < current
+            if available:
+                rows.append(
+                    {
+                        "value": target["value"],
+                        "label": target["name"],
+                        "display": format_goal_value(target["value"], key),
+                    }
+                )
+        options[key] = rows
+    current_score = hybrid_summary["score"]
+    options[Goal.GOAL_HYBRID_SCORE] = [
+        {"value": rank["min_score"], "label": rank["name"], "display": f"{rank['min_score']} score"}
+        for rank in HYBRID_RANKS
+        if rank["min_score"] > current_score
+    ]
+    return options
 
 
 def build_hybrid_leaderboard_rows(query=""):
@@ -1413,45 +1551,60 @@ def level_test(request):
 
 
 def rank(request):
-    active_discipline = get_discipline_config(request.GET.get("discipline") or DISCIPLINE_PUSHUPS)
-    score_raw = (request.GET.get("score") or request.GET.get("reps") or "").strip()
-    result = None
-    submit_url = f"{reverse('challenge')}#submit-form-top"
-    if score_raw:
-        try:
-            score_value = parse_submission_score(score_raw, active_discipline["key"])
-        except ValueError as exc:
-            messages.error(request, str(exc) if active_discipline["score_type"] == "time" else "Enter your rep count as a whole number.")
-        else:
-            score_error = validate_submission_score(score_value, active_discipline["key"])
-            if score_error:
-                messages.error(request, score_error)
-            else:
-                preview = Submission(discipline=active_discipline["key"], reps=score_value)
-                tier = preview.rank_tier
-                result = {
-                    "score": score_value,
-                    "display_score": preview.display_score,
-                    "reps": score_value,
-                    "points": preview.hybrid_points,
-                    "tier": tier,
-                    "discipline": active_discipline,
-                    "message": f"{preview.hybrid_points} discipline points.",
-                }
-                params = urlencode({"discipline": active_discipline["key"], "score": score_raw})
-                if active_discipline["key"] == Submission.DISCIPLINE_PUSHUPS:
-                    params = urlencode({"reps": score_value})
-                submit_url = f"{reverse('challenge')}?{params}#submit-form-top"
+    raw_scores = {
+        Submission.DISCIPLINE_PUSHUPS: (request.GET.get("pushups") or request.GET.get("reps") or "").strip(),
+        Submission.DISCIPLINE_PULLUPS: (request.GET.get("pullups") or "").strip(),
+        Submission.DISCIPLINE_5K: (request.GET.get("run_5k") or request.GET.get("5k") or "").strip(),
+        Submission.DISCIPLINE_10K: (request.GET.get("run_10k") or request.GET.get("10k") or "").strip(),
+    }
+    hybrid_breakdown = []
+    points = []
+    first_submit_params = None
+    for config in DISCIPLINE_CONFIG.values():
+        raw_value = raw_scores.get(config["key"], "")
+        row = {"discipline": config, "raw_value": raw_value, "display_score": "-", "points": 0, "tier": None, "error": ""}
+        if raw_value:
+            try:
+                score_value = parse_submission_score(raw_value, config["key"])
+                score_error = validate_submission_score(score_value, config["key"])
+                if score_error:
+                    row["error"] = score_error
+                else:
+                    preview = Submission(discipline=config["key"], reps=score_value)
+                    row.update(
+                        {
+                            "display_score": preview.display_score,
+                            "points": preview.hybrid_points,
+                            "tier": preview.rank_tier,
+                        }
+                    )
+                    points.append(preview.hybrid_points)
+                    if first_submit_params is None:
+                        first_submit_params = urlencode({"discipline": config["key"], "score": raw_value})
+            except ValueError as exc:
+                row["error"] = str(exc) if config["score_type"] == "time" else "Enter reps as a whole number."
+        hybrid_breakdown.append(row)
+    hybrid_score = round(sum(points) / len(points)) if points else 0
+    hybrid_estimate = {
+        "score": hybrid_score,
+        "rank": get_hybrid_rank(hybrid_score),
+        "verified_count": len(points),
+        "max_disciplines": len(DISCIPLINE_CONFIG),
+        "completion_percent": round((len(points) / len(DISCIPLINE_CONFIG)) * 100),
+        "breakdown": hybrid_breakdown,
+    }
+    submit_url = f"{reverse('challenge')}?{first_submit_params}#submit-form-top" if first_submit_params else f"{reverse('challenge')}#submit-form-top"
 
     return render(
         request,
         "rank.html",
         {
-            "result": result,
+            "hybrid_estimate": hybrid_estimate,
             "submit_url": submit_url,
             "rank_tiers": RANK_TIERS,
             "discipline_cards": DISCIPLINE_CONFIG.values(),
-            "active_discipline": active_discipline,
+            "has_rank_input": any(raw_scores.values()),
+            "raw_scores": raw_scores,
         },
     )
 
@@ -1588,8 +1741,10 @@ def dashboard(request):
         form_type = request.POST.get("form_type", "profile")
 
         if form_type == "goal":
-            goal_type = request.POST.get("goal_type") or Goal.GOAL_PUSHUPS
-            target_raw = request.POST.get("target_value")
+            goal_exercise = request.POST.get("goal_exercise")
+            goal_kind = request.POST.get("goal_kind")
+            goal_type = goal_exercise or request.POST.get("goal_type") or Goal.GOAL_PUSHUPS
+            target_raw = request.POST.get("rank_target" if goal_kind == "rank" else "target_value")
             note = (request.POST.get("note") or "").strip()
             is_public = request.POST.get("is_public") == "on"
             try:
@@ -1607,6 +1762,23 @@ def dashboard(request):
                 score_error = validate_submission_score(target_value, goal_type)
                 if score_error:
                     messages.error(request, score_error)
+                    return redirect("dashboard")
+            hybrid_summary = build_hybrid_breakdown(request.user)
+            current_value = get_goal_current_value(request.user, goal_type, hybrid_summary=hybrid_summary)
+            if goal_kind == "rank":
+                available_values = {
+                    option["value"]
+                    for option in build_goal_rank_options(request.user, hybrid_summary).get(goal_type, [])
+                }
+                if target_value not in available_values:
+                    messages.error(request, "Choose a rank above your current level.")
+                    return redirect("dashboard")
+            elif current_value is not None:
+                if goal_type in {Goal.GOAL_5K, Goal.GOAL_10K} and target_value >= current_value:
+                    messages.error(request, "Running goals must be faster than your current verified best.")
+                    return redirect("dashboard")
+                if goal_type not in {Goal.GOAL_5K, Goal.GOAL_10K} and target_value <= current_value:
+                    messages.error(request, "Goal target must be higher than your current verified best.")
                     return redirect("dashboard")
             Goal.objects.create(user=request.user, goal_type=goal_type, target_value=target_value, note=note, is_public=is_public)
             messages.success(request, "Goal saved.")
@@ -1720,6 +1892,9 @@ def dashboard(request):
     history_submissions = paginate_items(request, request.user.submission_set.order_by("-created_at"), per_page=5)
     workout_page = paginate_items(request, workouts, per_page=5, page_param="workout_page")
     profile_completion, profile_completion_percent = profile_completion_items(request.user)
+    onboarding_checklist = build_onboarding_checklist(request.user)
+    show_onboarding = any(not item["done"] for item in onboarding_checklist)
+    improvement_recommendation = build_improvement_recommendation(request.user, hybrid_summary)
 
     context = {
         "profile": profile,
@@ -1763,19 +1938,14 @@ def dashboard(request):
         "active_goals": active_goals,
         "goal_rows": goal_rows,
         "completed_goals": completed_goals,
-        "rank_goal_options": [
-            {
-                "value": tier["min_reps"],
-                "label": tier["name"],
-                "distance": max(0, tier["min_reps"] - (best_submission.reps if best_submission else 0)),
-            }
-            for tier in RANK_TIERS
-        ],
+        "goal_rank_options": build_goal_rank_options(request.user, hybrid_summary),
         "daily_suggestion": recommendation,
         "profile_completion": profile_completion,
         "profile_completion_percent": profile_completion_percent,
-        "onboarding_checklist": build_onboarding_checklist(request.user),
+        "onboarding_checklist": onboarding_checklist,
+        "show_onboarding": show_onboarding,
         "next_action": build_dashboard_next_action(request.user, hybrid_summary),
+        "improvement_recommendation": improvement_recommendation,
         "profile_share_message": get_profile_share_message(profile, request),
         "pr_share_message": get_pr_share_message(profile, request),
     }
@@ -1870,6 +2040,7 @@ def athlete_profile(request, slug):
         "profile_schema_json": json_ld(build_profile_schema(profile, best_submission)),
         "hybrid_summary": hybrid_summary,
         "hybrid_rank_position": hybrid_rank_position,
+        "improvement_recommendation": build_improvement_recommendation(profile.user, hybrid_summary),
         "profile_og_image": build_public_url(profile.profile_image_url) if profile.profile_image_url and profile.profile_image_url.startswith("/") else (profile.profile_image_url or ""),
         "badges": profile.earned_badges,
         "followers_count": profile.user.follower_links.count(),

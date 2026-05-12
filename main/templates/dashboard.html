@@ -93,6 +93,12 @@
         min-height: 190px;
     }
 
+    .discipline-card-premium[data-intensity="starter"] { border-color: rgba(148, 163, 184, .18); }
+    .discipline-card-premium[data-intensity="intermediate"] { border-color: rgba(59, 130, 246, .22); background: linear-gradient(145deg, rgba(59, 130, 246, .08), rgba(255,255,255,.035)); }
+    .discipline-card-premium[data-intensity="advanced"] { border-color: rgba(247, 183, 51, .30); background: linear-gradient(145deg, rgba(247, 183, 51, .12), rgba(255,255,255,.035)); }
+    .discipline-card-premium[data-intensity="elite"] { border-color: rgba(252, 74, 26, .34); background: linear-gradient(145deg, rgba(252, 74, 26, .13), rgba(247, 183, 51, .05)); }
+    .discipline-card-premium[data-intensity="legend"] { border-color: rgba(141, 240, 201, .38); background: linear-gradient(145deg, rgba(141, 240, 201, .14), rgba(247, 183, 51, .09)); }
+
     .discipline-meter {
         height: 8px;
         overflow: hidden;
@@ -284,6 +290,7 @@
                 <span class="tag-pill">{{ hybrid_summary.verified_count }}/{{ hybrid_summary.max_disciplines }} verified</span>
             </div>
             <p class="muted">Official score uses verified performances. Earned status, not claimed stats.</p>
+            <p class="muted">Discipline titles stay yours. Adding disciplines builds completion.</p>
         </div>
         <a class="btn-main" href="{% url 'leaderboard' %}#full-leaderboard">View Hybrid Rank</a>
     </div>
@@ -302,6 +309,11 @@
             <span class="kicker">Next target</span>
             <strong>{% if hybrid_summary.next_target_points %}+{{ hybrid_summary.next_target_points }} pts{% else %}Hold the top line{% endif %}</strong>
             <div class="muted">To the next Hybrid title.</div>
+        </div>
+        <div class="dashboard-insight">
+            <span class="kicker">Completion</span>
+            <strong>{{ hybrid_summary.completion_percent }}%</strong>
+            <div class="muted">{{ hybrid_summary.verified_count }}/{{ hybrid_summary.max_disciplines }} verified disciplines.</div>
         </div>
     </div>
     <div class="button-row hero-action-row">
@@ -339,7 +351,7 @@
             </div>
             <a class="btn-main" href="{{ next_action.url }}">Open</a>
         </div>
-        <details class="compact-details">
+        {% if show_onboarding %}<details class="compact-details">
             <summary>Onboarding</summary>
             <div class="compact-details-body">
             <h3>Onboarding</h3>
@@ -353,7 +365,7 @@
                 </div>
             {% endfor %}
             </div>
-        </details>
+        </details>{% endif %}
     </div>
     {% if profile_completion_percent < 100 %}
         <details class="card-dark compact-details">
@@ -387,13 +399,6 @@
 </section>
 {% endif %}
 
-<section class="grid-4">
-    <div class="metric-card"><span class="kicker">Hybrid Score</span><span class="stat-value">{{ hybrid_summary.score }}</span><div class="muted">{{ hybrid_summary.rank.name }}</div></div>
-    <div class="metric-card"><span class="kicker">Hybrid Rank</span><span class="stat-value">{% if hybrid_rank_position %}#{{ hybrid_rank_position }}{% else %}-{% endif %}</span><div class="muted">{{ hybrid_summary.verified_count }}/{{ hybrid_summary.max_disciplines }} verified disciplines</div></div>
-    <div class="metric-card"><span class="kicker">Push-up PR</span><span class="stat-value">{{ current_pr }}</span><div class="muted">{{ current_tier.name }}</div></div>
-    <div class="metric-card"><span class="kicker">Submissions</span><span class="stat-value">{{ total_submissions }}</span><div class="muted">{{ total_verified }} verified</div></div>
-</section>
-
 <section class="card-dark">
     <div class="section-spread">
         <div>
@@ -404,7 +409,7 @@
     </div>
     <div class="grid-4">
         {% for item in hybrid_summary.breakdown %}
-            <div class="feature-card discipline-card-premium">
+            <div class="feature-card discipline-card-premium" data-intensity="{{ item.intensity }}">
                 <div class="section-spread" style="margin-bottom: 0;">
                     <div>
                         <span class="kicker">{{ item.status }}</span>
@@ -415,11 +420,26 @@
                 <div class="discipline-meter" style="--meter-width: {{ item.progress_percent }}%;"><span></span></div>
                 <div>
                     <div class="submission-name">{{ item.display_score }}</div>
-                    <div class="submission-meta">{{ item.rank_name }}{% if item.latest_unverified %} - {{ item.latest_unverified.public_status_label }} waiting{% endif %}</div>
+                    <div class="submission-meta">
+                        {{ item.rank_name }}{% if item.latest_unverified %} - {{ item.latest_unverified.public_status_label }} waiting{% endif %}
+                        {% if hybrid_summary.best_discipline.discipline.key == item.discipline.key %} - strongest{% endif %}
+                        {% if hybrid_summary.weakest_discipline.discipline.key == item.discipline.key %} - improve next{% endif %}
+                    </div>
                 </div>
                 <a class="btn-secondary" href="{{ item.action_url }}">{{ item.action_label }}</a>
             </div>
         {% endfor %}
+    </div>
+</section>
+
+<section class="card-dark next-action-card">
+    <div class="section-spread">
+        <div>
+            <div class="eyebrow">What to improve next</div>
+            <h2>{{ improvement_recommendation.label }}</h2>
+            <p class="muted">{{ improvement_recommendation.text }}</p>
+        </div>
+        <a class="btn-main" href="{{ improvement_recommendation.url }}">Improve</a>
     </div>
 </section>
 
@@ -477,18 +497,19 @@
         <form class="submission-form" method="POST">
             {% csrf_token %}
             <input type="hidden" name="form_type" value="goal">
-            <select class="select" name="goal_type" data-goal-type>
-                <option value="pushups">Push-up target</option>
-                <option value="pullups">Pull-up target</option>
-                <option value="run_5k">5K target</option>
-                <option value="run_10k">10K target</option>
-                <option value="hybrid_score">Hybrid Score target</option>
-                <option value="rank">Push-up rank target</option>
+            <select class="select" name="goal_exercise" data-goal-exercise>
+                <option value="pushups">Push-ups</option>
+                <option value="pullups">Pull-ups</option>
+                <option value="run_5k">5K</option>
+                <option value="run_10k">10K</option>
+                <option value="hybrid_score">Hybrid Score</option>
+            </select>
+            <select class="select" name="goal_kind" data-goal-kind>
+                <option value="target">Reps/time/score target</option>
+                <option value="rank">Rank target</option>
             </select>
             <input class="input" type="number" min="1" name="target_value" data-goal-value placeholder="Target reps">
-            <select class="select" name="target_value" data-goal-rank disabled hidden>
-                {% for option in rank_goal_options %}<option value="{{ option.value }}">{{ option.label }}{% if option.distance %} - {{ option.distance }} reps away{% else %} - reached{% endif %}</option>{% endfor %}
-            </select>
+            <select class="select" name="rank_target" data-goal-rank disabled hidden></select>
             <input class="input" name="note" placeholder="Note">
             <label class="tag-pill"><input type="checkbox" name="is_public" checked> Public</label>
             <button class="btn-secondary" type="submit">Save Goal</button>
@@ -651,8 +672,10 @@
 
 {{ progress_data|json_script:"progress-data" }}
 {{ performance_progress|json_script:"performance-progress-data" }}
+{{ goal_rank_options|json_script:"goal-rank-options-data" }}
 <script>
     const performanceProgress = JSON.parse(document.getElementById("performance-progress-data").textContent);
+    const goalRankOptions = JSON.parse(document.getElementById("goal-rank-options-data").textContent);
     const svg = document.getElementById("progress-chart");
     const chartWrapper = svg?.closest(".progress-chart");
     const metricSelect = document.getElementById("progress-metric");
@@ -761,8 +784,9 @@
         });
     }
     function syncGoalTarget() {
-        const type = document.querySelector("[data-goal-type]")?.value;
-        const rank = type === "rank";
+        const type = document.querySelector("[data-goal-exercise]")?.value;
+        const kind = document.querySelector("[data-goal-kind]")?.value;
+        const rank = kind === "rank";
         const timeGoal = type === "run_5k" || type === "run_10k";
         const hybridGoal = type === "hybrid_score";
         const repsInput = document.querySelector("[data-goal-value]");
@@ -770,11 +794,30 @@
         repsInput.hidden = rank;
         repsInput.disabled = rank;
         repsInput.type = timeGoal ? "text" : "number";
+        repsInput.inputMode = timeGoal ? "text" : "numeric";
         repsInput.placeholder = timeGoal ? "Target time, e.g. 21:34" : hybridGoal ? "Target Hybrid Score" : "Target reps";
         rankSelect.hidden = !rank;
         rankSelect.disabled = !rank;
+        if (rankSelect) {
+            rankSelect.replaceChildren();
+            const options = goalRankOptions[type] || [];
+            if (!options.length) {
+                const option = document.createElement("option");
+                option.value = "";
+                option.textContent = "No higher rank available";
+                rankSelect.appendChild(option);
+            } else {
+                options.forEach((item) => {
+                    const option = document.createElement("option");
+                    option.value = item.value;
+                    option.textContent = `${item.label} - ${item.display}`;
+                    rankSelect.appendChild(option);
+                });
+            }
+        }
     }
-    document.querySelector("[data-goal-type]")?.addEventListener("change", syncGoalTarget);
+    document.querySelector("[data-goal-exercise]")?.addEventListener("change", syncGoalTarget);
+    document.querySelector("[data-goal-kind]")?.addEventListener("change", syncGoalTarget);
     syncGoalTarget();
     for (const shareButton of document.querySelectorAll("[data-share-text]")) {
         const originalLabel = shareButton.textContent;

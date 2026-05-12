@@ -117,12 +117,12 @@
                                 class="input"
                                 type="text"
                                 name="score"
-                                inputmode="{% if selected_discipline.score_type == 'time' %}numeric{% else %}decimal{% endif %}"
+                                inputmode="{% if selected_discipline.score_type == 'time' %}text{% else %}numeric{% endif %}"
                                 placeholder="{{ selected_discipline.placeholder }}"
                                 value="{{ form_score }}"
                                 required
                             >
-                            <div class="hint">{% if selected_discipline.score_type == "time" %}Use HH:MM:SS or MM:SS, like 00:21:34 or 21:34. Lower time ranks higher.{% else %}Enter strict reps. Higher score ranks higher.{% endif %}</div>
+                            <div class="hint">{% if selected_discipline.score_type == "time" %}Use MM:SS or HH:MM:SS, like 21:34. Lower time ranks higher.{% else %}Enter strict reps. Higher score ranks higher.{% endif %}</div>
                         </div>
 
                         <div>
@@ -261,7 +261,7 @@
             const option = discipline.selectedOptions[0];
             label.textContent = option.dataset.inputLabel || "Performance";
             score.placeholder = option.dataset.placeholder || "";
-            score.inputMode = option.dataset.scoreType === "time" ? "numeric" : "decimal";
+            score.inputMode = option.dataset.scoreType === "time" ? "text" : "numeric";
             if (videoProof) videoProof.hidden = option.dataset.scoreType === "time";
             const proofLabel = document.querySelector("label[for='proof_link']");
             if (proofLabel) proofLabel.childNodes[0].textContent = option.dataset.proofLabel || "Proof link";

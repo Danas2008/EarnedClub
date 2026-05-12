@@ -555,12 +555,11 @@ class SubmissionFlowTests(TestCase):
         response = self.client.get(f"{reverse('rank')}?reps=42")
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Check Hybrid Points")
-        self.assertContains(response, "525 discipline points.")
+        self.assertContains(response, "Find your Hybrid Score")
+        self.assertContains(response, "525 pts")
         self.assertContains(response, "Submit Official Result")
-        self.assertContains(response, "Check Again")
-        self.assertNotContains(response, 'id="rank-reps"', html=False)
-        self.assertContains(response, f"{reverse('challenge')}?reps=42#submit-form-top")
+        self.assertContains(response, "Prove Your Score")
+        self.assertContains(response, f"{reverse('challenge')}?discipline=pushups&amp;score=42#submit-form-top", html=False)
         self.assertContains(response, "Hybrid Score Calculator")
 
     def test_calculators_page_includes_hybrid_score_and_discipline_tiers(self):
@@ -742,6 +741,79 @@ class SubmissionFlowTests(TestCase):
         goal = user.goals.get(goal_type=Submission.DISCIPLINE_5K)
         self.assertEqual(goal.target_value, 1294)
         self.assertEqual(goal.display_target, "21:34")
+
+    def test_goal_target_must_improve_current_best(self):
+        user = User.objects.create_user(username="goal-validation", password="StrongPass12345")
+        Submission.objects.create(user=user, name="Goal Validation", reps=42, discipline=Submission.DISCIPLINE_PUSHUPS, status=Submission.STATUS_VERIFIED)
+        Submission.objects.create(user=user, name="Goal Validation", reps=1294, discipline=Submission.DISCIPLINE_5K, status=Submission.STATUS_VERIFIED)
+        self.client.force_login(user)
+
+        response = self.client.post(
+            reverse("dashboard"),
+            {"form_type": "goal", "goal_exercise": "pushups", "goal_kind": "target", "target_value": "40"},
+            follow=True,
+        )
+        self.assertContains(response, "Goal target must be higher")
+        self.assertEqual(user.goals.count(), 0)
+
+        response = self.client.post(
+            reverse("dashboard"),
+            {"form_type": "goal", "goal_exercise": "run_5k", "goal_kind": "target", "target_value": "22:00"},
+            follow=True,
+        )
+        self.assertContains(response, "Running goals must be faster")
+        self.assertEqual(user.goals.count(), 0)
+
+    def test_rank_goal_only_allows_higher_tiers(self):
+        user = User.objects.create_user(username="rank-goal-validation", password="StrongPass12345")
+        Submission.objects.create(user=user, name="Rank Goal", reps=42, discipline=Submission.DISCIPLINE_PUSHUPS, status=Submission.STATUS_VERIFIED)
+        self.client.force_login(user)
+
+        response = self.client.post(
+            reverse("dashboard"),
+            {"form_type": "goal", "goal_exercise": "pushups", "goal_kind": "rank", "rank_target": "40"},
+            follow=True,
+        )
+
+        self.assertContains(response, "Choose a rank above your current level.")
+        self.assertFalse(user.goals.exists())
+
+    def test_rank_page_estimates_hybrid_score_breakdown(self):
+        response = self.client.get(f"{reverse('rank')}?pushups=42&pullups=10&run_5k=21:34")
+
+        self.assertContains(response, "Estimated Hybrid Score")
+        self.assertContains(response, "Push-ups")
+        self.assertContains(response, "Pull-ups")
+        self.assertContains(response, "5K")
+        self.assertContains(response, "21:34")
+        self.assertEqual(response.context["hybrid_estimate"]["verified_count"], 3)
+
+    def test_onboarding_hides_after_completion(self):
+        user = User.objects.create_user(username="onboarding-done", password="StrongPass12345")
+        Submission.objects.create(user=user, name="Done", reps=42, status=Submission.STATUS_VERIFIED)
+        Workout.objects.create(user=user, title="Public plan")
+        user.goals.create(goal_type=Submission.DISCIPLINE_PUSHUPS, target_value=50)
+        user.profile.personal_best_reps = 42
+        user.profile.save()
+        self.client.force_login(user)
+
+        response = self.client.get(reverse("dashboard"))
+
+        self.assertFalse(response.context["show_onboarding"])
+        self.assertNotContains(response, "Onboarding")
+
+    def test_improvement_recommendation_supports_running_and_reps(self):
+        user = User.objects.create_user(username="improve-next", password="StrongPass12345")
+        Submission.objects.create(user=user, name="Improve", reps=45, discipline=Submission.DISCIPLINE_PUSHUPS, status=Submission.STATUS_VERIFIED)
+        Submission.objects.create(user=user, name="Improve", reps=5, discipline=Submission.DISCIPLINE_PULLUPS, status=Submission.STATUS_VERIFIED)
+        Submission.objects.create(user=user, name="Improve", reps=1294, discipline=Submission.DISCIPLINE_5K, status=Submission.STATUS_VERIFIED)
+        Submission.objects.create(user=user, name="Improve", reps=2660, discipline=Submission.DISCIPLINE_10K, status=Submission.STATUS_VERIFIED)
+        self.client.force_login(user)
+
+        response = self.client.get(reverse("dashboard"))
+
+        self.assertContains(response, "What to improve next")
+        self.assertIn("pull-ups", response.context["improvement_recommendation"]["label"].lower())
 
     def test_legacy_pushup_goal_still_works(self):
         user = User.objects.create_user(username="legacy-goal", password="StrongPass12345")
