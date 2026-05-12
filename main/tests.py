@@ -968,10 +968,14 @@ class SubmissionFlowTests(TestCase):
 
         response = self.client.get(reverse("comparison", args=[left.profile.slug, right.profile.slug]))
 
-        self.assertContains(response, "Hybrid Score Delta")
-        self.assertContains(response, "Completion Delta")
+        self.assertContains(response, "compare-left vs compare-right")
+        self.assertContains(response, "wins by")
+        self.assertContains(response, "Hybrid Score Result")
+        self.assertContains(response, "Verified Discipline Difference")
+        self.assertContains(response, "&#9819;", html=False)
         self.assertNotContains(response, "Push-up Delta")
         self.assertNotContains(response, "Beat their current PR")
+        self.assertNotContains(response, "Positive means the left athlete leads overall.")
 
     def test_profiles_directory_shows_real_accounts_not_anonymous_submitters(self):
         user = User.objects.create_user(username="real-account", password="StrongPass12345")

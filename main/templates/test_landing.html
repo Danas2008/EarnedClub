@@ -76,15 +76,31 @@
     }
 
     .discipline-choice {
+        position: relative;
         display: grid;
-        grid-template-columns: auto minmax(0, 1fr);
-        gap: 12px;
+        grid-template-columns: minmax(0, 1fr);
+        gap: 8px;
         align-items: center;
-        padding: 13px;
+        min-height: 94px;
+        padding: 16px 58px 16px 16px;
         border-radius: var(--radius-md);
         border: 1px solid rgba(255, 255, 255, .10);
         background: rgba(255, 255, 255, .045);
         cursor: pointer;
+        transition: transform .18s ease, border-color .18s ease, background .18s ease;
+    }
+
+    .discipline-choice:hover,
+    .discipline-choice:focus-within {
+        transform: translateY(-2px);
+        border-color: rgba(247, 183, 51, .42);
+        background: rgba(255, 255, 255, .07);
+    }
+
+    .discipline-choice input {
+        position: absolute;
+        opacity: 0;
+        pointer-events: none;
     }
 
     .discipline-choice:has(input:checked) {
@@ -93,6 +109,9 @@
     }
 
     .discipline-mark {
+        position: absolute;
+        top: 12px;
+        right: 12px;
         width: 38px;
         height: 38px;
         display: grid;
@@ -102,6 +121,16 @@
         color: #111;
         font-family: "Archivo", sans-serif;
         font-weight: 900;
+    }
+
+    .discipline-choice strong,
+    .discipline-choice .submission-meta {
+        display: block;
+    }
+
+    .discipline-choice strong {
+        margin-bottom: 6px;
+        font-size: 1.05rem;
     }
 
     .test-input {

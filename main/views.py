@@ -2077,6 +2077,17 @@ def comparison(request, left, right):
     right_summary = build_hybrid_breakdown(right_profile.user)
     left_rank = next((row["position"] for row in build_hybrid_leaderboard_rows() if row["user"].id == left_profile.user_id), None)
     right_rank = next((row["position"] for row in build_hybrid_leaderboard_rows() if row["user"].id == right_profile.user_id), None)
+    score_margin = abs(left_summary["score"] - right_summary["score"])
+    completion_margin = abs(left_summary["verified_count"] - right_summary["verified_count"])
+    if left_summary["score"] > right_summary["score"]:
+        winner_profile = left_profile
+        result_label = f"{left_profile.display_name} wins by {score_margin} Hybrid points"
+    elif right_summary["score"] > left_summary["score"]:
+        winner_profile = right_profile
+        result_label = f"{right_profile.display_name} wins by {score_margin} Hybrid points"
+    else:
+        winner_profile = None
+        result_label = "Dead even on Hybrid Score"
     return render(
         request,
         "comparison.html",
@@ -2089,6 +2100,10 @@ def comparison(request, left, right):
             "right_rank": right_rank,
             "score_delta": left_summary["score"] - right_summary["score"],
             "completion_delta": left_summary["verified_count"] - right_summary["verified_count"],
+            "score_margin": score_margin,
+            "completion_margin": completion_margin,
+            "winner_profile": winner_profile,
+            "result_label": result_label,
         },
     )
 

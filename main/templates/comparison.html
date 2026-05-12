@@ -4,8 +4,14 @@
 
 {% block content %}
 <section class="hero-card" style="padding: 0;">
+    <div class="comparison-header">
+        <span class="kicker">Hybrid 1v1</span>
+        <h1>{{ left_profile.display_name }} vs {{ right_profile.display_name }}</h1>
+        <p>{{ result_label }}</p>
+    </div>
     <div class="comparison-split">
-        <div class="comparison-side">
+        <div class="comparison-side{% if winner_profile and winner_profile.id == left_profile.id %} comparison-winner{% endif %}">
+            {% if winner_profile and winner_profile.id == left_profile.id %}<span class="winner-crown" aria-label="Winner">&#9819;</span>{% endif %}
             {% if left_profile.profile_image_url %}<img class="avatar avatar-lg" src="{{ left_profile.profile_image_url }}" alt="{{ left_profile.display_name }} profile picture">{% else %}<span class="avatar avatar-lg">{{ left_profile.display_name|first|upper }}</span>{% endif %}
             <div class="eyebrow">Hybrid Athlete</div>
             <h1>{{ left_profile.display_name }}</h1>
@@ -14,7 +20,8 @@
             <p class="muted">{{ left_summary.verified_count }}/{{ left_summary.max_disciplines }} verified disciplines</p>
             <a class="btn-secondary" href="{% url 'athlete_profile' left_profile.slug %}">Profile</a>
         </div>
-        <div class="comparison-side">
+        <div class="comparison-side{% if winner_profile and winner_profile.id == right_profile.id %} comparison-winner{% endif %}">
+            {% if winner_profile and winner_profile.id == right_profile.id %}<span class="winner-crown" aria-label="Winner">&#9819;</span>{% endif %}
             {% if right_profile.profile_image_url %}<img class="avatar avatar-lg" src="{{ right_profile.profile_image_url }}" alt="{{ right_profile.display_name }} profile picture">{% else %}<span class="avatar avatar-lg">{{ right_profile.display_name|first|upper }}</span>{% endif %}
             <div class="eyebrow">Hybrid Athlete</div>
             <h1>{{ right_profile.display_name }}</h1>
@@ -28,14 +35,14 @@
 
 <section class="grid-2">
     <div class="metric-card">
-        <span class="kicker">Hybrid Score Delta</span>
-        <span class="stat-value">{{ score_delta }}</span>
-        <div class="muted">Positive means the left athlete leads overall.</div>
+        <span class="kicker">Hybrid Score Result</span>
+        <span class="stat-value">{{ score_margin }}</span>
+        <div class="muted">{{ result_label }}.</div>
     </div>
     <div class="metric-card">
-        <span class="kicker">Completion Delta</span>
-        <span class="stat-value">{{ completion_delta }}</span>
-        <div class="muted">Verified discipline difference.</div>
+        <span class="kicker">Verified Discipline Difference</span>
+        <span class="stat-value">{{ completion_margin }}</span>
+        <div class="muted">Difference in official disciplines completed.</div>
     </div>
 </section>
 
