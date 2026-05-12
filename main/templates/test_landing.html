@@ -1,158 +1,414 @@
 {% extends "base.html" %}
 
-{% block title %}Hybrid Athlete Check{% endblock %}
-{% block meta_description %}Estimate your Earned Club Hybrid Score, choose a discipline, and submit proof for verified leaderboard status.{% endblock %}
+{% block title %}Performance Test{% endblock %}
+{% block meta_description %}Start your Earned Club profile with one discipline, preview your rank, and submit proof to enter the leaderboard.{% endblock %}
 
 {% block content %}
-<section class="hero-card quiz-shell">
-    <div class="quiz-progress"><span data-quiz-progress></span></div>
-    <div class="quiz-step is-active" data-step="0">
-        <div class="eyebrow">Step 1 / 6</div>
-        <h1>What should we score first?</h1>
-        <select id="quiz-discipline" class="select quiz-input">
-            <option value="pushups">Push-ups</option>
-            <option value="pullups">Pull-ups</option>
-            <option value="run_5k">5K run</option>
-            <option value="run_10k">10K run</option>
-        </select>
-        <div class="button-row">
-            <button class="btn-main" type="button" data-next>Next</button>
-            <button class="btn-secondary" type="button" data-skip>Skip</button>
+<style>
+    .test-funnel {
+        display: grid;
+        gap: 16px;
+        max-width: 920px;
+        margin: 0 auto;
+    }
+
+    .test-shell {
+        position: relative;
+        overflow: hidden;
+        min-height: min(720px, calc(100svh - 120px));
+        display: grid;
+        align-content: center;
+        padding: clamp(18px, 5vw, 34px);
+        background:
+            linear-gradient(145deg, rgba(247, 183, 51, .16), rgba(30, 157, 116, .08)),
+            var(--panel);
+    }
+
+    .test-shell::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: radial-gradient(circle at 85% 12%, rgba(247, 183, 51, .18), transparent 34%);
+        pointer-events: none;
+    }
+
+    .test-inner {
+        position: relative;
+        z-index: 1;
+        display: grid;
+        gap: 18px;
+    }
+
+    .test-progress {
+        height: 8px;
+        overflow: hidden;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, .08);
+    }
+
+    .test-progress span {
+        display: block;
+        width: 0;
+        height: 100%;
+        border-radius: inherit;
+        background: linear-gradient(90deg, var(--accent), #8df0c9);
+        transition: width .28s ease;
+    }
+
+    .test-step {
+        display: none;
+        gap: 16px;
+        animation: testStep .22s ease both;
+    }
+
+    .test-step.is-active {
+        display: grid;
+    }
+
+    .test-step h1 {
+        max-width: 720px;
+        font-size: clamp(2.4rem, 12vw, 4.8rem);
+    }
+
+    .test-options {
+        display: grid;
+        gap: 10px;
+    }
+
+    .discipline-choice {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr);
+        gap: 12px;
+        align-items: center;
+        padding: 13px;
+        border-radius: var(--radius-md);
+        border: 1px solid rgba(255, 255, 255, .10);
+        background: rgba(255, 255, 255, .045);
+        cursor: pointer;
+    }
+
+    .discipline-choice:has(input:checked) {
+        border-color: rgba(247, 183, 51, .55);
+        background: rgba(247, 183, 51, .12);
+    }
+
+    .discipline-mark {
+        width: 38px;
+        height: 38px;
+        display: grid;
+        place-items: center;
+        border-radius: 50%;
+        background: linear-gradient(145deg, #f7b733, #fff0bd);
+        color: #111;
+        font-family: "Archivo", sans-serif;
+        font-weight: 900;
+    }
+
+    .test-input {
+        max-width: 440px;
+        min-height: 62px;
+        font-family: "Archivo", sans-serif;
+        font-size: clamp(1.4rem, 7vw, 2.1rem);
+        font-weight: 900;
+    }
+
+    .preview-card {
+        display: grid;
+        gap: 14px;
+        padding: 18px;
+        border-radius: var(--radius-lg);
+        border: 1px solid rgba(247, 183, 51, .28);
+        background:
+            linear-gradient(155deg, rgba(247, 183, 51, .16), rgba(30, 157, 116, .08)),
+            rgba(8, 11, 15, .48);
+        box-shadow: 0 18px 48px rgba(0, 0, 0, .28);
+    }
+
+    .preview-top {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        align-items: start;
+    }
+
+    .preview-score {
+        font-family: "Archivo", sans-serif;
+        font-size: clamp(4rem, 22vw, 7rem);
+        line-height: .78;
+        color: var(--accent);
+        font-weight: 900;
+    }
+
+    .preview-grid {
+        display: grid;
+        gap: 10px;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .preview-stat {
+        padding: 12px;
+        border-radius: var(--radius-md);
+        border: 1px solid rgba(255, 255, 255, .08);
+        background: rgba(255, 255, 255, .04);
+    }
+
+    @keyframes testStep {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    @media (min-width: 760px) {
+        .test-options {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .preview-card {
+            grid-template-columns: minmax(0, .95fr) minmax(220px, .65fr);
+            align-items: center;
+        }
+    }
+</style>
+
+<div class="test-funnel">
+    <section class="hero-card test-shell">
+        <div class="test-inner">
+            <div class="test-progress" aria-hidden="true"><span data-progress></span></div>
+
+            <div class="test-step is-active" data-step="0">
+                <div class="eyebrow">Step 1 / 5</div>
+                <div>
+                    <h1>Start with your strongest discipline.</h1>
+                    <p class="muted">Pick the one you want to be ranked in first.</p>
+                </div>
+                <div class="test-options">
+                    <label class="discipline-choice">
+                        <input type="radio" name="discipline_choice" value="pushups" checked>
+                        <span class="discipline-mark">PU</span>
+                        <span><strong>Push-ups</strong><span class="submission-meta">Max clean reps</span></span>
+                    </label>
+                    <label class="discipline-choice">
+                        <input type="radio" name="discipline_choice" value="pullups">
+                        <span class="discipline-mark">PL</span>
+                        <span><strong>Pull-ups</strong><span class="submission-meta">Max clean reps</span></span>
+                    </label>
+                    <label class="discipline-choice">
+                        <input type="radio" name="discipline_choice" value="run_5k">
+                        <span class="discipline-mark">5K</span>
+                        <span><strong>5K</strong><span class="submission-meta">Race or Strava time</span></span>
+                    </label>
+                    <label class="discipline-choice">
+                        <input type="radio" name="discipline_choice" value="run_10k">
+                        <span class="discipline-mark">10</span>
+                        <span><strong>10K</strong><span class="submission-meta">Race or Strava time</span></span>
+                    </label>
+                </div>
+                <button class="btn-main" type="button" data-next>Continue</button>
+            </div>
+
+            <div class="test-step" data-step="1">
+                <div class="eyebrow">Step 2 / 5</div>
+                <div>
+                    <h1 data-result-title>Your best result?</h1>
+                    <p class="muted" data-result-help>Enter max clean reps.</p>
+                </div>
+                <input id="test-result" class="input test-input" type="number" min="1" inputmode="numeric" placeholder="42">
+                <div class="hint" data-result-hint>Higher reps rank higher.</div>
+                <div class="button-row">
+                    <button class="btn-main" type="button" data-next>Continue</button>
+                    <button class="btn-secondary" type="button" data-back>Back</button>
+                </div>
+            </div>
+
+            <div class="test-step" data-step="2">
+                <div class="eyebrow">Step 3 / 5</div>
+                <h1>What should we call you?</h1>
+                <input id="test-name" class="input test-input" type="text" placeholder="Daniel">
+                <div class="button-row">
+                    <button class="btn-main" type="button" data-next>Continue</button>
+                    <button class="btn-secondary" type="button" data-back>Back</button>
+                </div>
+            </div>
+
+            <div class="test-step" data-step="3">
+                <div class="eyebrow">Step 4 / 5</div>
+                <h1>How old are you?</h1>
+                <input id="test-age" class="input test-input" type="number" min="13" max="100" inputmode="numeric" placeholder="18">
+                <div class="button-row">
+                    <button class="btn-main" type="button" data-next>Continue</button>
+                    <button class="btn-secondary" type="button" data-back>Back</button>
+                </div>
+            </div>
+
+            <div class="test-step" data-step="4">
+                <div class="eyebrow">Step 5 / 5</div>
+                <h1>Where should we send your result?</h1>
+                <p class="muted">Email helps you save the preview later, but you can skip it.</p>
+                <input id="test-email" class="input test-input" type="email" placeholder="you@example.com">
+                <div class="button-row">
+                    <button class="btn-main" type="button" data-reveal>Show Preview</button>
+                    <button class="btn-secondary" type="button" data-skip-email>Skip Email</button>
+                    <button class="btn-secondary" type="button" data-back>Back</button>
+                </div>
+            </div>
+
+            <div class="test-step" data-step="5">
+                <div class="eyebrow">Unverified preview</div>
+                <div class="preview-card">
+                    <div>
+                        <div class="preview-top">
+                            <div>
+                                <span class="kicker">Athlete preview</span>
+                                <h1 id="preview-name">Athlete</h1>
+                            </div>
+                            <span class="status-pill unverified">Unverified preview</span>
+                        </div>
+                        <div class="preview-grid">
+                            <div class="preview-stat">
+                                <span class="kicker">Discipline</span>
+                                <div class="submission-name" id="preview-discipline">Push-ups</div>
+                            </div>
+                            <div class="preview-stat">
+                                <span class="kicker">Result</span>
+                                <div class="submission-name" id="preview-result">42 reps</div>
+                            </div>
+                            <div class="preview-stat">
+                                <span class="kicker">Tier</span>
+                                <div class="submission-name" id="preview-tier">Advanced</div>
+                            </div>
+                            <div class="preview-stat">
+                                <span class="kicker">Points</span>
+                                <div class="submission-name" id="preview-points">525 pts</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div>
+                        <span class="kicker">Hybrid Score Preview</span>
+                        <div class="preview-score" id="preview-score">525</div>
+                        <p class="muted">Your result is a preview until you prove it. Proof makes it official.</p>
+                    </div>
+                </div>
+                <div class="hero-actions">
+                    <a id="create-profile-link" class="btn-main" href="{% url 'register' %}">Create My Profile</a>
+                    <a id="submit-performance-link" class="btn-secondary" href="{% url 'challenge' %}#submit-form-top">Submit Official Performance</a>
+                    <a class="btn-secondary" href="{% url 'rank' %}">Check Full Hybrid Score</a>
+                </div>
+                <p class="muted">Create your profile to keep your rank. Submit performance to enter the leaderboard.</p>
+            </div>
         </div>
-    </div>
-    <div class="quiz-step" data-step="1">
-        <div class="eyebrow">Step 2 / 6</div>
-        <h1>Best push-ups?</h1>
-        <input id="quiz-pushups" class="input quiz-input" type="number" min="0" placeholder="42" inputmode="numeric">
-        <div class="button-row">
-            <button class="btn-main" type="button" data-next>Next</button>
-            <button class="btn-secondary" type="button" data-skip>Skip</button>
-        </div>
-    </div>
-    <div class="quiz-step" data-step="2">
-        <div class="eyebrow">Step 3 / 6</div>
-        <h1>Best pull-ups?</h1>
-        <input id="quiz-pullups" class="input quiz-input" type="number" min="0" placeholder="12" inputmode="numeric">
-        <div class="button-row">
-            <button class="btn-main" type="button" data-next>Next</button>
-            <button class="btn-secondary" type="button" data-skip>Skip</button>
-        </div>
-    </div>
-    <div class="quiz-step" data-step="3">
-        <div class="eyebrow">Step 4 / 6</div>
-        <h1>Best 5K time?</h1>
-        <input id="quiz-5k" class="input quiz-input" type="text" placeholder="21:34" inputmode="numeric">
-        <div class="button-row">
-            <button class="btn-main" type="button" data-next>Next</button>
-            <button class="btn-secondary" type="button" data-skip>Skip</button>
-        </div>
-    </div>
-    <div class="quiz-step" data-step="4">
-        <div class="eyebrow">Step 5 / 6</div>
-        <h1>Best 10K time?</h1>
-        <input id="quiz-10k" class="input quiz-input" type="text" placeholder="44:20" inputmode="numeric">
-        <div class="button-row">
-            <button class="btn-main" type="button" data-next>Next</button>
-            <button class="btn-secondary" type="button" data-skip>Skip</button>
-        </div>
-    </div>
-    <div class="quiz-step" data-step="5">
-        <div class="eyebrow">Step 6 / 6</div>
-        <h1>Your name?</h1>
-        <input id="quiz-username" class="input quiz-input" type="text" placeholder="Jack">
-        <div class="button-row">
-            <button class="btn-main" type="button" data-next>Reveal</button>
-            <button class="btn-secondary" type="button" data-skip>Skip</button>
-        </div>
-    </div>
-    <div class="quiz-step quiz-result-card" data-step="6">
-        <div class="eyebrow">Hybrid preview</div>
-        <h1 id="quiz-title">Hybrid Score ready.</h1>
-        <p id="quiz-result" class="muted"></p>
-        <div id="quiz-summary" class="submit-panel" style="margin-bottom: 16px;"></div>
-        <div class="hero-actions">
-            <a id="quiz-submit" class="btn-main" href="{% url 'challenge' %}#submit-form-top">Submit Performance</a>
-            <a id="quiz-register" class="btn-secondary" href="{% url 'register' %}">Create Account</a>
-        </div>
-        <p class="muted">{{ total_submissions }} submitted. {{ total_verified }} verified.</p>
-    </div>
-</section>
+    </section>
+</div>
 
 <script>
     const steps = Array.from(document.querySelectorAll("[data-step]"));
-    const bar = document.querySelector("[data-quiz-progress]");
+    const progress = document.querySelector("[data-progress]");
+    const disciplineLabels = {
+        pushups: { label: "Push-ups", unit: "reps", placeholder: "42", help: "Enter max clean reps.", hint: "Higher reps rank higher.", target: 80 },
+        pullups: { label: "Pull-ups", unit: "reps", placeholder: "12", help: "Enter max clean reps.", hint: "Higher reps rank higher.", target: 30 },
+        run_5k: { label: "5K", unit: "time", placeholder: "21:34", help: "Use MM:SS, e.g. 21:34.", hint: "Use MM:SS or HH:MM:SS. Lower time ranks higher.", world: 769, floor: 2700 },
+        run_10k: { label: "10K", unit: "time", placeholder: "44:20", help: "Use MM:SS, e.g. 44:20.", hint: "Use MM:SS or HH:MM:SS. Lower time ranks higher.", world: 1584, floor: 5400 },
+    };
     let active = 0;
+
+    function selectedDiscipline() {
+        return document.querySelector("input[name='discipline_choice']:checked")?.value || "pushups";
+    }
+
     function showStep(index) {
         active = index;
         steps.forEach((step) => step.classList.toggle("is-active", parseInt(step.dataset.step, 10) === index));
-        bar.style.width = `${Math.min(100, (index / 6) * 100)}%`;
+        progress.style.width = `${Math.min(100, (index / 5) * 100)}%`;
+        if (index === 1) syncResultInput();
     }
+
+    function syncResultInput() {
+        const config = disciplineLabels[selectedDiscipline()];
+        const input = document.getElementById("test-result");
+        document.querySelector("[data-result-title]").textContent = `Your best ${config.label} result?`;
+        document.querySelector("[data-result-help]").textContent = config.help;
+        document.querySelector("[data-result-hint]").textContent = config.hint;
+        input.value = "";
+        input.type = config.unit === "time" ? "text" : "number";
+        input.inputMode = config.unit === "time" ? "text" : "numeric";
+        input.placeholder = config.placeholder;
+    }
+
     function parseTime(value) {
         const raw = (value || "").trim();
-        if (!raw) return null;
         const parts = raw.split(":").map((part) => Number(part));
-        if (!parts.every((part) => Number.isInteger(part) && part >= 0)) return null;
-        if (parts.length === 2) return parts[0] * 60 + parts[1];
-        if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
+        if (!raw || !parts.every((part) => Number.isInteger(part) && part >= 0)) return null;
+        if (parts.length === 2 && parts[1] <= 59) return parts[0] * 60 + parts[1];
+        if (parts.length === 3 && parts[1] <= 59 && parts[2] <= 59) return parts[0] * 3600 + parts[1] * 60 + parts[2];
         return null;
     }
-    const repPoints = (value, target) => Math.max(0, Math.min(1000, Math.round((value / target) * 1000)));
-    const timePoints = (seconds, worldRecord, floor) => {
-        if (!seconds) return null;
-        if (seconds <= worldRecord) return 1000;
-        if (seconds >= floor) return 0;
-        return Math.max(0, Math.min(1000, Math.round(((floor - seconds) / (floor - worldRecord)) * 1000)));
-    };
-    const rankFor = (score) => score >= 900 ? "Earned Legend" : score >= 750 ? "Elite Hybrid Athlete" : score >= 550 ? "Advanced Hybrid" : score >= 350 ? "Intermediate Hybrid" : "Beginner Hybrid";
+
+    function formatTime(seconds) {
+        const h = Math.floor(seconds / 3600);
+        const m = Math.floor((seconds % 3600) / 60);
+        const s = seconds % 60;
+        return h ? `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}` : `${m}:${String(s).padStart(2, "0")}`;
+    }
+
+    function tierFor(discipline, value) {
+        if (discipline === "pushups") return value >= 80 ? "Earned Legend" : value >= 60 ? "Elite" : value >= 40 ? "Advanced" : value >= 20 ? "Intermediate" : "Beginner";
+        if (discipline === "pullups") return value >= 30 ? "Earned Legend" : value >= 20 ? "Elite" : value >= 10 ? "Advanced" : value >= 5 ? "Intermediate" : "Beginner";
+        if (discipline === "run_5k") return value < 960 ? "Earned Legend" : value < 1080 ? "Elite" : value < 1500 ? "Advanced" : value < 1800 ? "Intermediate" : "Beginner";
+        return value < 1920 ? "Earned Legend" : value < 2280 ? "Elite" : value < 3000 ? "Advanced" : value < 3600 ? "Intermediate" : "Beginner";
+    }
+
+    function pointsFor(discipline, value) {
+        const config = disciplineLabels[discipline];
+        if (config.unit === "reps") return Math.max(0, Math.min(1000, Math.round((value / config.target) * 900)));
+        if (value <= config.world) return 1000;
+        if (value >= config.floor) return 0;
+        return Math.max(0, Math.min(1000, Math.round(((config.floor - value) / (config.floor - config.world)) * 1000)));
+    }
+
     function reveal() {
-        const discipline = document.getElementById("quiz-discipline").value;
-        const username = (document.getElementById("quiz-username").value || "").trim();
-        const pushups = Number(document.getElementById("quiz-pushups").value);
-        const pullups = Number(document.getElementById("quiz-pullups").value);
-        const fiveK = document.getElementById("quiz-5k").value;
-        const tenK = document.getElementById("quiz-10k").value;
-        const values = [];
-        if (pushups > 0) values.push({ label: "Push-ups", display: `${pushups} reps`, points: repPoints(pushups, 80) });
-        if (pullups > 0) values.push({ label: "Pull-ups", display: `${pullups} reps`, points: repPoints(pullups, 30) });
-        const fivePoints = timePoints(parseTime(fiveK), 769, 2700);
-        const tenPoints = timePoints(parseTime(tenK), 1584, 5400);
-        if (fivePoints !== null) values.push({ label: "5K", display: fiveK, points: fivePoints });
-        if (tenPoints !== null) values.push({ label: "10K", display: tenK, points: tenPoints });
-        const score = values.length ? Math.round(values.reduce((sum, item) => sum + item.points, 0) / values.length) : 0;
-        document.getElementById("quiz-title").textContent = `Hello, ${username || "Athlete"}`;
-        document.getElementById("quiz-result").textContent = score
-            ? `Estimated Hybrid Score ${score}. ${rankFor(score)}. Official score requires verified proof.`
-            : "No performance entered yet. You can still jump straight to a discipline submission.";
-        const summary = document.getElementById("quiz-summary");
-        summary.replaceChildren();
-        (values.length ? values : [{ label: "Next step", display: "Choose a leaderboard and submit a result", points: 0 }]).forEach((item) => {
-            const row = document.createElement("div");
-            row.className = "submission-meta";
-            row.textContent = item.points ? `${item.label}: ${item.display} - ${item.points} pts` : item.display;
-            summary.appendChild(row);
-        });
+        const discipline = selectedDiscipline();
+        const config = disciplineLabels[discipline];
+        const rawResult = document.getElementById("test-result").value.trim();
+        const name = document.getElementById("test-name").value.trim() || "Athlete";
+        const age = document.getElementById("test-age").value.trim();
+        const email = document.getElementById("test-email").value.trim();
+        const value = config.unit === "time" ? parseTime(rawResult) : Number(rawResult);
+        if (!value || value <= 0) {
+            showStep(1);
+            document.querySelector("[data-result-hint]").textContent = config.unit === "time" ? "Use MM:SS, e.g. 21:34." : "Enter a whole number above zero.";
+            return;
+        }
+        const points = pointsFor(discipline, value);
+        const displayResult = config.unit === "time" ? formatTime(value) : `${value} reps`;
+        document.getElementById("preview-name").textContent = name;
+        document.getElementById("preview-discipline").textContent = config.label;
+        document.getElementById("preview-result").textContent = displayResult;
+        document.getElementById("preview-tier").textContent = `${tierFor(discipline, value)} ${config.label}`;
+        document.getElementById("preview-points").textContent = `${points} pts`;
+        document.getElementById("preview-score").textContent = points;
+
         const params = new URLSearchParams();
         params.set("discipline", discipline);
-        if (discipline === "pushups" && pushups > 0) params.set("reps", pushups);
-        if (discipline === "pullups" && pullups > 0) params.set("score", pullups);
-        if (discipline === "run_5k" && fiveK) params.set("score", fiveK);
-        if (discipline === "run_10k" && tenK) params.set("score", tenK);
-        if (username) params.set("name", username);
-        document.getElementById("quiz-submit").href = `{% url 'challenge' %}?${params.toString()}#submit-form-top`;
-        document.getElementById("quiz-register").href = `{% url 'register' %}?${params.toString()}`;
-        showStep(6);
+        params.set(discipline === "pushups" ? "reps" : "score", rawResult);
+        if (name && name !== "Athlete") params.set("name", name);
+        if (age) params.set("age", age);
+        if (email) params.set("email", email);
+        document.getElementById("submit-performance-link").href = `{% url 'challenge' %}?${params.toString()}#submit-form-top`;
+        document.getElementById("create-profile-link").href = `{% url 'register' %}?${params.toString()}`;
+        showStep(5);
     }
-    document.querySelectorAll("[data-next]").forEach((button) => {
-        button.addEventListener("click", () => active >= 5 ? reveal() : showStep(active + 1));
+
+    document.querySelectorAll("[data-next]").forEach((button) => button.addEventListener("click", () => showStep(Math.min(4, active + 1))));
+    document.querySelectorAll("[data-back]").forEach((button) => button.addEventListener("click", () => showStep(Math.max(0, active - 1))));
+    document.querySelector("[data-reveal]")?.addEventListener("click", reveal);
+    document.querySelector("[data-skip-email]")?.addEventListener("click", () => {
+        document.getElementById("test-email").value = "";
+        reveal();
     });
-    document.querySelectorAll("[data-skip]").forEach((button) => {
-        button.addEventListener("click", () => active >= 5 ? reveal() : showStep(active + 1));
-    });
-    document.querySelectorAll(".quiz-input").forEach((field) => {
+    document.querySelectorAll("input[name='discipline_choice']").forEach((input) => input.addEventListener("change", syncResultInput));
+    document.querySelectorAll(".test-input").forEach((field) => {
         field.addEventListener("keydown", (event) => {
             if (event.key !== "Enter") return;
             event.preventDefault();
-            active >= 5 ? reveal() : showStep(active + 1);
+            active >= 4 ? reveal() : showStep(active + 1);
         });
     });
     showStep(0);

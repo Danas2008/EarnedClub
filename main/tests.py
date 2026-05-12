@@ -788,6 +788,58 @@ class SubmissionFlowTests(TestCase):
         self.assertContains(response, "21:34")
         self.assertEqual(response.context["hybrid_estimate"]["verified_count"], 3)
 
+    def test_level_test_is_fast_single_discipline_funnel(self):
+        response = self.client.get(reverse("level_test"))
+
+        self.assertContains(response, "Start with your strongest discipline.")
+        self.assertContains(response, 'value="pushups"', html=False)
+        self.assertContains(response, 'value="pullups"', html=False)
+        self.assertContains(response, 'value="run_5k"', html=False)
+        self.assertContains(response, 'value="run_10k"', html=False)
+        self.assertContains(response, "Where should we send your result?")
+        self.assertContains(response, "Skip Email")
+        self.assertContains(response, "Unverified preview")
+        self.assertContains(response, "Create My Profile")
+        self.assertContains(response, "Submit Official Performance")
+        self.assertContains(response, "Check Full Hybrid Score")
+
+    def test_level_test_running_inputs_are_mobile_time_text(self):
+        response = self.client.get(reverse("level_test"))
+
+        self.assertContains(response, 'placeholder: "21:34"', html=False)
+        self.assertContains(response, 'input.inputMode = config.unit === "time" ? "text" : "numeric"', html=False)
+        self.assertContains(response, "Use MM:SS, e.g. 21:34.")
+
+    def test_challenge_hides_result_link_for_rep_disciplines(self):
+        response = self.client.get(reverse("challenge"))
+
+        self.assertContains(response, "data-proof-link hidden", html=False)
+        self.assertContains(response, "Proof video")
+
+    def test_challenge_shows_result_link_for_running(self):
+        response = self.client.get(f"{reverse('challenge')}?discipline={Submission.DISCIPLINE_5K}")
+
+        self.assertContains(response, "Race or Strava result link")
+        self.assertNotContains(response, "data-proof-link hidden", html=False)
+
+    def test_rep_submission_ignores_manual_proof_link(self):
+        response = self.client.post(
+            reverse("challenge"),
+            {
+                "name": "Manual Link",
+                "email": "manual-link@example.com",
+                "discipline": Submission.DISCIPLINE_PULLUPS,
+                "score": "12",
+                "proof_link": "https://example.com/not-for-reps",
+            },
+            follow=True,
+        )
+
+        self.assertContains(response, "Your result is live as unverified")
+        submission = Submission.objects.get(email="manual-link@example.com")
+        self.assertEqual(submission.video_link, "")
+        self.assertEqual(submission.status, Submission.STATUS_UNVERIFIED)
+
     def test_onboarding_hides_after_completion(self):
         user = User.objects.create_user(username="onboarding-done", password="StrongPass12345")
         Submission.objects.create(user=user, name="Done", reps=42, status=Submission.STATUS_VERIFIED)

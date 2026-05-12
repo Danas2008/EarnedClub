@@ -2130,6 +2130,8 @@ def challenge(request):
         score_raw = (request.POST.get("score") or request.POST.get("reps") or "").strip()
         proof_link = (request.POST.get("proof_link") or "").strip()
         video_file = request.FILES.get("video_file")
+        if selected_discipline["score_type"] != "time":
+            proof_link = ""
 
         if request.user.is_authenticated:
             name = user_display_name(request.user)

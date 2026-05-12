@@ -125,7 +125,7 @@
                             <div class="hint">{% if selected_discipline.score_type == "time" %}Use MM:SS or HH:MM:SS, like 21:34. Lower time ranks higher.{% else %}Enter strict reps. Higher score ranks higher.{% endif %}</div>
                         </div>
 
-                        <div>
+                        <div data-proof-link {% if selected_discipline.score_type != "time" %}hidden{% endif %}>
                             <label class="field-label" for="proof_link">{{ selected_discipline.proof_label }} <span class="muted">(optional unless elite)</span></label>
                             <input
                                 id="proof_link"
@@ -255,6 +255,7 @@
         const score = document.getElementById("score");
         const label = document.querySelector("label[for='score']");
         const videoProof = document.querySelector("[data-video-proof]");
+        const proofLink = document.querySelector("[data-proof-link]");
         if (!discipline || !score || !label) return;
 
         discipline.addEventListener("change", () => {
@@ -263,6 +264,7 @@
             score.placeholder = option.dataset.placeholder || "";
             score.inputMode = option.dataset.scoreType === "time" ? "text" : "numeric";
             if (videoProof) videoProof.hidden = option.dataset.scoreType === "time";
+            if (proofLink) proofLink.hidden = option.dataset.scoreType !== "time";
             const proofLabel = document.querySelector("label[for='proof_link']");
             if (proofLabel) proofLabel.childNodes[0].textContent = option.dataset.proofLabel || "Proof link";
         });
