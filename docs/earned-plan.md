@@ -701,6 +701,7 @@ Note: the newest entry is authoritative for current product direction. Older ent
 - Project plan must be updated in the same session as meaningful product, scoring, route, verification, deployment, email, homepage, dashboard, profile, onboarding, or admin changes.
 - Homepage hero now uses "Submit Your Score" as the primary CTA and sends that traffic to `/test/`; "Estimate Hybrid Score" remains the secondary calculator CTA.
 - Homepage first section is centered on the hybrid athlete leaderboard, proof, and official Hybrid Score rather than a generic score check.
+- Homepage first section desktop layout keeps the Hybrid Score preview attached to the main hero copy instead of drifting into a detached right-side block.
 - The homepage score card now presents an example official athlete rating and links down to rank tiers instead of duplicating the submission CTA.
 - Header logo was replaced with the new Earned Club wordmark image at `main/static/Earned_Club_wthBG.png`; duplicate navbar brand copy is hidden.
 - `/test/` is now a fast onboarding-style funnel: choose strongest discipline, enter reps/time, enter name and age, optionally skip email, then see an unverified athlete preview.

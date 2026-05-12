@@ -45,6 +45,8 @@
         display: grid;
         gap: 20px;
         align-items: center;
+        max-width: 1040px;
+        margin: 0 auto;
     }
 
     .home-hero-copy {
@@ -94,11 +96,11 @@
         overflow: hidden;
         contain: layout paint;
         display: grid;
-        gap: 12px;
-        max-width: 410px;
+        gap: 10px;
+        max-width: 380px;
         width: 100%;
         justify-self: center;
-        padding: 18px;
+        padding: 16px;
         border: 1px solid rgba(255, 255, 255, 0.1);
         border-radius: var(--radius-lg);
         background:
@@ -142,7 +144,7 @@
 
     .score-rank-number {
         font-family: "Archivo", sans-serif;
-        font-size: clamp(4.9rem, 24vw, 7.4rem);
+        font-size: clamp(4.5rem, 18vw, 6.4rem);
         line-height: 0.76;
         font-weight: 900;
         color: var(--accent);
@@ -151,15 +153,15 @@
 
     .score-rank-result {
         display: grid;
-        gap: 12px;
+        gap: 10px;
         align-items: start;
-        padding: 8px 0 6px;
+        padding: 6px 0 4px;
     }
 
     .score-rank-result h2 {
         margin-bottom: 6px;
-        font-size: clamp(1.5rem, 7vw, 2.35rem);
-        line-height: 0.96;
+        font-size: clamp(1.35rem, 5vw, 1.8rem);
+        line-height: 1;
     }
 
     .rank-meter {
@@ -537,13 +539,14 @@
         }
 
         .home-hero-grid {
-            grid-template-columns: minmax(0, .95fr) minmax(360px, 410px);
-            min-height: min(560px, calc(100svh - 150px));
-            justify-content: center;
+            grid-template-columns: minmax(0, 1fr) minmax(320px, 370px);
+            min-height: min(520px, calc(100svh - 150px));
+            justify-content: start;
+            gap: 20px;
         }
 
         .home-hero h1 {
-            max-width: 650px;
+            max-width: 620px;
         }
 
         .home-cta-row,
@@ -574,22 +577,35 @@
         }
 
         .score-rank-card {
-            justify-self: center;
+            justify-self: start;
         }
     }
 
     @media (min-width: 1100px) {
         .home-hero {
-            padding: 34px;
+            padding: 34px 30px;
         }
 
         .home-hero-grid {
-            grid-template-columns: minmax(0, 1fr) 420px;
-            gap: 36px;
+            grid-template-columns: minmax(0, 620px) 360px;
+            gap: 26px;
         }
 
         .home-hero h1 {
-            font-size: 4.35rem;
+            font-size: 4.15rem;
+        }
+
+        .score-rank-result {
+            grid-template-columns: auto minmax(0, 1fr);
+            align-items: end;
+        }
+
+        .score-rank-number {
+            font-size: 5.65rem;
+        }
+
+        .score-rank-result p {
+            display: none;
         }
     }
 
