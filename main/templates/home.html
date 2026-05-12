@@ -48,13 +48,13 @@
     }
 
     .home-hero-copy {
-        max-width: 720px;
+        max-width: 660px;
     }
 
     .home-hero h1 {
-        max-width: 760px;
-        font-size: clamp(3rem, 10vw, 4.85rem);
-        line-height: 0.92;
+        max-width: 700px;
+        font-size: clamp(3rem, 9vw, 4.55rem);
+        line-height: 0.94;
         margin-bottom: 14px;
         text-shadow: 0 14px 42px rgba(0, 0, 0, 0.28);
     }
@@ -95,10 +95,10 @@
         contain: layout paint;
         display: grid;
         gap: 12px;
-        max-width: 430px;
+        max-width: 410px;
         width: 100%;
         justify-self: center;
-        padding: 16px;
+        padding: 18px;
         border: 1px solid rgba(255, 255, 255, 0.1);
         border-radius: var(--radius-lg);
         background:
@@ -151,10 +151,9 @@
 
     .score-rank-result {
         display: grid;
-        grid-template-columns: auto minmax(0, 1fr);
-        gap: 14px;
-        align-items: end;
-        padding: 10px 0 8px;
+        gap: 12px;
+        align-items: start;
+        padding: 8px 0 6px;
     }
 
     .score-rank-result h2 {
@@ -538,18 +537,13 @@
         }
 
         .home-hero-grid {
-            grid-template-columns: minmax(0, 1fr) minmax(340px, 400px);
-            min-height: min(540px, calc(100svh - 150px));
+            grid-template-columns: minmax(0, .95fr) minmax(360px, 410px);
+            min-height: min(560px, calc(100svh - 150px));
             justify-content: center;
         }
 
         .home-hero h1 {
             max-width: 650px;
-        }
-
-        .score-rank-card {
-            max-width: 390px;
-            justify-self: center;
         }
 
         .home-cta-row,
@@ -580,7 +574,22 @@
         }
 
         .score-rank-card {
-            justify-self: end;
+            justify-self: center;
+        }
+    }
+
+    @media (min-width: 1100px) {
+        .home-hero {
+            padding: 34px;
+        }
+
+        .home-hero-grid {
+            grid-template-columns: minmax(0, 1fr) 420px;
+            gap: 36px;
+        }
+
+        .home-hero h1 {
+            font-size: 4.35rem;
         }
     }
 
@@ -683,22 +692,22 @@
     <section class="hero-card home-hero home-reveal">
         <div class="home-hero-grid">
             <div class="home-hero-copy">
-                <div class="eyebrow">Hybrid Athlete Rankings</div>
+                <div class="eyebrow">Earned Club</div>
                 <h1>The fitness leaderboard for hybrid athletes.</h1>
                 <p class="home-lead muted">
-                    Build your Hybrid Score across strength and running. Specialist ranks stay yours, and every verified discipline increases your completion.
+                    Submit your best performance, prove it, and build a verified Hybrid Score across strength and running.
                 </p>
                 <div class="home-cta-row">
-                    <a class="btn-main" href="{% url 'rank' %}">Check Hybrid Score</a>
-                    <a class="btn-secondary" href="{% url 'home' %}#rank-tiers">Hybrid Rankings</a>
+                    <a class="btn-main" href="{% url 'challenge' %}#submit-form-top">Submit Your Score</a>
+                    <a class="btn-secondary" href="{% url 'rank' %}">Estimate Hybrid Score</a>
                 </div>
             </div>
 
             <aside class="score-rank-card" aria-label="Example score to rank preview">
                 <div class="score-rank-top">
                     <div>
-                        <span class="kicker">Sample athlete rating</span>
-                        <strong>Hybrid Score Preview</strong>
+                        <span class="kicker">Official athlete rating</span>
+                        <strong>Hybrid Score</strong>
                     </div>
                     <span class="status-pill unverified">Example</span>
                 </div>
@@ -706,8 +715,8 @@
                     <div class="score-rank-number">742</div>
                     <div>
                         <span class="status-pill verified">Elite Hybrid Athlete</span>
-                        <h2>Balanced performance becomes status.</h2>
-                        <p class="muted" style="margin-bottom: 0;">Verified push-ups, pull-ups, 5K, and 10K convert into one overall athlete rating.</p>
+                        <h2>Proof turns performance into rank.</h2>
+                        <p class="muted" style="margin-bottom: 0;">Push-ups, pull-ups, 5K, and 10K combine into one public athlete rating.</p>
                     </div>
                 </div>
                 <div class="rank-meter" aria-label="Sample rank tier meter">
@@ -720,11 +729,11 @@
                 </div>
                 <div class="score-rank-proof">
                     <div>
-                        <strong>Verified status requires proof</strong>
+                        <strong>Official scores require proof</strong>
                         <div class="submission-meta">Only verified performances count toward official Hybrid Score.</div>
                     </div>
                 </div>
-                <a class="btn-secondary" href="{% url 'challenge' %}#submit-form-top">Submit Performance</a>
+                <a class="btn-secondary" href="{% url 'home' %}#rank-tiers">View rank tiers</a>
             </aside>
 
             <a class="hero-scroll-cue" href="#rank-tiers" aria-label="Scroll to rank tiers">
