@@ -2,6 +2,8 @@
 
 This document is the shared project map for Earned Club. Use it at the start of future conversations, feature work, debugging, deployment checks, and design decisions so everyone can quickly understand what the app is, how it is built, and what rules should stay consistent.
 
+Keep this file current. Any meaningful product, route, model, scoring, verification, dashboard/profile, homepage, onboarding, deployment, or email-system change should update this plan in the same working session before the change is considered finished.
+
 ## Product Summary
 
 Earned Club is a Django fitness web app built around one core promise: athletes earn public status by proving real performance.
@@ -17,6 +19,12 @@ Core positioning:
 - Hybrid Score is the public athlete status metric.
 - Proof makes official rank credible.
 - Public trust matters more than vanity metrics.
+
+Current primary CTA language:
+
+- Homepage primary CTA: "Submit Your Score".
+- Calculator CTA: "Estimate Hybrid Score".
+- Official submission CTA: "Submit Official Performance" or "Submit Your Score".
 
 ## Tech Stack
 
@@ -165,12 +173,15 @@ Rules:
 
 User-defined performance or rank target.
 
-Types:
+Supported goal directions:
 
-- `pushups`
-- `rank`
+- Push-ups
+- Pull-ups
+- 5K
+- 10K
+- Hybrid Score / rank where supported
 
-Goals may be active/inactive and public/private.
+Goals may be active/inactive and public/private. Rep goals should target a higher value than the current verified best. Running goals should target a faster time than the current verified best and use mobile-friendly text time input such as `21:34`. Rank goals should point above the athlete's current rank/tier rather than allowing already-earned or lower tiers.
 
 ### WorkoutTemplate
 
@@ -290,8 +301,8 @@ Important distinction:
 ### Visitor
 
 1. Lands on home page.
-2. Chooses a leaderboard discipline or uses the Hybrid Score check.
-3. Enters name, email, discipline result, and optional proof.
+2. Uses the primary "Submit Your Score" CTA, the fast `/test/` funnel, or the `/rank/` Hybrid Score calculator.
+3. Enters name, optional email where relevant, discipline result, and optional/required proof depending on discipline and level.
 4. Can register/login and connect activity to a profile.
 5. Can browse Hybrid Leaderboard, discipline leaderboards, profiles, public workouts, calculators, privacy, and terms.
 
@@ -319,7 +330,7 @@ Important distinction:
 Public:
 
 - `/`: home
-- `/test/`: level test
+- `/test/`: fast onboarding-style performance funnel
 - `/challenge/`: challenge submission
 - `/rank/`: discipline rank check and Hybrid Score calculator
 - `/leaderboard/`: default Hybrid Leaderboard
@@ -328,7 +339,7 @@ Public:
 - `/athlete/<slug>/`: public athlete profile
 - `/athlete/<slug>/follow/`: follow toggle
 - `/athlete/<slug>/<kind>/`: followers/following social list
-- `/comparison/<left>vs<right>/`: athlete comparison
+- `/comparison/<left>vs<right>/`: athlete comparison using Hybrid Score, displayed as `Name vs Name`
 - `/calculators/`: calculators
 - `/workout/<slug>/`: public workout detail
 - `/privacy/`: privacy page
@@ -380,15 +391,15 @@ SEO/system:
 Main templates:
 
 - `base.html`: shared layout.
-- `home.html`: first public page.
-- `test_landing.html`: Hybrid Score check page with optional/skippable inputs.
+- `home.html`: first public page centered on Hybrid Score, proof, rank tiers, and the primary "Submit Your Score" CTA.
+- `test_landing.html`: fast onboarding funnel: choose strongest discipline, enter result, enter name/age, optionally skip email, then show an unverified preview card.
 - `challenge.html`: multi-discipline submission workflow.
 - `leaderboard.html`: Hybrid Leaderboard, discipline cards, discipline leaderboard modes, and ranking display.
 - `rank.html`: discipline rank check and Hybrid Score calculator.
 - `dashboard.html`: logged-in athlete dashboard with Hybrid Score hero, discipline breakdown, and selectable progress graph.
 - `athlete_profile.html`: public profile centered on Hybrid Score and verified discipline breakdown.
 - `profiles.html`: profile directory.
-- `comparison.html`: athlete comparison page.
+- `comparison.html`: Hybrid Score 1v1 page with `Name vs Name`, winner crown, and result copy such as "Name wins by X Hybrid points".
 - `social_list.html`: followers/following lists.
 - `workouts.html`: workout creation/listing/generation.
 - `workout_detail.html`: public workout page.
@@ -401,6 +412,8 @@ Main templates:
 - `calculators.html`, `privacy.html`, `terms.html`, `login.html`, `register.html`, `sitemap.xsl`.
 
 When editing UI, keep the experience utilitarian and athlete/status focused. Avoid turning operational pages into marketing-style pages. Dashboard, review, newsletter, and workout tools should be dense, readable, and efficient.
+
+Header/logo note: the current navbar uses `main/static/Earned_Club_wthBG.png` as the visible Earned Club logo. The text brand label beside it is hidden because the image itself contains the wordmark.
 
 ## Environment Variables
 
@@ -679,6 +692,21 @@ Usually touches:
 ## Change Log
 
 Note: the newest entry is authoritative for current product direction. Older entries are preserved as historical implementation notes and may describe behavior that was later superseded.
+
+### 2026-05-12 current hybrid UX and planning update
+
+- Project plan must be updated in the same session as meaningful product, scoring, route, verification, deployment, email, homepage, dashboard, profile, onboarding, or admin changes.
+- Homepage hero now uses "Submit Your Score" as the primary CTA and "Estimate Hybrid Score" as the secondary CTA.
+- Homepage first section is centered on the hybrid athlete leaderboard, proof, and official Hybrid Score rather than a generic score check.
+- The homepage score card now presents an example official athlete rating and links down to rank tiers instead of duplicating the submission CTA.
+- Header logo was replaced with the new Earned Club wordmark image at `main/static/Earned_Club_wthBG.png`; duplicate navbar brand copy is hidden.
+- `/test/` is now a fast onboarding-style funnel: choose strongest discipline, enter reps/time, enter name and age, optionally skip email, then see an unverified athlete preview.
+- `/test/` discipline cards hide the native radio dot, use corner discipline badges such as PU/PL/5K/10K, and keep title/helper text separated for mobile readability.
+- Running inputs in `/test/` use text entry for `MM:SS` or `HH:MM:SS` so mobile users can type `:`.
+- 1v1 comparison now focuses on Hybrid Score rather than push-up deltas.
+- 1v1 comparison displays `Name vs Name`, highlights the winner with a crown, and uses copy such as "Name wins by X Hybrid points" instead of delta language.
+- Public profile improvement recommendations should remain personal/dashboard context, not public-facing clutter.
+- Email delivery remains parked; database actions should not fail because an email side effect fails.
 
 ### 2026-05-11 hybrid leaderboard platform update
 
