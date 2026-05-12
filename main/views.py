@@ -2022,6 +2022,7 @@ def athlete_profile(request, slug):
                 "their_rank": profile.current_rank,
                 "my_hybrid_score": build_hybrid_breakdown(request.user)["score"],
                 "their_hybrid_score": hybrid_summary["score"],
+                "score_delta": build_hybrid_breakdown(request.user)["score"] - hybrid_summary["score"],
             }
     verified_history = paginate_items(request, verified_submissions.order_by("-created_at"), per_page=5)
     public_progress_series = build_performance_progress_series(profile.user)
@@ -2040,7 +2041,6 @@ def athlete_profile(request, slug):
         "profile_schema_json": json_ld(build_profile_schema(profile, best_submission)),
         "hybrid_summary": hybrid_summary,
         "hybrid_rank_position": hybrid_rank_position,
-        "improvement_recommendation": build_improvement_recommendation(profile.user, hybrid_summary),
         "profile_og_image": build_public_url(profile.profile_image_url) if profile.profile_image_url and profile.profile_image_url.startswith("/") else (profile.profile_image_url or ""),
         "badges": profile.earned_badges,
         "followers_count": profile.user.follower_links.count(),
@@ -2073,19 +2073,22 @@ def social_list(request, slug, kind):
 def comparison(request, left, right):
     left_profile = get_object_or_404(Profile, slug=left)
     right_profile = get_object_or_404(Profile, slug=right)
-    left_best = get_best_verified_submission_for_user(left_profile.user)
-    right_best = get_best_verified_submission_for_user(right_profile.user)
+    left_summary = build_hybrid_breakdown(left_profile.user)
+    right_summary = build_hybrid_breakdown(right_profile.user)
+    left_rank = next((row["position"] for row in build_hybrid_leaderboard_rows() if row["user"].id == left_profile.user_id), None)
+    right_rank = next((row["position"] for row in build_hybrid_leaderboard_rows() if row["user"].id == right_profile.user_id), None)
     return render(
         request,
         "comparison.html",
         {
             "left_profile": left_profile,
             "right_profile": right_profile,
-            "left_best": left_best,
-            "right_best": right_best,
-            "left_tier": left_best.rank_tier if left_best else get_rank_tier(0),
-            "right_tier": right_best.rank_tier if right_best else get_rank_tier(0),
-            "rep_delta": left_profile.personal_best_reps - right_profile.personal_best_reps,
+            "left_summary": left_summary,
+            "right_summary": right_summary,
+            "left_rank": left_rank,
+            "right_rank": right_rank,
+            "score_delta": left_summary["score"] - right_summary["score"],
+            "completion_delta": left_summary["verified_count"] - right_summary["verified_count"],
         },
     )
 

@@ -538,8 +538,9 @@
         }
 
         .home-hero-grid {
-            grid-template-columns: minmax(0, 1.14fr) minmax(330px, 0.86fr);
-            min-height: min(610px, calc(100svh - 150px));
+            grid-template-columns: minmax(0, 1fr) minmax(340px, 400px);
+            min-height: min(540px, calc(100svh - 150px));
+            justify-content: center;
         }
 
         .home-hero h1 {
@@ -548,6 +549,7 @@
 
         .score-rank-card {
             max-width: 390px;
+            justify-self: center;
         }
 
         .home-cta-row,
@@ -688,7 +690,7 @@
                 </p>
                 <div class="home-cta-row">
                     <a class="btn-main" href="{% url 'rank' %}">Check Hybrid Score</a>
-                    <a class="btn-secondary" href="{% url 'leaderboard' %}#full-leaderboard">Hybrid Rankings</a>
+                    <a class="btn-secondary" href="{% url 'home' %}#rank-tiers">Hybrid Rankings</a>
                 </div>
             </div>
 
@@ -725,10 +727,56 @@
                 <a class="btn-secondary" href="{% url 'challenge' %}#submit-form-top">Submit Performance</a>
             </aside>
 
-            <a class="hero-scroll-cue" href="#hybrid-score" aria-label="Scroll to Hybrid Score">
-                <span>Scroll to see how Hybrid Score works.</span>
+            <a class="hero-scroll-cue" href="#rank-tiers" aria-label="Scroll to rank tiers">
+                <span>Scroll to see the rank tiers.</span>
                 <span class="scroll-dot" aria-hidden="true">&darr;</span>
             </a>
+        </div>
+    </section>
+
+    <section class="card-dark home-reveal">
+        <div class="section-spread">
+            <div class="home-section-head" style="margin-bottom: 0;">
+            <h2>Discipline ranks</h2>
+            <p class="muted">Each challenge has its own status. Hybrid Score is the bigger layer above them.</p>
+            </div>
+            <a class="btn-secondary" href="{% url 'challenge' %}#submit-form-top">Submit Official Result</a>
+        </div>
+        <div class="home-rank-grid" id="rank-tiers">
+            <div class="home-rank-card rank-beginner home-reveal"><strong>Beginner Hybrid</strong><span>0-349 score</span></div>
+            <div class="home-rank-card rank-intermediate home-reveal"><strong>Intermediate Hybrid</strong><span>350-549 score</span></div>
+            <div class="home-rank-card rank-advanced home-reveal"><strong>Advanced Hybrid</strong><span>550-749 score</span></div>
+            <div class="home-rank-card rank-elite home-reveal"><strong>Elite Hybrid</strong><span>750-899 score</span></div>
+            <div class="home-rank-card rank-legend home-reveal"><strong>Earned Legend</strong><span>900+ score</span></div>
+        </div>
+    </section>
+
+    <section class="card-dark home-reveal">
+        <div class="home-section-head">
+            <h2>How it works</h2>
+            <p class="muted">Simple enough for your first visit. Serious enough for public status.</p>
+        </div>
+        <div class="home-value-strip how-flow">
+            <div class="home-value-item home-reveal">
+                <span class="flow-label">Choose</span>
+                <strong>Pick a discipline</strong>
+                <p class="muted">Push-ups, pull-ups, 5K, or 10K.</p>
+            </div>
+            <div class="home-value-item home-reveal">
+                <span class="flow-label">Submit</span>
+                <strong>Enter your result</strong>
+                <p class="muted">Add reps or a verified race time.</p>
+            </div>
+            <div class="home-value-item home-reveal">
+                <span class="flow-label">Prove</span>
+                <strong>Make it official</strong>
+                <p class="muted">Video for reps. Race or Strava proof for runs.</p>
+            </div>
+            <div class="home-value-item home-reveal">
+                <span class="flow-label">Rank</span>
+                <strong>Earn status</strong>
+                <p class="muted">Approved results become public rank.</p>
+            </div>
         </div>
     </section>
 
@@ -776,80 +824,6 @@
                     <p class="muted">{% if discipline.score_type == "time" %}Lower time ranks higher.{% else %}Higher score ranks higher.{% endif %}</p>
                 </a>
             {% endfor %}
-        </div>
-    </section>
-
-    <section class="card-dark home-reveal">
-        <div class="home-value-strip how-flow">
-            <div class="home-value-item home-reveal">
-                <span class="flow-label">Test</span>
-                <strong>Submit your best</strong>
-                <p class="muted">One clean set or one clear run.</p>
-            </div>
-            <div class="home-value-item home-reveal">
-                <span class="flow-label">Proof</span>
-                <strong>Prove your result</strong>
-                <p class="muted">Upload video proof when you want official status.</p>
-            </div>
-            <div class="home-value-item home-reveal">
-                <span class="flow-label">Status</span>
-                <strong>Earn your verified rank</strong>
-                <p class="muted">Verified scores earn official status.</p>
-            </div>
-        </div>
-    </section>
-
-    <section class="card-dark home-reveal">
-        <div class="home-section-head">
-            <h2>How it works</h2>
-            <p class="muted">Simple enough for your first visit. Serious enough for public status.</p>
-        </div>
-        <div class="home-value-strip">
-            <div class="home-value-item home-reveal">
-                <span class="flow-label">Attempt</span>
-                <div>
-                    <strong>Choose a discipline</strong>
-                    <div class="muted">Push-ups, pull-ups, 5K, or 10K.</div>
-                </div>
-            </div>
-            <div class="home-value-item home-reveal">
-                <span class="flow-label">Submit</span>
-                <div>
-                    <strong>Submit your performance</strong>
-                    <div class="muted">Enter reps or time, name, and email.</div>
-                </div>
-            </div>
-            <div class="home-value-item home-reveal">
-                <span class="flow-label">Review</span>
-                <div>
-                    <strong>Add proof for verification</strong>
-                    <div class="muted">Add video, race result, or Strava proof to enter review.</div>
-                </div>
-            </div>
-            <div class="home-value-item home-reveal">
-                <span class="flow-label">Rank</span>
-                <div>
-                    <strong>Earn your public rank</strong>
-                    <div class="muted">Approved results become official.</div>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <section class="card-dark home-reveal">
-        <div class="section-spread">
-            <div class="home-section-head" style="margin-bottom: 0;">
-            <h2>Discipline ranks</h2>
-            <p class="muted">Each challenge still has its own tier. Hybrid Score is the bigger status layer above them.</p>
-            </div>
-            <a class="btn-secondary" href="{% url 'challenge' %}#submit-form-top">Submit Official Result</a>
-        </div>
-        <div class="home-rank-grid" id="rank-tiers">
-            <div class="home-rank-card rank-beginner home-reveal"><strong>Beginner Hybrid</strong><span>0-349 score</span></div>
-            <div class="home-rank-card rank-intermediate home-reveal"><strong>Intermediate Hybrid</strong><span>350-549 score</span></div>
-            <div class="home-rank-card rank-advanced home-reveal"><strong>Advanced Hybrid</strong><span>550-749 score</span></div>
-            <div class="home-rank-card rank-elite home-reveal"><strong>Elite Hybrid</strong><span>750-899 score</span></div>
-            <div class="home-rank-card rank-legend home-reveal"><strong>Earned Legend</strong><span>900+ score</span></div>
         </div>
     </section>
 

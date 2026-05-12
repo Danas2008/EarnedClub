@@ -7,18 +7,20 @@
     <div class="comparison-split">
         <div class="comparison-side">
             {% if left_profile.profile_image_url %}<img class="avatar avatar-lg" src="{{ left_profile.profile_image_url }}" alt="{{ left_profile.display_name }} profile picture">{% else %}<span class="avatar avatar-lg">{{ left_profile.display_name|first|upper }}</span>{% endif %}
-            <div class="eyebrow">Left side</div>
+            <div class="eyebrow">Hybrid Athlete</div>
             <h1>{{ left_profile.display_name }}</h1>
-            <span class="stat-value">{{ left_profile.personal_best_reps }}</span>
-            <p class="muted">{{ left_tier.name }} - {% if left_profile.current_rank %}Rank #{{ left_profile.current_rank }}{% else %}No rank{% endif %}</p>
+            <span class="stat-value">{{ left_summary.score }}</span>
+            <p class="muted">{{ left_summary.rank.name }} - {% if left_rank %}Hybrid Rank #{{ left_rank }}{% else %}Unranked{% endif %}</p>
+            <p class="muted">{{ left_summary.verified_count }}/{{ left_summary.max_disciplines }} verified disciplines</p>
             <a class="btn-secondary" href="{% url 'athlete_profile' left_profile.slug %}">Profile</a>
         </div>
         <div class="comparison-side">
             {% if right_profile.profile_image_url %}<img class="avatar avatar-lg" src="{{ right_profile.profile_image_url }}" alt="{{ right_profile.display_name }} profile picture">{% else %}<span class="avatar avatar-lg">{{ right_profile.display_name|first|upper }}</span>{% endif %}
-            <div class="eyebrow">Right side</div>
+            <div class="eyebrow">Hybrid Athlete</div>
             <h1>{{ right_profile.display_name }}</h1>
-            <span class="stat-value">{{ right_profile.personal_best_reps }}</span>
-            <p class="muted">{{ right_tier.name }} - {% if right_profile.current_rank %}Rank #{{ right_profile.current_rank }}{% else %}No rank{% endif %}</p>
+            <span class="stat-value">{{ right_summary.score }}</span>
+            <p class="muted">{{ right_summary.rank.name }} - {% if right_rank %}Hybrid Rank #{{ right_rank }}{% else %}Unranked{% endif %}</p>
+            <p class="muted">{{ right_summary.verified_count }}/{{ right_summary.max_disciplines }} verified disciplines</p>
             <a class="btn-secondary" href="{% url 'athlete_profile' right_profile.slug %}">Profile</a>
         </div>
     </div>
@@ -26,12 +28,41 @@
 
 <section class="grid-2">
     <div class="metric-card">
-        <span class="kicker">Difference</span>
-        <span class="stat-value">{{ rep_delta }}</span>
+        <span class="kicker">Hybrid Score Delta</span>
+        <span class="stat-value">{{ score_delta }}</span>
+        <div class="muted">Positive means the left athlete leads overall.</div>
     </div>
     <div class="metric-card">
-        <span class="kicker">Challenge</span>
-        <span class="stat-value">{{ right_profile.personal_best_reps|add:"1" }}</span>
+        <span class="kicker">Completion Delta</span>
+        <span class="stat-value">{{ completion_delta }}</span>
+        <div class="muted">Verified discipline difference.</div>
+    </div>
+</section>
+
+<section class="grid-2">
+    <div class="card-dark">
+        <h2>{{ left_profile.display_name }} Breakdown</h2>
+        {% for item in left_summary.breakdown %}
+            <div class="score-row">
+                <div class="score-row-main">
+                    <div class="submission-name">{{ item.discipline.short_label }}</div>
+                    <div class="submission-meta">{{ item.display_score }} - {{ item.rank_name }}</div>
+                </div>
+                <strong>{{ item.points }} pts</strong>
+            </div>
+        {% endfor %}
+    </div>
+    <div class="card-dark">
+        <h2>{{ right_profile.display_name }} Breakdown</h2>
+        {% for item in right_summary.breakdown %}
+            <div class="score-row">
+                <div class="score-row-main">
+                    <div class="submission-name">{{ item.discipline.short_label }}</div>
+                    <div class="submission-meta">{{ item.display_score }} - {{ item.rank_name }}</div>
+                </div>
+                <strong>{{ item.points }} pts</strong>
+            </div>
+        {% endfor %}
     </div>
 </section>
 {% endblock %}

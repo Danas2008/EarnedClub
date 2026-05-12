@@ -225,7 +225,7 @@
             {% if profile.bio %}<p>{{ profile.bio }}</p>{% else %}<p class="muted">Public hybrid athlete profile for verified strength, running, workouts, and progress.</p>{% endif %}
             <div class="profile-actions">
                 <a class="btn-main" href="{% url 'challenge' %}#submit-form-top">Submit Your Score</a>
-                <a class="btn-secondary" href="{% url 'leaderboard' %}#full-leaderboard">Leaderboard</a>
+                <a class="btn-secondary" href="{% url 'home' %}#rank-tiers">Rank Tiers</a>
                 {% if request.user.is_authenticated and request.user != profile.user %}
                     <a class="btn-secondary" href="{% url 'comparison' request.user.profile.slug profile.slug %}">1v1 Compare</a>
                 {% endif %}
@@ -276,17 +276,6 @@
                 {% endif %}
             </div>
         </aside>
-    </div>
-</section>
-
-<section class="card-dark next-action-card">
-    <div class="section-spread">
-        <div>
-            <div class="eyebrow">What to improve next</div>
-            <h2>{{ improvement_recommendation.label }}</h2>
-            <p class="muted">{{ improvement_recommendation.text }}</p>
-        </div>
-        <a class="btn-main" href="{{ improvement_recommendation.url }}">Improve</a>
     </div>
 </section>
 
@@ -433,14 +422,14 @@
                 <div class="muted">Hybrid Score</div>
             </div>
             <div class="metric-card">
-                <span class="kicker">Push-up Delta</span>
-                <span class="stat-value">{{ comparison.rep_delta }}</span>
-                <div class="muted">Legacy push-up comparison.</div>
+                <span class="kicker">Score Delta</span>
+                <span class="stat-value">{{ comparison.score_delta }}</span>
+                <div class="muted">Open 1v1 for full Hybrid comparison.</div>
             </div>
             <div class="metric-card">
-                <span class="kicker">Challenge</span>
-                <span class="stat-value">{{ profile.personal_best_reps|add:"1" }}</span>
-                <div class="muted">Beat their current PR by one.</div>
+                <span class="kicker">Compare</span>
+                <span class="stat-value">1v1</span>
+                <div class="muted"><a href="{% url 'comparison' request.user.profile.slug profile.slug %}">Open full comparison</a></div>
             </div>
         </div>
     </section>

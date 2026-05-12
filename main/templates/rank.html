@@ -8,8 +8,8 @@
     .rank-page { display: grid; gap: 16px; }
     .rank-stage {
         display: grid;
-        gap: 18px;
-        padding: clamp(18px, 5vw, 34px);
+        gap: 14px;
+        padding: clamp(16px, 4vw, 28px);
         border: 1px solid rgba(255,255,255,.1);
         border-radius: var(--radius-lg);
         background:
@@ -18,7 +18,7 @@
         box-shadow: var(--shadow);
     }
     .rank-hero { display: grid; gap: 18px; align-items: center; }
-    .rank-copy h1 { font-size: clamp(2.8rem, 13vw, 5rem); line-height: .92; margin-bottom: 10px; }
+    .rank-copy h1 { font-size: clamp(2.55rem, 12vw, 4.4rem); line-height: .94; margin-bottom: 10px; }
     .rank-form { display: grid; gap: 12px; }
     .rank-result-card {
         display: grid;
@@ -64,22 +64,24 @@
                 <h1 id="rank-title">Find your Hybrid Score.</h1>
                 <p class="muted">Enter any discipline you know. Specialist ranks stay independent, and each verified discipline increases your Hybrid completion.</p>
                 <div class="rank-actions" style="margin-top: 16px;">
-                    <a class="btn-main" href="{% url 'challenge' %}#submit-form-top">Submit Official Result</a>
+                    <a class="btn-main" href="#rank-inputs">Enter Performances</a>
                     <a class="btn-secondary" href="{% url 'register' %}">Create Profile</a>
-                    <a class="btn-secondary" href="{% url 'leaderboard' %}#full-leaderboard">Hybrid Rankings</a>
+                    <a class="btn-secondary" href="{% url 'home' %}#rank-tiers">Hybrid Rankings</a>
                 </div>
             </div>
+            {% if has_rank_input %}
             <aside class="rank-result-card">
                 <span class="kicker">Estimated Hybrid Score</span>
                 <div class="rank-score-number">{{ hybrid_estimate.score }}</div>
                 <h2>{{ hybrid_estimate.rank.name }}</h2>
                 <p class="muted">{{ hybrid_estimate.verified_count }}/{{ hybrid_estimate.max_disciplines }} disciplines entered. Official score requires verified proof.</p>
-                {% if has_rank_input %}<a class="btn-main" href="{{ submit_url }}">Prove Your Score</a>{% endif %}
+                <a class="btn-main" href="{{ submit_url }}">Submit Official Result</a>
             </aside>
+            {% endif %}
         </div>
     </section>
 
-    <section class="card-dark">
+    <section id="rank-inputs" class="card-dark">
         <div class="section-spread">
             <div>
                 <h2>Enter performances</h2>
@@ -109,7 +111,7 @@
         </form>
     </section>
 
-    <section class="card-dark">
+    {% if has_rank_input %}<section class="card-dark">
         <h2>Discipline breakdown</h2>
         <div class="rank-breakdown">
             {% for row in hybrid_estimate.breakdown %}
@@ -128,8 +130,8 @@
 
     <section class="rank-actions">
         <a class="btn-main" href="{{ submit_url }}">Submit Official Result</a>
-        <a class="btn-secondary" href="{% url 'challenge' %}#submit-form-top">Prove Your Score</a>
-        <a class="btn-secondary" href="{% url 'leaderboard' %}#full-leaderboard">View Leaderboard</a>
-    </section>
+        <a class="btn-secondary" href="{% url 'register' %}">Create Profile</a>
+        <a class="btn-secondary" href="{% url 'home' %}#rank-tiers">View Rank Tiers</a>
+    </section>{% endif %}
 </div>
 {% endblock %}

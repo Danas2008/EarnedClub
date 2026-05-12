@@ -558,7 +558,7 @@ class SubmissionFlowTests(TestCase):
         self.assertContains(response, "Find your Hybrid Score")
         self.assertContains(response, "525 pts")
         self.assertContains(response, "Submit Official Result")
-        self.assertContains(response, "Prove Your Score")
+        self.assertNotContains(response, "Prove Your Score")
         self.assertContains(response, f"{reverse('challenge')}?discipline=pushups&amp;score=42#submit-form-top", html=False)
         self.assertContains(response, "Hybrid Score Calculator")
 
@@ -788,6 +788,13 @@ class SubmissionFlowTests(TestCase):
         self.assertContains(response, "21:34")
         self.assertEqual(response.context["hybrid_estimate"]["verified_count"], 3)
 
+    def test_rank_page_hides_estimate_before_calculation(self):
+        response = self.client.get(reverse("rank"))
+
+        self.assertContains(response, "Enter Performances")
+        self.assertNotContains(response, "Estimated Hybrid Score")
+        self.assertNotContains(response, "Discipline breakdown")
+
     def test_level_test_is_fast_single_discipline_funnel(self):
         response = self.client.get(reverse("level_test"))
 
@@ -948,8 +955,23 @@ class SubmissionFlowTests(TestCase):
 
         self.assertContains(response, "65 reps")
         self.assertNotContains(response, "25 reps")
+        self.assertNotContains(response, "What to improve next")
         self.assertContains(response, 'type="application/ld+json"', html=False)
         self.assertContains(response, "https://earnedclub.club/athlete/public/", html=False)
+
+    def test_comparison_uses_hybrid_score_not_pushup_delta(self):
+        left = User.objects.create_user(username="compare-left", password="StrongPass12345")
+        right = User.objects.create_user(username="compare-right", password="StrongPass12345")
+        Submission.objects.create(user=left, name="Left", reps=40, discipline=Submission.DISCIPLINE_PUSHUPS, status=Submission.STATUS_VERIFIED)
+        Submission.objects.create(user=left, name="Left", reps=10, discipline=Submission.DISCIPLINE_PULLUPS, status=Submission.STATUS_VERIFIED)
+        Submission.objects.create(user=right, name="Right", reps=42, discipline=Submission.DISCIPLINE_PUSHUPS, status=Submission.STATUS_VERIFIED)
+
+        response = self.client.get(reverse("comparison", args=[left.profile.slug, right.profile.slug]))
+
+        self.assertContains(response, "Hybrid Score Delta")
+        self.assertContains(response, "Completion Delta")
+        self.assertNotContains(response, "Push-up Delta")
+        self.assertNotContains(response, "Beat their current PR")
 
     def test_profiles_directory_shows_real_accounts_not_anonymous_submitters(self):
         user = User.objects.create_user(username="real-account", password="StrongPass12345")
