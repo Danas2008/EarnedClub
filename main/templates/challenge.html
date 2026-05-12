@@ -36,6 +36,55 @@
         </div>
 
         <div class="stack" id="submit-form-top">
+            {% if submission_success %}
+                <div class="submit-panel" style="border-color: rgba(247, 183, 51, 0.34); background: linear-gradient(145deg, rgba(247, 183, 51, 0.12), rgba(30, 157, 116, 0.08)), rgba(255,255,255,0.04);">
+                    <span class="status-pill {{ submission_success.submission.status }}">{{ submission_success.submission.public_status_label }}</span>
+                    <h2 style="margin-top: 14px;">
+                        {% if submission_success.is_official_pending %}
+                            Proof received. You are in review.
+                        {% else %}
+                            You are now on the open leaderboard.
+                        {% endif %}
+                    </h2>
+                    <p class="muted">
+                        {{ submission_success.submission.discipline_label }} - {{ submission_success.submission.display_score }}.
+                        {% if submission_success.is_official_pending %}
+                            If approved, this result becomes official and updates your verified rank.
+                        {% else %}
+                            Add proof to make it official.
+                        {% endif %}
+                    </p>
+                    <div class="stat-grid" style="margin-top: 14px;">
+                        <div class="stat-card">
+                            <span class="kicker">Result</span>
+                            <span class="stat-value">{{ submission_success.submission.compact_score }}</span>
+                            <div class="muted">{{ submission_success.submission.rank_name }}</div>
+                        </div>
+                        <div class="stat-card">
+                            <span class="kicker">Status</span>
+                            <span class="stat-value" style="font-size: 1.25rem;">{{ submission_success.submission.public_status_label }}</span>
+                            <div class="muted">Proof makes it official.</div>
+                        </div>
+                        <div class="stat-card">
+                            <span class="kicker">Points</span>
+                            <span class="stat-value">{{ submission_success.submission.hybrid_points }}</span>
+                            <div class="muted">Hybrid preview points</div>
+                        </div>
+                    </div>
+                    <div class="button-row">
+                        <a class="btn-main" href="{{ submission_success.leaderboard_url }}">Open Leaderboard</a>
+                        {% if submission_success.profile_url %}
+                            <a class="btn-secondary" href="{{ submission_success.profile_url }}">View Profile</a>
+                            <a class="btn-secondary" href="{{ submission_success.proof_url }}">Add Proof</a>
+                        {% else %}
+                            <a class="btn-secondary" href="{{ submission_success.register_url }}">Create Profile</a>
+                            <a class="btn-secondary" href="{{ submission_success.proof_url }}">Add Proof</a>
+                        {% endif %}
+                        <button class="btn-secondary" type="button" data-share-text="{{ submission_success.share_text }}">Share</button>
+                    </div>
+                </div>
+            {% endif %}
+
             <div class="submit-panel">
                 <h2>Submit Your Result</h2>
                 {% if request.user.is_authenticated %}
@@ -269,5 +318,17 @@
             if (proofLabel) proofLabel.childNodes[0].textContent = option.dataset.proofLabel || "Proof link";
         });
     })();
+    for (const shareButton of document.querySelectorAll("[data-share-text]")) {
+        const originalLabel = shareButton.textContent;
+        shareButton.addEventListener("click", async () => {
+            const text = shareButton.dataset.shareText;
+            if (navigator.share) await navigator.share({ text });
+            else {
+                await navigator.clipboard.writeText(text);
+                shareButton.textContent = "Copied";
+                setTimeout(() => shareButton.textContent = originalLabel, 1200);
+            }
+        });
+    }
 </script>
 {% endblock %}

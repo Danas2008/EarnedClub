@@ -94,7 +94,9 @@ class SubmissionFlowTests(TestCase):
         self.assertRedirects(response, reverse("challenge"))
         submission = Submission.objects.get(name="No Proof")
         self.assertEqual(submission.status, Submission.STATUS_UNVERIFIED)
-        self.assertContains(response, "Your result is live as unverified. Add proof to earn official rank.")
+        self.assertContains(response, "You are now on the open leaderboard. Add proof to make it official.")
+        self.assertContains(response, "Open Leaderboard")
+        self.assertContains(response, "Create Profile")
 
     def test_anonymous_unverified_submission_can_be_completed_with_proof(self):
         self.client.post(
@@ -495,7 +497,7 @@ class SubmissionFlowTests(TestCase):
         submission = Submission.objects.get(email="copy@example.com")
         self.assertEqual(submission.video_link, "")
         self.assertEqual(submission.status, Submission.STATUS_UNVERIFIED)
-        self.assertContains(response, "Your result is live as unverified. Add proof to earn official rank.")
+        self.assertContains(response, "You are now on the open leaderboard. Add proof to make it official.")
 
     def test_honeypot_submission_is_silently_ignored(self):
         response = self.client.post(
@@ -806,8 +808,8 @@ class SubmissionFlowTests(TestCase):
         self.assertContains(response, "Where should we send your result?")
         self.assertContains(response, "Skip Email")
         self.assertContains(response, "Unverified preview")
+        self.assertContains(response, "Submit Your Score")
         self.assertContains(response, "Create My Profile")
-        self.assertContains(response, "Submit Official Performance")
         self.assertContains(response, "Check Full Hybrid Score")
 
     def test_level_test_running_inputs_are_mobile_time_text(self):
@@ -842,7 +844,7 @@ class SubmissionFlowTests(TestCase):
             follow=True,
         )
 
-        self.assertContains(response, "Your result is live as unverified")
+        self.assertContains(response, "You are now on the open leaderboard")
         submission = Submission.objects.get(email="manual-link@example.com")
         self.assertEqual(submission.video_link, "")
         self.assertEqual(submission.status, Submission.STATUS_UNVERIFIED)

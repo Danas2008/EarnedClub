@@ -22,9 +22,10 @@ Core positioning:
 
 Current primary CTA language:
 
-- Homepage primary CTA: "Submit Your Score".
+- Homepage primary CTA: "Submit Your Score", pointing to `/test/`.
 - Calculator CTA: "Estimate Hybrid Score".
 - Official submission CTA: "Submit Official Performance" or "Submit Your Score".
+- QR, TikTok, Instagram, sticker, and short-link traffic should point to `/test/` unless there is a specific campaign reason not to.
 
 ## Tech Stack
 
@@ -301,10 +302,12 @@ Important distinction:
 ### Visitor
 
 1. Lands on home page.
-2. Uses the primary "Submit Your Score" CTA, the fast `/test/` funnel, or the `/rank/` Hybrid Score calculator.
-3. Enters name, optional email where relevant, discipline result, and optional/required proof depending on discipline and level.
-4. Can register/login and connect activity to a profile.
-5. Can browse Hybrid Leaderboard, discipline leaderboards, profiles, public workouts, calculators, privacy, and terms.
+2. Uses the primary "Submit Your Score" CTA into the fast `/test/` funnel.
+3. Chooses strongest discipline, enters result, name/age, optionally skips email, and sees an unverified preview card.
+4. Submits the previewed score into `/challenge/`.
+5. After submission, immediately sees that the result is on the open leaderboard, with proof/profile/share CTAs.
+6. Can register/login and connect activity to a profile.
+7. Can browse Hybrid Leaderboard, discipline leaderboards, profiles, public workouts, calculators, privacy, and terms.
 
 ### Athlete
 
@@ -696,13 +699,16 @@ Note: the newest entry is authoritative for current product direction. Older ent
 ### 2026-05-12 current hybrid UX and planning update
 
 - Project plan must be updated in the same session as meaningful product, scoring, route, verification, deployment, email, homepage, dashboard, profile, onboarding, or admin changes.
-- Homepage hero now uses "Submit Your Score" as the primary CTA and "Estimate Hybrid Score" as the secondary CTA.
+- Homepage hero now uses "Submit Your Score" as the primary CTA and sends that traffic to `/test/`; "Estimate Hybrid Score" remains the secondary calculator CTA.
 - Homepage first section is centered on the hybrid athlete leaderboard, proof, and official Hybrid Score rather than a generic score check.
 - The homepage score card now presents an example official athlete rating and links down to rank tiers instead of duplicating the submission CTA.
 - Header logo was replaced with the new Earned Club wordmark image at `main/static/Earned_Club_wthBG.png`; duplicate navbar brand copy is hidden.
 - `/test/` is now a fast onboarding-style funnel: choose strongest discipline, enter reps/time, enter name and age, optionally skip email, then see an unverified athlete preview.
+- `/test/` preview now makes "Submit Your Score" the primary conversion action into `/challenge/`, with profile creation secondary.
 - `/test/` discipline cards hide the native radio dot, use corner discipline badges such as PU/PL/5K/10K, and keep title/helper text separated for mobile readability.
 - Running inputs in `/test/` use text entry for `MM:SS` or `HH:MM:SS` so mobile users can type `:`.
+- `/challenge/` now shows a post-submit success card with result, status, Hybrid preview points, leaderboard/profile/proof CTAs, and a share action.
+- Unverified submissions now use the reward copy: "You are now on the open leaderboard. Add proof to make it official."
 - 1v1 comparison now focuses on Hybrid Score rather than push-up deltas.
 - 1v1 comparison displays `Name vs Name`, highlights the winner with a crown, and uses copy such as "Name wins by X Hybrid points" instead of delta language.
 - Public profile improvement recommendations should remain personal/dashboard context, not public-facing clutter.

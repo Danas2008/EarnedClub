@@ -590,6 +590,31 @@ def get_pr_share_message(profile, request):
     return f"Hey, I am building my verified Hybrid Score on earnedclub.club. Can you beat it? {url}"
 
 
+def build_submission_success(submission, request):
+    discipline_config = get_discipline_config(submission.discipline)
+    leaderboard_url = f"{reverse('leaderboard')}?discipline={submission.discipline}#full-leaderboard"
+    register_params = urlencode({"name": submission.name, "email": submission.email}) if submission.email else urlencode({"name": submission.name})
+    proof_params = urlencode({
+        "discipline": submission.discipline,
+        "score": submission.display_score if discipline_config["score_type"] == "time" else submission.reps,
+        "name": submission.name,
+        "email": submission.email,
+    })
+    profile_url = reverse("athlete_profile", args=[submission.user.profile.slug]) if submission.user_id else ""
+    return {
+        "submission": submission,
+        "is_official_pending": submission.has_proof,
+        "leaderboard_url": leaderboard_url,
+        "profile_url": profile_url,
+        "register_url": f"{reverse('register')}?{register_params}" if register_params else reverse("register"),
+        "proof_url": reverse("dashboard") if submission.user_id else f"{reverse('challenge')}?{proof_params}#submit-form-top",
+        "share_text": (
+            f"I submitted {submission.discipline_label} {submission.display_score} on Earned Club. "
+            f"Proof makes it official. {request.build_absolute_uri(leaderboard_url)}"
+        ),
+    }
+
+
 def get_daily_suggestion(profile, verified_count, workout_count):
     quotes = [
         "Small proof beats loud claims.",
@@ -2141,6 +2166,12 @@ def challenge(request):
         context["profile"] = request.user.profile
         context["active_submission"] = blocking_submission_queryset(selected_discipline["key"]).filter(user=request.user).order_by("-created_at").first()
 
+    success_submission_id = request.session.pop("last_submission_id", None) if request.method == "GET" else None
+    if success_submission_id:
+        success_submission = Submission.objects.filter(pk=success_submission_id).select_related("user", "user__profile").first()
+        if success_submission:
+            context["submission_success"] = build_submission_success(success_submission, request)
+
     if request.method == "POST":
         name = (request.POST.get("name") or "").strip()
         email = (request.POST.get("email") or "").strip().lower()
@@ -2246,6 +2277,7 @@ def challenge(request):
                     "Your result is pending review. If approved, your official rank will update.",
                 )
                 messages.info(request, "Next: open your dashboard, watch review status, and build the next discipline.")
+                request.session["last_submission_id"] = active_submission.id
                 return redirect("challenge")
 
             messages.error(
@@ -2312,10 +2344,11 @@ def challenge(request):
             (
                 "Your result is pending review. If approved, your official rank will update."
                 if submission.has_proof else
-                "Your result is live as unverified. Add proof to earn official rank."
+                "You are now on the open leaderboard. Add proof to make it official."
             ),
         )
-        messages.info(request, "Next: open your dashboard to track review status, then come back with a stronger verified performance.")
+        messages.info(request, "Next: open the leaderboard, share your result, or add proof for official status.")
+        request.session["last_submission_id"] = submission.id
         return redirect("challenge")
 
     return render(request, "challenge.html", context)
