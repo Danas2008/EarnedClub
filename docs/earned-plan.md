@@ -276,6 +276,11 @@ Hybrid Score:
 - Each verified discipline performance converts into roughly 0-1000 points.
 - Rep-based scores use higher-is-better logic.
 - Running scores use lower-is-better inverse logic.
+- Current public point curves:
+  - Push-ups: 20=250, 40=450, 50=600, 70=850, 85=950, 100=1000.
+  - Pull-ups: 5=250, 10=500, 15=675, 20=800, 30=950, 35=1000.
+  - 5K: 30:00=250, 25:00=450, 22:00=600, 18:00=850, 16:00=950, 15:00=1000.
+  - 10K: 60:00=250, 50:00=450, 44:00=600, 38:00=800, 34:00=900, 32:00=950, 30:00=1000.
 - Official Hybrid Score is the average of verified discipline points.
 - Athletes with incomplete discipline sets can still have a Hybrid Score.
 - Unverified and pending submissions can be visible but must not inflate official Hybrid Score.
@@ -296,6 +301,7 @@ Important distinction:
 - Official status, rank, badges, and profile stats should come from verified submissions.
 - The default `/leaderboard/` view is the Hybrid Leaderboard.
 - Discipline leaderboards remain available for push-ups, pull-ups, 5K, and 10K.
+- Verified anonymous athletes also appear on the Hybrid Leaderboard, grouped by their submission identity, so an account is not required to be visible in overall rankings.
 
 ## Core User Workflows
 
@@ -884,6 +890,21 @@ Note: the newest entry is authoritative for current product direction. Older ent
 - Mobile hero spacing and typography were adjusted for cleaner hierarchy.
 - Mobile hero CTAs returned to a stacked layout for clearer primary action focus.
 - Sample rank result remains a separate card in the first hero section.
+
+### 2026-05-13 public scoring and calculator refresh
+
+- Hybrid discipline point curves were updated to the current public thresholds for push-ups, pull-ups, 5K, and 10K.
+- The fast `/test/` funnel now treats age as optional with an explicit skip action.
+- Time entry accepts dot shorthand such as `21.34` and normalizes it to `21:34`; invalid time hints now suggest a valid format immediately.
+- Leaderboard pages now show appealing point/rank tier context under the leaderboard chooser for Hybrid and each discipline.
+- Calculators now include discipline selection and live sliders for single-discipline points or four-slider Hybrid Score estimation, replacing old push-up-only benchmark behavior.
+- Homepage rank-tier anchor now lands at the beginning of the rank tier section so the tier hero/header is visible.
+
+### 2026-05-13 anonymous Hybrid leaderboard and goal detail UX
+
+- Hybrid Leaderboard now includes verified athletes without accounts, grouped by anonymous submission identity.
+- Dashboard goals now open like badges, with a larger modal for share/delete, set date, completion time, improvement since the goal was set, point gain, and next suggested goal.
+- Completed goals now use a stronger card structure: goal achieved, tier movement, Hybrid point gain, and the next suggested target.
 
 ## Short Glossary
 

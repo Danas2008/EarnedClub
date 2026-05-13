@@ -37,6 +37,7 @@ from .models import (
     Profile,
     RANK_TIERS,
     DISCIPLINE_CONFIG,
+    DISCIPLINE_POINT_CURVES,
     DISCIPLINE_PUSHUPS,
     HYBRID_RANKS,
     Submission,
@@ -428,6 +429,11 @@ def build_goal_rank_options(user, hybrid_summary):
 
 def build_hybrid_leaderboard_rows(query=""):
     rows = []
+    verified_submissions = list(
+        Submission.objects.filter(status=Submission.STATUS_VERIFIED)
+        .select_related("user", "user__profile")
+        .order_by("created_at")
+    )
     users = User.objects.filter(submission__status=Submission.STATUS_VERIFIED).select_related("profile").distinct()
     if query:
         users = users.filter(
@@ -445,13 +451,58 @@ def build_hybrid_leaderboard_rows(query=""):
                 "medal_place": None,
                 "user": user,
                 "profile": getattr(user, "profile", None),
+                "display_name": user_display_name(user),
                 "hybrid_score": summary["score"],
                 "hybrid_rank": summary["rank"],
                 "breakdown": summary["breakdown"],
                 "verified_count": summary["verified_count"],
+                "is_anonymous": False,
             }
         )
-    rows = sorted(rows, key=lambda row: (-row["hybrid_score"], getattr(row["profile"], "display_name", row["user"].username)))
+
+    anonymous_groups = {}
+    for submission in verified_submissions:
+        if submission.user_id:
+            continue
+        identity = get_submission_identity(submission)
+        if query and query.lower() not in submission.name.lower() and query.lower() not in submission.email.lower():
+            continue
+        group = anonymous_groups.setdefault(
+            identity,
+            {
+                "display_name": submission.name,
+                "email": submission.email,
+                "submissions": [],
+            },
+        )
+        group["submissions"].append(submission)
+
+    for group in anonymous_groups.values():
+        best_by_discipline = {}
+        for submission in group["submissions"]:
+            current = best_by_discipline.get(submission.normalized_discipline)
+            if current is None or is_better_submission(submission, current):
+                best_by_discipline[submission.normalized_discipline] = submission
+        points = [submission.hybrid_points for submission in best_by_discipline.values()]
+        if not points:
+            continue
+        score = round(sum(points) / len(points))
+        rows.append(
+            {
+                "position": 0,
+                "medal_place": None,
+                "user": None,
+                "profile": None,
+                "display_name": group["display_name"],
+                "hybrid_score": score,
+                "hybrid_rank": get_hybrid_rank(score),
+                "breakdown": [],
+                "verified_count": len(points),
+                "is_anonymous": True,
+            }
+        )
+
+    rows = sorted(rows, key=lambda row: (-row["hybrid_score"], row["display_name"].lower()))
     for index, row in enumerate(rows, start=1):
         row["position"] = index
         row["medal_place"] = index if index <= 3 else None
@@ -768,8 +819,34 @@ def get_leaderboard_discipline(request, discipline_key=None):
     return get_discipline_config(requested)
 
 
+def build_discipline_point_tiers():
+    rows = {}
+    for key, config in DISCIPLINE_CONFIG.items():
+        items = []
+        for value, points in DISCIPLINE_POINT_CURVES[key]:
+            if points <= 0:
+                continue
+            items.append(
+                {
+                    "value": value,
+                    "display": format_duration(value) if config["score_type"] == "time" else f"{value} reps",
+                    "points": points,
+                    "width_percent": round(points / 10),
+                }
+            )
+        rows[key] = {
+            "discipline": config,
+            "tiers": items,
+        }
+    return rows
+
+
 def parse_duration_to_seconds(value):
     raw = (value or "").strip()
+    if "." in raw and ":" not in raw:
+        dot_parts = raw.split(".")
+        if len(dot_parts) == 2 and all(part.isdigit() for part in dot_parts):
+            raw = ":".join(dot_parts)
     if not raw:
         raise ValueError("Enter a time.")
     parts = raw.split(":")
@@ -1149,6 +1226,113 @@ def is_goal_completed(user, goal, hybrid_summary=None):
     return current >= goal.target_value
 
 
+def get_best_verified_submission_before(user, discipline, created_at):
+    discipline = normalize_discipline(discipline)
+    submissions = user.submission_set.filter(
+        status=Submission.STATUS_VERIFIED,
+        discipline=discipline,
+        created_at__lte=created_at,
+    )
+    order = "-reps" if get_discipline_config(discipline)["higher_is_better"] else "reps"
+    return submissions.order_by(order, "created_at").first()
+
+
+def get_goal_completion_submission(user, goal):
+    if goal.goal_type not in {Goal.GOAL_PUSHUPS, Goal.GOAL_PULLUPS, Goal.GOAL_5K, Goal.GOAL_10K}:
+        return None
+    submissions = user.submission_set.filter(
+        status=Submission.STATUS_VERIFIED,
+        discipline=goal.goal_type,
+        created_at__gte=goal.created_at,
+    ).order_by("created_at")
+    for submission in submissions:
+        if goal.is_time_goal and submission.reps <= goal.target_value:
+            return submission
+        if not goal.is_time_goal and submission.reps >= goal.target_value:
+            return submission
+    return None
+
+
+def submission_points_for_value(discipline, value):
+    if value is None:
+        return 0
+    return Submission(discipline=discipline, reps=value).hybrid_points
+
+
+def get_goal_next_suggestion(goal, current):
+    if goal.goal_type == Goal.GOAL_HYBRID_SCORE:
+        next_rank = next((rank for rank in HYBRID_RANKS if rank["min_score"] > current), None)
+        if next_rank:
+            return {"display": f"{next_rank['min_score']} Hybrid Score", "tier": next_rank["name"]}
+        return {"display": "Defend your Hybrid Score", "tier": "Top line"}
+    if goal.goal_type not in DISCIPLINE_CONFIG:
+        return None
+    target = get_next_discipline_target(current, goal.goal_type)
+    if not target:
+        return {"display": "Defend this result", "tier": "Top line"}
+    config = get_discipline_config(goal.goal_type)
+    display = format_goal_value(target["value"], goal.goal_type)
+    unit = "" if config["score_type"] == "time" else f" {config['short_label']}"
+    return {"display": f"{display}{unit}", "tier": target["name"]}
+
+
+def get_goal_tier_name(goal, value):
+    if value is None:
+        return "No verified baseline"
+    if goal.goal_type == Goal.GOAL_HYBRID_SCORE:
+        return get_hybrid_rank(value)["name"]
+    if goal.goal_type in {Goal.GOAL_PUSHUPS, Goal.GOAL_PULLUPS, Goal.GOAL_5K, Goal.GOAL_10K}:
+        return Submission(discipline=goal.goal_type, reps=value).rank_name
+    return "Goal"
+
+
+def build_goal_detail(user, goal, current, completed, hybrid_summary):
+    config = get_discipline_config(goal.goal_type) if goal.goal_type in DISCIPLINE_CONFIG else None
+    baseline_submission = get_best_verified_submission_before(user, goal.goal_type, goal.created_at) if config else None
+    baseline = baseline_submission.reps if baseline_submission else None
+    if goal.goal_type == Goal.GOAL_HYBRID_SCORE:
+        baseline = 0
+    completion_submission = get_goal_completion_submission(user, goal)
+    completed_at = completion_submission.created_at if completion_submission else (timezone.now() if completed else None)
+    days_to_complete = max(0, (completed_at.date() - goal.created_at.date()).days) if completed_at else None
+    current_value = current or 0
+    if goal.is_time_goal:
+        improvement_value = max(0, (baseline or current_value) - current_value) if current else 0
+        improvement_display = f"{improvement_value}s faster" if improvement_value else "No verified improvement yet"
+    elif goal.goal_type == Goal.GOAL_HYBRID_SCORE:
+        improvement_value = current_value - (baseline or 0)
+        improvement_display = f"+{improvement_value} Hybrid points" if improvement_value > 0 else "No verified improvement yet"
+    else:
+        improvement_value = current_value - (baseline or 0)
+        improvement_display = f"+{improvement_value} reps" if improvement_value > 0 else "No verified improvement yet"
+
+    if config:
+        baseline_points = submission_points_for_value(goal.goal_type, baseline)
+        current_points = submission_points_for_value(goal.goal_type, current) if current else 0
+        point_delta = max(0, current_points - baseline_points)
+        goal_title = f"{format_goal_value(goal.target_value, goal.goal_type)} {config['short_label']} Achieved"
+        label = config["short_label"]
+    else:
+        point_delta = max(0, current_value - (baseline or 0))
+        goal_title = f"{goal.display_target} Achieved"
+        label = "Hybrid"
+
+    next_suggestion = get_goal_next_suggestion(goal, current_value)
+    from_tier = get_goal_tier_name(goal, baseline)
+    to_tier = next_suggestion["tier"] if completed and next_suggestion else get_goal_tier_name(goal, current)
+    return {
+        "title": goal_title,
+        "label": label,
+        "from_tier": from_tier,
+        "to_tier": to_tier,
+        "point_delta": point_delta,
+        "next_suggestion": next_suggestion,
+        "created_display": goal.created_at.strftime("%b %d, %Y") if hasattr(goal.created_at, "strftime") else "",
+        "days_to_complete": days_to_complete,
+        "improvement_display": improvement_display,
+    }
+
+
 def build_goal_rows(user, goals, hybrid_summary):
     rows = []
     for goal in goals:
@@ -1162,12 +1346,14 @@ def build_goal_rows(user, goals, hybrid_summary):
         else:
             current_display = f"{current or 0} reps"
             progress = min(100, round(((current or 0) / goal.target_value) * 100)) if goal.target_value else 0
+        completed = is_goal_completed(user, goal, hybrid_summary=hybrid_summary)
         rows.append(
             {
                 "goal": goal,
-                "completed": is_goal_completed(user, goal, hybrid_summary=hybrid_summary),
+                "completed": completed,
                 "current_display": current_display,
                 "progress_percent": progress,
+                "detail": build_goal_detail(user, goal, current, completed, hybrid_summary),
             }
         )
     return rows
@@ -1552,6 +1738,7 @@ def home(request):
     context = {
         "rank_tiers": RANK_TIERS,
         "discipline_cards": DISCIPLINE_CONFIG.values(),
+        "discipline_point_tiers": build_discipline_point_tiers(),
         "hybrid_top_five": build_hybrid_leaderboard_rows()[:5],
         "total_verified": len(verified_submissions),
         "total_submissions": len(public_submissions),
@@ -1569,6 +1756,7 @@ def level_test(request):
         "test_landing.html",
         {
             "rank_tiers": RANK_TIERS,
+            "discipline_point_tiers": build_discipline_point_tiers(),
             "total_verified": len(verified_submissions),
             "total_submissions": len(public_submission_queryset()),
         },
@@ -1628,6 +1816,7 @@ def rank(request):
             "submit_url": submit_url,
             "rank_tiers": RANK_TIERS,
             "discipline_cards": DISCIPLINE_CONFIG.values(),
+            "discipline_point_tiers": build_discipline_point_tiers(),
             "has_rank_input": any(raw_scores.values()),
             "raw_scores": raw_scores,
         },
@@ -1691,7 +1880,9 @@ def leaderboard(request, discipline_key=None):
         ),
         "leaderboard_modes": LEADERBOARD_MODES,
         "discipline_cards": DISCIPLINE_CONFIG.values(),
+        "discipline_point_tiers": build_discipline_point_tiers(),
         "hybrid_leaderboard": HYBRID_LEADERBOARD_CONFIG,
+        "hybrid_ranks": HYBRID_RANKS,
         "active_discipline": active_discipline,
         "is_hybrid_leaderboard": is_hybrid_leaderboard,
         "active_mode": active_mode,
@@ -1906,7 +2097,7 @@ def dashboard(request):
     progress_summary = get_progress_summary(verified_submissions)
     hybrid_summary = build_hybrid_breakdown(request.user)
     hybrid_rank_position = next(
-        (row["position"] for row in build_hybrid_leaderboard_rows() if row["user"].id == request.user.id),
+        (row["position"] for row in build_hybrid_leaderboard_rows() if row["user"] and row["user"].id == request.user.id),
         None,
     )
     recommendation = get_daily_suggestion(profile, verified_submissions.count(), workouts.count())
@@ -1995,7 +2186,7 @@ def profiles(request):
             | Q(user__username__icontains=query)
             | Q(country__icontains=query)
         )
-    hybrid_positions = {row["user"].id: row["position"] for row in build_hybrid_leaderboard_rows()}
+    hybrid_positions = {row["user"].id: row["position"] for row in build_hybrid_leaderboard_rows() if row["user"]}
     profile_rows = [
         {
             "profile": profile,
@@ -2021,7 +2212,7 @@ def athlete_profile(request, slug):
     profile.refresh_verified_stats()
     hybrid_summary = build_hybrid_breakdown(profile.user)
     hybrid_rank_position = next(
-        (row["position"] for row in build_hybrid_leaderboard_rows() if row["user"].id == profile.user.id),
+        (row["position"] for row in build_hybrid_leaderboard_rows() if row["user"] and row["user"].id == profile.user.id),
         None,
     )
     profile_description = (
@@ -2100,8 +2291,8 @@ def comparison(request, left, right):
     right_profile = get_object_or_404(Profile, slug=right)
     left_summary = build_hybrid_breakdown(left_profile.user)
     right_summary = build_hybrid_breakdown(right_profile.user)
-    left_rank = next((row["position"] for row in build_hybrid_leaderboard_rows() if row["user"].id == left_profile.user_id), None)
-    right_rank = next((row["position"] for row in build_hybrid_leaderboard_rows() if row["user"].id == right_profile.user_id), None)
+    left_rank = next((row["position"] for row in build_hybrid_leaderboard_rows() if row["user"] and row["user"].id == left_profile.user_id), None)
+    right_rank = next((row["position"] for row in build_hybrid_leaderboard_rows() if row["user"] and row["user"].id == right_profile.user_id), None)
     score_margin = abs(left_summary["score"] - right_summary["score"])
     completion_margin = abs(left_summary["verified_count"] - right_summary["verified_count"])
     if left_summary["score"] > right_summary["score"]:
@@ -2799,6 +2990,7 @@ def calculators(request):
             "rank_tiers": RANK_TIERS,
             "content_prompts": prompts,
             "discipline_cards": DISCIPLINE_CONFIG.values(),
+            "discipline_point_tiers": build_discipline_point_tiers(),
             "hybrid_ranks": HYBRID_RANKS,
         },
     )

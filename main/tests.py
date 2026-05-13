@@ -220,8 +220,8 @@ class SubmissionFlowTests(TestCase):
         self.assertEqual(response.context["hybrid_summary"]["score"], 562)
         pushups = next(item for item in response.context["hybrid_summary"]["breakdown"] if item["discipline"]["key"] == Submission.DISCIPLINE_PUSHUPS)
         pullups = next(item for item in response.context["hybrid_summary"]["breakdown"] if item["discipline"]["key"] == Submission.DISCIPLINE_PULLUPS)
-        self.assertEqual(pushups["points"], 500)
-        self.assertEqual(pullups["points"], 625)
+        self.assertEqual(pushups["points"], 450)
+        self.assertEqual(pullups["points"], 675)
 
     def test_discipline_points_are_balanced_by_rank_tier(self):
         advanced_scores = [
@@ -232,16 +232,49 @@ class SubmissionFlowTests(TestCase):
         ]
 
         for score in advanced_scores:
-            self.assertGreaterEqual(score, 500)
+            self.assertGreaterEqual(score, 450)
             self.assertLessEqual(score, 750)
 
         elite_scores = [
-            calculate_submission_points(Submission(reps=60, discipline=Submission.DISCIPLINE_PUSHUPS)),
+            calculate_submission_points(Submission(reps=70, discipline=Submission.DISCIPLINE_PUSHUPS)),
             calculate_submission_points(Submission(reps=20, discipline=Submission.DISCIPLINE_PULLUPS)),
             calculate_submission_points(Submission(reps=18 * 60, discipline=Submission.DISCIPLINE_5K)),
             calculate_submission_points(Submission(reps=38 * 60, discipline=Submission.DISCIPLINE_10K)),
         ]
         self.assertTrue(all(score >= 750 for score in elite_scores))
+
+    def test_discipline_points_match_current_public_thresholds(self):
+        thresholds = [
+            (Submission.DISCIPLINE_PUSHUPS, 20, 250),
+            (Submission.DISCIPLINE_PUSHUPS, 40, 450),
+            (Submission.DISCIPLINE_PUSHUPS, 50, 600),
+            (Submission.DISCIPLINE_PUSHUPS, 70, 850),
+            (Submission.DISCIPLINE_PUSHUPS, 85, 950),
+            (Submission.DISCIPLINE_PUSHUPS, 100, 1000),
+            (Submission.DISCIPLINE_PULLUPS, 5, 250),
+            (Submission.DISCIPLINE_PULLUPS, 10, 500),
+            (Submission.DISCIPLINE_PULLUPS, 15, 675),
+            (Submission.DISCIPLINE_PULLUPS, 20, 800),
+            (Submission.DISCIPLINE_PULLUPS, 30, 950),
+            (Submission.DISCIPLINE_PULLUPS, 35, 1000),
+            (Submission.DISCIPLINE_5K, 30 * 60, 250),
+            (Submission.DISCIPLINE_5K, 25 * 60, 450),
+            (Submission.DISCIPLINE_5K, 22 * 60, 600),
+            (Submission.DISCIPLINE_5K, 18 * 60, 850),
+            (Submission.DISCIPLINE_5K, 16 * 60, 950),
+            (Submission.DISCIPLINE_5K, 15 * 60, 1000),
+            (Submission.DISCIPLINE_10K, 60 * 60, 250),
+            (Submission.DISCIPLINE_10K, 50 * 60, 450),
+            (Submission.DISCIPLINE_10K, 44 * 60, 600),
+            (Submission.DISCIPLINE_10K, 38 * 60, 800),
+            (Submission.DISCIPLINE_10K, 34 * 60, 900),
+            (Submission.DISCIPLINE_10K, 32 * 60, 950),
+            (Submission.DISCIPLINE_10K, 30 * 60, 1000),
+        ]
+
+        for discipline, value, expected in thresholds:
+            with self.subTest(discipline=discipline, value=value):
+                self.assertEqual(calculate_submission_points(Submission(reps=value, discipline=discipline)), expected)
 
     def test_hybrid_leaderboard_sorts_by_hybrid_score(self):
         lower = User.objects.create_user(username="lower-hybrid", password="StrongPass12345")
@@ -257,6 +290,30 @@ class SubmissionFlowTests(TestCase):
         rows = list(response.context["leaderboard_rows"].object_list)
 
         self.assertEqual([row["profile"].display_name for row in rows], ["Higher Hybrid", "Lower Hybrid"])
+
+    def test_hybrid_leaderboard_includes_verified_anonymous_athletes(self):
+        Submission.objects.create(
+            name="Anonymous Hybrid",
+            email="anonymous-hybrid@example.com",
+            reps=70,
+            discipline=Submission.DISCIPLINE_PUSHUPS,
+            status=Submission.STATUS_VERIFIED,
+        )
+        Submission.objects.create(
+            name="Anonymous Hybrid",
+            email="anonymous-hybrid@example.com",
+            reps=20,
+            discipline=Submission.DISCIPLINE_PULLUPS,
+            status=Submission.STATUS_VERIFIED,
+        )
+
+        response = self.client.get(reverse("leaderboard"))
+
+        self.assertContains(response, "Anonymous Hybrid")
+        rows = list(response.context["leaderboard_rows"].object_list)
+        anonymous = next(row for row in rows if row["display_name"] == "Anonymous Hybrid")
+        self.assertTrue(anonymous["is_anonymous"])
+        self.assertEqual(anonymous["verified_count"], 2)
 
     def test_profile_prioritizes_hybrid_score_and_breakdown(self):
         user = User.objects.create_user(username="hybrid-profile", password="StrongPass12345")
@@ -320,6 +377,21 @@ class SubmissionFlowTests(TestCase):
         self.assertEqual(five.display_score, "21:34")
         self.assertEqual(ten.reps, 2660)
         self.assertEqual(ten.display_score, "44:20")
+
+    def test_run_time_accepts_dot_separator_as_time(self):
+        self.client.post(
+            reverse("challenge"),
+            {
+                "name": "Dot Runner",
+                "email": "dot-run@example.com",
+                "discipline": Submission.DISCIPLINE_5K,
+                "score": "21.34",
+            },
+        )
+
+        submission = Submission.objects.get(email="dot-run@example.com")
+        self.assertEqual(submission.reps, 21 * 60 + 34)
+        self.assertEqual(submission.display_score, "21:34")
 
     def test_run_time_rejects_seconds_only_format(self):
         response = self.client.post(
@@ -558,7 +630,7 @@ class SubmissionFlowTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Find your Hybrid Score")
-        self.assertContains(response, "525 pts")
+        self.assertContains(response, "480 pts")
         self.assertContains(response, "Submit Official Result")
         self.assertNotContains(response, "Prove Your Score")
         self.assertContains(response, f"{reverse('challenge')}?discipline=pushups&amp;score=42#submit-form-top", html=False)
@@ -743,6 +815,35 @@ class SubmissionFlowTests(TestCase):
         goal = user.goals.get(goal_type=Submission.DISCIPLINE_5K)
         self.assertEqual(goal.target_value, 1294)
         self.assertEqual(goal.display_target, "21:34")
+
+    def test_dashboard_goal_completion_opens_richer_goal_modal(self):
+        user = User.objects.create_user(username="goal-modal", password="StrongPass12345")
+        Submission.objects.create(
+            user=user,
+            name="Goal Modal",
+            reps=40,
+            discipline=Submission.DISCIPLINE_PUSHUPS,
+            status=Submission.STATUS_VERIFIED,
+        )
+        goal = user.goals.create(goal_type=Submission.DISCIPLINE_PUSHUPS, target_value=50)
+        Submission.objects.create(
+            user=user,
+            name="Goal Modal",
+            reps=50,
+            discipline=Submission.DISCIPLINE_PUSHUPS,
+            status=Submission.STATUS_VERIFIED,
+        )
+        self.client.force_login(user)
+
+        response = self.client.get(reverse("dashboard"))
+
+        self.assertContains(response, "Goal completed")
+        self.assertContains(response, "50 Push-ups Achieved")
+        self.assertContains(response, "Advanced -> Elite Push-ups")
+        self.assertContains(response, "Next Suggested Goal")
+        self.assertContains(response, "60 Push-ups")
+        self.assertContains(response, "data-goal-modal")
+        self.assertContains(response, f'data-goal-delete-url="{reverse("delete_goal", args=[goal.id])}"', html=False)
 
     def test_goal_target_must_improve_current_best(self):
         user = User.objects.create_user(username="goal-validation", password="StrongPass12345")

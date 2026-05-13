@@ -759,7 +759,7 @@
         </div>
     </section>
 
-    <section class="card-dark home-reveal">
+    <section id="rank-tiers" class="card-dark home-reveal" style="scroll-margin-top: 96px;">
         <div class="section-spread">
             <div class="home-section-head" style="margin-bottom: 0;">
             <h2>Discipline ranks</h2>
@@ -767,7 +767,7 @@
             </div>
             <a class="btn-secondary" href="{% url 'challenge' %}#submit-form-top">Submit Official Result</a>
         </div>
-        <div class="home-rank-grid" id="rank-tiers">
+        <div class="home-rank-grid">
             <div class="home-rank-card rank-beginner home-reveal"><strong>Beginner Hybrid</strong><span>0-349 score</span></div>
             <div class="home-rank-card rank-intermediate home-reveal"><strong>Intermediate Hybrid</strong><span>350-549 score</span></div>
             <div class="home-rank-card rank-advanced home-reveal"><strong>Advanced Hybrid</strong><span>550-749 score</span></div>
@@ -819,10 +819,10 @@
                         {% elif row.profile %}
                             <span class="avatar">{{ row.profile.display_name|first|upper }}</span>
                         {% else %}
-                            <span class="avatar">{{ row.user.username|first|upper }}</span>
+                            <span class="avatar">{{ row.display_name|first|upper }}</span>
                         {% endif %}
                         <div class="score-row-main">
-                            <div class="submission-name">{% if row.profile %}<a href="{% url 'athlete_profile' row.profile.slug %}">{{ row.profile.display_name }}</a>{% else %}{{ row.user.username }}{% endif %}</div>
+                            <div class="submission-name">{% if row.profile %}<a href="{% url 'athlete_profile' row.profile.slug %}">{{ row.profile.display_name }}</a>{% else %}{{ row.display_name }}{% endif %}</div>
                             <div class="submission-meta">{{ row.hybrid_rank.name }} - {{ row.verified_count }}/4 verified</div>
                         </div>
                         <div class="score-row-score">

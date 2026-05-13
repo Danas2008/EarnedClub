@@ -171,7 +171,7 @@
                                 value="{{ form_score }}"
                                 required
                             >
-                            <div class="hint">{% if selected_discipline.score_type == "time" %}Use MM:SS or HH:MM:SS, like 21:34. Lower time ranks higher.{% else %}Enter strict reps. Higher score ranks higher.{% endif %}</div>
+                            <div class="hint" data-score-hint>{% if selected_discipline.score_type == "time" %}Use MM:SS or HH:MM:SS, like 21:34. Tip: 21.34 becomes 21:34.{% else %}Enter strict reps. Higher score ranks higher.{% endif %}</div>
                         </div>
 
                         <div data-proof-link {% if selected_discipline.score_type != "time" %}hidden{% endif %}>
@@ -305,18 +305,33 @@
         const label = document.querySelector("label[for='score']");
         const videoProof = document.querySelector("[data-video-proof]");
         const proofLink = document.querySelector("[data-proof-link]");
+        const scoreHint = document.querySelector("[data-score-hint]");
         if (!discipline || !score || !label) return;
+
+        function normalizeTimeInput() {
+            const option = discipline.selectedOptions[0];
+            if (option.dataset.scoreType !== "time") return;
+            const raw = score.value.trim();
+            const converted = raw.replace(/^(\d+)\.(\d+)$/, "$1:$2");
+            if (converted !== raw) score.value = converted;
+            const parts = converted.split(":");
+            const valid = parts.length >= 2 && parts.length <= 3 && parts.every((part) => /^\d+$/.test(part)) && Number(parts[parts.length - 1]) <= 59 && Number(parts[parts.length - 2]) <= 59;
+            if (scoreHint) scoreHint.textContent = valid || !converted ? "Use MM:SS or HH:MM:SS, like 21:34. Tip: 21.34 becomes 21:34." : "Enter a valid time like 21:34. Use numbers and a colon.";
+        }
 
         discipline.addEventListener("change", () => {
             const option = discipline.selectedOptions[0];
             label.textContent = option.dataset.inputLabel || "Performance";
             score.placeholder = option.dataset.placeholder || "";
             score.inputMode = option.dataset.scoreType === "time" ? "text" : "numeric";
+            if (scoreHint) scoreHint.textContent = option.dataset.scoreType === "time" ? "Use MM:SS or HH:MM:SS, like 21:34. Tip: 21.34 becomes 21:34." : "Enter strict reps. Higher score ranks higher.";
             if (videoProof) videoProof.hidden = option.dataset.scoreType === "time";
             if (proofLink) proofLink.hidden = option.dataset.scoreType !== "time";
             const proofLabel = document.querySelector("label[for='proof_link']");
             if (proofLabel) proofLabel.childNodes[0].textContent = option.dataset.proofLabel || "Proof link";
         });
+        score.addEventListener("input", normalizeTimeInput);
+        score.addEventListener("blur", normalizeTimeInput);
     })();
     for (const shareButton of document.querySelectorAll("[data-share-text]")) {
         const originalLabel = shareButton.textContent;

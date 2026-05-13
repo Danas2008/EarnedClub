@@ -4,6 +4,56 @@
 {% block meta_description %}Useful fitness calculators for Hybrid Score, one-rep max, BMI, running pace, and Earned Club discipline targets.{% endblock %}
 
 {% block content %}
+<style>
+    .score-tool { display: grid; gap: 16px; }
+    .score-output {
+        display: grid;
+        gap: 8px;
+        padding: 16px;
+        border-radius: var(--radius-md);
+        border: 1px solid rgba(247, 183, 51, .24);
+        background: linear-gradient(135deg, rgba(247, 183, 51, .13), rgba(30, 157, 116, .07));
+    }
+    .score-output strong {
+        font-family: "Archivo", sans-serif;
+        font-size: clamp(2.4rem, 12vw, 4.6rem);
+        line-height: .82;
+        color: var(--accent);
+    }
+    .slider-stack { display: grid; gap: 14px; }
+    .slider-row { display: grid; gap: 8px; }
+    .slider-head { display: flex; justify-content: space-between; gap: 10px; align-items: center; }
+    .range-input { width: 100%; accent-color: #f7b733; }
+    .tier-matrix { display: grid; gap: 12px; }
+    .tier-board {
+        display: grid;
+        gap: 10px;
+        padding: 14px;
+        border-radius: var(--radius-md);
+        border: 1px solid rgba(255, 255, 255, .08);
+        background: rgba(255, 255, 255, .04);
+    }
+    .tier-ladder { display: grid; gap: 7px; }
+    .tier-rung {
+        display: grid;
+        grid-template-columns: minmax(72px, .55fr) minmax(66px, .45fr) minmax(0, 1fr);
+        gap: 8px;
+        align-items: center;
+        padding: 8px 10px;
+        border-radius: var(--radius-sm);
+        background: rgba(8, 11, 15, .3);
+    }
+    .tier-bar {
+        height: 8px;
+        border-radius: 999px;
+        background: linear-gradient(90deg, var(--accent), var(--accent-2));
+        width: var(--bar-width);
+    }
+    @media (min-width: 820px) {
+        .tier-matrix { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+</style>
+
 <section class="hero-card" style="margin-bottom: 24px;">
     <div class="content-split">
         <div>
@@ -17,16 +67,38 @@
 
 <section class="grid-2">
     <div class="card-dark calculator-card">
-        <h2>Hybrid Score</h2>
-        <form class="calculator-form" onsubmit="return false;">
-            <div class="grid-2">
-                <input id="hybrid-pushups" class="input" type="number" min="0" step="1" placeholder="Push-ups">
-                <input id="hybrid-pullups" class="input" type="number" min="0" step="1" placeholder="Pull-ups">
-                <input id="hybrid-5k" class="input" type="text" placeholder="5K time 21:34">
-                <input id="hybrid-10k" class="input" type="text" placeholder="10K time 44:20">
+        <h2>Hybrid Points Calculator</h2>
+        <form class="calculator-form score-tool" onsubmit="return false;">
+            <select id="score-mode" class="select">
+                <option value="hybrid">Hybrid Points</option>
+                <option value="pushups">Push-ups</option>
+                <option value="pullups">Pull-ups</option>
+                <option value="run_5k">5K</option>
+                <option value="run_10k">10K</option>
+            </select>
+            <div class="slider-stack">
+                <div class="slider-row" data-score-slider="pushups">
+                    <div class="slider-head"><label class="field-label" for="calc-pushups">Push-ups</label><span class="tag-pill" data-score-display="pushups">40 reps</span></div>
+                    <input id="calc-pushups" class="range-input" type="range" min="0" max="110" step="1" value="40">
+                </div>
+                <div class="slider-row" data-score-slider="pullups">
+                    <div class="slider-head"><label class="field-label" for="calc-pullups">Pull-ups</label><span class="tag-pill" data-score-display="pullups">10 reps</span></div>
+                    <input id="calc-pullups" class="range-input" type="range" min="0" max="45" step="1" value="10">
+                </div>
+                <div class="slider-row" data-score-slider="run_5k">
+                    <div class="slider-head"><label class="field-label" for="calc-5k">5K</label><span class="tag-pill" data-score-display="run_5k">25:00</span></div>
+                    <input id="calc-5k" class="range-input" type="range" min="900" max="2400" step="5" value="1500">
+                </div>
+                <div class="slider-row" data-score-slider="run_10k">
+                    <div class="slider-head"><label class="field-label" for="calc-10k">10K</label><span class="tag-pill" data-score-display="run_10k">50:00</span></div>
+                    <input id="calc-10k" class="range-input" type="range" min="1800" max="4500" step="5" value="3000">
+                </div>
             </div>
-            <button class="btn-main" type="button" onclick="calculateHybridScore()">Calculate</button>
-            <div id="hybrid-result" class="hint">Estimate your Overall Athlete Rating. Verified submissions make it official.</div>
+            <div class="score-output">
+                <span class="kicker" id="score-result-label">Estimated Hybrid Score</span>
+                <strong id="score-result-value">0</strong>
+                <div class="muted" id="score-result-detail">Move the sliders to see live points.</div>
+            </div>
         </form>
     </div>
 
@@ -90,12 +162,41 @@
 </section>
 
 <section class="card-dark">
-    <h2>Benchmarks</h2>
-    {% include "includes/rank_benchmark_carousel.html" %}
+    <div class="section-spread">
+        <div>
+            <h2>Point Tiers</h2>
+            <p class="muted">The current Earned Club scoring curve for each discipline.</p>
+        </div>
+    </div>
+    <div class="tier-matrix">
+        {% for key, board in discipline_point_tiers.items %}
+            <div class="tier-board">
+                <div>
+                    <span class="kicker">{{ board.discipline.short_label }}</span>
+                    <h3>{{ board.discipline.title }}</h3>
+                </div>
+                <div class="tier-ladder">
+                    {% for tier in board.tiers %}
+                        <div class="tier-rung">
+                            <strong>{{ tier.display }}</strong>
+                            <span class="tag-pill">{{ tier.points }} pts</span>
+                            <span class="tier-bar" style="--bar-width: {{ tier.width_percent }}%;"></span>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        {% endfor %}
+    </div>
 </section>
 
 {{ rank_tiers|json_script:"rank-tier-data" }}
+{{ discipline_point_tiers|json_script:"discipline-point-tier-data" }}
 <script>
+    const disciplinePointData = JSON.parse(document.getElementById("discipline-point-tier-data").textContent);
+    const pointCurves = Object.fromEntries(Object.entries(disciplinePointData).map(([key, row]) => {
+        const baseline = row.discipline.score_type === "time" ? (key === "run_5k" ? [2400, 0] : [4500, 0]) : [0, 0];
+        return [key, [baseline, ...row.tiers.map((tier) => [tier.value, tier.points])]];
+    }));
     const tiers = JSON.parse(document.getElementById("rank-tier-data").textContent).map((tier) => ({
         name: tier.name, min: tier.min_reps, max: tier.max_reps, benchmark: tier.benchmark
     }));
@@ -103,22 +204,39 @@
         return tiers.find((tier) => reps >= tier.min && (tier.max === null || reps <= tier.max)) || tiers[0];
     }
     function parseTimeToSeconds(value) {
-        const raw = (value || "").trim();
+        const raw = (value || "").trim().replace(/^(\d+)\.(\d+)$/, "$1:$2");
         if (!raw) return null;
         const parts = raw.split(":").map((part) => Number(part));
         if (!parts.every((part) => Number.isInteger(part) && part >= 0)) return null;
-        if (parts.length === 2) return parts[0] * 60 + parts[1];
-        if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
+        if (parts.length === 2 && parts[1] <= 59) return parts[0] * 60 + parts[1];
+        if (parts.length === 3 && parts[1] <= 59 && parts[2] <= 59) return parts[0] * 3600 + parts[1] * 60 + parts[2];
         return null;
     }
-    function repPoints(value, target) {
-        return Math.max(0, Math.min(1000, Math.round((value / target) * 1000)));
+    function formatTime(seconds) {
+        const h = Math.floor(seconds / 3600);
+        const m = Math.floor((seconds % 3600) / 60);
+        const s = seconds % 60;
+        return h ? `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}` : `${m}:${String(s).padStart(2, "0")}`;
     }
-    function timePoints(seconds, worldRecord, floor) {
-        if (!seconds) return null;
-        if (seconds <= worldRecord) return 1000;
-        if (seconds >= floor) return 0;
-        return Math.max(0, Math.min(1000, Math.round(((floor - seconds) / (floor - worldRecord)) * 1000)));
+    function scorePoints(discipline, value) {
+        const curve = pointCurves[discipline];
+        const isTime = disciplinePointData[discipline].discipline.score_type === "time";
+        if (!isTime) {
+            if (value <= curve[0][0]) return curve[0][1];
+            for (let i = 1; i < curve.length; i += 1) {
+                const [highValue, highPoints] = curve[i];
+                const [lowValue, lowPoints] = curve[i - 1];
+                if (value <= highValue) return Math.round(lowPoints + ((value - lowValue) / (highValue - lowValue)) * (highPoints - lowPoints));
+            }
+            return 1000;
+        }
+        if (value >= curve[0][0]) return curve[0][1];
+        for (let i = 1; i < curve.length; i += 1) {
+            const [highValue, highPoints] = curve[i];
+            const [lowValue, lowPoints] = curve[i - 1];
+            if (value >= highValue) return Math.round(lowPoints + ((value - lowValue) / (highValue - lowValue)) * (highPoints - lowPoints));
+        }
+        return 1000;
     }
     function hybridRank(score) {
         if (score >= 900) return "Earned Legend";
@@ -128,21 +246,7 @@
         return "Beginner Hybrid";
     }
     function calculateHybridScore() {
-        const values = [];
-        const pushups = Number(document.getElementById("hybrid-pushups").value);
-        const pullups = Number(document.getElementById("hybrid-pullups").value);
-        const fiveK = parseTimeToSeconds(document.getElementById("hybrid-5k").value);
-        const tenK = parseTimeToSeconds(document.getElementById("hybrid-10k").value);
-        if (pushups > 0) values.push(repPoints(pushups, 80));
-        if (pullups > 0) values.push(repPoints(pullups, 30));
-        const fivePoints = timePoints(fiveK, 769, 2700);
-        const tenPoints = timePoints(tenK, 1584, 5400);
-        if (fivePoints !== null) values.push(fivePoints);
-        if (tenPoints !== null) values.push(tenPoints);
-        const result = document.getElementById("hybrid-result");
-        if (!values.length) return result.textContent = "Add at least one discipline result.";
-        const score = Math.round(values.reduce((sum, value) => sum + value, 0) / values.length);
-        result.textContent = `Hybrid Score ${score}. ${hybridRank(score)}. Official score uses verified performances only.`;
+        updateScoreCalculator();
     }
     function calculateOneRepMax() {
         const exercise = document.getElementById("orm-exercise").value;
@@ -181,7 +285,7 @@
         const result = document.getElementById("rank-result");
         if (discipline === "run_5k" || discipline === "run_10k") {
             const seconds = parseTimeToSeconds(raw);
-            if (!seconds) return result.textContent = "Enter time as MM:SS or HH:MM:SS.";
+            if (!seconds) return result.textContent = "Enter a valid time like 21:34. Tip: 21.34 becomes 21:34.";
             if (discipline === "run_5k") {
                 const label = seconds < 960 ? "Earned Legend" : seconds < 1080 ? "Elite" : seconds < 1500 ? "Advanced" : seconds < 1800 ? "Intermediate" : "Beginner";
                 return result.textContent = `5K: ${label}. Sub-18 is Elite.`;
@@ -204,5 +308,39 @@
         input.type = event.target.value.startsWith("run_") ? "text" : "number";
         input.placeholder = event.target.value === "run_5k" ? "21:34" : event.target.value === "run_10k" ? "44:20" : event.target.value === "pullups" ? "Strict pull-ups" : "Strict push-ups";
     });
+    function updateScoreCalculator() {
+        const values = {
+            pushups: Number(document.getElementById("calc-pushups").value),
+            pullups: Number(document.getElementById("calc-pullups").value),
+            run_5k: Number(document.getElementById("calc-5k").value),
+            run_10k: Number(document.getElementById("calc-10k").value),
+        };
+        Object.entries(values).forEach(([key, value]) => {
+            const display = document.querySelector(`[data-score-display="${key}"]`);
+            display.textContent = disciplinePointData[key].discipline.score_type === "time" ? formatTime(value) : `${value}${value > 100 && key === "pushups" ? "+" : ""} reps`;
+        });
+        const mode = document.getElementById("score-mode").value;
+        document.querySelectorAll("[data-score-slider]").forEach((row) => {
+            row.hidden = mode !== "hybrid" && row.dataset.scoreSlider !== mode;
+        });
+        const resultLabel = document.getElementById("score-result-label");
+        const resultValue = document.getElementById("score-result-value");
+        const resultDetail = document.getElementById("score-result-detail");
+        if (mode === "hybrid") {
+            const scores = Object.entries(values).map(([key, value]) => scorePoints(key, value));
+            const score = Math.round(scores.reduce((sum, value) => sum + value, 0) / scores.length);
+            resultLabel.textContent = "Estimated Hybrid Score";
+            resultValue.textContent = score;
+            resultDetail.textContent = `${hybridRank(score)} from 4 discipline sliders. Verified submissions make it official.`;
+            return;
+        }
+        const points = scorePoints(mode, values[mode]);
+        resultLabel.textContent = `${disciplinePointData[mode].discipline.short_label} points`;
+        resultValue.textContent = points;
+        resultDetail.textContent = `${disciplinePointData[mode].discipline.score_type === "time" ? formatTime(values[mode]) : `${values[mode]} reps`} converts to ${points} Hybrid points.`;
+    }
+    document.getElementById("score-mode").addEventListener("change", updateScoreCalculator);
+    document.querySelectorAll(".range-input").forEach((input) => input.addEventListener("input", updateScoreCalculator));
+    updateScoreCalculator();
 </script>
 {% endblock %}

@@ -211,6 +211,42 @@
         font-size: 1.1rem;
     }
 
+    .goal-complete-card,
+    .goal-row-button {
+        width: 100%;
+        text-align: left;
+        color: var(--text);
+        cursor: pointer;
+    }
+
+    .goal-complete-card {
+        display: grid;
+        gap: 10px;
+        margin-bottom: 12px;
+        padding: 14px;
+        border: 1px solid rgba(141, 240, 201, .28);
+        border-radius: var(--radius-md);
+        background: linear-gradient(145deg, rgba(141, 240, 201, .12), rgba(247, 183, 51, .07));
+    }
+
+    .goal-complete-card h3 {
+        margin: 0;
+        font-size: 1.45rem;
+    }
+
+    .goal-outcome-line {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        align-items: center;
+    }
+
+    .goal-row-button {
+        border: 0;
+        padding: 0;
+        background: transparent;
+    }
+
     .progress-header {
         display: flex;
         justify-content: space-between;
@@ -478,20 +514,32 @@
         <h2>Goals</h2>
         {% for row in goal_rows %}
             {% if row.completed %}
-            <div class="mini-card" style="margin-bottom: 12px;">
+            <button
+                class="goal-complete-card"
+                type="button"
+                data-goal-card
+                data-goal-title="{{ row.detail.title }}"
+                data-goal-status="Goal Completed"
+                data-goal-transition="{{ row.detail.from_tier }} -> {{ row.detail.to_tier }} {{ row.detail.label }}"
+                data-goal-points="+{{ row.detail.point_delta }} Hybrid Points"
+                data-goal-next="{% if row.detail.next_suggestion %}{{ row.detail.next_suggestion.display }}{% else %}Keep building{% endif %}"
+                data-goal-created="{{ row.detail.created_display }}"
+                data-goal-days="{% if row.detail.days_to_complete is not None %}{{ row.detail.days_to_complete }} day{{ row.detail.days_to_complete|pluralize }}{% else %}Still active{% endif %}"
+                data-goal-improvement="{{ row.detail.improvement_display }}"
+                data-goal-share-text="I completed my EarnedClub goal: {{ row.detail.title }}. +{{ row.detail.point_delta }} Hybrid Points. {{ profile_share_message }}"
+                data-goal-delete-url="{% url 'delete_goal' row.goal.id %}"
+            >
                 <span class="status-pill verified">Goal completed</span>
-                <div class="submission-name" style="margin-top: 10px;">
-                    {{ row.goal.get_goal_type_display }} - {{ row.goal.display_target }}
+                <h3>{{ row.detail.title }}</h3>
+                <div class="goal-outcome-line">
+                    <span class="tag-pill">{{ row.detail.from_tier }} -> {{ row.detail.to_tier }} {{ row.detail.label }}</span>
+                    <span class="status-pill pending">+{{ row.detail.point_delta }} Hybrid Points</span>
                 </div>
-                <p class="muted">Current: {{ row.current_display }}.</p>
-                <div class="button-row" style="margin-top: 0;">
-                    <button class="btn-main" type="button" data-share-text="I completed my EarnedClub goal: {{ row.goal.get_goal_type_display }} {{ row.goal.display_target }}. {{ profile_share_message }}">Share Goal</button>
-                    <form method="POST" action="{% url 'delete_goal' row.goal.id %}">
-                        {% csrf_token %}
-                        <button class="btn-secondary" type="submit">Delete</button>
-                    </form>
+                <div class="mini-card">
+                    <span class="kicker">Next Suggested Goal</span>
+                    <div class="submission-name">{% if row.detail.next_suggestion %}{{ row.detail.next_suggestion.display }}{% else %}Keep building{% endif %}</div>
                 </div>
-            </div>
+            </button>
             {% endif %}
         {% endfor %}
         <form class="submission-form" method="POST">
@@ -515,7 +563,22 @@
             <button class="btn-secondary" type="submit">Save Goal</button>
         </form>
         {% for row in goal_rows %}
-            <div class="score-row" style="margin-top: 10px;">
+            <button
+                class="score-row goal-row-button"
+                style="margin-top: 10px;"
+                type="button"
+                data-goal-card
+                data-goal-title="{{ row.goal.get_goal_type_display }}: {{ row.goal.display_target }}"
+                data-goal-status="{% if row.completed %}Goal Completed{% else %}Goal In Progress{% endif %}"
+                data-goal-transition="{{ row.detail.from_tier }} -> {{ row.detail.to_tier }} {{ row.detail.label }}"
+                data-goal-points="+{{ row.detail.point_delta }} Hybrid Points"
+                data-goal-next="{% if row.detail.next_suggestion %}{{ row.detail.next_suggestion.display }}{% else %}Keep building{% endif %}"
+                data-goal-created="{{ row.detail.created_display }}"
+                data-goal-days="{% if row.detail.days_to_complete is not None %}{{ row.detail.days_to_complete }} day{{ row.detail.days_to_complete|pluralize }}{% else %}Still active{% endif %}"
+                data-goal-improvement="{{ row.detail.improvement_display }}"
+                data-goal-share-text="My EarnedClub goal: {{ row.goal.get_goal_type_display }} {{ row.goal.display_target }}. {{ profile_share_message }}"
+                data-goal-delete-url="{% url 'delete_goal' row.goal.id %}"
+            >
                 <div class="score-row-main">
                     <div class="submission-name">{{ row.goal.get_goal_type_display }}: {{ row.goal.display_target }}</div>
                     <div class="submission-meta">
@@ -523,11 +586,8 @@
                     </div>
                     <div class="discipline-meter" style="--meter-width: {{ row.progress_percent }}%;"><span></span></div>
                 </div>
-                <form method="POST" action="{% url 'delete_goal' row.goal.id %}">
-                    {% csrf_token %}
-                    <button class="btn-secondary" type="submit">Delete</button>
-                </form>
-            </div>
+                <span class="btn-secondary" style="pointer-events: none;">Open</span>
+            </button>
         {% empty %}
             <p class="muted">No active goals.</p>
         {% endfor %}
@@ -667,6 +727,47 @@
             <div class="submission-name" data-modal-badge-reason></div>
         </div>
         <button class="btn-main" type="button" data-modal-badge-share style="margin-top: 14px;">Share Badge</button>
+    </div>
+</div>
+
+<div class="badge-modal" data-goal-modal aria-hidden="true">
+    <div class="badge-modal-panel" role="dialog" aria-modal="true" aria-labelledby="goal-modal-title">
+        <div class="section-spread">
+            <span class="badge-icon">G</span>
+            <button class="btn-secondary" type="button" data-close-goal style="min-height: 34px; padding: 6px 10px;">Close</button>
+        </div>
+        <span class="status-pill verified" data-modal-goal-status>Goal Completed</span>
+        <h2 id="goal-modal-title" data-modal-goal-title style="margin-top: 12px;">Goal</h2>
+        <div class="mini-card">
+            <span class="kicker">Progress jump</span>
+            <div class="submission-name" data-modal-goal-transition></div>
+            <div class="submission-meta" data-modal-goal-points></div>
+        </div>
+        <div class="mini-card" style="margin-top: 12px;">
+            <span class="kicker">Next Suggested Goal</span>
+            <div class="submission-name" data-modal-goal-next></div>
+        </div>
+        <div class="grid-2" style="margin-top: 12px;">
+            <div class="feature-card">
+                <span class="kicker">Set</span>
+                <div class="submission-name" data-modal-goal-created></div>
+            </div>
+            <div class="feature-card">
+                <span class="kicker">Time</span>
+                <div class="submission-name" data-modal-goal-days></div>
+            </div>
+        </div>
+        <div class="mini-card" style="margin-top: 12px;">
+            <span class="kicker">Improvement since set</span>
+            <div class="submission-name" data-modal-goal-improvement></div>
+        </div>
+        <div class="button-row">
+            <button class="btn-main" type="button" data-modal-goal-share>Share Goal</button>
+            <form method="POST" data-modal-goal-delete-form>
+                {% csrf_token %}
+                <button class="btn-secondary" type="submit">Delete</button>
+            </form>
+        </div>
     </div>
 </div>
 
@@ -859,6 +960,42 @@
             await navigator.clipboard.writeText(text);
             modalShare.textContent = "Copied";
             setTimeout(() => modalShare.textContent = "Share Badge", 1200);
+        }
+    });
+    const goalModal = document.querySelector("[data-goal-modal]");
+    const goalShare = document.querySelector("[data-modal-goal-share]");
+    const goalDeleteForm = document.querySelector("[data-modal-goal-delete-form]");
+    function closeGoalModal() {
+        goalModal?.classList.remove("is-open");
+        goalModal?.setAttribute("aria-hidden", "true");
+    }
+    for (const goal of document.querySelectorAll("[data-goal-card]")) {
+        goal.addEventListener("click", () => {
+            document.querySelector("[data-modal-goal-status]").textContent = goal.dataset.goalStatus || "Goal";
+            document.querySelector("[data-modal-goal-title]").textContent = goal.dataset.goalTitle || "Goal";
+            document.querySelector("[data-modal-goal-transition]").textContent = goal.dataset.goalTransition || "";
+            document.querySelector("[data-modal-goal-points]").textContent = goal.dataset.goalPoints || "";
+            document.querySelector("[data-modal-goal-next]").textContent = goal.dataset.goalNext || "Keep building";
+            document.querySelector("[data-modal-goal-created]").textContent = goal.dataset.goalCreated || "";
+            document.querySelector("[data-modal-goal-days]").textContent = goal.dataset.goalDays || "";
+            document.querySelector("[data-modal-goal-improvement]").textContent = goal.dataset.goalImprovement || "";
+            goalShare.dataset.shareText = goal.dataset.goalShareText || "";
+            goalDeleteForm.action = goal.dataset.goalDeleteUrl || "";
+            goalModal?.classList.add("is-open");
+            goalModal?.setAttribute("aria-hidden", "false");
+        });
+    }
+    document.querySelector("[data-close-goal]")?.addEventListener("click", closeGoalModal);
+    goalModal?.addEventListener("click", (event) => {
+        if (event.target === goalModal) closeGoalModal();
+    });
+    goalShare?.addEventListener("click", async () => {
+        const text = goalShare.dataset.shareText || "I set a goal on Earned Club.";
+        if (navigator.share) await navigator.share({ text });
+        else {
+            await navigator.clipboard.writeText(text);
+            goalShare.textContent = "Copied";
+            setTimeout(() => goalShare.textContent = "Share Goal", 1200);
         }
     });
 </script>

@@ -4,6 +4,37 @@
 {% block meta_description %}Compare Earned Club performance leaderboards for push-ups, pull-ups, 5K, and 10K with verified official rankings.{% endblock %}
 
 {% block content %}
+<style>
+    .leaderboard-tier-panel { margin-bottom: 24px; }
+    .leaderboard-tier-grid { display: grid; gap: 10px; }
+    .leaderboard-tier-card {
+        display: grid;
+        gap: 8px;
+        padding: 12px;
+        border-radius: var(--radius-md);
+        border: 1px solid rgba(255, 255, 255, .08);
+        background: rgba(255, 255, 255, .04);
+    }
+    .leaderboard-tier-row {
+        display: grid;
+        grid-template-columns: minmax(72px, .5fr) minmax(64px, .42fr) minmax(0, 1fr);
+        gap: 8px;
+        align-items: center;
+        padding: 8px 10px;
+        border-radius: var(--radius-sm);
+        background: rgba(8, 11, 15, .32);
+    }
+    .leaderboard-tier-fill {
+        height: 8px;
+        width: var(--tier-width);
+        border-radius: 999px;
+        background: linear-gradient(90deg, var(--accent), var(--accent-2));
+    }
+    @media (min-width: 860px) {
+        .leaderboard-tier-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+</style>
+
 <section class="hero-card" style="margin-bottom: 24px;">
     <div class="content-split">
         <div>
@@ -43,6 +74,41 @@
             </a>
         {% endfor %}
     </div>
+</section>
+
+<section class="card-dark leaderboard-tier-panel">
+    <div class="section-spread">
+        <div>
+            <h2>{% if is_hybrid_leaderboard %}Hybrid rank tiers{% else %}{{ active_discipline.short_label }} point tiers{% endif %}</h2>
+            <p class="muted">{% if is_hybrid_leaderboard %}Hybrid titles are based on the average of verified discipline points.{% else %}These are the current score-to-points targets for this leaderboard.{% endif %}</p>
+        </div>
+        <a class="btn-secondary" href="{% url 'calculators' %}">Open Calculator</a>
+    </div>
+    {% if is_hybrid_leaderboard %}
+        <div class="leaderboard-tier-grid">
+            {% for rank in hybrid_ranks %}
+                <div class="leaderboard-tier-card">
+                    <span class="kicker">{{ rank.min_score }}+ Hybrid Score</span>
+                    <h3>{{ rank.name }}</h3>
+                    <p class="muted">{{ rank.description }}</p>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="leaderboard-tier-grid">
+            {% for key, board in discipline_point_tiers.items %}
+                {% if key == active_discipline.key %}
+                    {% for tier in board.tiers %}
+                        <div class="leaderboard-tier-row">
+                            <strong>{{ tier.display }}</strong>
+                            <span class="tag-pill">{{ tier.points }} pts</span>
+                            <span class="leaderboard-tier-fill" style="--tier-width: {{ tier.width_percent }}%;"></span>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endfor %}
+        </div>
+    {% endif %}
 </section>
 
 <section id="full-leaderboard" class="card-dark full-leaderboard-section">
@@ -87,7 +153,7 @@
                                         {{ row.profile.display_name }}
                                     </a>
                                 {% else %}
-                                    {{ row.user.username }}
+                                    <span style="display: inline-flex; align-items: center; gap: 10px;"><span class="avatar">{{ row.display_name|first|upper }}</span>{{ row.display_name }}</span>
                                 {% endif %}
                             </div>
                         </td>
@@ -107,10 +173,10 @@
                     {% elif row.profile %}
                         <span class="avatar">{{ row.profile.display_name|first|upper }}</span>
                     {% else %}
-                        <span class="avatar">{{ row.user.username|first|upper }}</span>
+                        <span class="avatar">{{ row.display_name|first|upper }}</span>
                     {% endif %}
                     <div class="score-row-main">
-                        <div class="submission-name">{% if row.profile %}<a href="{% url 'athlete_profile' row.profile.slug %}">{{ row.profile.display_name }}</a>{% else %}{{ row.user.username }}{% endif %}</div>
+                        <div class="submission-name">{% if row.profile %}<a href="{% url 'athlete_profile' row.profile.slug %}">{{ row.profile.display_name }}</a>{% else %}{{ row.display_name }}{% endif %}</div>
                         <div class="submission-meta">{{ row.hybrid_rank.name }} - {{ row.verified_count }}/4 verified disciplines</div>
                     </div>
                     <div class="score-row-score">

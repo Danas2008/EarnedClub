@@ -261,9 +261,11 @@
             <div class="test-step" data-step="3">
                 <div class="eyebrow">Step 4 / 5</div>
                 <h1>How old are you?</h1>
+                <p class="muted">Optional. You can skip this and keep moving.</p>
                 <input id="test-age" class="input test-input" type="number" min="13" max="100" inputmode="numeric" placeholder="18">
                 <div class="button-row">
                     <button class="btn-main" type="button" data-next>Continue</button>
+                    <button class="btn-secondary" type="button" data-skip-age>Skip Age</button>
                     <button class="btn-secondary" type="button" data-back>Back</button>
                 </div>
             </div>
@@ -306,7 +308,7 @@
                             </div>
                             <div class="preview-stat">
                                 <span class="kicker">Points</span>
-                                <div class="submission-name" id="preview-points">525 pts</div>
+                                <div class="submission-name" id="preview-points">480 pts</div>
                             </div>
                         </div>
                     </div>
@@ -327,14 +329,20 @@
     </section>
 </div>
 
+{{ discipline_point_tiers|json_script:"discipline-point-tier-data" }}
 <script>
+    const pointTierData = JSON.parse(document.getElementById("discipline-point-tier-data").textContent);
+    const pointCurves = Object.fromEntries(Object.entries(pointTierData).map(([key, row]) => {
+        const baseline = row.discipline.score_type === "time" ? (key === "run_5k" ? [2400, 0] : [4500, 0]) : [0, 0];
+        return [key, [baseline, ...row.tiers.map((tier) => [tier.value, tier.points])]];
+    }));
     const steps = Array.from(document.querySelectorAll("[data-step]"));
     const progress = document.querySelector("[data-progress]");
     const disciplineLabels = {
-        pushups: { label: "Push-ups", unit: "reps", placeholder: "42", help: "Enter max clean reps.", hint: "Higher reps rank higher.", target: 80 },
-        pullups: { label: "Pull-ups", unit: "reps", placeholder: "12", help: "Enter max clean reps.", hint: "Higher reps rank higher.", target: 30 },
-        run_5k: { label: "5K", unit: "time", placeholder: "21:34", help: "Use MM:SS, e.g. 21:34.", hint: "Use MM:SS or HH:MM:SS. Lower time ranks higher.", world: 769, floor: 2700 },
-        run_10k: { label: "10K", unit: "time", placeholder: "44:20", help: "Use MM:SS, e.g. 44:20.", hint: "Use MM:SS or HH:MM:SS. Lower time ranks higher.", world: 1584, floor: 5400 },
+        pushups: { label: "Push-ups", unit: "reps", placeholder: "42", help: "Enter max clean reps.", hint: "Higher reps rank higher." },
+        pullups: { label: "Pull-ups", unit: "reps", placeholder: "12", help: "Enter max clean reps.", hint: "Higher reps rank higher." },
+        run_5k: { label: "5K", unit: "time", placeholder: "21:34", help: "Use MM:SS, e.g. 21:34.", hint: "Use MM:SS or HH:MM:SS. Lower time ranks higher." },
+        run_10k: { label: "10K", unit: "time", placeholder: "44:20", help: "Use MM:SS, e.g. 44:20.", hint: "Use MM:SS or HH:MM:SS. Lower time ranks higher." },
     };
     let active = 0;
 
@@ -362,7 +370,7 @@
     }
 
     function parseTime(value) {
-        const raw = (value || "").trim();
+        const raw = (value || "").trim().replace(/^(\d+)\.(\d+)$/, "$1:$2");
         const parts = raw.split(":").map((part) => Number(part));
         if (!raw || !parts.every((part) => Number.isInteger(part) && part >= 0)) return null;
         if (parts.length === 2 && parts[1] <= 59) return parts[0] * 60 + parts[1];
@@ -385,11 +393,24 @@
     }
 
     function pointsFor(discipline, value) {
+        const curve = pointCurves[discipline];
         const config = disciplineLabels[discipline];
-        if (config.unit === "reps") return Math.max(0, Math.min(1000, Math.round((value / config.target) * 900)));
-        if (value <= config.world) return 1000;
-        if (value >= config.floor) return 0;
-        return Math.max(0, Math.min(1000, Math.round(((config.floor - value) / (config.floor - config.world)) * 1000)));
+        if (config.unit === "reps") {
+            if (value <= curve[0][0]) return curve[0][1];
+            for (let i = 1; i < curve.length; i += 1) {
+                const [highValue, highPoints] = curve[i];
+                const [lowValue, lowPoints] = curve[i - 1];
+                if (value <= highValue) return Math.round(lowPoints + ((value - lowValue) / (highValue - lowValue)) * (highPoints - lowPoints));
+            }
+            return 1000;
+        }
+        if (value >= curve[0][0]) return curve[0][1];
+        for (let i = 1; i < curve.length; i += 1) {
+            const [highValue, highPoints] = curve[i];
+            const [lowValue, lowPoints] = curve[i - 1];
+            if (value >= highValue) return Math.round(lowPoints + ((value - lowValue) / (highValue - lowValue)) * (highPoints - lowPoints));
+        }
+        return 1000;
     }
 
     function reveal() {
@@ -402,7 +423,7 @@
         const value = config.unit === "time" ? parseTime(rawResult) : Number(rawResult);
         if (!value || value <= 0) {
             showStep(1);
-            document.querySelector("[data-result-hint]").textContent = config.unit === "time" ? "Use MM:SS, e.g. 21:34." : "Enter a whole number above zero.";
+            document.querySelector("[data-result-hint]").textContent = config.unit === "time" ? "Enter a valid time like 21:34. Tip: 21.34 becomes 21:34." : "Enter a whole number above zero.";
             return;
         }
         const points = pointsFor(discipline, value);
@@ -427,6 +448,10 @@
 
     document.querySelectorAll("[data-next]").forEach((button) => button.addEventListener("click", () => showStep(Math.min(4, active + 1))));
     document.querySelectorAll("[data-back]").forEach((button) => button.addEventListener("click", () => showStep(Math.max(0, active - 1))));
+    document.querySelector("[data-skip-age]")?.addEventListener("click", () => {
+        document.getElementById("test-age").value = "";
+        showStep(4);
+    });
     document.querySelector("[data-reveal]")?.addEventListener("click", reveal);
     document.querySelector("[data-skip-email]")?.addEventListener("click", () => {
         document.getElementById("test-email").value = "";
@@ -439,6 +464,10 @@
             event.preventDefault();
             active >= 4 ? reveal() : showStep(active + 1);
         });
+    });
+    document.getElementById("test-result").addEventListener("input", (event) => {
+        if (disciplineLabels[selectedDiscipline()].unit !== "time") return;
+        event.target.value = event.target.value.replace(/^(\d+)\.(\d+)$/, "$1:$2");
     });
     showStep(0);
 </script>
