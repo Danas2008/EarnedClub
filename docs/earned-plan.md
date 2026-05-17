@@ -302,6 +302,7 @@ Important distinction:
 - Official status, rank, badges, and profile stats should come from verified submissions.
 - The default `/leaderboard/` view is the Hybrid Leaderboard.
 - The public Hybrid Leaderboard is an open leaderboard, not only a verified ranking: verified, pending, and eligible unverified athletes can appear. No-proof results above 600 points require proof before they can appear.
+- Open Hybrid Leaderboard scores can include verified, pending, and eligible unverified discipline results. Official profile/dashboard Hybrid Score remains verified-only.
 - Discipline leaderboards remain available for push-ups, pull-ups, 5K, and 10K.
 - Verified anonymous athletes also appear on the Hybrid Leaderboard, grouped by their submission identity, so an account is not required to be visible in overall rankings.
 
@@ -714,9 +715,22 @@ Note: the newest entry is authoritative for current product direction. Older ent
 - Post-submit success copy now states that the result is already on the open leaderboard.
 - Post-submit actions now prioritize making the result official with proof, creating or viewing a profile, opening the native challenge/share menu, and seeing yourself on the leaderboard.
 - Share copy now challenges another person to beat the submitted result and points them to `/test/`.
+- Homepage and leaderboard now show a real recent activity strip sourced from actual submissions and proof-added events only.
+- Early entries can show Founding Athlete / early leaderboard status when they are among the first 100 Earned Club submissions.
+- Empty leaderboard states now use "No one owns this board yet. Be first." with a direct `/test/` CTA.
 - Proofless results above 600 points require proof before appearing on open leaderboards.
 - Hybrid Leaderboard now behaves as an open leaderboard by including verified, pending, and unverified athletes instead of only verified official rankings.
-- Leaderboard rows now show score intensity with stronger rank-colored line and background treatments.
+- Leaderboard rows now keep neutral black/grey bodies; score intensity appears only through a small left-side fill meter.
+- Hybrid Leaderboard rows now use the same table structure as discipline leaderboards: discipline, athlete, score, rank, status, and position.
+- Hybrid Leaderboard status labels use Official or Unofficial; Founding athlete appears under the status label.
+- Leaderboard row bodies should stay neutral black/grey; rank intensity is shown as a small left-side vertical fill meter that grows upward by score tier.
+- Hybrid Leaderboard uses the same mode controls as discipline leaderboards: Open Board, Verified Only, This Week, This Month, Pending, and Unverified.
+- Admin review now defaults the status filter to All.
+- Admin review shows how many submissions arrived since the staff member last checked the review page.
+- `/test/` no longer allows anonymous results to post with a blank fallback name; logged-in users can still post through their profile identity.
+- Rank colors are standardized across the web: Beginner grey, Intermediate blue, Advanced gold, Elite orange, and Legend green.
+- Hybrid rank tier cards on leaderboard use the same colorful tier-card treatment as the homepage.
+- Hybrid Points Calculator running sliders are directionally normalized: dragging right always improves the score, so lower 5K/10K times sit on the right side.
 
 ### 2026-05-12 current hybrid UX and planning update
 
@@ -755,7 +769,7 @@ Note: the newest entry is authoritative for current product direction. Older ent
 - Added normalized 0-1000 discipline point scoring.
 - Added Hybrid Score as the main overall athlete rating, based only on verified discipline performances.
 - Added Hybrid titles: Beginner Hybrid, Intermediate Hybrid, Advanced Hybrid, Elite Hybrid Athlete, and Earned Legend.
-- `/leaderboard/` now defaults to Hybrid Rankings.
+- `/leaderboard/` now defaults to the Hybrid Leaderboard.
 - Discipline leaderboard routes are available under `/leaderboard/<discipline_key>/`.
 - Open discipline leaderboards can show unverified/pending results while official ranks remain verified-only.
 - Homepage sample rank card now promotes Hybrid Score rather than only push-up reps.
@@ -770,7 +784,7 @@ Note: the newest entry is authoritative for current product direction. Older ent
 
 - Added `/rank/` as a minimal mobile-first conversion page for social traffic.
 - `/rank/` uses the existing `get_rank_tier` / `RANK_TIERS` logic and does not change verified ranking rules.
-- Superseded by the hybrid positioning update: home page now focuses on Hybrid Score and Hybrid Rankings.
+- Superseded by the hybrid positioning update: home page now focuses on Hybrid Score and the Hybrid Leaderboard.
 - Home secondary CTA is "View Leaderboard".
 - Superseded by the hybrid positioning update: conversion copy now centers on verified multi-discipline performance and Hybrid Score.
 - Challenge page copy now makes proof optional but clearly recommended.
@@ -867,7 +881,7 @@ Note: the newest entry is authoritative for current product direction. Older ent
 - `/sitemap.xsl` now sends `X-Robots-Tag: noindex`.
 - Google Search Console should be given only `https://earnedclub.club/sitemap.xml`.
 - Admin pages now include mobile cards so `/admin-menu/pages/` remains visible on small screens where tables are hidden.
-- Superseded by the hybrid positioning update: homepage is now centered on Hybrid Score and Hybrid Rankings.
+- Superseded by the hybrid positioning update: homepage is now centered on Hybrid Score and the Hybrid Leaderboard.
 - Homepage now includes hero, value strip, how-it-works, rank system, why-it-exists, feature preview, video/content placeholders, tools, and final CTA sections.
 - Homepage keeps YouTube/content placeholders and links to calculators/tools and `/rank/`.
 - Homepage copy now emphasizes "Don't just claim your strength. Prove it.", "Earn your rank.", "Verified status.", "Public leaderboard.", and "Real reps. Real proof."

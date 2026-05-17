@@ -21,6 +21,7 @@ from django.db.models import F, Q
 from django.views.decorators.http import require_POST
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
+from django.utils.dateparse import parse_datetime
 from django.utils import timezone
 from django.utils.safestring import mark_safe
 
@@ -255,6 +256,7 @@ def build_leaderboard_rows(submissions):
                 "profile": profile,
                 "display_points": submission.hybrid_points,
                 "rank_intensity": get_rank_intensity(submission.hybrid_points),
+                "is_founding_entry": is_founding_submission(submission),
             }
         )
     return rows
@@ -270,8 +272,70 @@ def get_rank_intensity(points):
     if points >= 350:
         return "intermediate"
     if points > 0:
-        return "starter"
+        return "beginner"
     return "empty"
+
+
+def is_founding_submission(submission):
+    if not submission:
+        return False
+    return Submission.objects.filter(created_at__lte=submission.created_at).count() <= 100
+
+
+def get_founding_submission_for_identity(user=None, name="", email=""):
+    submissions = Submission.objects.order_by("created_at", "id")
+    if user:
+        submissions = submissions.filter(user=user)
+    elif email:
+        submissions = submissions.filter(email__iexact=email)
+    elif name:
+        submissions = submissions.filter(name__iexact=name)
+    else:
+        return None
+    for submission in submissions[:3]:
+        if is_founding_submission(submission):
+            return submission
+    return None
+
+
+def build_recent_activity_items(limit=6):
+    items = []
+    submissions = (
+        Submission.objects.exclude(status=Submission.STATUS_REJECTED)
+        .select_related("user", "user__profile")
+        .order_by("-created_at")[:limit]
+    )
+    for submission in submissions:
+        if not is_submission_visible_on_open_board(submission):
+            continue
+        if submission.is_time_based:
+            text = f"{submission.name} joined the {submission.discipline_config['short_label']} board with {submission.display_score}"
+        else:
+            text = f"{submission.name} submitted {submission.compact_score} {submission.discipline_config['short_label'].lower()}"
+        items.append(
+            {
+                "text": text,
+                "time": submission.created_at,
+                "url": f"{reverse('leaderboard')}?discipline={submission.discipline}#full-leaderboard",
+                "status": submission.status,
+            }
+        )
+    proof_events = (
+        VerificationEvent.objects.filter(action=VerificationEvent.ACTION_PROOF_ADDED)
+        .select_related("submission")
+        .order_by("-created_at")[:limit]
+    )
+    for event in proof_events:
+        submission = event.submission
+        items.append(
+            {
+                "text": f"{submission.name} added proof for {submission.discipline_config['short_label']}",
+                "time": event.created_at,
+                "url": f"{reverse('leaderboard')}?discipline={submission.discipline}#full-leaderboard",
+                "status": "pending",
+            }
+        )
+    return sorted(items, key=lambda item: item["time"], reverse=True)[:limit]
 
 
 def build_hybrid_breakdown(user):
@@ -305,7 +369,7 @@ def build_hybrid_breakdown(user):
         elif points >= 350:
             intensity = "intermediate"
         elif points > 0:
-            intensity = "starter"
+            intensity = "beginner"
         rows.append(
             {
                 "discipline": config,
@@ -464,7 +528,7 @@ def build_goal_rank_options(user, hybrid_summary):
     return options
 
 
-def build_hybrid_leaderboard_rows(query=""):
+def build_hybrid_leaderboard_rows(query="", mode_key="all"):
     rows = []
     public_statuses = [
         Submission.STATUS_VERIFIED,
@@ -476,6 +540,18 @@ def build_hybrid_leaderboard_rows(query=""):
         .select_related("user", "user__profile")
         .order_by("created_at")
     )
+    if mode_key == "verified":
+        public_submissions = [submission for submission in public_submissions if submission.status == Submission.STATUS_VERIFIED]
+    elif mode_key == "pending":
+        public_submissions = [submission for submission in public_submissions if submission.status == Submission.STATUS_PENDING]
+    elif mode_key == "unverified":
+        public_submissions = [submission for submission in public_submissions if submission.status == Submission.STATUS_UNVERIFIED]
+    elif mode_key == "week":
+        cutoff = get_weekly_window()
+        public_submissions = [submission for submission in public_submissions if submission.created_at >= cutoff]
+    elif mode_key == "month":
+        cutoff = get_monthly_window()
+        public_submissions = [submission for submission in public_submissions if submission.created_at >= cutoff]
 
     grouped = {}
     lowered_query = query.lower()
@@ -511,6 +587,7 @@ def build_hybrid_leaderboard_rows(query=""):
             continue
         score = round(sum(points) / len(points))
         verified_count = sum(1 for submission in best_submissions if submission.status == Submission.STATUS_VERIFIED)
+        founding_submission = next((submission for submission in best_submissions if is_founding_submission(submission)), None)
         rows.append(
             {
                 "position": 0,
@@ -525,7 +602,8 @@ def build_hybrid_leaderboard_rows(query=""):
                 "open_count": len(points),
                 "is_anonymous": group["user"] is None,
                 "rank_intensity": get_rank_intensity(score),
-                "status_label": "Official" if verified_count == len(points) else "Open",
+                "status_label": "Official" if verified_count == len(points) else "Unofficial",
+                "is_founding_entry": bool(founding_submission),
             }
         )
 
@@ -688,6 +766,7 @@ def build_submission_success(submission, request):
         "register_url": f"{reverse('register')}?{register_params}" if register_params else reverse("register"),
         "proof_url": reverse("dashboard") if submission.user_id else f"{reverse('challenge')}?{proof_params}#submit-form-top",
         "display_points": submission.hybrid_points,
+        "is_founding_entry": is_founding_submission(submission),
         "share_text": (
             f"I scored {submission.display_score} in {submission.discipline_label} on Earned Club. "
             f"Can you beat me? {request.build_absolute_uri(challenge_url)}"
@@ -1777,6 +1856,7 @@ def home(request):
         "discipline_cards": DISCIPLINE_CONFIG.values(),
         "discipline_point_tiers": build_discipline_point_tiers(),
         "hybrid_top_five": build_hybrid_leaderboard_rows()[:5],
+        "recent_activity": build_recent_activity_items(),
         "total_verified": len(verified_submissions),
         "total_submissions": len(public_submissions),
         "top_three": leaderboard_rows[:3],
@@ -1804,7 +1884,7 @@ def level_test(request):
         discipline = normalize_discipline(request.POST.get("discipline") or DISCIPLINE_PUSHUPS)
         selected_discipline = get_discipline_config(discipline)
         score_raw = (request.POST.get("score") or request.POST.get("reps") or "").strip()
-        name = (request.POST.get("name") or "").strip() or "Athlete"
+        name = (request.POST.get("name") or "").strip()
         email = (request.POST.get("email") or "").strip().lower()
 
         if request.POST.get("website"):
@@ -1813,6 +1893,9 @@ def level_test(request):
 
         if not score_raw:
             messages.error(request, "Enter your result before continuing.")
+            return render(request, "test_landing.html", context)
+        if not request.user.is_authenticated and not name:
+            messages.error(request, "Enter your name before posting your result.")
             return render(request, "test_landing.html", context)
 
         try:
@@ -1965,11 +2048,12 @@ def leaderboard(request, discipline_key=None):
 
     is_hybrid_leaderboard = active_discipline["key"] == "hybrid"
     if is_hybrid_leaderboard:
-        leaderboard_rows = build_hybrid_leaderboard_rows(query)
-        verified_count = len(leaderboard_rows)
+        leaderboard_rows = build_hybrid_leaderboard_rows(query, active_mode["key"])
+        all_hybrid_rows = build_hybrid_leaderboard_rows(query, "all")
+        verified_count = sum(1 for row in all_hybrid_rows if row["status_label"] == "Official")
         submission_count = len(leaderboard_rows)
-        pending_count = pending_submission_queryset().count()
-        weekly_count = len(leaderboard_rows)
+        pending_count = len(build_hybrid_leaderboard_rows(query, "pending"))
+        weekly_count = len(build_hybrid_leaderboard_rows(query, "week"))
     else:
         verified_submissions = get_official_verified_submissions(active_discipline["key"])
         public_submissions = list(get_leaderboard_submissions(active_mode["key"], active_discipline["key"]))
@@ -2004,6 +2088,7 @@ def leaderboard(request, discipline_key=None):
         "submission_count": submission_count,
         "pending_count": pending_count,
         "weekly_count": weekly_count,
+        "recent_activity": build_recent_activity_items(),
         "query": query,
     }
     return render(request, "leaderboard.html", context)
@@ -2225,6 +2310,7 @@ def dashboard(request):
 
     context = {
         "profile": profile,
+        "founding_submission": get_founding_submission_for_identity(user=profile.user),
         "best_submission": best_submission,
         "current_pr": current_pr,
         "all_time_pr": current_pr,
@@ -2355,6 +2441,7 @@ def athlete_profile(request, slug):
     public_progress_series = build_performance_progress_series(profile.user)
     context = {
         "profile": profile,
+        "founding_submission": get_founding_submission_for_identity(user=profile.user),
         "best_submission": best_submission,
         "current_tier": best_submission.rank_tier if best_submission else get_rank_tier(0),
         "verified_submissions": verified_history,
@@ -2793,10 +2880,15 @@ def admin_pages(request):
 
 @user_passes_test(is_app_admin, login_url="login")
 def admin_review(request):
-    status_filter = (request.GET.get("status") or "pending").strip()
+    status_filter = (request.GET.get("status") or "all").strip()
     proof_filter = (request.GET.get("proof") or "all").strip()
     order_filter = (request.GET.get("order") or "newest").strip()
     query = (request.GET.get("q") or "").strip()
+    last_checked_raw = request.session.get("admin_review_last_checked")
+    last_checked = None
+    if last_checked_raw:
+        last_checked = parse_datetime(last_checked_raw)
+    new_since_last_count = Submission.objects.filter(created_at__gt=last_checked).count() if last_checked else 0
 
     submissions = Submission.objects.select_related("user", "user__profile").prefetch_related("verification_events")
     if status_filter != "all":
@@ -2815,6 +2907,7 @@ def admin_review(request):
         "lowest": "reps",
     }.get(order_filter, "-created_at")
     review_submissions = submissions.order_by(ordering, "-created_at")[:50]
+    request.session["admin_review_last_checked"] = timezone.now().isoformat()
     return render(
         request,
         "admin_review.html",
@@ -2826,6 +2919,7 @@ def admin_review(request):
             "query": query,
             "pending_count": pending_submission_queryset().count(),
             "review_count": submissions.count(),
+            "new_since_last_count": new_since_last_count,
         },
     )
 

@@ -172,26 +172,31 @@ HYBRID_RANKS = [
         "name": "Beginner Hybrid",
         "min_score": 0,
         "description": "Building the first verified pieces of a hybrid profile.",
+        "intensity": "beginner",
     },
     {
         "name": "Intermediate Hybrid",
         "min_score": 350,
         "description": "A balanced athlete base is starting to show.",
+        "intensity": "intermediate",
     },
     {
         "name": "Advanced Hybrid",
         "min_score": 550,
         "description": "Strong verified capability across more than one lane.",
+        "intensity": "advanced",
     },
     {
         "name": "Elite Hybrid Athlete",
         "min_score": 750,
         "description": "High-level verified performance with real hybrid range.",
+        "intensity": "elite",
     },
     {
         "name": "Earned Legend",
         "min_score": 900,
         "description": "Rare overall athletic status across the Earned Club board.",
+        "intensity": "legend",
     },
 ]
 

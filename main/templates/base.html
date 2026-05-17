@@ -593,6 +593,18 @@
             color: var(--muted);
         }
 
+        .rank-beginner { --tier-color: #94a3b8; --tier-bg: rgba(148, 163, 184, 0.1); --tier-border: rgba(148, 163, 184, 0.24); }
+        .rank-intermediate { --tier-color: #3b82f6; --tier-bg: rgba(59, 130, 246, 0.12); --tier-border: rgba(59, 130, 246, 0.24); }
+        .rank-advanced { --tier-color: #f7b733; --tier-bg: rgba(247, 183, 51, 0.16); --tier-border: rgba(247, 183, 51, 0.32); }
+        .rank-elite { --tier-color: #fc4a1a; --tier-bg: rgba(252, 74, 26, 0.14); --tier-border: rgba(252, 74, 26, 0.3); }
+        .rank-legend { --tier-color: #1e9d74; --tier-bg: rgba(30, 157, 116, 0.16); --tier-border: rgba(30, 157, 116, 0.34); }
+
+        .rank-pill {
+            color: var(--tier-color, var(--muted));
+            border-color: var(--tier-border, rgba(255, 255, 255, 0.08));
+            background: linear-gradient(135deg, var(--tier-bg, rgba(255, 255, 255, 0.06)), rgba(255, 255, 255, 0.035));
+        }
+
         .trust-strip,
         .mode-tabs,
         .step-list,

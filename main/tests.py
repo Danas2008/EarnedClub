@@ -1,5 +1,6 @@
 import shutil
 import tempfile
+from datetime import timedelta
 from unittest.mock import patch
 from xml.etree import ElementTree
 
@@ -9,6 +10,7 @@ from django.db import IntegrityError
 from django.test import TestCase
 from django.test import override_settings
 from django.urls import reverse
+from django.utils import timezone
 
 from .models import (
     ContentEnginePrompt,
@@ -330,7 +332,51 @@ class SubmissionFlowTests(TestCase):
         rows = list(response.context["leaderboard_rows"].object_list)
         open_row = next(row for row in rows if row["display_name"] == "Open Hybrid")
         self.assertEqual(open_row["hybrid_score"], 600)
-        self.assertEqual(open_row["status_label"], "Open")
+        self.assertEqual(open_row["status_label"], "Unofficial")
+
+    def test_hybrid_leaderboard_uses_discipline_table_labels(self):
+        Submission.objects.create(
+            name="Header Hybrid",
+            reps=32,
+            discipline=Submission.DISCIPLINE_PUSHUPS,
+            status=Submission.STATUS_UNVERIFIED,
+        )
+
+        response = self.client.get(reverse("leaderboard"))
+
+        self.assertContains(response, "<th>Rank</th>", html=False)
+        self.assertContains(response, "<th>Position</th>", html=False)
+        self.assertNotContains(response, "<th>Label</th>", html=False)
+        self.assertContains(response, "Unofficial")
+        self.assertContains(response, "Open Board")
+        self.assertContains(response, "Verified Only")
+        self.assertContains(response, "leaderboard-tier-card rank-advanced")
+        self.assertContains(response, "tag-pill rank-pill rank-")
+
+    def test_hybrid_leaderboard_mode_filters_work(self):
+        Submission.objects.create(
+            name="Pending Hybrid",
+            reps=32,
+            discipline=Submission.DISCIPLINE_PUSHUPS,
+            status=Submission.STATUS_PENDING,
+            video_link="https://example.com/proof",
+        )
+        Submission.objects.create(
+            name="Unverified Hybrid",
+            reps=30,
+            discipline=Submission.DISCIPLINE_PUSHUPS,
+            status=Submission.STATUS_UNVERIFIED,
+        )
+
+        pending_response = self.client.get(f"{reverse('leaderboard')}?discipline=hybrid&mode=pending")
+        unverified_response = self.client.get(f"{reverse('leaderboard')}?discipline=hybrid&mode=unverified")
+        pending_names = [row["display_name"] for row in pending_response.context["leaderboard_rows"].object_list]
+        unverified_names = [row["display_name"] for row in unverified_response.context["leaderboard_rows"].object_list]
+
+        self.assertIn("Pending Hybrid", pending_names)
+        self.assertNotIn("Unverified Hybrid", pending_names)
+        self.assertIn("Unverified Hybrid", unverified_names)
+        self.assertNotIn("Pending Hybrid", unverified_names)
 
     def test_hybrid_leaderboard_hides_strong_unverified_without_proof(self):
         Submission.objects.create(
@@ -346,6 +392,67 @@ class SubmissionFlowTests(TestCase):
         self.assertNotContains(response, "Needs Proof Hybrid")
         rows = list(response.context["leaderboard_rows"].object_list)
         self.assertFalse(any(row["display_name"] == "Needs Proof Hybrid" for row in rows))
+
+    def test_hybrid_leaderboard_averages_verified_and_unverified_open_results(self):
+        user = User.objects.create_user(username="open-hybrid-user", password="StrongPass12345")
+        user.profile.display_name = "Open Hybrid User"
+        user.profile.save()
+        Submission.objects.create(user=user, name="Open Hybrid User", reps=20, discipline=Submission.DISCIPLINE_PUSHUPS, status=Submission.STATUS_VERIFIED)
+        Submission.objects.create(user=user, name="Open Hybrid User", reps=10, discipline=Submission.DISCIPLINE_PULLUPS, status=Submission.STATUS_UNVERIFIED)
+
+        response = self.client.get(reverse("leaderboard"))
+        rows = list(response.context["leaderboard_rows"].object_list)
+        open_row = next(row for row in rows if row["display_name"] == "Open Hybrid User")
+
+        self.assertEqual(open_row["hybrid_score"], 375)
+        self.assertEqual(open_row["verified_count"], 1)
+        self.assertEqual(open_row["open_count"], 2)
+
+    def test_home_and_leaderboard_show_real_recent_activity(self):
+        submission = Submission.objects.create(
+            name="Activity Alex",
+            reps=32,
+            discipline=Submission.DISCIPLINE_PUSHUPS,
+            status=Submission.STATUS_UNVERIFIED,
+        )
+        VerificationEvent.objects.create(
+            submission=submission,
+            action=VerificationEvent.ACTION_PROOF_ADDED,
+        )
+
+        home_response = self.client.get(reverse("home"))
+        leaderboard_response = self.client.get(reverse("leaderboard"))
+
+        self.assertContains(home_response, "Recent activity")
+        self.assertContains(home_response, "Activity Alex submitted 32 push-ups")
+        self.assertContains(home_response, "Activity Alex added proof for Push-ups")
+        self.assertContains(leaderboard_response, "Recent activity")
+        self.assertContains(leaderboard_response, "Activity Alex submitted 32 push-ups")
+
+    def test_leaderboard_empty_state_invites_first_entry(self):
+        response = self.client.get(reverse("leaderboard_discipline", args=[Submission.DISCIPLINE_PULLUPS]))
+
+        self.assertContains(response, "No one owns this board yet. Be first.")
+        self.assertContains(response, reverse("level_test"))
+
+    def test_founding_athlete_status_appears_on_profile_and_leaderboard(self):
+        user = User.objects.create_user(username="founding-user", password="StrongPass12345")
+        user.profile.display_name = "Founding User"
+        user.profile.save()
+        Submission.objects.create(
+            user=user,
+            name="Founding User",
+            reps=32,
+            discipline=Submission.DISCIPLINE_PUSHUPS,
+            status=Submission.STATUS_UNVERIFIED,
+        )
+
+        profile_response = self.client.get(reverse("athlete_profile", args=[user.profile.slug]))
+        leaderboard_response = self.client.get(reverse("leaderboard"))
+
+        self.assertContains(profile_response, "Founding athlete")
+        self.assertContains(profile_response, "one of the first 100")
+        self.assertContains(leaderboard_response, "Founding athlete")
 
     def test_profile_prioritizes_hybrid_score_and_breakdown(self):
         user = User.objects.create_user(username="hybrid-profile", password="StrongPass12345")
@@ -674,6 +781,11 @@ class SubmissionFlowTests(TestCase):
         self.assertContains(response, "Hybrid Score")
         self.assertContains(response, "Discipline Tier")
         self.assertContains(response, "run_5k")
+        self.assertContains(response, '<span class="tag-pill rank-pill rank-beginner" id="score-result-rank">Beginner Hybrid</span>', html=False)
+        self.assertContains(response, '<input id="calc-5k" class="range-input" type="range" min="900" max="2400" step="5" value="1800">', html=False)
+        self.assertContains(response, '<input id="calc-10k" class="range-input" type="range" min="1800" max="4500" step="5" value="3300">', html=False)
+        self.assertContains(response, "Slower")
+        self.assertContains(response, "Faster")
 
     def test_registration_creates_user_and_profile(self):
         response = self.client.post(
@@ -963,6 +1075,37 @@ class SubmissionFlowTests(TestCase):
         submission = Submission.objects.get(name="Fast Test")
         self.assertEqual(submission.status, Submission.STATUS_UNVERIFIED)
         self.assertEqual(submission.email, "")
+
+    def test_level_test_requires_name_for_anonymous_submission(self):
+        response = self.client.post(
+            reverse("level_test"),
+            {
+                "discipline": Submission.DISCIPLINE_PUSHUPS,
+                "score": "32",
+            },
+        )
+
+        self.assertContains(response, "Enter your name before posting your result.")
+        self.assertFalse(Submission.objects.exists())
+
+    def test_level_test_uses_profile_name_for_logged_in_submission_without_name(self):
+        user = User.objects.create_user(username="named-test-user", password="StrongPass12345")
+        user.profile.display_name = "Named Test User"
+        user.profile.save()
+        self.client.force_login(user)
+
+        response = self.client.post(
+            reverse("level_test"),
+            {
+                "discipline": Submission.DISCIPLINE_PUSHUPS,
+                "score": "32",
+            },
+            follow=True,
+        )
+
+        self.assertContains(response, "You're in!")
+        submission = Submission.objects.get(user=user)
+        self.assertEqual(submission.name, "Named Test User")
 
     def test_level_test_requires_proof_for_strong_open_result(self):
         response = self.client.post(
@@ -1652,6 +1795,29 @@ class SubmissionFlowTests(TestCase):
         self.assertContains(response, "Proof Ready")
         self.assertEqual(review_names, ["Proof Ready"])
         self.assertEqual(response.context["review_count"], 1)
+
+    def test_review_page_defaults_to_all_status_and_tracks_new_since_last_check(self):
+        admin = User.objects.create_user(username="review-default-staff", password="StrongPass12345", is_staff=True)
+        self.client.force_login(admin)
+        old_submission = Submission.objects.create(name="Old Seen", reps=22, status=Submission.STATUS_UNVERIFIED)
+        seen_at = timezone.now()
+        session = self.client.session
+        session["admin_review_last_checked"] = seen_at.isoformat()
+        session.save()
+        old_submission.created_at = seen_at - timedelta(minutes=5)
+        old_submission.save(update_fields=["created_at"])
+        new_submission = Submission.objects.create(name="New Away", reps=24, status=Submission.STATUS_UNVERIFIED)
+        new_submission.created_at = seen_at + timedelta(minutes=5)
+        new_submission.save(update_fields=["created_at"])
+
+        response = self.client.get(reverse("admin_review"))
+
+        self.assertEqual(response.context["status_filter"], "all")
+        self.assertContains(response, '<option value="all" selected>All</option>', html=False)
+        self.assertContains(response, "New since last check")
+        self.assertEqual(response.context["new_since_last_count"], 1)
+        self.assertContains(response, "Old Seen")
+        self.assertContains(response, "New Away")
 
     def test_admin_can_change_reviewed_submission_back_to_pending(self):
         admin = User.objects.create_user(username="review-staff", password="StrongPass12345", is_staff=True)

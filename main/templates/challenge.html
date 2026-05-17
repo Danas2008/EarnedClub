@@ -48,6 +48,9 @@
                     </h2>
                     <p class="muted">
                         {{ submission_success.submission.discipline_label }} - {{ submission_success.submission.display_score }}.
+                        {% if submission_success.is_founding_entry %}
+                            Founding athlete: this is one of the first 100 Earned Club entries.
+                        {% endif %}
                         {% if submission_success.is_official_pending %}
                             If approved, this result becomes official and updates your verified rank.
                         {% else %}

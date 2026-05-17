@@ -20,9 +20,9 @@
                 <span class="stat-value">{{ review_count }}</span>
             </div>
             <div class="stat-card">
-                <span class="kicker">Decision</span>
-                <span class="stat-value">4</span>
-                <div class="muted">Approve, reject, pending, unverified.</div>
+                <span class="kicker">New since last check</span>
+                <span class="stat-value">{{ new_since_last_count }}</span>
+                <div class="muted">Submissions added while you were away.</div>
             </div>
         </div>
     </div>
@@ -40,11 +40,11 @@
         <div>
             <label class="field-label" for="status">Status</label>
             <select class="select" id="status" name="status">
+                <option value="all"{% if status_filter == "all" %} selected{% endif %}>All</option>
                 <option value="pending"{% if status_filter == "pending" %} selected{% endif %}>Pending</option>
                 <option value="verified"{% if status_filter == "verified" %} selected{% endif %}>Verified</option>
                 <option value="rejected"{% if status_filter == "rejected" %} selected{% endif %}>Rejected</option>
                 <option value="unverified"{% if status_filter == "unverified" %} selected{% endif %}>Unverified</option>
-                <option value="all"{% if status_filter == "all" %} selected{% endif %}>All</option>
             </select>
         </div>
         <div>

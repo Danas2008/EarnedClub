@@ -255,7 +255,9 @@
             <div class="test-step" data-step="2">
                 <div class="eyebrow">Step 3 / 5</div>
                 <h1>What should we call you?</h1>
-                <input id="test-name" class="input test-input" type="text" placeholder="Daniel">
+                <p class="muted">{% if request.user.is_authenticated %}We will use your profile name unless you enter a different one.{% else %}Required so your leaderboard entry has a real name attached.{% endif %}</p>
+                <input id="test-name" class="input test-input" type="text" placeholder="Daniel" {% if not request.user.is_authenticated %}required{% endif %}>
+                <div class="hint" data-name-hint>{% if request.user.is_authenticated %}Logged-in results use your profile identity.{% else %}Name is required before your result can post.{% endif %}</div>
                 <div class="button-row">
                     <button class="btn-main" type="button" data-next>Continue</button>
                     <button class="btn-secondary" type="button" data-back>Back</button>
@@ -322,6 +324,7 @@
                             <div class="preview-score">{{ test_submission_success.display_points }}</div>
                             <p class="muted">
                                 This score is visible now, but it is not official yet.
+                                {% if test_submission_success.is_founding_entry %}Founding athlete: this is one of the first 100 Earned Club entries.{% endif %}
                             </p>
                         </div>
                     </div>
@@ -359,6 +362,7 @@
     }));
     const steps = Array.from(document.querySelectorAll("[data-step]"));
     const progress = document.querySelector("[data-progress]");
+    const requiresName = {% if request.user.is_authenticated %}false{% else %}true{% endif %};
     const disciplineLabels = {
         pushups: { label: "Push-ups", unit: "reps", placeholder: "42", help: "Enter max clean reps.", hint: "Higher reps rank higher." },
         pullups: { label: "Pull-ups", unit: "reps", placeholder: "12", help: "Enter max clean reps.", hint: "Higher reps rank higher." },
@@ -447,16 +451,27 @@
         return { discipline, rawResult };
     }
 
+    function nameIsValid() {
+        const input = document.getElementById("test-name");
+        const hint = document.querySelector("[data-name-hint]");
+        if (!requiresName || input.value.trim()) return true;
+        showStep(2);
+        hint.textContent = "Enter your name before posting your result.";
+        input.focus();
+        return false;
+    }
+
     function reveal() {
         const result = resultValueOrNull();
         if (!result) return;
-        const name = document.getElementById("test-name").value.trim() || "Athlete";
+        if (!nameIsValid()) return;
+        const name = document.getElementById("test-name").value.trim();
         const email = document.getElementById("test-email").value.trim();
 
         const params = new URLSearchParams();
         params.set("discipline", result.discipline);
         params.set(result.discipline === "pushups" ? "reps" : "score", result.rawResult);
-        if (name && name !== "Athlete") params.set("name", name);
+        if (name) params.set("name", name);
         if (email) params.set("email", email);
         document.getElementById("submit-discipline").value = result.discipline;
         document.getElementById("submit-score").value = result.rawResult;
@@ -467,6 +482,7 @@
 
     document.querySelectorAll("[data-next]").forEach((button) => button.addEventListener("click", () => {
         if (active === 1 && !resultValueOrNull()) return;
+        if (active === 2 && !nameIsValid()) return;
         showStep(Math.min(4, active + 1));
     }));
     document.querySelectorAll("[data-back]").forEach((button) => button.addEventListener("click", () => showStep(Math.max(0, active - 1))));
@@ -497,6 +513,7 @@
             if (event.key !== "Enter") return;
             event.preventDefault();
             if (active >= 4) reveal();
+            else if (active === 2 && !nameIsValid()) return;
             else if (active !== 1 || resultValueOrNull()) showStep(active + 1);
         });
     });

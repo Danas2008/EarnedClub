@@ -30,7 +30,7 @@
         z-index: 1;
     }
 
-    .hybrid-breakdown-row[data-intensity="starter"] { border-color: rgba(148, 163, 184, .18); }
+    .hybrid-breakdown-row[data-intensity="beginner"] { border-color: rgba(148, 163, 184, .18); }
     .hybrid-breakdown-row[data-intensity="intermediate"] { border-color: rgba(59, 130, 246, .22); background: rgba(59, 130, 246, .07); }
     .hybrid-breakdown-row[data-intensity="advanced"] { border-color: rgba(247, 183, 51, .30); background: rgba(247, 183, 51, .09); }
     .hybrid-breakdown-row[data-intensity="elite"] { border-color: rgba(252, 74, 26, .34); background: rgba(252, 74, 26, .10); }
@@ -223,6 +223,12 @@
                 </div>
             </div>
             {% if profile.bio %}<p>{{ profile.bio }}</p>{% else %}<p class="muted">Public hybrid athlete profile for verified strength, running, workouts, and progress.</p>{% endif %}
+            {% if founding_submission %}
+                <div class="mini-card">
+                    <span class="status-pill verified">Founding athlete</span>
+                    <p class="muted" style="margin: 10px 0 0;">Early leaderboard entry: one of the first 100 Earned Club submissions.</p>
+                </div>
+            {% endif %}
             <div class="profile-actions">
                 <a class="btn-main" href="{% url 'challenge' %}#submit-form-top">Submit Your Score</a>
                 <a class="btn-secondary" href="{% url 'home' %}#rank-tiers">Rank Tiers</a>

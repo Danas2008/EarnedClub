@@ -24,6 +24,13 @@
     .slider-row { display: grid; gap: 8px; }
     .slider-head { display: flex; justify-content: space-between; gap: 10px; align-items: center; }
     .range-input { width: 100%; accent-color: #f7b733; }
+    .slider-axis {
+        display: flex;
+        justify-content: space-between;
+        color: var(--muted);
+        font-size: .82rem;
+        font-weight: 800;
+    }
     .tier-matrix { display: grid; gap: 12px; }
     .tier-board {
         display: grid;
@@ -80,23 +87,28 @@
                 <div class="slider-row" data-score-slider="pushups">
                     <div class="slider-head"><label class="field-label" for="calc-pushups">Push-ups</label><span class="tag-pill" data-score-display="pushups">40 reps</span></div>
                     <input id="calc-pushups" class="range-input" type="range" min="0" max="110" step="1" value="40">
+                    <div class="slider-axis"><span>Lower</span><span>Higher</span></div>
                 </div>
                 <div class="slider-row" data-score-slider="pullups">
                     <div class="slider-head"><label class="field-label" for="calc-pullups">Pull-ups</label><span class="tag-pill" data-score-display="pullups">10 reps</span></div>
                     <input id="calc-pullups" class="range-input" type="range" min="0" max="45" step="1" value="10">
+                    <div class="slider-axis"><span>Lower</span><span>Higher</span></div>
                 </div>
                 <div class="slider-row" data-score-slider="run_5k">
                     <div class="slider-head"><label class="field-label" for="calc-5k">5K</label><span class="tag-pill" data-score-display="run_5k">25:00</span></div>
-                    <input id="calc-5k" class="range-input" type="range" min="900" max="2400" step="5" value="1500">
+                    <input id="calc-5k" class="range-input" type="range" min="900" max="2400" step="5" value="1800">
+                    <div class="slider-axis"><span>Slower</span><span>Faster</span></div>
                 </div>
                 <div class="slider-row" data-score-slider="run_10k">
                     <div class="slider-head"><label class="field-label" for="calc-10k">10K</label><span class="tag-pill" data-score-display="run_10k">50:00</span></div>
-                    <input id="calc-10k" class="range-input" type="range" min="1800" max="4500" step="5" value="3000">
+                    <input id="calc-10k" class="range-input" type="range" min="1800" max="4500" step="5" value="3300">
+                    <div class="slider-axis"><span>Slower</span><span>Faster</span></div>
                 </div>
             </div>
             <div class="score-output">
                 <span class="kicker" id="score-result-label">Estimated Hybrid Score</span>
                 <strong id="score-result-value">0</strong>
+                <div><span class="tag-pill rank-pill rank-beginner" id="score-result-rank">Beginner Hybrid</span></div>
                 <div class="muted" id="score-result-detail">Move the sliders to see live points.</div>
             </div>
         </form>
@@ -239,11 +251,17 @@
         return 1000;
     }
     function hybridRank(score) {
-        if (score >= 900) return "Earned Legend";
-        if (score >= 750) return "Elite Hybrid Athlete";
-        if (score >= 550) return "Advanced Hybrid";
-        if (score >= 350) return "Intermediate Hybrid";
-        return "Beginner Hybrid";
+        if (score >= 900) return { name: "Earned Legend", intensity: "legend" };
+        if (score >= 750) return { name: "Elite Hybrid Athlete", intensity: "elite" };
+        if (score >= 550) return { name: "Advanced Hybrid", intensity: "advanced" };
+        if (score >= 350) return { name: "Intermediate Hybrid", intensity: "intermediate" };
+        return { name: "Beginner Hybrid", intensity: "beginner" };
+    }
+    function sliderScoreValue(key) {
+        const input = document.getElementById(key === "run_5k" ? "calc-5k" : key === "run_10k" ? "calc-10k" : `calc-${key}`);
+        const raw = Number(input.value);
+        if (disciplinePointData[key].discipline.score_type !== "time") return raw;
+        return Number(input.min) + Number(input.max) - raw;
     }
     function calculateHybridScore() {
         updateScoreCalculator();
@@ -310,10 +328,10 @@
     });
     function updateScoreCalculator() {
         const values = {
-            pushups: Number(document.getElementById("calc-pushups").value),
-            pullups: Number(document.getElementById("calc-pullups").value),
-            run_5k: Number(document.getElementById("calc-5k").value),
-            run_10k: Number(document.getElementById("calc-10k").value),
+            pushups: sliderScoreValue("pushups"),
+            pullups: sliderScoreValue("pullups"),
+            run_5k: sliderScoreValue("run_5k"),
+            run_10k: sliderScoreValue("run_10k"),
         };
         Object.entries(values).forEach(([key, value]) => {
             const display = document.querySelector(`[data-score-display="${key}"]`);
@@ -325,18 +343,25 @@
         });
         const resultLabel = document.getElementById("score-result-label");
         const resultValue = document.getElementById("score-result-value");
+        const resultRank = document.getElementById("score-result-rank");
         const resultDetail = document.getElementById("score-result-detail");
         if (mode === "hybrid") {
             const scores = Object.entries(values).map(([key, value]) => scorePoints(key, value));
             const score = Math.round(scores.reduce((sum, value) => sum + value, 0) / scores.length);
+            const rank = hybridRank(score);
             resultLabel.textContent = "Estimated Hybrid Score";
             resultValue.textContent = score;
-            resultDetail.textContent = `${hybridRank(score)} from 4 discipline sliders. Verified submissions make it official.`;
+            resultRank.textContent = rank.name;
+            resultRank.className = `tag-pill rank-pill rank-${rank.intensity}`;
+            resultDetail.textContent = `${rank.name} from 4 discipline sliders. Verified submissions make it official.`;
             return;
         }
         const points = scorePoints(mode, values[mode]);
+        const rank = hybridRank(points);
         resultLabel.textContent = `${disciplinePointData[mode].discipline.short_label} points`;
         resultValue.textContent = points;
+        resultRank.textContent = rank.name;
+        resultRank.className = `tag-pill rank-pill rank-${rank.intensity}`;
         resultDetail.textContent = `${disciplinePointData[mode].discipline.score_type === "time" ? formatTime(values[mode]) : `${values[mode]} reps`} converts to ${points} Hybrid points.`;
     }
     document.getElementById("score-mode").addEventListener("change", updateScoreCalculator);

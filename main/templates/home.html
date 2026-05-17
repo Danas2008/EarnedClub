@@ -759,6 +759,30 @@
         </div>
     </section>
 
+    {% if recent_activity %}
+    <section class="card-dark home-reveal">
+        <div class="section-spread">
+            <div class="home-section-head" style="margin-bottom: 0;">
+                <h2>Recent activity</h2>
+                <p class="muted">Real submissions and proof updates from the leaderboard.</p>
+            </div>
+            <a class="btn-secondary" href="{% url 'leaderboard' %}#full-leaderboard">Open Leaderboard</a>
+        </div>
+        <div class="compact-board">
+            {% for item in recent_activity %}
+                <a class="score-row" href="{{ item.url }}">
+                    <span class="avatar">{{ item.text|first|upper }}</span>
+                    <div class="score-row-main">
+                        <div class="submission-name">{{ item.text }}</div>
+                        <div class="submission-meta">{{ item.time|date:"M j, H:i" }}</div>
+                    </div>
+                    <span class="status-pill {{ item.status }}">{{ item.status|title }}</span>
+                </a>
+            {% endfor %}
+        </div>
+    </section>
+    {% endif %}
+
     <section id="rank-tiers" class="card-dark home-reveal" style="scroll-margin-top: 96px;">
         <div class="section-spread">
             <div class="home-section-head" style="margin-bottom: 0;">
