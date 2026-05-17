@@ -282,6 +282,7 @@ Hybrid Score:
   - 5K: 30:00=250, 25:00=450, 22:00=600, 18:00=850, 16:00=950, 15:00=1000.
   - 10K: 60:00=250, 50:00=450, 44:00=600, 38:00=800, 34:00=900, 32:00=950, 30:00=1000.
 - Official Hybrid Score is the average of verified discipline points.
+- No-proof results above 600 points require proof before they can appear on open leaderboards.
 - Athletes with incomplete discipline sets can still have a Hybrid Score.
 - Unverified and pending submissions can be visible but must not inflate official Hybrid Score.
 
@@ -300,6 +301,7 @@ Important distinction:
 - Public/open leaderboards can show pending or unverified context depending on selected mode.
 - Official status, rank, badges, and profile stats should come from verified submissions.
 - The default `/leaderboard/` view is the Hybrid Leaderboard.
+- The public Hybrid Leaderboard is an open leaderboard, not only a verified ranking: verified, pending, and eligible unverified athletes can appear. No-proof results above 600 points require proof before they can appear.
 - Discipline leaderboards remain available for push-ups, pull-ups, 5K, and 10K.
 - Verified anonymous athletes also appear on the Hybrid Leaderboard, grouped by their submission identity, so an account is not required to be visible in overall rankings.
 
@@ -309,9 +311,9 @@ Important distinction:
 
 1. Lands on home page.
 2. Uses the primary "Submit Your Score" CTA into the fast `/test/` funnel.
-3. Chooses strongest discipline, enters result, name/age, optionally skips email, and sees an unverified preview card.
-4. Submits the previewed score into `/challenge/`.
-5. After submission, immediately sees that the result is on the open leaderboard, with proof/profile/share CTAs.
+3. Chooses strongest discipline, enters result, name/age, optionally skips email, and cannot continue past the result step without a valid score/time.
+4. Finishes `/test/`, which posts the result to the open leaderboard immediately as unverified.
+5. Lands on the final "You're in!" result screen, with make-it-official proof, profile creation, native share/challenge, and leaderboard CTAs.
 6. Can register/login and connect activity to a profile.
 7. Can browse Hybrid Leaderboard, discipline leaderboards, profiles, public workouts, calculators, privacy, and terms.
 
@@ -702,6 +704,20 @@ Usually touches:
 
 Note: the newest entry is authoritative for current product direction. Older entries are preserved as historical implementation notes and may describe behavior that was later superseded.
 
+### 2026-05-17 early-submission conversion update
+
+- `/test/` now frames Step 1 as "What is your strongest discipline?" while preserving all four entry disciplines.
+- `/test/` blocks continuing from the performance entry step until the athlete enters a valid result.
+- `/test/` final result step is required and posts directly from `/test/` instead of feeling like an optional preview.
+- The final `/test/` screen appears after the result has already been saved and starts with "You're in!".
+- Anonymous athletes can submit without email; name and performance are still required.
+- Post-submit success copy now states that the result is already on the open leaderboard.
+- Post-submit actions now prioritize making the result official with proof, creating or viewing a profile, opening the native challenge/share menu, and seeing yourself on the leaderboard.
+- Share copy now challenges another person to beat the submitted result and points them to `/test/`.
+- Proofless results above 600 points require proof before appearing on open leaderboards.
+- Hybrid Leaderboard now behaves as an open leaderboard by including verified, pending, and unverified athletes instead of only verified official rankings.
+- Leaderboard rows now show score intensity with stronger rank-colored line and background treatments.
+
 ### 2026-05-12 current hybrid UX and planning update
 
 - Project plan must be updated in the same session as meaningful product, scoring, route, verification, deployment, email, homepage, dashboard, profile, onboarding, or admin changes.
@@ -712,6 +728,10 @@ Note: the newest entry is authoritative for current product direction. Older ent
 - Header logo was replaced with the new Earned Club wordmark image at `main/static/Earned_Club_wthBG.png`; duplicate navbar brand copy is hidden.
 - `/test/` is now a fast onboarding-style funnel: choose strongest discipline, enter reps/time, enter name and age, optionally skip email, then see an unverified athlete preview.
 - `/test/` preview now makes "Submit Your Score" the primary conversion action into `/challenge/`, with profile creation secondary.
+- `/test/` final result is mandatory rather than an optional preview; submitting it posts the score to the open leaderboard directly from `/test/`.
+- `/test/` Step 1 headline is "What is your strongest discipline?" while keeping push-ups, pull-ups, 5K, and 10K as choices.
+- Anonymous challenge submissions can omit email; name and performance remain required.
+- Post-submission success now emphasizes that the score is visible on the open leaderboard and pushes the athlete toward making it official, creating a profile, or challenging a friend.
 - `/test/` discipline cards hide the native radio dot, use corner discipline badges such as PU/PL/5K/10K, and keep title/helper text separated for mobile readability.
 - Running inputs in `/test/` use text entry for `MM:SS` or `HH:MM:SS` so mobile users can type `:`.
 - `/challenge/` now shows a post-submit success card with result, status, Hybrid preview points, leaderboard/profile/proof CTAs, and a share action.

@@ -69,7 +69,7 @@ class SubmissionFlowTests(TestCase):
         )
 
         self.assertEqual(Submission.objects.filter(email="high@example.com").count(), 0)
-        self.assertContains(response, "Anonymous submissions are capped at 40")
+        self.assertContains(response, "Anonymous push-up submissions above 40 need login and video proof.")
 
     def test_logged_in_submission_above_60_requires_proof(self):
         user = User.objects.create_user(username="elite-no-proof", password="StrongPass12345")
@@ -315,6 +315,38 @@ class SubmissionFlowTests(TestCase):
         self.assertTrue(anonymous["is_anonymous"])
         self.assertEqual(anonymous["verified_count"], 2)
 
+    def test_hybrid_leaderboard_includes_eligible_unverified_results(self):
+        Submission.objects.create(
+            name="Open Hybrid",
+            email="",
+            reps=50,
+            discipline=Submission.DISCIPLINE_PUSHUPS,
+            status=Submission.STATUS_UNVERIFIED,
+        )
+
+        response = self.client.get(reverse("leaderboard"))
+
+        self.assertContains(response, "Open Hybrid")
+        rows = list(response.context["leaderboard_rows"].object_list)
+        open_row = next(row for row in rows if row["display_name"] == "Open Hybrid")
+        self.assertEqual(open_row["hybrid_score"], 600)
+        self.assertEqual(open_row["status_label"], "Open")
+
+    def test_hybrid_leaderboard_hides_strong_unverified_without_proof(self):
+        Submission.objects.create(
+            name="Needs Proof Hybrid",
+            email="",
+            reps=100,
+            discipline=Submission.DISCIPLINE_PUSHUPS,
+            status=Submission.STATUS_UNVERIFIED,
+        )
+
+        response = self.client.get(reverse("leaderboard"))
+
+        self.assertNotContains(response, "Needs Proof Hybrid")
+        rows = list(response.context["leaderboard_rows"].object_list)
+        self.assertFalse(any(row["display_name"] == "Needs Proof Hybrid" for row in rows))
+
     def test_profile_prioritizes_hybrid_score_and_breakdown(self):
         user = User.objects.create_user(username="hybrid-profile", password="StrongPass12345")
         Submission.objects.create(user=user, name="Hybrid Profile", reps=40, discipline=Submission.DISCIPLINE_PUSHUPS, status=Submission.STATUS_VERIFIED)
@@ -340,7 +372,7 @@ class SubmissionFlowTests(TestCase):
                 "name": "Pull Athlete",
                 "email": "pull@example.com",
                 "discipline": Submission.DISCIPLINE_PULLUPS,
-                "score": "14",
+                "score": "12",
             },
             follow=True,
         )
@@ -348,8 +380,8 @@ class SubmissionFlowTests(TestCase):
         submission = Submission.objects.get(email="pull@example.com")
         self.assertRedirects(response, reverse("challenge"))
         self.assertEqual(submission.discipline, Submission.DISCIPLINE_PULLUPS)
-        self.assertEqual(submission.reps, 14)
-        self.assertEqual(submission.display_score, "14 reps")
+        self.assertEqual(submission.reps, 12)
+        self.assertEqual(submission.display_score, "12 reps")
 
     def test_run_time_submissions_work(self):
         self.client.post(
@@ -358,7 +390,7 @@ class SubmissionFlowTests(TestCase):
                 "name": "Five Runner",
                 "email": "five@example.com",
                 "discipline": Submission.DISCIPLINE_5K,
-                "score": "21:34",
+                "score": "22:00",
             },
         )
         self.client.post(
@@ -373,8 +405,8 @@ class SubmissionFlowTests(TestCase):
 
         five = Submission.objects.get(email="five@example.com")
         ten = Submission.objects.get(email="ten@example.com")
-        self.assertEqual(five.reps, 1294)
-        self.assertEqual(five.display_score, "21:34")
+        self.assertEqual(five.reps, 1320)
+        self.assertEqual(five.display_score, "22:00")
         self.assertEqual(ten.reps, 2660)
         self.assertEqual(ten.display_score, "44:20")
 
@@ -385,13 +417,13 @@ class SubmissionFlowTests(TestCase):
                 "name": "Dot Runner",
                 "email": "dot-run@example.com",
                 "discipline": Submission.DISCIPLINE_5K,
-                "score": "21.34",
+                "score": "22.00",
             },
         )
 
         submission = Submission.objects.get(email="dot-run@example.com")
-        self.assertEqual(submission.reps, 21 * 60 + 34)
-        self.assertEqual(submission.display_score, "21:34")
+        self.assertEqual(submission.reps, 22 * 60)
+        self.assertEqual(submission.display_score, "22:00")
 
     def test_run_time_rejects_seconds_only_format(self):
         response = self.client.post(
@@ -901,17 +933,81 @@ class SubmissionFlowTests(TestCase):
     def test_level_test_is_fast_single_discipline_funnel(self):
         response = self.client.get(reverse("level_test"))
 
-        self.assertContains(response, "Start with your strongest discipline.")
+        self.assertContains(response, "What is your strongest discipline?")
         self.assertContains(response, 'value="pushups"', html=False)
         self.assertContains(response, 'value="pullups"', html=False)
         self.assertContains(response, 'value="run_5k"', html=False)
         self.assertContains(response, 'value="run_10k"', html=False)
         self.assertContains(response, "Where should we send your result?")
         self.assertContains(response, "Skip Email")
-        self.assertContains(response, "Unverified preview")
-        self.assertContains(response, "Submit Your Score")
-        self.assertContains(response, "Create My Profile")
-        self.assertContains(response, "Check Full Hybrid Score")
+        self.assertContains(response, "Result required")
+        self.assertContains(response, "Post My Result")
+        self.assertContains(response, 'method="POST" action="{}"'.format(reverse("level_test")), html=False)
+
+    def test_level_test_posts_result_and_shows_success_step(self):
+        response = self.client.post(
+            reverse("level_test"),
+            {
+                "name": "Fast Test",
+                "discipline": Submission.DISCIPLINE_PUSHUPS,
+                "score": "48",
+            },
+            follow=True,
+        )
+
+        self.assertContains(response, "You're in!")
+        self.assertContains(response, "Posted to the open leaderboard")
+        self.assertContains(response, "Make It Official")
+        self.assertContains(response, "Challenge a Friend")
+        self.assertContains(response, "See Yourself On The Leaderboard")
+        submission = Submission.objects.get(name="Fast Test")
+        self.assertEqual(submission.status, Submission.STATUS_UNVERIFIED)
+        self.assertEqual(submission.email, "")
+
+    def test_level_test_requires_proof_for_strong_open_result(self):
+        response = self.client.post(
+            reverse("level_test"),
+            {
+                "name": "Proof Needed",
+                "discipline": Submission.DISCIPLINE_PULLUPS,
+                "score": "15",
+            },
+        )
+
+        self.assertContains(response, "need proof before it can appear on the leaderboard")
+        self.assertFalse(Submission.objects.filter(name="Proof Needed").exists())
+
+    def test_challenge_allows_anonymous_submission_without_email(self):
+        response = self.client.post(
+            reverse("challenge"),
+            {
+                "name": "No Email Athlete",
+                "discipline": Submission.DISCIPLINE_PUSHUPS,
+                "score": "28",
+            },
+            follow=True,
+        )
+
+        self.assertContains(response, "Your result is now on the open leaderboard")
+        self.assertContains(response, "Make It Official")
+        self.assertContains(response, "Create Profile")
+        self.assertContains(response, "Challenge a Friend")
+        submission = Submission.objects.get(name="No Email Athlete")
+        self.assertEqual(submission.email, "")
+        self.assertEqual(submission.status, Submission.STATUS_UNVERIFIED)
+
+    def test_challenge_requires_proof_for_strong_open_result(self):
+        response = self.client.post(
+            reverse("challenge"),
+            {
+                "name": "Strong Open",
+                "discipline": Submission.DISCIPLINE_PULLUPS,
+                "score": "15",
+            },
+        )
+
+        self.assertContains(response, "need proof before it can appear on the leaderboard")
+        self.assertFalse(Submission.objects.filter(name="Strong Open").exists())
 
     def test_level_test_running_inputs_are_mobile_time_text(self):
         response = self.client.get(reverse("level_test"))

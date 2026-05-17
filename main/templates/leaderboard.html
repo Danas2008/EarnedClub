@@ -30,6 +30,47 @@
         border-radius: 999px;
         background: linear-gradient(90deg, var(--accent), var(--accent-2));
     }
+    .leaderboard-table tr[data-intensity],
+    .score-row[data-intensity],
+    .rank-glow {
+        --rank-line: rgba(255, 255, 255, .14);
+        --rank-bg: rgba(255, 255, 255, .03);
+        --rank-bg-strong: rgba(255, 255, 255, .06);
+    }
+    .leaderboard-table tr[data-intensity],
+    .score-row[data-intensity] {
+        position: relative;
+        overflow: hidden;
+    }
+    .leaderboard-table tr[data-intensity] td {
+        background: linear-gradient(90deg, var(--rank-bg-strong), rgba(255, 255, 255, 0) 78%);
+    }
+    .leaderboard-table tr[data-intensity] td:first-child {
+        box-shadow: inset 7px 0 0 var(--rank-line);
+    }
+    .score-row[data-intensity] {
+        border-left: 7px solid var(--rank-line);
+        background: linear-gradient(90deg, var(--rank-bg-strong), var(--rank-bg));
+    }
+    [data-intensity="starter"] { --rank-line: #78a6ff; --rank-bg: rgba(120, 166, 255, .05); --rank-bg-strong: rgba(120, 166, 255, .18); }
+    [data-intensity="intermediate"] { --rank-line: #1e9d74; --rank-bg: rgba(30, 157, 116, .05); --rank-bg-strong: rgba(30, 157, 116, .2); }
+    [data-intensity="advanced"] { --rank-line: #f7b733; --rank-bg: rgba(247, 183, 51, .06); --rank-bg-strong: rgba(247, 183, 51, .22); }
+    [data-intensity="elite"] { --rank-line: #ff7a59; --rank-bg: rgba(255, 122, 89, .06); --rank-bg-strong: rgba(255, 122, 89, .24); }
+    [data-intensity="legend"] { --rank-line: #d8b4fe; --rank-bg: rgba(216, 180, 254, .07); --rank-bg-strong: rgba(216, 180, 254, .26); }
+    .rank-glow {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        color: var(--rank-line);
+    }
+    .rank-glow::before {
+        content: "";
+        width: 28px;
+        height: 3px;
+        border-radius: 999px;
+        background: currentColor;
+        box-shadow: 0 0 18px currentColor;
+    }
     @media (min-width: 860px) {
         .leaderboard-tier-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     }
@@ -40,7 +81,7 @@
         <div>
             <div class="eyebrow">Leaderboard</div>
             <h1>{{ active_discipline.title }}</h1>
-            <p class="muted">{% if is_hybrid_leaderboard %}The fitness leaderboard for hybrid athletes. Hybrid Score is the overall athlete rating built from verified performances.{% else %}The fitness leaderboard for real performance. Official ranks require proof. Unverified results are shown, but not official.{% endif %}</p>
+            <p class="muted">{% if is_hybrid_leaderboard %}The open fitness leaderboard for hybrid athletes. Verified results count fully; stronger unverified results need proof before they appear.{% else %}The fitness leaderboard for real performance. Official ranks require proof. Unverified results are shown, but not official.{% endif %}</p>
             <div class="button-row">
                 <a class="btn-main" href="{% url 'challenge' %}?discipline={{ active_discipline.key }}#submit-form-top">Submit Performance</a>
             </div>
@@ -115,7 +156,7 @@
     <div class="section-spread">
         <div>
             <h2>{% if is_hybrid_leaderboard %}Hybrid Rankings{% else %}{{ active_discipline.label }} Results{% endif %}</h2>
-            <p class="muted">{% if is_hybrid_leaderboard %}Only verified performances count toward official Hybrid Score. Incomplete athletes can still rank.{% else %}Verified rows can earn official rank. Pending and unverified rows show the chase, not official status.{% endif %}</p>
+            <p class="muted">{% if is_hybrid_leaderboard %}Open Hybrid Leaderboard includes verified, pending, and eligible unverified athletes. Stronger unverified results need proof before they appear.{% else %}Verified rows can earn official rank. Pending and unverified rows show the chase, not official status.{% endif %}</p>
         </div>
     </div>
     <form class="search-row" method="GET" action="{% url 'leaderboard' %}#full-leaderboard">
@@ -138,12 +179,12 @@
                     <th>Athlete</th>
                     <th>Hybrid Score</th>
                     <th>Hybrid Rank</th>
-                    <th>Verified</th>
+                    <th>Status</th>
                 </tr>
             </thead>
             <tbody>
                 {% for row in leaderboard_rows %}
-                    <tr>
+                    <tr data-intensity="{{ row.rank_intensity }}">
                         <td><span class="position-pill">#{{ row.position }}</span></td>
                         <td>
                             <div class="submission-name">
@@ -157,9 +198,12 @@
                                 {% endif %}
                             </div>
                         </td>
-                        <td><span class="score">{{ row.hybrid_score }}</span></td>
+                        <td><span class="score rank-glow">{{ row.hybrid_score }}</span></td>
                         <td><span class="tag-pill">{{ row.hybrid_rank.name }}</span></td>
-                        <td>{{ row.verified_count }}/4 disciplines</td>
+                        <td>
+                            <span class="status-pill {% if row.status_label == 'Official' %}verified{% else %}unverified{% endif %}">{{ row.status_label }}</span>
+                            <div class="submission-meta">{{ row.verified_count }}/{{ row.open_count }} verified</div>
+                        </td>
                     </tr>
                 {% endfor %}
             </tbody>
@@ -167,7 +211,7 @@
 
         <div class="mobile-cards compact-board">
             {% for row in leaderboard_rows %}
-                <div class="score-row">
+                <div class="score-row" data-intensity="{{ row.rank_intensity }}">
                     {% if row.profile and row.profile.profile_image_url %}
                         <img class="avatar" src="{{ row.profile.profile_image_url }}" alt="{{ row.profile.display_name }} profile picture">
                     {% elif row.profile %}
@@ -177,11 +221,11 @@
                     {% endif %}
                     <div class="score-row-main">
                         <div class="submission-name">{% if row.profile %}<a href="{% url 'athlete_profile' row.profile.slug %}">{{ row.profile.display_name }}</a>{% else %}{{ row.display_name }}{% endif %}</div>
-                        <div class="submission-meta">{{ row.hybrid_rank.name }} - {{ row.verified_count }}/4 verified disciplines</div>
+                        <div class="submission-meta">{{ row.hybrid_rank.name }} - {{ row.status_label }} - {{ row.verified_count }}/{{ row.open_count }} verified</div>
                     </div>
                     <div class="score-row-score">
                         <span class="position-pill">#{{ row.position }}</span>
-                        <div class="score">{{ row.hybrid_score }}</div>
+                        <div class="score rank-glow">{{ row.hybrid_score }}</div>
                     </div>
                 </div>
             {% endfor %}
@@ -201,7 +245,7 @@
             </thead>
             <tbody>
                 {% for row in leaderboard_rows %}
-                    <tr data-board-row data-status="{{ row.submission.status }}" data-created="{{ row.submission.created_at|date:'c' }}">
+                    <tr data-board-row data-status="{{ row.submission.status }}" data-created="{{ row.submission.created_at|date:'c' }}" data-intensity="{{ row.rank_intensity }}">
                         <td><span class="position-pill">#{{ row.position }}</span></td>
                         <td>{{ row.submission.discipline_label }}</td>
                         <td>
@@ -217,7 +261,7 @@
                             </div>
                         </td>
                         <td><span class="score">{{ row.submission.compact_score }}</span></td>
-                        <td><span class="tag-pill">{{ row.submission.rank_name }}</span></td>
+                        <td><span class="tag-pill">{{ row.submission.rank_name }}</span><div class="submission-meta">{{ row.display_points }} pts</div></td>
                         <td><span class="status-pill {{ row.submission.status }}">{{ row.submission.public_status_label }}</span></td>
                         <td>
                             {% if row.verified_position %}Official rank #{{ row.verified_position }}{% else %}-{% endif %}
@@ -233,7 +277,7 @@
 
         <div class="mobile-cards compact-board">
             {% for row in leaderboard_rows %}
-                <div class="score-row" data-board-row data-status="{{ row.submission.status }}" data-created="{{ row.submission.created_at|date:'c' }}">
+                <div class="score-row" data-board-row data-status="{{ row.submission.status }}" data-created="{{ row.submission.created_at|date:'c' }}" data-intensity="{{ row.rank_intensity }}">
                     {% if row.profile and row.profile.profile_image_url %}
                         <img class="avatar" src="{{ row.profile.profile_image_url }}" alt="{{ row.profile.display_name }} profile picture">
                     {% elif row.profile %}
@@ -243,7 +287,7 @@
                     {% endif %}
                     <div class="score-row-main">
                         <div class="submission-name">{% if row.profile %}<a href="{% url 'athlete_profile' row.profile.slug %}">{{ row.submission.name }}</a>{% else %}{{ row.submission.name }}{% endif %}</div>
-                        <div class="submission-meta">{{ row.submission.discipline_label }} - {{ row.submission.display_score }} - {{ row.submission.public_status_label }}</div>
+                        <div class="submission-meta">{{ row.submission.discipline_label }} - {{ row.submission.display_score }} - {{ row.submission.public_status_label }} - {{ row.display_points }} pts</div>
                     </div>
                     <div class="score-row-score">
                         <span class="position-pill">#{{ row.position }}</span>

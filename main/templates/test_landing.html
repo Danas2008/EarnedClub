@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 
 {% block title %}Performance Test{% endblock %}
-{% block meta_description %}Start your Earned Club profile with one discipline, preview your rank, and submit proof to enter the leaderboard.{% endblock %}
+{% block meta_description %}Choose your strongest discipline, post your result to the open leaderboard, and add proof to make it official.{% endblock %}
 
 {% block content %}
 <style>
@@ -186,6 +186,10 @@
         to { opacity: 1; transform: translateY(0); }
     }
 
+    .hero-actions form {
+        margin: 0;
+    }
+
     @media (min-width: 760px) {
         .test-options {
             grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -206,8 +210,8 @@
             <div class="test-step is-active" data-step="0">
                 <div class="eyebrow">Step 1 / 5</div>
                 <div>
-                    <h1>Start with your strongest discipline.</h1>
-                    <p class="muted">Pick the one you want to be ranked in first.</p>
+                    <h1>What is your strongest discipline?</h1>
+                    <p class="muted">Pick the one you want posted to the leaderboard first.</p>
                 </div>
                 <div class="test-options">
                     <label class="discipline-choice">
@@ -273,61 +277,78 @@
             <div class="test-step" data-step="4">
                 <div class="eyebrow">Step 5 / 5</div>
                 <h1>Where should we send your result?</h1>
-                <p class="muted">Email helps you save the preview later, but you can skip it.</p>
+                <p class="muted">Email is optional. Your result still posts to the open leaderboard after the final step.</p>
                 <input id="test-email" class="input test-input" type="email" placeholder="you@example.com">
                 <div class="button-row">
-                    <button class="btn-main" type="button" data-reveal>Show Preview</button>
-                    <button class="btn-secondary" type="button" data-skip-email>Skip Email</button>
+                    <button class="btn-main" type="button" data-reveal>Post My Result</button>
+                    <button class="btn-secondary" type="button" data-skip-email>Skip Email And Post</button>
                     <button class="btn-secondary" type="button" data-back>Back</button>
                 </div>
             </div>
 
             <div class="test-step" data-step="5">
-                <div class="eyebrow">Unverified preview</div>
-                <div class="preview-card">
-                    <div>
-                        <div class="preview-top">
-                            <div>
-                                <span class="kicker">Athlete preview</span>
-                                <h1 id="preview-name">Athlete</h1>
+                {% if test_submission_success %}
+                    <div class="eyebrow">You're in!</div>
+                    <div class="preview-card">
+                        <div>
+                            <div class="preview-top">
+                                <div>
+                                    <span class="kicker">Posted to the open leaderboard</span>
+                                    <h1>{{ test_submission_success.submission.name }}</h1>
+                                </div>
+                                <span class="status-pill {{ test_submission_success.submission.status }}">{{ test_submission_success.submission.public_status_label }}</span>
                             </div>
-                            <span class="status-pill unverified">Unverified preview</span>
+                            <div class="preview-grid">
+                                <div class="preview-stat">
+                                    <span class="kicker">Discipline</span>
+                                    <div class="submission-name">{{ test_submission_success.submission.discipline_label }}</div>
+                                </div>
+                                <div class="preview-stat">
+                                    <span class="kicker">Result</span>
+                                    <div class="submission-name">{{ test_submission_success.submission.display_score }}</div>
+                                </div>
+                                <div class="preview-stat">
+                                    <span class="kicker">Tier</span>
+                                    <div class="submission-name">{{ test_submission_success.submission.rank_name }}</div>
+                                </div>
+                                <div class="preview-stat">
+                                    <span class="kicker">Open points</span>
+                                    <div class="submission-name">{{ test_submission_success.display_points }} pts</div>
+                                </div>
+                            </div>
                         </div>
-                        <div class="preview-grid">
-                            <div class="preview-stat">
-                                <span class="kicker">Discipline</span>
-                                <div class="submission-name" id="preview-discipline">Push-ups</div>
-                            </div>
-                            <div class="preview-stat">
-                                <span class="kicker">Result</span>
-                                <div class="submission-name" id="preview-result">42 reps</div>
-                            </div>
-                            <div class="preview-stat">
-                                <span class="kicker">Tier</span>
-                                <div class="submission-name" id="preview-tier">Advanced</div>
-                            </div>
-                            <div class="preview-stat">
-                                <span class="kicker">Points</span>
-                                <div class="submission-name" id="preview-points">480 pts</div>
-                            </div>
+                        <div>
+                            <span class="kicker">Unverified</span>
+                            <div class="preview-score">{{ test_submission_success.display_points }}</div>
+                            <p class="muted">
+                                This score is visible now, but it is not official yet.
+                            </p>
                         </div>
                     </div>
-                    <div>
-                        <span class="kicker">Hybrid Score Preview</span>
-                        <div class="preview-score" id="preview-score">525</div>
-                        <p class="muted">Your result is a preview until you prove it. Proof makes it official.</p>
+                    <div class="hero-actions">
+                        <a class="btn-main" href="{{ test_submission_success.proof_url }}">Make It Official</a>
+                        <a class="btn-secondary" href="{{ test_submission_success.register_url }}">Create My Profile</a>
+                        <button class="btn-secondary" type="button" data-share-text="{{ test_submission_success.share_text }}">Challenge a Friend</button>
+                        <a class="btn-secondary" href="{{ test_submission_success.leaderboard_url }}">See Yourself On The Leaderboard</a>
                     </div>
-                </div>
-                <div class="hero-actions">
-                    <a id="submit-performance-link" class="btn-main" href="{% url 'challenge' %}#submit-form-top">Submit Your Score</a>
-                    <a id="create-profile-link" class="btn-secondary" href="{% url 'register' %}">Create My Profile</a>
-                    <a class="btn-secondary" href="{% url 'rank' %}">Check Full Hybrid Score</a>
-                </div>
-                <p class="muted">Create your profile to keep your rank. Submit performance to enter the leaderboard.</p>
+                {% else %}
+                    <div class="eyebrow">Result required</div>
+                    <h1>Write in your result to continue.</h1>
+                    <p class="muted">Your result posts to the open leaderboard when you finish the test.</p>
+                {% endif %}
             </div>
         </div>
     </section>
 </div>
+
+<form id="submit-performance-form" method="POST" action="{% url 'level_test' %}" hidden>
+    {% csrf_token %}
+    <input type="text" name="website" tabindex="-1" autocomplete="off" aria-hidden="true">
+    <input type="hidden" name="discipline" id="submit-discipline">
+    <input type="hidden" name="score" id="submit-score">
+    <input type="hidden" name="name" id="submit-name">
+    <input type="hidden" name="email" id="submit-email">
+</form>
 
 {{ discipline_point_tiers|json_script:"discipline-point-tier-data" }}
 <script>
@@ -413,40 +434,41 @@
         return 1000;
     }
 
-    function reveal() {
+    function resultValueOrNull() {
         const discipline = selectedDiscipline();
         const config = disciplineLabels[discipline];
         const rawResult = document.getElementById("test-result").value.trim();
-        const name = document.getElementById("test-name").value.trim() || "Athlete";
-        const age = document.getElementById("test-age").value.trim();
-        const email = document.getElementById("test-email").value.trim();
         const value = config.unit === "time" ? parseTime(rawResult) : Number(rawResult);
         if (!value || value <= 0) {
             showStep(1);
             document.querySelector("[data-result-hint]").textContent = config.unit === "time" ? "Enter a valid time like 21:34. Tip: 21.34 becomes 21:34." : "Enter a whole number above zero.";
-            return;
+            return null;
         }
-        const points = pointsFor(discipline, value);
-        const displayResult = config.unit === "time" ? formatTime(value) : `${value} reps`;
-        document.getElementById("preview-name").textContent = name;
-        document.getElementById("preview-discipline").textContent = config.label;
-        document.getElementById("preview-result").textContent = displayResult;
-        document.getElementById("preview-tier").textContent = `${tierFor(discipline, value)} ${config.label}`;
-        document.getElementById("preview-points").textContent = `${points} pts`;
-        document.getElementById("preview-score").textContent = points;
-
-        const params = new URLSearchParams();
-        params.set("discipline", discipline);
-        params.set(discipline === "pushups" ? "reps" : "score", rawResult);
-        if (name && name !== "Athlete") params.set("name", name);
-        if (age) params.set("age", age);
-        if (email) params.set("email", email);
-        document.getElementById("submit-performance-link").href = `{% url 'challenge' %}?${params.toString()}#submit-form-top`;
-        document.getElementById("create-profile-link").href = `{% url 'register' %}?${params.toString()}`;
-        showStep(5);
+        return { discipline, rawResult };
     }
 
-    document.querySelectorAll("[data-next]").forEach((button) => button.addEventListener("click", () => showStep(Math.min(4, active + 1))));
+    function reveal() {
+        const result = resultValueOrNull();
+        if (!result) return;
+        const name = document.getElementById("test-name").value.trim() || "Athlete";
+        const email = document.getElementById("test-email").value.trim();
+
+        const params = new URLSearchParams();
+        params.set("discipline", result.discipline);
+        params.set(result.discipline === "pushups" ? "reps" : "score", result.rawResult);
+        if (name && name !== "Athlete") params.set("name", name);
+        if (email) params.set("email", email);
+        document.getElementById("submit-discipline").value = result.discipline;
+        document.getElementById("submit-score").value = result.rawResult;
+        document.getElementById("submit-name").value = name;
+        document.getElementById("submit-email").value = email;
+        document.getElementById("submit-performance-form").submit();
+    }
+
+    document.querySelectorAll("[data-next]").forEach((button) => button.addEventListener("click", () => {
+        if (active === 1 && !resultValueOrNull()) return;
+        showStep(Math.min(4, active + 1));
+    }));
     document.querySelectorAll("[data-back]").forEach((button) => button.addEventListener("click", () => showStep(Math.max(0, active - 1))));
     document.querySelector("[data-skip-age]")?.addEventListener("click", () => {
         document.getElementById("test-age").value = "";
@@ -457,18 +479,31 @@
         document.getElementById("test-email").value = "";
         reveal();
     });
+    for (const shareButton of document.querySelectorAll("[data-share-text]")) {
+        const originalLabel = shareButton.textContent;
+        shareButton.addEventListener("click", async () => {
+            const text = shareButton.dataset.shareText;
+            if (navigator.share) await navigator.share({ text });
+            else {
+                await navigator.clipboard.writeText(text);
+                shareButton.textContent = "Copied";
+                setTimeout(() => shareButton.textContent = originalLabel, 1200);
+            }
+        });
+    }
     document.querySelectorAll("input[name='discipline_choice']").forEach((input) => input.addEventListener("change", syncResultInput));
     document.querySelectorAll(".test-input").forEach((field) => {
         field.addEventListener("keydown", (event) => {
             if (event.key !== "Enter") return;
             event.preventDefault();
-            active >= 4 ? reveal() : showStep(active + 1);
+            if (active >= 4) reveal();
+            else if (active !== 1 || resultValueOrNull()) showStep(active + 1);
         });
     });
     document.getElementById("test-result").addEventListener("input", (event) => {
         if (disciplineLabels[selectedDiscipline()].unit !== "time") return;
         event.target.value = event.target.value.replace(/^(\d+)\.(\d+)$/, "$1:$2");
     });
-    showStep(0);
+    showStep({% if test_submission_success %}5{% else %}0{% endif %});
 </script>
 {% endblock %}

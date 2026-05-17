@@ -213,10 +213,31 @@ HYBRID_LEADERBOARD_CONFIG = {
     "placeholder": "",
 }
 
+OPEN_NO_PROOF_POINT_LIMIT = 600
+
+
+def points_for_score(score, discipline):
+    return Submission(discipline=discipline, reps=score).hybrid_points
+
+
+def needs_proof_before_open_leaderboard(score, discipline):
+    return points_for_score(score, discipline) > OPEN_NO_PROOF_POINT_LIMIT
+
+
+def open_leaderboard_proof_message():
+    return "This result is strong enough to need proof before it can appear on the leaderboard."
+
+
+def is_submission_visible_on_open_board(submission):
+    return submission.status == Submission.STATUS_VERIFIED or submission.has_proof or submission.hybrid_points <= OPEN_NO_PROOF_POINT_LIMIT
+
 
 def build_leaderboard_rows(submissions):
     rows = []
-    for index, submission in enumerate(submissions, start=1):
+    for submission in submissions:
+        if not is_submission_visible_on_open_board(submission):
+            continue
+        index = len(rows) + 1
         profile = None
         if submission.user_id:
             profile = getattr(submission.user, "profile", None)
@@ -232,9 +253,25 @@ def build_leaderboard_rows(submissions):
                 "verified_position": verified_position,
                 "submission": submission,
                 "profile": profile,
+                "display_points": submission.hybrid_points,
+                "rank_intensity": get_rank_intensity(submission.hybrid_points),
             }
         )
     return rows
+
+
+def get_rank_intensity(points):
+    if points >= 900:
+        return "legend"
+    if points >= 750:
+        return "elite"
+    if points >= 550:
+        return "advanced"
+    if points >= 350:
+        return "intermediate"
+    if points > 0:
+        return "starter"
+    return "empty"
 
 
 def build_hybrid_breakdown(user):
@@ -429,76 +466,66 @@ def build_goal_rank_options(user, hybrid_summary):
 
 def build_hybrid_leaderboard_rows(query=""):
     rows = []
-    verified_submissions = list(
-        Submission.objects.filter(status=Submission.STATUS_VERIFIED)
+    public_statuses = [
+        Submission.STATUS_VERIFIED,
+        Submission.STATUS_PENDING,
+        Submission.STATUS_UNVERIFIED,
+    ]
+    public_submissions = list(
+        Submission.objects.filter(status__in=public_statuses)
         .select_related("user", "user__profile")
         .order_by("created_at")
     )
-    users = User.objects.filter(submission__status=Submission.STATUS_VERIFIED).select_related("profile").distinct()
-    if query:
-        users = users.filter(
-            Q(username__icontains=query)
-            | Q(profile__display_name__icontains=query)
-            | Q(profile__country__icontains=query)
-        )
-    for user in users:
-        summary = build_hybrid_breakdown(user)
-        if summary["score"] <= 0:
-            continue
-        rows.append(
-            {
-                "position": 0,
-                "medal_place": None,
-                "user": user,
-                "profile": getattr(user, "profile", None),
-                "display_name": user_display_name(user),
-                "hybrid_score": summary["score"],
-                "hybrid_rank": summary["rank"],
-                "breakdown": summary["breakdown"],
-                "verified_count": summary["verified_count"],
-                "is_anonymous": False,
-            }
-        )
 
-    anonymous_groups = {}
-    for submission in verified_submissions:
-        if submission.user_id:
+    grouped = {}
+    lowered_query = query.lower()
+    for submission in public_submissions:
+        if not is_submission_visible_on_open_board(submission):
             continue
-        identity = get_submission_identity(submission)
-        if query and query.lower() not in submission.name.lower() and query.lower() not in submission.email.lower():
+        display_name = user_display_name(submission.user) if submission.user_id else submission.name
+        email = submission.email or ""
+        if lowered_query and lowered_query not in display_name.lower() and lowered_query not in email.lower():
             continue
-        group = anonymous_groups.setdefault(
+        identity = f"user:{submission.user_id}" if submission.user_id else f"anon:{get_submission_identity(submission)}"
+        group = grouped.setdefault(
             identity,
             {
-                "display_name": submission.name,
-                "email": submission.email,
+                "user": submission.user if submission.user_id else None,
+                "profile": getattr(submission.user, "profile", None) if submission.user_id else None,
+                "display_name": display_name,
+                "email": email,
                 "submissions": [],
             },
         )
         group["submissions"].append(submission)
 
-    for group in anonymous_groups.values():
+    for group in grouped.values():
         best_by_discipline = {}
         for submission in group["submissions"]:
             current = best_by_discipline.get(submission.normalized_discipline)
             if current is None or is_better_submission(submission, current):
                 best_by_discipline[submission.normalized_discipline] = submission
-        points = [submission.hybrid_points for submission in best_by_discipline.values()]
+        best_submissions = list(best_by_discipline.values())
+        points = [submission.hybrid_points for submission in best_submissions]
         if not points:
             continue
         score = round(sum(points) / len(points))
+        verified_count = sum(1 for submission in best_submissions if submission.status == Submission.STATUS_VERIFIED)
         rows.append(
             {
                 "position": 0,
                 "medal_place": None,
-                "user": None,
-                "profile": None,
+                "user": group["user"],
+                "profile": group["profile"],
                 "display_name": group["display_name"],
                 "hybrid_score": score,
                 "hybrid_rank": get_hybrid_rank(score),
-                "breakdown": [],
-                "verified_count": len(points),
-                "is_anonymous": True,
+                "breakdown": best_submissions,
+                "verified_count": verified_count,
+                "open_count": len(points),
+                "is_anonymous": group["user"] is None,
+                "rank_intensity": get_rank_intensity(score),
+                "status_label": "Official" if verified_count == len(points) else "Open",
             }
         )
 
@@ -644,6 +671,7 @@ def get_pr_share_message(profile, request):
 def build_submission_success(submission, request):
     discipline_config = get_discipline_config(submission.discipline)
     leaderboard_url = f"{reverse('leaderboard')}?discipline={submission.discipline}#full-leaderboard"
+    challenge_url = reverse("level_test")
     register_params = urlencode({"name": submission.name, "email": submission.email}) if submission.email else urlencode({"name": submission.name})
     proof_params = urlencode({
         "discipline": submission.discipline,
@@ -659,9 +687,10 @@ def build_submission_success(submission, request):
         "profile_url": profile_url,
         "register_url": f"{reverse('register')}?{register_params}" if register_params else reverse("register"),
         "proof_url": reverse("dashboard") if submission.user_id else f"{reverse('challenge')}?{proof_params}#submit-form-top",
+        "display_points": submission.hybrid_points,
         "share_text": (
-            f"I submitted {submission.discipline_label} {submission.display_score} on Earned Club. "
-            f"Proof makes it official. {request.build_absolute_uri(leaderboard_url)}"
+            f"I scored {submission.display_score} in {submission.discipline_label} on Earned Club. "
+            f"Can you beat me? {request.build_absolute_uri(challenge_url)}"
         ),
     }
 
@@ -734,6 +763,8 @@ def public_submission_queryset(since=None, discipline=DISCIPLINE_PUSHUPS):
     else:
         verified_pool = get_official_verified_submissions(discipline)
     for submission in verified_pool:
+        if not is_submission_visible_on_open_board(submission):
+            continue
         identity = get_submission_identity(submission)
         current = visible.get(identity)
         if current is None or is_better_submission(submission, current):
@@ -747,6 +778,8 @@ def public_submission_queryset(since=None, discipline=DISCIPLINE_PUSHUPS):
     if since:
         pending_submissions = pending_submissions.filter(created_at__gte=since)
     for submission in pending_submissions:
+        if not is_submission_visible_on_open_board(submission):
+            continue
         identity = get_submission_identity(submission)
         current = visible.get(identity)
         if current is None or is_better_submission(submission, current):
@@ -760,6 +793,8 @@ def public_submission_queryset(since=None, discipline=DISCIPLINE_PUSHUPS):
     if since:
         unverified_submissions = unverified_submissions.filter(created_at__gte=since)
     for submission in unverified_submissions:
+        if not is_submission_visible_on_open_board(submission):
+            continue
         identity = get_submission_identity(submission)
         current = visible.get(identity)
         if current is None or is_better_submission(submission, current):
@@ -1125,8 +1160,10 @@ def find_submission_blocker(request, name, email, reps, discipline=DISCIPLINE_PU
     recent_duplicate = Submission.objects.filter(created_at__gte=cooldown, reps=reps, discipline=discipline)
     if request.user.is_authenticated:
         recent_duplicate = recent_duplicate.filter(user=request.user)
-    else:
+    elif email:
         recent_duplicate = recent_duplicate.filter(Q(email__iexact=email) | Q(name__iexact=name))
+    else:
+        recent_duplicate = recent_duplicate.filter(name__iexact=name)
     if recent_duplicate.exists():
         return "That looks like a duplicate of a recent submission. Give it a few minutes or update your active entry with proof."
 
@@ -1751,15 +1788,89 @@ def home(request):
 
 def level_test(request):
     verified_submissions = get_official_verified_submissions()
+    context = {
+        "rank_tiers": RANK_TIERS,
+        "discipline_point_tiers": build_discipline_point_tiers(),
+        "total_verified": len(verified_submissions),
+        "total_submissions": len(public_submission_queryset()),
+    }
+    success_submission_id = request.session.pop("last_test_submission_id", None) if request.method == "GET" else None
+    if success_submission_id:
+        success_submission = Submission.objects.filter(pk=success_submission_id).select_related("user", "user__profile").first()
+        if success_submission:
+            context["test_submission_success"] = build_submission_success(success_submission, request)
+
+    if request.method == "POST":
+        discipline = normalize_discipline(request.POST.get("discipline") or DISCIPLINE_PUSHUPS)
+        selected_discipline = get_discipline_config(discipline)
+        score_raw = (request.POST.get("score") or request.POST.get("reps") or "").strip()
+        name = (request.POST.get("name") or "").strip() or "Athlete"
+        email = (request.POST.get("email") or "").strip().lower()
+
+        if request.POST.get("website"):
+            messages.success(request, "You are in. Your result is on the open leaderboard.")
+            return redirect("level_test")
+
+        if not score_raw:
+            messages.error(request, "Enter your result before continuing.")
+            return render(request, "test_landing.html", context)
+
+        try:
+            score_value = parse_submission_score(score_raw, discipline)
+        except ValueError as exc:
+            messages.error(request, str(exc) if selected_discipline["score_type"] == "time" else "Enter a whole number above zero.")
+            return render(request, "test_landing.html", context)
+
+        score_error = validate_submission_score(score_value, discipline)
+        if score_error:
+            messages.error(request, score_error)
+            return render(request, "test_landing.html", context)
+        if needs_proof_before_open_leaderboard(score_value, discipline):
+            messages.error(request, open_leaderboard_proof_message())
+            return render(request, "test_landing.html", context)
+
+        active_filter = blocking_submission_queryset(discipline)
+        active_submission = active_filter.filter(email__iexact=email).first() if email else active_filter.filter(name__iexact=name).first()
+        if active_submission:
+            request.session["last_test_submission_id"] = active_submission.id
+            messages.info(request, "You are already in. Your recent result is on the open leaderboard.")
+            return redirect("level_test")
+
+        blocker = find_submission_blocker(request, name, email, score_value, discipline)
+        if blocker == "silent":
+            messages.success(request, "You are in. Your result is on the open leaderboard.")
+            return redirect("level_test")
+        if blocker:
+            messages.error(request, blocker)
+            return render(request, "test_landing.html", context)
+
+        submission = Submission.objects.create(
+            user=request.user if request.user.is_authenticated else None,
+            name=user_display_name(request.user) if request.user.is_authenticated else name,
+            email=request.user.email if request.user.is_authenticated else email,
+            discipline=discipline,
+            reps=score_value,
+            status=Submission.STATUS_UNVERIFIED,
+        )
+        safe_post_submission_side_effects(
+            submission,
+            VerificationEvent.ACTION_SUBMITTED,
+            "A new test result was submitted.",
+            "Earned Club submission received",
+            (
+                f"Your Earned Club result for {submission.discipline_label} {submission.display_score} is now on the open leaderboard. "
+                "Add proof to make it official."
+            ),
+            request=request,
+        )
+        request.session["last_test_submission_id"] = submission.id
+        messages.success(request, "You are in. Your result is now on the open leaderboard.")
+        return redirect("level_test")
+
     return render(
         request,
         "test_landing.html",
-        {
-            "rank_tiers": RANK_TIERS,
-            "discipline_point_tiers": build_discipline_point_tiers(),
-            "total_verified": len(verified_submissions),
-            "total_submissions": len(public_submission_queryset()),
-        },
+        context,
     )
 
 
@@ -2381,8 +2492,8 @@ def challenge(request):
             messages.success(request, "Submission received. If it passes review, it will appear on the leaderboard.")
             return redirect("challenge")
 
-        if not name or not score_raw or (not request.user.is_authenticated and not email):
-            messages.error(request, "Please fill in your name, email, and performance before submitting.")
+        if not name or not score_raw:
+            messages.error(request, "Please fill in your name and performance before submitting.")
             context["form_data"] = request.POST
             context["form_score"] = score_raw
             context["show_submit_help"] = True
@@ -2406,7 +2517,7 @@ def challenge(request):
             return render(request, "challenge.html", context)
 
         if discipline == Submission.DISCIPLINE_PUSHUPS and not request.user.is_authenticated and score_value > 40:
-            messages.error(request, "Anonymous submissions are capped at 40 push-ups. Log in and add video proof to submit more.")
+            messages.error(request, "Anonymous push-up submissions above 40 need login and video proof.")
             context["form_data"] = request.POST
             context["form_score"] = score_raw
             context["show_submit_help"] = True
@@ -2419,11 +2530,20 @@ def challenge(request):
             context["show_submit_help"] = True
             return render(request, "challenge.html", context)
 
+        if not (video_file or proof_link) and needs_proof_before_open_leaderboard(score_value, discipline):
+            messages.error(request, open_leaderboard_proof_message())
+            context["form_data"] = request.POST
+            context["form_score"] = score_raw
+            context["show_submit_help"] = True
+            return render(request, "challenge.html", context)
+
         active_filter = blocking_submission_queryset(discipline)
         if request.user.is_authenticated:
             active_submission = active_filter.filter(user=request.user).first()
+        elif email:
+            active_submission = active_filter.filter(email__iexact=email).first()
         else:
-            active_submission = active_filter.filter(email=email).first()
+            active_submission = active_filter.filter(name__iexact=name).first()
 
         if active_submission:
             if active_submission.status == Submission.STATUS_UNVERIFIED and (video_file or proof_link):
