@@ -270,8 +270,20 @@
                                 {% if hybrid_summary.best_discipline.discipline.key == item.discipline.key %} - strongest{% endif %}
                                 {% if hybrid_summary.weakest_discipline.discipline.key == item.discipline.key %} - improve next{% endif %}
                             </div>
+                            {% if item.submission and item.preview_submission %}
+                                <div class="submission-meta">
+                                    Preview: {{ item.preview_submission.display_score }} - {{ item.preview_submission.public_status_label }} - {{ item.preview_points }} pts if verified
+                                </div>
+                            {% elif item.preview_submission and not item.submission %}
+                                <div class="submission-meta">Not official yet. Add proof to make this count toward Hybrid Score.</div>
+                            {% endif %}
                         </div>
-                        <strong>{{ item.points }} pts</strong>
+                        <div style="text-align: right;">
+                            <strong>{{ item.points }} pts</strong>
+                            {% if item.preview_submission %}
+                                <div class="submission-meta">Preview {{ item.preview_points }}</div>
+                            {% endif %}
+                        </div>
                     </div>
                 {% endfor %}
             </div>

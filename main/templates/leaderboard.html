@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 
 {% block title %}{{ active_discipline.title }}{% endblock %}
-{% block meta_description %}Compare Earned Club performance leaderboards for push-ups, pull-ups, 5K, and 10K with verified official rankings.{% endblock %}
+{% block meta_description %}Compare Earned Club performance leaderboards for push-ups, pull-ups, and 5K with verified official rankings.{% endblock %}
 
 {% block content %}
 <style>
@@ -109,6 +109,9 @@
             <p class="muted">The fitness leaderboard for real performance. Official ranks require proof. Unverified results are shown, but not official.</p>
             <div class="button-row">
                 <a class="btn-main" href="{% url 'challenge' %}?discipline={{ active_discipline.key }}#submit-form-top">Submit Performance</a>
+                {% if not request.user.is_authenticated %}
+                    <a class="btn-secondary" href="{% url 'register' %}">Claim Your Athlete Profile</a>
+                {% endif %}
             </div>
         </div>
         <div class="stat-grid">
@@ -205,6 +208,9 @@
         <div>
             <h2>{% if is_hybrid_leaderboard %}Hybrid Leaderboard{% else %}{{ active_discipline.label }} Results{% endif %}</h2>
             <p class="muted">Verified rows can earn official rank. Pending and unverified rows show the chase, not official status.</p>
+            {% if not request.user.is_authenticated %}
+                <p class="muted">Your result can be live on the open leaderboard first. Claim Your Athlete Profile to save it, verify results, unlock badges, and keep challenge history.</p>
+            {% endif %}
         </div>
     </div>
     <form class="search-row" method="GET" action="{% url 'leaderboard' %}#full-leaderboard">
@@ -358,6 +364,7 @@
             <h3>No one owns this board yet. Be first.</h3>
             <p class="muted">Submit a real result and claim the first spot on this leaderboard.</p>
             <a class="btn-main" href="{% url 'level_test' %}">Submit Your Score</a>
+            <a class="btn-secondary" href="{% url 'register' %}">Claim Your Athlete Profile</a>
         </div>
     {% endif %}
 

@@ -81,7 +81,6 @@
                 <option value="pushups">Push-ups</option>
                 <option value="pullups">Pull-ups</option>
                 <option value="run_5k">5K</option>
-                <option value="run_10k">10K</option>
             </select>
             <div class="slider-stack">
                 <div class="slider-row" data-score-slider="pushups">
@@ -97,11 +96,6 @@
                 <div class="slider-row" data-score-slider="run_5k">
                     <div class="slider-head"><label class="field-label" for="calc-5k">5K</label><span class="tag-pill" data-score-display="run_5k">25:00</span></div>
                     <input id="calc-5k" class="range-input" type="range" min="900" max="2400" step="5" value="1800">
-                    <div class="slider-axis"><span>Slower</span><span>Faster</span></div>
-                </div>
-                <div class="slider-row" data-score-slider="run_10k">
-                    <div class="slider-head"><label class="field-label" for="calc-10k">10K</label><span class="tag-pill" data-score-display="run_10k">50:00</span></div>
-                    <input id="calc-10k" class="range-input" type="range" min="1800" max="4500" step="5" value="3300">
                     <div class="slider-axis"><span>Slower</span><span>Faster</span></div>
                 </div>
             </div>
@@ -164,7 +158,6 @@
                 <option value="pushups">Push-ups</option>
                 <option value="pullups">Pull-ups</option>
                 <option value="run_5k">5K</option>
-                <option value="run_10k">10K</option>
             </select>
             <input id="current-reps" class="input" type="number" min="0" step="1" placeholder="Strict push-ups">
             <button class="btn-main" type="button" onclick="calculateRank()">Show Tier</button>
@@ -258,7 +251,7 @@
         return { name: "Beginner Hybrid", intensity: "beginner" };
     }
     function sliderScoreValue(key) {
-        const input = document.getElementById(key === "run_5k" ? "calc-5k" : key === "run_10k" ? "calc-10k" : `calc-${key}`);
+        const input = document.getElementById(key === "run_5k" ? "calc-5k" : `calc-${key}`);
         const raw = Number(input.value);
         if (disciplinePointData[key].discipline.score_type !== "time") return raw;
         return Number(input.min) + Number(input.max) - raw;
@@ -301,15 +294,11 @@
         const discipline = document.getElementById("tier-discipline").value;
         const raw = document.getElementById("current-reps").value;
         const result = document.getElementById("rank-result");
-        if (discipline === "run_5k" || discipline === "run_10k") {
+        if (discipline === "run_5k") {
             const seconds = parseTimeToSeconds(raw);
             if (!seconds) return result.textContent = "Enter a valid time like 21:34. Tip: 21.34 becomes 21:34.";
-            if (discipline === "run_5k") {
-                const label = seconds < 960 ? "Earned Legend" : seconds < 1080 ? "Elite" : seconds < 1500 ? "Advanced" : seconds < 1800 ? "Intermediate" : "Beginner";
-                return result.textContent = `5K: ${label}. Sub-18 is Elite.`;
-            }
-            const label = seconds < 1920 ? "Earned Legend" : seconds < 2280 ? "Elite" : seconds < 3000 ? "Advanced" : seconds < 3600 ? "Intermediate" : "Beginner";
-            return result.textContent = `10K: ${label}. Sub-38 is Elite.`;
+            const label = seconds < 960 ? "Earned Legend" : seconds < 1080 ? "Elite" : seconds < 1500 ? "Advanced" : seconds < 1800 ? "Intermediate" : "Beginner";
+            return result.textContent = `5K: ${label}. Sub-18 is Elite.`;
         }
         const reps = parseInt(raw, 10);
         if (Number.isNaN(reps) || reps < 0) return result.textContent = "Enter strict reps.";
@@ -324,14 +313,13 @@
         const input = document.getElementById("current-reps");
         input.value = "";
         input.type = event.target.value.startsWith("run_") ? "text" : "number";
-        input.placeholder = event.target.value === "run_5k" ? "21:34" : event.target.value === "run_10k" ? "44:20" : event.target.value === "pullups" ? "Strict pull-ups" : "Strict push-ups";
+        input.placeholder = event.target.value === "run_5k" ? "21:34" : event.target.value === "pullups" ? "Strict pull-ups" : "Strict push-ups";
     });
     function updateScoreCalculator() {
         const values = {
             pushups: sliderScoreValue("pushups"),
             pullups: sliderScoreValue("pullups"),
             run_5k: sliderScoreValue("run_5k"),
-            run_10k: sliderScoreValue("run_10k"),
         };
         Object.entries(values).forEach(([key, value]) => {
             const display = document.querySelector(`[data-score-display="${key}"]`);
@@ -353,7 +341,7 @@
             resultValue.textContent = score;
             resultRank.textContent = rank.name;
             resultRank.className = `tag-pill rank-pill rank-${rank.intensity}`;
-            resultDetail.textContent = `${rank.name} from 4 discipline sliders. Verified submissions make it official.`;
+            resultDetail.textContent = `${rank.name} from ${scores.length} discipline sliders. Verified submissions make it official.`;
             return;
         }
         const points = scorePoints(mode, values[mode]);

@@ -1,13 +1,13 @@
 {% extends "base.html" %}
 
 {% block title %}Profiles{% endblock %}
-{% block meta_description %}Browse Earned Club athlete profiles, Hybrid Scores, verified discipline results, and public progress history from registered competitors.{% endblock %}
+{% block meta_description %}Browse Earned Club athlete profiles, official Hybrid Scores, claimed result previews, and public progress history from registered competitors.{% endblock %}
 
 {% block content %}
 <section class="hero-card" style="margin-bottom: 24px;">
     <div class="eyebrow">Athlete Directory</div>
     <h1>Profiles.</h1>
-    <p class="muted">Find athletes, compare Hybrid Scores, and open public performance profiles.</p>
+    <p class="muted">Find athletes, compare Hybrid Scores, and open public performance profiles. Claim Your Athlete Profile to appear here officially.</p>
 </section>
 
 <section class="card-dark">
@@ -62,20 +62,20 @@
             <h2>Verified Athlete Directory</h2>
             <p class="muted">Only real registered accounts appear here. Anonymous submissions do not create athlete cards.</p>
         </div>
-        <a class="btn-main" href="{% url 'register' %}">Earn Your Profile</a>
+        <a class="btn-main" href="{% url 'register' %}">Claim Your Athlete Profile</a>
     </div>
     <div class="grid-3">
         <div class="feature-card">
-            <h3>Profile Proof</h3>
-            <p class="muted">Every profile highlights verified results, Hybrid Score, rank, and progress history.</p>
+            <h3>Build Your Athlete Identity</h3>
+            <p class="muted">Every claimed profile highlights official results, preview results waiting on proof, Hybrid Score, rank, and progress history.</p>
         </div>
         <div class="feature-card">
             <h3>Searchable Names</h3>
             <p class="muted">Athletes can be found directly by name as the leaderboard grows.</p>
         </div>
         <div class="feature-card">
-            <h3>Verified Progress</h3>
-            <p class="muted">Every public profile stays focused on verified rank, visible progress, and credible history.</p>
+            <h3>Unlock Badges</h3>
+            <p class="muted">Verified athletes get official status, badges, and challenge history attached to their profile.</p>
         </div>
     </div>
 </section>

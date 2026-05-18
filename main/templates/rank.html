@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 
 {% block title %}Find Your Hybrid Score{% endblock %}
-{% block meta_description %}Estimate your Earned Club Hybrid Score across push-ups, pull-ups, 5K, and 10K, then submit proof for official leaderboard status.{% endblock %}
+{% block meta_description %}Estimate your Earned Club Hybrid Score across push-ups, pull-ups, and 5K, then submit proof for official leaderboard status.{% endblock %}
 
 {% block content %}
 <style>
@@ -51,7 +51,7 @@
     .rank-actions .btn-secondary { width: 100%; min-height: 48px; }
     @media (min-width: 820px) {
         .rank-hero { grid-template-columns: minmax(0, .95fr) minmax(340px, .85fr); }
-        .rank-form .grid-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+        .rank-form .grid-4 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
         .rank-actions { grid-template-columns: repeat(3, minmax(0, 1fr)); }
     }
 </style>
@@ -65,7 +65,7 @@
                 <p class="muted">Enter any discipline you know. Specialist ranks stay independent, and each verified discipline increases your Hybrid completion.</p>
                 <div class="rank-actions" style="margin-top: 16px;">
                     <a class="btn-main" href="#rank-inputs">Enter Performances</a>
-                    <a class="btn-secondary" href="{% url 'register' %}">Create Profile</a>
+                    <a class="btn-secondary" href="{% url 'register' %}">Claim Your Athlete Profile</a>
                     <a class="btn-secondary" href="{% url 'home' %}#rank-tiers">Hybrid Rankings</a>
                 </div>
             </div>
@@ -102,10 +102,6 @@
                     <label class="field-label" for="rank-5k">5K</label>
                     <input id="rank-5k" class="input" type="text" name="run_5k" value="{{ raw_scores.run_5k }}" placeholder="21:34" inputmode="text">
                 </div>
-                <div>
-                    <label class="field-label" for="rank-10k">10K</label>
-                    <input id="rank-10k" class="input" type="text" name="run_10k" value="{{ raw_scores.run_10k }}" placeholder="44:20" inputmode="text">
-                </div>
             </div>
             <button class="btn-main" type="submit">Calculate Hybrid Score</button>
         </form>
@@ -130,7 +126,7 @@
 
     <section class="rank-actions">
         <a class="btn-main" href="{{ submit_url }}">Submit Official Result</a>
-        <a class="btn-secondary" href="{% url 'register' %}">Create Profile</a>
+        <a class="btn-secondary" href="{% url 'register' %}">Claim Your Athlete Profile</a>
         <a class="btn-secondary" href="{% url 'home' %}#rank-tiers">View Rank Tiers</a>
     </section>{% endif %}
 </div>

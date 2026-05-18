@@ -13,7 +13,7 @@
                 Get ranked. Prove it.
             </p>
             <p>
-                Choose your leaderboard, submit your best performance, and earn verified rank. Proof is optional for most results, but proof makes it official.
+                {% if challenge_room %}Submitting into {{ challenge_room.display_title }}. The room link stays attached to this result.{% else %}Choose your leaderboard, submit your best performance, and earn verified rank. Proof is optional for most results, but proof makes it official.{% endif %}
             </p>
             <div class="button-row">
                 <a class="btn-main" href="#submit-form-top">Submit Official Result</a>
@@ -54,7 +54,7 @@
                         {% if submission_success.is_official_pending %}
                             If approved, this result becomes official and updates your verified rank.
                         {% else %}
-                            It is visible now as unverified. Add proof to make it official, create a profile to keep building, or challenge someone to beat it.
+                            Your result is live on the open leaderboard. Claim your athlete profile to save it and make it official, or challenge someone to beat it.
                         {% endif %}
                     </p>
                     <div class="stat-grid" style="margin-top: 14px;">
@@ -78,7 +78,7 @@
                         {% if submission_success.is_official_pending %}
                             <a class="btn-main" href="{{ submission_success.leaderboard_url }}">Open Leaderboard</a>
                         {% else %}
-                            <a class="btn-main" href="{{ submission_success.proof_url }}">Make It Official</a>
+                            <a class="btn-main" href="{{ submission_success.proof_url }}">Make Your Score Official</a>
                         {% endif %}
                         {% if submission_success.profile_url %}
                             <a class="btn-secondary" href="{{ submission_success.profile_url }}">View Profile</a>
@@ -86,7 +86,7 @@
                                 <a class="btn-secondary" href="{{ submission_success.proof_url }}">Add Proof</a>
                             {% endif %}
                         {% else %}
-                            <a class="btn-secondary" href="{{ submission_success.register_url }}">Create Profile</a>
+                            <a class="btn-secondary" href="{{ submission_success.register_url }}">Claim Your Athlete Profile</a>
                         {% endif %}
                         <button class="btn-secondary" type="button" data-share-text="{{ submission_success.share_text }}">Challenge a Friend</button>
                         <a class="btn-secondary" href="{{ submission_success.leaderboard_url }}">Open Leaderboard</a>
@@ -102,7 +102,7 @@
                     </p>
                 {% else %}
                     <p class="muted">
-                        Enter your result and name. Email is optional; your result can appear as unverified immediately, and proof moves it into official review.
+                        Enter your result and name. Email is optional; feel the leaderboard first, then claim your athlete profile to save progress history and join challenges officially.
                     </p>
                 {% endif %}
 
@@ -121,6 +121,7 @@
                     <form class="submission-form" method="POST" enctype="multipart/form-data">
                         {% csrf_token %}
                         <input class="sr-only" type="text" name="website" tabindex="-1" autocomplete="off" aria-hidden="true">
+                        {% if challenge_room %}<input type="hidden" name="room" value="{{ challenge_room.token }}">{% endif %}
 
                         {% if not request.user.is_authenticated %}
                             <div class="form-grid-2">
@@ -153,7 +154,8 @@
 
                         <div>
                             <label class="field-label" for="discipline">Choose your leaderboard</label>
-                            <select id="discipline" class="select" name="discipline">
+                            {% if discipline_locked %}<input type="hidden" name="discipline" value="{{ selected_discipline.key }}">{% endif %}
+                            <select id="discipline" class="select" name="discipline" {% if discipline_locked %}disabled{% endif %}>
                                 {% for discipline in discipline_cards %}
                                     <option
                                         value="{{ discipline.key }}"
@@ -205,7 +207,7 @@
 
                         <button type="submit" class="btn-main">Submit Performance</button>
                         <div class="result-note">
-                            Official ranks require proof. Unverified results are shown, but not official.
+                            Official ranks require proof. Unverified results are shown, but not official until you claim and verify them.
                         </div>
                     </form>
                 {% endif %}

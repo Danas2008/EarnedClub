@@ -1,11 +1,88 @@
 {% extends "base.html" %}
 
-{% block title %}{{ left_profile.display_name }} vs {{ right_profile.display_name }}{% endblock %}
+{% block title %}{% if is_picker %}Compare Athletes{% else %}{{ left_profile.display_name }} vs {{ right_profile.display_name }}{% endif %}{% endblock %}
 
 {% block content %}
+{% if is_picker %}
+<section class="hero-card">
+    <div class="content-split">
+        <div>
+            <span class="eyebrow">Hybrid 1v1</span>
+            <h1>Build an athlete battle.</h1>
+            <p class="muted">Pick two claimed athlete profiles, compare Hybrid Score, and copy a challenge link for the group chat.</p>
+        </div>
+        <form class="submit-panel" method="POST">
+            {% csrf_token %}
+            <div>
+                <label class="field-label" for="left-profile">Left athlete</label>
+                <select id="left-profile" class="select" name="left" required>
+                    <option value="">Choose athlete</option>
+                    {% for row in profiles %}
+                        <option value="{{ row.profile.slug }}">{{ row.profile.display_name }} - Hybrid {{ row.hybrid_summary.score }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label class="field-label" for="right-profile">Right athlete</label>
+                <select id="right-profile" class="select" name="right" required>
+                    <option value="">Choose athlete</option>
+                    {% for row in profiles %}
+                        <option value="{{ row.profile.slug }}">{{ row.profile.display_name }} - Hybrid {{ row.hybrid_summary.score }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <button class="btn-main" type="submit">Compare</button>
+        </form>
+    </div>
+</section>
+
+<section class="card-dark">
+    <div class="section-spread">
+        <div>
+            <h2>Want to compare with friends?</h2>
+            <p class="muted">Create a group challenge room, share the link, and let everyone submit a Hybrid Score, push-up, pull-up, or 5K result.</p>
+        </div>
+        <a class="btn-main" href="{% url 'challenge_room_create' %}">Create Group Challenge</a>
+    </div>
+</section>
+
+<section class="card-dark">
+    <div class="section-spread">
+        <div>
+            <h2>Find profiles</h2>
+            <p class="muted">Only claimed athlete profiles appear here. Open leaderboard guests can still test first, then claim status later.</p>
+        </div>
+    </div>
+    <form class="search-row" method="GET">
+        <input class="input" type="search" name="q" value="{{ query }}" placeholder="Search athletes">
+        <button class="btn-secondary" type="submit">Search</button>
+    </form>
+    {% for row in profiles %}
+        <a class="athlete-row" href="{% url 'athlete_profile' row.profile.slug %}">
+            {% if row.profile.profile_image_url %}
+                <img class="avatar" src="{{ row.profile.profile_image_url }}" alt="{{ row.profile.display_name }} profile picture">
+            {% else %}
+                <span class="avatar">{{ row.profile.display_name|first|upper }}</span>
+            {% endif %}
+            <div class="row-title">
+                <div class="submission-name">{{ row.profile.display_name }}</div>
+                <div class="submission-meta">{{ row.hybrid_summary.rank.name }} - {{ row.hybrid_summary.verified_count }}/{{ row.hybrid_summary.max_disciplines }} verified</div>
+            </div>
+            <span class="tag-pill">Hybrid {{ row.hybrid_summary.score }}</span>
+            <span class="btn-secondary hide-mobile" style="min-height: 36px; padding: 7px 11px;">Profile</span>
+        </a>
+    {% empty %}
+        <div class="mini-card">
+            <h3>No claimed profiles found.</h3>
+            <p class="muted">Claim Your Athlete Profile to appear in official comparison battles.</p>
+            <a class="btn-main" href="{% url 'register' %}">Claim Your Athlete Profile</a>
+        </div>
+    {% endfor %}
+</section>
+{% else %}
 <section class="hero-card" style="padding: 0;">
     <div class="comparison-header">
-        <span class="kicker">Hybrid 1v1</span>
+        <span class="kicker">Hybrid 1v1 Challenge</span>
         <h1>{{ left_profile.display_name }} vs {{ right_profile.display_name }}</h1>
         <p>{{ result_label }}</p>
     </div>
@@ -33,6 +110,16 @@
     </div>
 </section>
 
+<section class="card-dark">
+    <div class="section-spread">
+        <div>
+            <h2>Want to compare with friends in a group challenge?</h2>
+            <p class="muted">Make a room, send the link, and rank everyone by Hybrid Score, push-ups, pull-ups, or 5K.</p>
+        </div>
+        <a class="btn-main" href="{% url 'challenge_room_create' %}">Create Group Challenge</a>
+    </div>
+</section>
+
 <section class="grid-2">
     <div class="metric-card">
         <span class="kicker">Hybrid Score Result</span>
@@ -46,30 +133,103 @@
     </div>
 </section>
 
-<section class="grid-2">
-    <div class="card-dark">
-        <h2>{{ left_profile.display_name }} Breakdown</h2>
-        {% for item in left_summary.breakdown %}
-            <div class="score-row">
-                <div class="score-row-main">
-                    <div class="submission-name">{{ item.discipline.short_label }}</div>
-                    <div class="submission-meta">{{ item.display_score }} - {{ item.rank_name }}</div>
-                </div>
-                <strong>{{ item.points }} pts</strong>
-            </div>
-        {% endfor %}
+<section class="card-dark">
+    <div class="section-spread">
+        <div>
+            <h2>{{ left_profile.display_name }} challenged {{ right_profile.display_name }}</h2>
+            <p class="muted">Anyone can view this battle. Claim Your Athlete Profile to join officially, save battle history, unlock badges, and make your score official.</p>
+        </div>
+        <button class="btn-secondary" type="button" data-share-text="{{ share_text }}" data-copy-label="Copy Link">Copy Link / Share</button>
     </div>
-    <div class="card-dark">
-        <h2>{{ right_profile.display_name }} Breakdown</h2>
-        {% for item in right_summary.breakdown %}
+    <div class="grid-3">
+        <div class="feature-card">
+            <span class="kicker">Challenge title</span>
+            <h3>{{ left_profile.display_name }} vs {{ right_profile.display_name }}</h3>
+            <p class="muted">Hybrid Score battle link ready to send.</p>
+        </div>
+        <div class="feature-card">
+            <span class="kicker">Invited / joined athletes</span>
+            {% for profile in joined_profiles %}
+                <div class="submission-name">{{ profile.display_name }}</div>
+            {% endfor %}
+        </div>
+        <div class="feature-card">
+            <span class="kicker">Challenge status</span>
+            <h3>{% if winner_profile %}{{ winner_profile.display_name }} leads{% else %}Dead even{% endif %}</h3>
+            <p class="muted">Point difference: {{ score_margin }} Hybrid points.</p>
+        </div>
+    </div>
+    <div class="button-row">
+        <form method="POST" action="{% url 'comparison_join' left_profile.slug right_profile.slug %}">
+            {% csrf_token %}
+            <button class="btn-main" type="submit">Join Challenge Officially</button>
+        </form>
+        <a class="btn-secondary" href="{% url 'level_test' %}">Test Your Score</a>
+        <a class="btn-secondary" href="{% url 'register' %}">Claim Your Athlete Profile</a>
+    </div>
+</section>
+
+<section class="card-dark">
+    <div class="section-spread">
+        <div>
+            <h2>Discipline breakdown</h2>
+            <p class="muted">Official Hybrid Score uses verified submissions only. This score is only a preview until you claim it and verify it.</p>
+        </div>
+    </div>
+    <div class="compact-board">
+        {% for row in comparison_rows %}
             <div class="score-row">
                 <div class="score-row-main">
-                    <div class="submission-name">{{ item.discipline.short_label }}</div>
-                    <div class="submission-meta">{{ item.display_score }} - {{ item.rank_name }}</div>
+                    <div class="submission-name">{{ row.discipline.short_label }}</div>
+                    <div class="submission-meta">{{ row.leader_label }} by {{ row.margin }} pts</div>
                 </div>
-                <strong>{{ item.points }} pts</strong>
+                <div class="score-row-score">
+                    <span class="tag-pill">{{ left_profile.display_name }}: {{ row.left.points }}</span>
+                    <span class="tag-pill">{{ right_profile.display_name }}: {{ row.right.points }}</span>
+                </div>
             </div>
         {% endfor %}
     </div>
 </section>
+
+<section class="grid-2">
+    <div class="card-dark">
+        <h2>{{ left_profile.display_name }} strengths / weaknesses</h2>
+        <h3>Strengths</h3>
+        <ul class="list-clean">
+            {% for item in left_notes.strengths %}<li>{{ item }}</li>{% empty %}<li>No verified strength claimed yet.</li>{% endfor %}
+        </ul>
+        <h3>Weaknesses</h3>
+        <ul class="list-clean">
+            {% for item in left_notes.weaknesses %}<li>{{ item }}</li>{% empty %}<li>No obvious gap from verified data.</li>{% endfor %}
+        </ul>
+    </div>
+    <div class="card-dark">
+        <h2>{{ right_profile.display_name }} strengths / weaknesses</h2>
+        <h3>Strengths</h3>
+        <ul class="list-clean">
+            {% for item in right_notes.strengths %}<li>{{ item }}</li>{% empty %}<li>No verified strength claimed yet.</li>{% endfor %}
+        </ul>
+        <h3>Weaknesses</h3>
+        <ul class="list-clean">
+            {% for item in right_notes.weaknesses %}<li>{{ item }}</li>{% empty %}<li>No obvious gap from verified data.</li>{% endfor %}
+        </ul>
+    </div>
+</section>
+
+<script>
+    for (const shareButton of document.querySelectorAll("[data-share-text]")) {
+        const originalLabel = shareButton.dataset.copyLabel || shareButton.textContent;
+        shareButton.addEventListener("click", async () => {
+            const text = shareButton.dataset.shareText;
+            if (navigator.share) await navigator.share({ text });
+            else {
+                await navigator.clipboard.writeText(text);
+                shareButton.textContent = "Copied";
+                setTimeout(() => shareButton.textContent = originalLabel, 1200);
+            }
+        });
+    }
+</script>
+{% endif %}
 {% endblock %}

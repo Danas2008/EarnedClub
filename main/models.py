@@ -668,6 +668,71 @@ class Follow(models.Model):
         return f"{self.follower} follows {self.following}"
 
 
+class ChallengeRoom(models.Model):
+    FOCUS_HYBRID = "hybrid"
+    FOCUS_PUSHUPS = DISCIPLINE_PUSHUPS
+    FOCUS_PULLUPS = DISCIPLINE_PULLUPS
+    FOCUS_5K = DISCIPLINE_5K
+    FOCUS_CHOICES = [
+        (FOCUS_HYBRID, "Hybrid Score"),
+        (FOCUS_PUSHUPS, "Push-ups"),
+        (FOCUS_PULLUPS, "Pull-ups"),
+        (FOCUS_5K, "5K"),
+    ]
+
+    title = models.CharField(max_length=140, blank=True)
+    description = models.TextField(blank=True)
+    focus = models.CharField(max_length=16, choices=FOCUS_CHOICES, default=FOCUS_HYBRID)
+    token = models.SlugField(max_length=32, unique=True, blank=True)
+    created_by = models.ForeignKey(User, null=True, blank=True, related_name="challenge_rooms", on_delete=models.SET_NULL)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ("-created_at",)
+
+    def __str__(self):
+        return self.title or "EarnedClub challenge"
+
+    def save(self, *args, **kwargs):
+        if not self.token:
+            self.token = self._build_unique_token()
+        super().save(*args, **kwargs)
+
+    def _build_unique_token(self):
+        token = get_random_string(10).lower()
+        while ChallengeRoom.objects.filter(token=token).exists():
+            token = get_random_string(10).lower()
+        return token
+
+    @property
+    def display_title(self):
+        return self.title or "EarnedClub challenge room"
+
+    @property
+    def focus_label(self):
+        return dict(self.FOCUS_CHOICES).get(self.focus, "Hybrid Score")
+
+    @property
+    def is_hybrid(self):
+        return self.focus == self.FOCUS_HYBRID
+
+
+class ChallengeRoomEntry(models.Model):
+    room = models.ForeignKey(ChallengeRoom, related_name="entries", on_delete=models.CASCADE)
+    submission = models.ForeignKey(Submission, related_name="challenge_room_entries", on_delete=models.CASCADE)
+    participant_key = models.CharField(max_length=80, blank=True, db_index=True)
+    joined_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ("joined_at",)
+        constraints = [
+            models.UniqueConstraint(fields=["room", "submission"], name="unique_submission_per_challenge_room"),
+        ]
+
+    def __str__(self):
+        return f"{self.room} - {self.submission}"
+
+
 class Goal(models.Model):
     GOAL_PUSHUPS = "pushups"
     GOAL_PULLUPS = "pullups"

@@ -8,7 +8,7 @@ Keep this file current. Any meaningful product, route, model, scoring, verificat
 
 Earned Club is a Django fitness web app built around one core promise: athletes earn public status by proving real performance.
 
-The product is now a hybrid fitness leaderboard platform. Athletes submit performances across push-ups, pull-ups, 5K, and 10K. Each discipline converts into points, and verified discipline points combine into the athlete's public Hybrid Score. Push-ups remain the flagship challenge and level test, but the main identity/status metric across the platform is now Hybrid Score.
+The product is now a hybrid fitness leaderboard platform. Athletes currently submit performances across push-ups, pull-ups, and 5K. Each active discipline converts into points, and verified discipline points combine into the athlete's public Hybrid Score. Push-ups remain the flagship challenge and level test, but the main identity/status metric across the platform is now Hybrid Score.
 
 The product also includes athlete profiles, public leaderboards, discipline leaderboards, workout planning, active workout sessions, goals, following/social pages, newsletter tools, SEO pages, and staff review/admin workflows.
 
@@ -61,7 +61,7 @@ Important dependencies:
   - `wsgi.py` / `asgi.py`: server entry points.
 
 - `main/`: primary Django application.
-  - `models.py`: core domain models: submissions, profiles, follows, goals, workouts, content prompts, newsletters.
+  - `models.py`: core domain models: submissions, profiles, follows, challenge rooms, goals, workouts, content prompts, newsletters.
   - `views.py`: most product behavior and page controllers.
   - `urls.py`: route table for public, account, workout, admin, newsletter, SEO, and legal pages.
   - `forms.py`: custom registration form.
@@ -93,6 +93,9 @@ Supported disciplines:
 - `pushups`
 - `pullups`
 - `run_5k`
+
+Temporarily parked/legacy discipline:
+
 - `run_10k`
 
 Legacy aliases such as `5k` and `10k` are normalized to the current running discipline keys. Existing submissions default safely to `pushups`.
@@ -159,6 +162,7 @@ Important behavior:
 - Slugs are generated from display name or username and made unique.
 - Verified legacy push-up stats are refreshed from the best verified push-up submission.
 - Public profile pages now prioritize Hybrid Score, Hybrid rank/title, discipline breakdown, and verified status.
+- Claimed pending/unverified submissions are shown on the public profile discipline card as previews, but their points do not count toward official Hybrid Score, badges, rank, or verified history until approved.
 - Earned badges are based on verified performance and rank.
 
 ### Follow
@@ -170,6 +174,29 @@ Rules:
 - `follower` and `following` are unique together.
 - Used by athlete profile and social list pages.
 
+### ChallengeRoom and ChallengeRoomEntry
+
+Challenge rooms are shareable friend-group competitions. A room has a unique token, title/description, scoring focus, and entries that link normal `Submission` records into the room.
+
+Active room focuses:
+
+- Hybrid Score
+- Push-ups
+- Pull-ups
+- 5K
+
+10K is intentionally not available in challenge rooms while 10K is parked from active user-facing flows.
+
+Important behavior:
+
+- Room links preserve context through `/test/`, `/challenge/`, `/login/`, and `/register/` with `room=<token>`.
+- Guest `/test/` submissions can appear in a room as unclaimed/unverified.
+- Multiple `/test/` submissions from the same guest session are grouped as one room participant so adding another discipline builds that athlete's room result instead of adding a duplicate participant.
+- Logged-in `/challenge/` submissions can attach directly to a room.
+- Registering after a room-based `/test/` journey attaches unowned session submissions to the new account where possible.
+- Claiming a profile converts session-based room entries to the user participant key so later logged-in submissions continue the same room participant.
+- Room ranking uses highest score for Hybrid Score, push-ups, and pull-ups; 5K uses fastest/lower time.
+
 ### Goal
 
 User-defined performance or rank target.
@@ -179,10 +206,9 @@ Supported goal directions:
 - Push-ups
 - Pull-ups
 - 5K
-- 10K
 - Hybrid Score / rank where supported
 
-Goals may be active/inactive and public/private. Rep goals should target a higher value than the current verified best. Running goals should target a faster time than the current verified best and use mobile-friendly text time input such as `21:34`. Rank goals should point above the athlete's current rank/tier rather than allowing already-earned or lower tiers.
+10K goals are kept only for legacy data while 10K is parked from new user-facing flows. Goals may be active/inactive and public/private. Rep goals should target a higher value than the current verified best. Running goals should target a faster time than the current verified best and use mobile-friendly text time input such as `21:34`. Rank goals should point above the athlete's current rank/tier rather than allowing already-earned or lower tiers.
 
 ### WorkoutTemplate
 
@@ -262,14 +288,14 @@ Push-up rank tiers live in `main/models.py` as `RANK_TIERS`.
 - Elite: 60-79 reps
 - Earned Legend: 80+ reps
 
-Discipline-specific rank helpers also exist for pull-ups, 5K, and 10K. Do not blindly apply push-up tiers to every discipline.
+Discipline-specific rank helpers also exist for pull-ups, 5K, and parked legacy 10K. Do not blindly apply push-up tiers to every discipline.
 
 Current discipline standards:
 
 - Push-ups: existing `RANK_TIERS`.
 - Pull-ups: Beginner 0-4, Intermediate 5-9, Advanced 10-19, Elite 20-29, Earned Legend 30+.
 - 5K: Beginner 30:00+, Intermediate sub-30, Advanced sub-25, Elite sub-18, Earned Legend sub-16.
-- 10K: Beginner 60:00+, Intermediate sub-60, Advanced sub-50, Elite sub-38, Earned Legend sub-32.
+- Parked legacy 10K: Beginner 60:00+, Intermediate sub-60, Advanced sub-50, Elite sub-38, Earned Legend sub-32.
 
 Hybrid Score:
 
@@ -280,7 +306,7 @@ Hybrid Score:
   - Push-ups: 20=250, 40=450, 50=600, 70=850, 85=950, 100=1000.
   - Pull-ups: 5=250, 10=500, 15=675, 20=800, 30=950, 35=1000.
   - 5K: 30:00=250, 25:00=450, 22:00=600, 18:00=850, 16:00=950, 15:00=1000.
-  - 10K: 60:00=250, 50:00=450, 44:00=600, 38:00=800, 34:00=900, 32:00=950, 30:00=1000.
+  - Parked legacy 10K: 60:00=250, 50:00=450, 44:00=600, 38:00=800, 34:00=900, 32:00=950, 30:00=1000.
 - Official Hybrid Score is the average of verified discipline points.
 - No-proof results above 600 points require proof before they can appear on open leaderboards.
 - Athletes with incomplete discipline sets can still have a Hybrid Score.
@@ -303,7 +329,7 @@ Important distinction:
 - The default `/leaderboard/` view is the Hybrid Leaderboard.
 - The public Hybrid Leaderboard is an open leaderboard, not only a verified ranking: verified, pending, and eligible unverified athletes can appear. No-proof results above 600 points require proof before they can appear.
 - Open Hybrid Leaderboard scores can include verified, pending, and eligible unverified discipline results. Official profile/dashboard Hybrid Score remains verified-only.
-- Discipline leaderboards remain available for push-ups, pull-ups, 5K, and 10K.
+- Active discipline leaderboards are push-ups, pull-ups, and 5K; 10K remains parked/legacy.
 - Verified anonymous athletes also appear on the Hybrid Leaderboard, grouped by their submission identity, so an account is not required to be visible in overall rankings.
 
 ## Core User Workflows
@@ -322,7 +348,7 @@ Important distinction:
 
 1. Registers or logs in.
 2. Uses dashboard to manage profile, Hybrid Score status, goals, submissions, proof, and workouts.
-3. Submits challenge results across push-ups, pull-ups, 5K, and 10K.
+3. Submits challenge results across push-ups, pull-ups, and 5K.
 4. Adds proof for unverified submissions.
 5. Tracks Hybrid Score, discipline breakdown, personal bests, and rank after verification.
 6. Creates workouts, starts sessions, logs completed sets, and highlights one public workout.
@@ -346,12 +372,17 @@ Public:
 - `/challenge/`: challenge submission
 - `/rank/`: discipline rank check and Hybrid Score calculator
 - `/leaderboard/`: default Hybrid Leaderboard
-- `/leaderboard/<discipline_key>/`: discipline leaderboard, including pushups, pullups, run_5k, run_10k, plus legacy aliases such as 5k and 10k
+- `/leaderboard/<discipline_key>/`: discipline leaderboard for active public disciplines such as pushups, pullups, and run_5k; run_10k remains legacy/parked only
 - `/profiles/`: athlete directory
 - `/athlete/<slug>/`: public athlete profile
 - `/athlete/<slug>/follow/`: follow toggle
 - `/athlete/<slug>/<kind>/`: followers/following social list
+- `/comparison/`: athlete comparison picker/search page for creating shareable Hybrid 1v1 battles
 - `/comparison/<left>vs<right>/`: athlete comparison using Hybrid Score, displayed as `Name vs Name`
+- `/comparison/<left>vs<right>/join/`: official comparison challenge join action; guests can view the battle but are sent to claim an athlete profile before joining officially
+- `/challenge-room/create/`: creates a shareable challenge room
+- `/challenge-room/<token>/`: room leaderboard with room-preserved join/submission links
+- `/test/submissions/<id>/proof/`: session-protected proof upload/link flow that makes an existing `/test/` result official-reviewable without creating a duplicate result
 - `/calculators/`: calculators
 - `/workout/<slug>/`: public workout detail
 - `/privacy/`: privacy page
@@ -405,13 +436,16 @@ Main templates:
 - `base.html`: shared layout.
 - `home.html`: first public page centered on Hybrid Score, proof, rank tiers, and the primary "Submit Your Score" CTA.
 - `test_landing.html`: fast onboarding funnel: choose strongest discipline, enter result, enter name/age, optionally skip email, then show an unverified preview card.
+- `test_proof.html`: proof upload/link page for a session-known `/test/` submission; updates the existing result and sends it to review.
 - `challenge.html`: multi-discipline submission workflow.
 - `leaderboard.html`: Hybrid Leaderboard, discipline cards, discipline leaderboard modes, and ranking display.
 - `rank.html`: discipline rank check and Hybrid Score calculator.
 - `dashboard.html`: logged-in athlete dashboard with Hybrid Score hero, discipline breakdown, and selectable progress graph.
 - `athlete_profile.html`: public profile centered on Hybrid Score and verified discipline breakdown.
 - `profiles.html`: profile directory.
-- `comparison.html`: Hybrid Score 1v1 page with `Name vs Name`, winner crown, and result copy such as "Name wins by X Hybrid points".
+- `comparison.html`: Hybrid Score 1v1 picker and battle page with `Name vs Name`, winner crown, point margin, discipline breakdown, strengths/weaknesses, invited/joined athletes, Join Challenge, Test Your Score, and Copy Link / Share actions.
+- `challenge_room_create.html`: room creation form for Hybrid Score, push-ups, pull-ups, and 5K.
+- `challenge_room.html`: mobile-first room leaderboard with share link, current winner, participant rows, claimed/unclaimed status, and room-preserved CTAs.
 - `social_list.html`: followers/following lists.
 - `workouts.html`: workout creation/listing/generation.
 - `workout_detail.html`: public workout page.
@@ -939,6 +973,33 @@ Note: the newest entry is authoritative for current product direction. Older ent
 - Hybrid Leaderboard now includes verified athletes without accounts, grouped by anonymous submission identity.
 - Dashboard goals now open like badges, with a larger modal for share/delete, set date, completion time, improvement since the goal was set, point gain, and next suggested goal.
 - Completed goals now use a stronger card structure: goal achieved, tier movement, Hybrid point gain, and the next suggested target.
+
+### 2026-05-18 comparison and claim-profile growth update
+
+- `/comparison/` now loads as a profile picker/search page for creating shareable athlete battles.
+- `/comparison/<left>vs<right>/` now works as a richer Hybrid 1v1 challenge link with winner logic, point margin, discipline breakdown, strengths/weaknesses, joined athletes, Join Challenge, Test Your Score, and Copy Link / Share.
+- Comparison pages now also promote group challenge rooms with a "Create Group Challenge" CTA for friend-group competitions.
+- `/challenge-room/<id>/` style numeric room URLs are tolerated and redirected to the canonical token URL.
+- Guests can still view comparison challenge links, but joining officially now pushes them to claim an athlete profile first.
+- Registration language across public flows now emphasizes "Claim Your Athlete Profile", "Save Your Hybrid Score", "Make Your Score Official", athlete identity, badges, official challenge joining, and progress history.
+- Post-test results, challenge submission success, leaderboard, profiles, rank tools, and comparison pages now present account creation as claiming status after the user has seen their result.
+- Verified-only official Hybrid Score logic remains unchanged: official profile/dashboard status still comes only from verified submissions.
+
+### 2026-05-18 test journey and temporary discipline availability update
+
+- 10K is temporarily parked from active user-facing flows. The model/scoring constants remain for legacy data, but new public UI should present only push-ups, pull-ups, and 5K until 10K is re-enabled intentionally.
+- `/test/` now keeps a lightweight session journey with a generated `test_session_id`, preserved name/age/email, and remembered anonymous test submission ids.
+- `/test/` result success now makes the next step explicit: the athlete is on the open leaderboard, the Hybrid Score is incomplete, completed disciplines are checked off, and remaining active disciplines get direct next-step CTAs.
+- Claiming an athlete profile after a `/test/` journey attaches unowned session submissions to the new account where possible.
+- Unverified `/test/` results remain open-leaderboard results only and do not count toward official profile/dashboard Hybrid Score.
+- The `/test/` "Make Your Score Official" CTA now opens a proof form for the existing session-known result instead of sending the athlete back through a duplicate submission form.
+- Claimed account/profile cards now show pending or unverified owned results as previews, clearly marked as not official, while keeping official Hybrid Score verified-only.
+- Added shareable challenge rooms at `/challenge-room/create/` and `/challenge-room/<token>/`.
+- Challenge room links preserve room context through `/test/`, `/challenge/`, `/login/`, and `/register/` using `room=<token>`.
+- Discipline-specific challenge rooms lock `/test/` and `/challenge/` to the room focus; Hybrid Score rooms allow the active supported disciplines.
+- Room leaderboards show current winner, participant result, points, verification status, and claimed/unclaimed profile state.
+- Room entries now store a participant key, so second and third `/test/` disciplines from the same guest session update one participant row instead of creating fake extra participants.
+- 10K is excluded from challenge rooms and from the visible active web while parked.
 
 ## Short Glossary
 

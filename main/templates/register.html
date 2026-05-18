@@ -1,16 +1,17 @@
 {% extends "base.html" %}
 
-{% block title %}Register{% endblock %}
-{% block meta_description %}Create your Earned Club athlete account to build a public Hybrid Score profile, submit performances, and track verified progress over time.{% endblock %}
+{% block title %}Claim Your Athlete Profile{% endblock %}
+{% block meta_description %}Claim your Earned Club athlete profile to save your Hybrid Score, submit verified performances, unlock badges, and track progress over time.{% endblock %}
 
 {% block content %}
 <section class="card-dark auth-card">
-    <div class="eyebrow">Create Athlete Account</div>
-    <h1>Register.</h1>
-    <p class="muted">Create a hybrid athlete profile, submit verified performances, and start building your public Hybrid Score.</p>
+    <div class="eyebrow">Claim Profile</div>
+    <h1>Claim Your Athlete Profile.</h1>
+    <p class="muted">Save Your Hybrid Score, make results official, unlock badges, track progress, and join challenges with a real athlete identity.</p>
 
     <form class="submission-form" method="POST">
         {% csrf_token %}
+        <input type="hidden" name="next" value="{{ next_url }}">
 
         {% if form.errors %}
             <div class="mini-card">
@@ -42,7 +43,7 @@
             {% for error in form.password2.errors %}<div class="hint">{{ error }}</div>{% endfor %}
         </div>
 
-        <button class="btn-main" type="submit">Create Account</button>
+        <button class="btn-main" type="submit">Claim Your Athlete Profile</button>
         <a class="btn-secondary" href="{% url 'login' %}">Login Instead</a>
     </form>
 </section>

@@ -7,18 +7,18 @@
     {% load static %}
 
     <title>{% block title %}Earned Club{% endblock %}</title>
-    <meta name="description" content="{% block meta_description %}Earned Club is the fitness leaderboard for hybrid athletes, where verified push-ups, pull-ups, 5K, and 10K results build public status through Hybrid Score.{% endblock %}">
+    <meta name="description" content="{% block meta_description %}Earned Club is the fitness leaderboard for hybrid athletes, where verified push-ups, pull-ups, and 5K results build public status through Hybrid Score.{% endblock %}">
     <meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1,max-video-preview:-1">
     <link rel="canonical" href="{% block canonical_url %}{{ canonical_url }}{% endblock %}">
     <meta property="og:site_name" content="Earned Club">
     <meta property="og:type" content="{% block og_type %}website{% endblock %}">
     <meta property="og:title" content="{% block og_title %}Earned Club{% endblock %}">
-    <meta property="og:description" content="{% block og_description %}Earned Club is the fitness leaderboard for hybrid athletes, where verified push-ups, pull-ups, 5K, and 10K results build public status through Hybrid Score.{% endblock %}">
+    <meta property="og:description" content="{% block og_description %}Earned Club is the fitness leaderboard for hybrid athletes, where verified push-ups, pull-ups, and 5K results build public status through Hybrid Score.{% endblock %}">
     <meta property="og:url" content="{% block og_url %}{{ canonical_url }}{% endblock %}">
     <meta property="og:image" content="{% block og_image %}{{ og_image_url }}{% endblock %}">
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="{% block twitter_title %}Earned Club{% endblock %}">
-    <meta name="twitter:description" content="{% block twitter_description %}Earned Club is the fitness leaderboard for hybrid athletes, where verified push-ups, pull-ups, 5K, and 10K results build public status through Hybrid Score.{% endblock %}">
+    <meta name="twitter:description" content="{% block twitter_description %}Earned Club is the fitness leaderboard for hybrid athletes, where verified push-ups, pull-ups, and 5K results build public status through Hybrid Score.{% endblock %}">
 
     <link rel="icon" type="image/png" href="{% static 'favicon.png' %}">
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -1770,7 +1770,7 @@
                                         <a class="nav-link" href="{% url 'login' %}">Login</a>
                                     </li>
                                     <li class="nav-item">
-                                        <a class="nav-link" href="{% url 'register' %}">Register</a>
+                                        <a class="nav-link" href="{% url 'register' %}">Claim Profile</a>
                                     </li>
                                 {% endif %}
                             </ul>

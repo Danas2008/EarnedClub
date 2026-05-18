@@ -3,6 +3,8 @@ from django.utils.html import format_html
 
 from .models import (
     ContentEnginePrompt,
+    ChallengeRoom,
+    ChallengeRoomEntry,
     Follow,
     Goal,
     NewsletterSubscriber,
@@ -16,6 +18,21 @@ from .models import (
     NewsletterSegment,
     WorkoutTemplate,
 )
+
+
+class ChallengeRoomEntryInline(admin.TabularInline):
+    model = ChallengeRoomEntry
+    extra = 0
+    readonly_fields = ("joined_at",)
+
+
+@admin.register(ChallengeRoom)
+class ChallengeRoomAdmin(admin.ModelAdmin):
+    list_display = ("display_title", "focus", "token", "created_by", "created_at")
+    list_filter = ("focus", "created_at")
+    search_fields = ("title", "description", "token")
+    readonly_fields = ("token", "created_at")
+    inlines = [ChallengeRoomEntryInline]
 
 
 @admin.register(Submission)

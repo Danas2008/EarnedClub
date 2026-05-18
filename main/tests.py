@@ -14,6 +14,8 @@ from django.utils import timezone
 
 from .models import (
     ContentEnginePrompt,
+    ChallengeRoom,
+    ChallengeRoomEntry,
     Follow,
     NewsletterSubscriber,
     NewsletterSendEvent,
@@ -98,7 +100,7 @@ class SubmissionFlowTests(TestCase):
         self.assertEqual(submission.status, Submission.STATUS_UNVERIFIED)
         self.assertContains(response, "You are now on the open leaderboard. Add proof to make it official.")
         self.assertContains(response, "Open Leaderboard")
-        self.assertContains(response, "Create Profile")
+        self.assertContains(response, "Claim Your Athlete Profile")
 
     def test_anonymous_unverified_submission_can_be_completed_with_proof(self):
         self.client.post(
@@ -500,22 +502,10 @@ class SubmissionFlowTests(TestCase):
                 "score": "22:00",
             },
         )
-        self.client.post(
-            reverse("challenge"),
-            {
-                "name": "Ten Runner",
-                "email": "ten@example.com",
-                "discipline": Submission.DISCIPLINE_10K,
-                "score": "44:20",
-            },
-        )
 
         five = Submission.objects.get(email="five@example.com")
-        ten = Submission.objects.get(email="ten@example.com")
         self.assertEqual(five.reps, 1320)
         self.assertEqual(five.display_score, "22:00")
-        self.assertEqual(ten.reps, 2660)
-        self.assertEqual(ten.display_score, "44:20")
 
     def test_run_time_accepts_dot_separator_as_time(self):
         self.client.post(
@@ -783,7 +773,8 @@ class SubmissionFlowTests(TestCase):
         self.assertContains(response, "run_5k")
         self.assertContains(response, '<span class="tag-pill rank-pill rank-beginner" id="score-result-rank">Beginner Hybrid</span>', html=False)
         self.assertContains(response, '<input id="calc-5k" class="range-input" type="range" min="900" max="2400" step="5" value="1800">', html=False)
-        self.assertContains(response, '<input id="calc-10k" class="range-input" type="range" min="1800" max="4500" step="5" value="3300">', html=False)
+        self.assertNotContains(response, "run_10k")
+        self.assertNotContains(response, "10K")
         self.assertContains(response, "Slower")
         self.assertContains(response, "Faster")
 
@@ -1049,7 +1040,8 @@ class SubmissionFlowTests(TestCase):
         self.assertContains(response, 'value="pushups"', html=False)
         self.assertContains(response, 'value="pullups"', html=False)
         self.assertContains(response, 'value="run_5k"', html=False)
-        self.assertContains(response, 'value="run_10k"', html=False)
+        self.assertNotContains(response, 'value="run_10k"', html=False)
+        self.assertNotContains(response, "10K")
         self.assertContains(response, "Where should we send your result?")
         self.assertContains(response, "Skip Email")
         self.assertContains(response, "Result required")
@@ -1068,13 +1060,113 @@ class SubmissionFlowTests(TestCase):
         )
 
         self.assertContains(response, "You're in!")
-        self.assertContains(response, "Posted to the open leaderboard")
-        self.assertContains(response, "Make It Official")
+        self.assertContains(response, "You're on the open leaderboard")
+        self.assertContains(response, "Hybrid Score incomplete")
+        self.assertContains(response, "1/3 disciplines completed")
+        self.assertContains(response, "Continue with Pull-ups")
+        self.assertContains(response, "Add 5K time")
+        self.assertContains(response, "Make Your Score Official")
+        self.assertContains(response, "Claim Your Athlete Profile")
         self.assertContains(response, "Challenge a Friend")
         self.assertContains(response, "See Yourself On The Leaderboard")
         submission = Submission.objects.get(name="Fast Test")
         self.assertEqual(submission.status, Submission.STATUS_UNVERIFIED)
         self.assertEqual(submission.email, "")
+        self.assertContains(response, reverse("test_submission_proof", args=[submission.id]), html=False)
+
+    def test_level_test_make_official_adds_proof_to_existing_result(self):
+        self.client.post(
+            reverse("level_test"),
+            {
+                "name": "Proof Session",
+                "discipline": Submission.DISCIPLINE_PUSHUPS,
+                "score": "36",
+            },
+        )
+        submission = Submission.objects.get(name="Proof Session")
+
+        get_response = self.client.get(reverse("test_submission_proof", args=[submission.id]))
+        post_response = self.client.post(
+            reverse("test_submission_proof", args=[submission.id]),
+            {"proof_link": "https://example.com/proof"},
+            follow=True,
+        )
+
+        submission.refresh_from_db()
+        self.assertContains(get_response, "This adds proof to your existing Push-ups result")
+        self.assertEqual(Submission.objects.filter(name="Proof Session").count(), 1)
+        self.assertEqual(submission.status, Submission.STATUS_PENDING)
+        self.assertEqual(submission.video_link, "https://example.com/proof")
+        self.assertContains(post_response, "Proof added. This result is now waiting for review.")
+        self.assertContains(post_response, "Pending")
+
+    def test_session_proof_route_rejects_unrelated_submission(self):
+        submission = Submission.objects.create(name="Other Session", reps=22, status=Submission.STATUS_UNVERIFIED)
+
+        response = self.client.get(reverse("test_submission_proof", args=[submission.id]), follow=True)
+
+        self.assertRedirects(response, reverse("level_test"))
+        self.assertContains(response, "Open your own test result before adding proof.")
+
+    def test_level_test_preserves_identity_and_continues_next_discipline(self):
+        self.client.post(
+            reverse("level_test"),
+            {
+                "name": "Journey Athlete",
+                "age": "24",
+                "email": "journey@example.com",
+                "discipline": Submission.DISCIPLINE_PUSHUPS,
+                "score": "32",
+            },
+        )
+
+        next_response = self.client.get(f"{reverse('level_test')}?discipline={Submission.DISCIPLINE_PULLUPS}")
+        self.assertContains(next_response, 'value="Journey Athlete"', html=False)
+        self.assertContains(next_response, 'value="24"', html=False)
+        self.assertContains(next_response, 'value="journey@example.com"', html=False)
+        self.assertContains(next_response, "Continuing as Journey Athlete")
+
+        response = self.client.post(
+            reverse("level_test"),
+            {
+                "discipline": Submission.DISCIPLINE_PULLUPS,
+                "score": "8",
+            },
+            follow=True,
+        )
+
+        self.assertEqual(Submission.objects.filter(email="journey@example.com").count(), 2)
+        self.assertContains(response, "2/3 disciplines completed")
+        self.assertContains(response, "Add 5K time")
+
+    def test_level_test_session_results_attach_when_profile_is_claimed(self):
+        self.client.post(
+            reverse("level_test"),
+            {
+                "name": "Claim Journey",
+                "email": "claimjourney@example.com",
+                "discipline": Submission.DISCIPLINE_PUSHUPS,
+                "score": "30",
+            },
+        )
+
+        response = self.client.post(
+            reverse("register"),
+            {
+                "username": "claimjourney",
+                "email": "claimjourney@example.com",
+                "password1": "StrongPass12345",
+                "password2": "StrongPass12345",
+            },
+            follow=True,
+        )
+
+        user = User.objects.get(username="claimjourney")
+        submission = Submission.objects.get(name="Claim Journey")
+        self.assertEqual(submission.user, user)
+        self.assertEqual(submission.status, Submission.STATUS_UNVERIFIED)
+        self.assertEqual(response.context["hybrid_summary"]["score"], 0)
+        self.assertContains(response, "test result(s) are now saved to your profile")
 
     def test_level_test_requires_name_for_anonymous_submission(self):
         response = self.client.post(
@@ -1132,8 +1224,8 @@ class SubmissionFlowTests(TestCase):
         )
 
         self.assertContains(response, "Your result is now on the open leaderboard")
-        self.assertContains(response, "Make It Official")
-        self.assertContains(response, "Create Profile")
+        self.assertContains(response, "Make Your Score Official")
+        self.assertContains(response, "Claim Your Athlete Profile")
         self.assertContains(response, "Challenge a Friend")
         submission = Submission.objects.get(name="No Email Athlete")
         self.assertEqual(submission.email, "")
@@ -1288,7 +1380,7 @@ class SubmissionFlowTests(TestCase):
         self.assertEqual(second.profile.current_rank, 1)
         self.assertEqual(first.profile.current_rank, 2)
 
-    def test_athlete_profile_shows_only_verified_submissions(self):
+    def test_athlete_profile_keeps_official_score_verified_but_shows_claimed_preview_results(self):
         user = User.objects.create_user(username="public", password="StrongPass12345")
         Submission.objects.create(user=user, name="Public", reps=25, status=Submission.STATUS_PENDING, video_link="https://example.com/proof")
         Submission.objects.create(user=user, name="Public", reps=65, status=Submission.STATUS_VERIFIED)
@@ -1296,10 +1388,25 @@ class SubmissionFlowTests(TestCase):
         response = self.client.get(reverse("athlete_profile", args=[user.profile.slug]))
 
         self.assertContains(response, "65 reps")
-        self.assertNotContains(response, "25 reps")
+        self.assertContains(response, "Preview: 25 reps")
+        self.assertContains(response, "Pending")
+        self.assertContains(response, "Preview 312")
         self.assertNotContains(response, "What to improve next")
         self.assertContains(response, 'type="application/ld+json"', html=False)
         self.assertContains(response, "https://earnedclub.club/athlete/public/", html=False)
+
+    def test_athlete_profile_shows_unverified_claimed_result_without_official_points(self):
+        user = User.objects.create_user(username="preview-only", password="StrongPass12345")
+        Submission.objects.create(user=user, name="Preview Only", reps=44, discipline=Submission.DISCIPLINE_PUSHUPS, status=Submission.STATUS_UNVERIFIED)
+
+        response = self.client.get(reverse("athlete_profile", args=[user.profile.slug]))
+
+        self.assertContains(response, "44 reps")
+        self.assertContains(response, "Unverified preview")
+        self.assertContains(response, "Not official yet. Add proof to make this count toward Hybrid Score.")
+        self.assertContains(response, "Preview 510")
+        self.assertContains(response, "Hybrid Score")
+        self.assertContains(response, '<div class="profile-pr-number">0</div>', html=False)
 
     def test_comparison_uses_hybrid_score_not_pushup_delta(self):
         left = User.objects.create_user(username="compare-left", password="StrongPass12345")
@@ -1318,6 +1425,266 @@ class SubmissionFlowTests(TestCase):
         self.assertNotContains(response, "Push-up Delta")
         self.assertNotContains(response, "Beat their current PR")
         self.assertNotContains(response, "Positive means the left athlete leads overall.")
+
+    def test_comparison_page_loads_with_profile_picker(self):
+        left = User.objects.create_user(username="picker-left", password="StrongPass12345")
+        right = User.objects.create_user(username="picker-right", password="StrongPass12345")
+
+        response = self.client.get(reverse("comparison_index"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Build an athlete battle")
+        self.assertContains(response, "Want to compare with friends")
+        self.assertContains(response, reverse("challenge_room_create"), html=False)
+        self.assertContains(response, left.profile.display_name)
+        self.assertContains(response, right.profile.display_name)
+
+    def test_two_profiles_compare_winner_and_shareable_link(self):
+        left = User.objects.create_user(username="battle-left", password="StrongPass12345")
+        right = User.objects.create_user(username="battle-right", password="StrongPass12345")
+        left.profile.display_name = "Battle Left"
+        left.profile.save()
+        right.profile.display_name = "Battle Right"
+        right.profile.save()
+        Submission.objects.create(user=left, name="Battle Left", reps=70, discipline=Submission.DISCIPLINE_PUSHUPS, status=Submission.STATUS_VERIFIED)
+        Submission.objects.create(user=right, name="Battle Right", reps=20, discipline=Submission.DISCIPLINE_PUSHUPS, status=Submission.STATUS_VERIFIED)
+
+        response = self.client.get(reverse("comparison", args=[left.profile.slug, right.profile.slug]))
+
+        self.assertContains(response, "Battle Left vs Battle Right")
+        self.assertContains(response, "Battle Left wins by")
+        self.assertContains(response, "Point difference: 600 Hybrid points")
+        self.assertContains(response, "Copy Link / Share")
+        self.assertContains(response, reverse("comparison", args=[left.profile.slug, right.profile.slug]), html=False)
+        self.assertContains(response, "Discipline breakdown")
+        self.assertContains(response, "strengths / weaknesses")
+        self.assertContains(response, "Want to compare with friends in a group challenge")
+        self.assertContains(response, reverse("challenge_room_create"), html=False)
+
+    def test_comparison_picker_redirects_to_shareable_comparison(self):
+        left = User.objects.create_user(username="redirect-left", password="StrongPass12345")
+        right = User.objects.create_user(username="redirect-right", password="StrongPass12345")
+
+        response = self.client.post(
+            reverse("comparison_index"),
+            {"left": left.profile.slug, "right": right.profile.slug},
+        )
+
+        self.assertRedirects(response, reverse("comparison", args=[left.profile.slug, right.profile.slug]))
+
+    def test_challenge_link_guest_can_view_but_needs_account_to_join_officially(self):
+        left = User.objects.create_user(username="guest-left", password="StrongPass12345")
+        right = User.objects.create_user(username="guest-right", password="StrongPass12345")
+        url = reverse("comparison", args=[left.profile.slug, right.profile.slug])
+
+        view_response = self.client.get(url)
+        join_response = self.client.post(reverse("comparison_join", args=[left.profile.slug, right.profile.slug]), follow=True)
+
+        self.assertEqual(view_response.status_code, 200)
+        self.assertContains(view_response, "Join Challenge Officially")
+        self.assertRedirects(join_response, f"{reverse('register')}?next={url}")
+        self.assertContains(join_response, "Claim Your Athlete Profile")
+
+    def test_claim_profile_ctas_render_in_key_flows(self):
+        user = User.objects.create_user(username="claim-flow", password="StrongPass12345")
+
+        leaderboard_response = self.client.get(reverse("leaderboard"))
+        profiles_response = self.client.get(reverse("profiles"))
+        comparison_response = self.client.get(reverse("comparison", args=[user.profile.slug, user.profile.slug]))
+
+        self.assertContains(leaderboard_response, "Claim Your Athlete Profile")
+        self.assertContains(profiles_response, "Claim Your Athlete Profile")
+        self.assertContains(comparison_response, "Claim Your Athlete Profile")
+
+    def test_challenge_room_can_be_created_and_loaded_without_10k(self):
+        response = self.client.post(
+            reverse("challenge_room_create"),
+            {"title": "Group Battle", "description": "Friday test", "focus": ChallengeRoom.FOCUS_HYBRID},
+            follow=True,
+        )
+
+        room = ChallengeRoom.objects.get(title="Group Battle")
+        self.assertRedirects(response, reverse("challenge_room", args=[room.token]))
+        self.assertContains(response, "Group Battle")
+        self.assertContains(response, "Copy Link")
+        self.assertContains(response, "Join my EarnedClub challenge and compare your score")
+        self.assertNotContains(response, "10K")
+
+    def test_challenge_room_numeric_id_redirects_to_token_url(self):
+        room = ChallengeRoom.objects.create(title="Numeric Room", focus=ChallengeRoom.FOCUS_PUSHUPS)
+
+        response = self.client.get(reverse("challenge_room", args=[room.id]))
+
+        self.assertRedirects(response, reverse("challenge_room", args=[room.token]), fetch_redirect_response=False)
+
+    def test_discipline_specific_room_only_allows_that_discipline_in_test(self):
+        room = ChallengeRoom.objects.create(title="Pull Room", focus=ChallengeRoom.FOCUS_PULLUPS)
+
+        response = self.client.get(f"{reverse('level_test')}?room={room.token}")
+
+        self.assertContains(response, "Pull Room")
+        self.assertContains(response, 'value="pullups"', html=False)
+        self.assertNotContains(response, 'value="pushups"', html=False)
+        self.assertNotContains(response, 'value="run_5k"', html=False)
+        self.assertNotContains(response, "10K")
+
+    def test_room_token_is_preserved_through_test_and_result_returns_to_room(self):
+        room = ChallengeRoom.objects.create(title="Push Room", focus=ChallengeRoom.FOCUS_PUSHUPS)
+
+        response = self.client.post(
+            f"{reverse('level_test')}?room={room.token}",
+            {"name": "Room Guest", "discipline": Submission.DISCIPLINE_PULLUPS, "score": "31"},
+            follow=True,
+        )
+
+        submission = Submission.objects.get(name="Room Guest")
+        self.assertRedirects(response, reverse("challenge_room", args=[room.token]))
+        self.assertEqual(submission.discipline, Submission.DISCIPLINE_PUSHUPS)
+        self.assertTrue(ChallengeRoomEntry.objects.filter(room=room, submission=submission).exists())
+        self.assertContains(response, "Room Guest")
+        self.assertContains(response, "Unclaimed guest")
+        self.assertContains(response, "Unverified")
+
+    def test_hybrid_room_groups_multiple_guest_test_results_as_one_participant(self):
+        room = ChallengeRoom.objects.create(title="Hybrid Session Room", focus=ChallengeRoom.FOCUS_HYBRID)
+        self.client.post(
+            f"{reverse('level_test')}?room={room.token}",
+            {"name": "Session Guest", "discipline": Submission.DISCIPLINE_PUSHUPS, "score": "30"},
+            follow=True,
+        )
+
+        response = self.client.post(
+            f"{reverse('level_test')}?room={room.token}",
+            {"discipline": Submission.DISCIPLINE_PULLUPS, "score": "8"},
+            follow=True,
+        )
+
+        self.assertEqual(Submission.objects.filter(name="Session Guest").count(), 2)
+        self.assertEqual(ChallengeRoomEntry.objects.filter(room=room).count(), 2)
+        self.assertEqual(len(response.context["leaderboard_rows"]), 1)
+        self.assertEqual(response.context["leaderboard_rows"][0]["result_count"], 2)
+        self.assertContains(response, "Session Guest")
+        self.assertContains(response, "2 results")
+        self.assertContains(response, "Push-ups 30 reps")
+        self.assertContains(response, "Pull-ups 8 reps")
+
+    def test_claimed_room_session_entries_merge_with_later_logged_in_results(self):
+        room = ChallengeRoom.objects.create(title="Claim Merge Room", focus=ChallengeRoom.FOCUS_HYBRID)
+        self.client.post(
+            f"{reverse('level_test')}?room={room.token}",
+            {"name": "Merge Guest", "email": "merge@example.com", "discipline": Submission.DISCIPLINE_PUSHUPS, "score": "30"},
+        )
+        self.client.post(
+            f"{reverse('register')}?room={room.token}",
+            {
+                "username": "mergeguest",
+                "email": "merge@example.com",
+                "password1": "StrongPass12345",
+                "password2": "StrongPass12345",
+            },
+            follow=True,
+        )
+
+        response = self.client.post(
+            f"{reverse('challenge')}?room={room.token}",
+            {"discipline": Submission.DISCIPLINE_PULLUPS, "score": "8"},
+            follow=True,
+        )
+
+        user = User.objects.get(username="mergeguest")
+        self.assertEqual(ChallengeRoomEntry.objects.filter(room=room).count(), 2)
+        self.assertEqual(set(ChallengeRoomEntry.objects.filter(room=room).values_list("participant_key", flat=True)), {f"user:{user.id}"})
+        self.assertEqual(len(response.context["leaderboard_rows"]), 1)
+        self.assertContains(response, "mergeguest")
+
+    def test_room_test_make_official_returns_to_room_without_duplicate(self):
+        room = ChallengeRoom.objects.create(title="Proof Room", focus=ChallengeRoom.FOCUS_PUSHUPS)
+        self.client.post(
+            f"{reverse('level_test')}?room={room.token}",
+            {"name": "Room Proof Guest", "score": "30"},
+        )
+        submission = Submission.objects.get(name="Room Proof Guest")
+
+        response = self.client.post(
+            f"{reverse('test_submission_proof', args=[submission.id])}?room={room.token}",
+            {"proof_link": "https://example.com/room-proof"},
+            follow=True,
+        )
+
+        submission.refresh_from_db()
+        self.assertRedirects(response, reverse("challenge_room", args=[room.token]))
+        self.assertEqual(Submission.objects.filter(name="Room Proof Guest").count(), 1)
+        self.assertEqual(submission.status, Submission.STATUS_PENDING)
+        self.assertTrue(ChallengeRoomEntry.objects.filter(room=room, submission=submission).exists())
+
+    def test_room_token_is_preserved_through_logged_in_challenge_submission(self):
+        user = User.objects.create_user(username="room-user", password="StrongPass12345")
+        room = ChallengeRoom.objects.create(title="Five Room", focus=ChallengeRoom.FOCUS_5K)
+        self.client.force_login(user)
+
+        get_response = self.client.get(f"{reverse('challenge')}?room={room.token}")
+        post_response = self.client.post(
+            f"{reverse('challenge')}?room={room.token}",
+            {"discipline": Submission.DISCIPLINE_PUSHUPS, "score": "24:10"},
+            follow=True,
+        )
+
+        submission = Submission.objects.get(user=user)
+        self.assertContains(get_response, "Five Room")
+        self.assertContains(get_response, 'value="run_5k"', html=False)
+        self.assertNotContains(get_response, 'value="pushups"', html=False)
+        self.assertRedirects(post_response, reverse("challenge_room", args=[room.token]))
+        self.assertEqual(submission.discipline, Submission.DISCIPLINE_5K)
+        self.assertTrue(ChallengeRoomEntry.objects.filter(room=room, submission=submission).exists())
+        self.assertContains(post_response, user.profile.display_name)
+
+    def test_challenge_room_ranking_winners_for_hybrid_reps_and_5k(self):
+        hybrid_room = ChallengeRoom.objects.create(title="Hybrid Room", focus=ChallengeRoom.FOCUS_HYBRID)
+        push_room = ChallengeRoom.objects.create(title="Push Room", focus=ChallengeRoom.FOCUS_PUSHUPS)
+        five_room = ChallengeRoom.objects.create(title="Fast Room", focus=ChallengeRoom.FOCUS_5K)
+        low = Submission.objects.create(name="Low Hybrid", reps=20, discipline=Submission.DISCIPLINE_PUSHUPS, status=Submission.STATUS_UNVERIFIED)
+        high = Submission.objects.create(name="High Hybrid", reps=70, discipline=Submission.DISCIPLINE_PUSHUPS, status=Submission.STATUS_UNVERIFIED)
+        fast = Submission.objects.create(name="Fast Runner", reps=20 * 60, discipline=Submission.DISCIPLINE_5K, status=Submission.STATUS_UNVERIFIED)
+        slow = Submission.objects.create(name="Slow Runner", reps=30 * 60, discipline=Submission.DISCIPLINE_5K, status=Submission.STATUS_UNVERIFIED)
+        for submission in (low, high):
+            ChallengeRoomEntry.objects.create(room=hybrid_room, submission=submission)
+            ChallengeRoomEntry.objects.create(room=push_room, submission=submission)
+        for submission in (fast, slow):
+            ChallengeRoomEntry.objects.create(room=five_room, submission=submission)
+
+        hybrid_response = self.client.get(reverse("challenge_room", args=[hybrid_room.token]))
+        push_response = self.client.get(reverse("challenge_room", args=[push_room.token]))
+        five_response = self.client.get(reverse("challenge_room", args=[five_room.token]))
+
+        self.assertContains(hybrid_response, "High Hybrid")
+        self.assertEqual(hybrid_response.context["winner"]["display_name"], "High Hybrid")
+        self.assertEqual(push_response.context["winner"]["display_name"], "High Hybrid")
+        self.assertEqual(five_response.context["winner"]["display_name"], "Fast Runner")
+        self.assertContains(five_response, "&#9819;", html=False)
+
+    def test_guest_room_result_attaches_to_profile_when_claimed(self):
+        room = ChallengeRoom.objects.create(title="Claim Room", focus=ChallengeRoom.FOCUS_PUSHUPS)
+        self.client.post(
+            f"{reverse('level_test')}?room={room.token}",
+            {"name": "Claim Room Guest", "email": "roomclaim@example.com", "score": "28"},
+        )
+
+        response = self.client.post(
+            f"{reverse('register')}?room={room.token}",
+            {
+                "username": "roomclaim",
+                "email": "roomclaim@example.com",
+                "password1": "StrongPass12345",
+                "password2": "StrongPass12345",
+            },
+            follow=True,
+        )
+
+        submission = Submission.objects.get(name="Claim Room Guest")
+        self.assertEqual(submission.user.username, "roomclaim")
+        self.assertRedirects(response, reverse("challenge_room", args=[room.token]))
+        self.assertContains(response, "Claimed profile")
+        self.assertEqual(response.context["winner"]["display_name"], "roomclaim")
 
     def test_profiles_directory_shows_real_accounts_not_anonymous_submitters(self):
         user = User.objects.create_user(username="real-account", password="StrongPass12345")
@@ -1656,6 +2023,7 @@ class SubmissionFlowTests(TestCase):
         self.assertIn("https://earnedclub.club/rank/", locs)
         self.assertIn("https://earnedclub.club/leaderboard/", locs)
         self.assertIn("https://earnedclub.club/challenge/", locs)
+        self.assertIn("https://earnedclub.club/comparison/", locs)
         self.assertIn("https://earnedclub.club/test/", locs)
 
     def test_sitemap_xml_lists_public_athlete_profiles(self):

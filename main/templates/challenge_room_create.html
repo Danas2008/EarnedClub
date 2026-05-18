@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+
+{% block title %}Create Challenge Room{% endblock %}
+{% block meta_description %}Create a shareable EarnedClub challenge room for Hybrid Score, push-ups, pull-ups, or 5K.{% endblock %}
+
+{% block content %}
+<section class="hero-card">
+    <div class="content-split">
+        <div>
+            <span class="eyebrow">Challenge Room</span>
+            <h1>Send a room to the group.</h1>
+            <p class="muted">Create a mini competition, copy the link, and let friends join with their own result.</p>
+        </div>
+        <form class="submit-panel" method="POST">
+            {% csrf_token %}
+            <div>
+                <label class="field-label" for="room-title">Title</label>
+                <input id="room-title" class="input" type="text" name="title" placeholder="Who is the best hybrid athlete?">
+            </div>
+            <div>
+                <label class="field-label" for="room-description">Description</label>
+                <textarea id="room-description" class="textarea textarea-sm" name="description" placeholder="Invite friends, teammates, or your training group."></textarea>
+            </div>
+            <div>
+                <label class="field-label" for="room-focus">Scoring focus</label>
+                <select id="room-focus" class="select" name="focus">
+                    {% for value, label in focus_choices %}
+                        <option value="{{ value }}">{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <button class="btn-main" type="submit">Create Challenge Room</button>
+        </form>
+    </div>
+</section>
+{% endblock %}

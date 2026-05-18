@@ -491,7 +491,6 @@
                 <option value="pushups">Push-ups</option>
                 <option value="pullups">Pull-ups</option>
                 <option value="run_5k">5K</option>
-                <option value="run_10k">10K</option>
             </select>
         </div>
         <div class="grid-4" style="margin-bottom: 14px;">
@@ -549,7 +548,6 @@
                 <option value="pushups">Push-ups</option>
                 <option value="pullups">Pull-ups</option>
                 <option value="run_5k">5K</option>
-                <option value="run_10k">10K</option>
                 <option value="hybrid_score">Hybrid Score</option>
             </select>
             <select class="select" name="goal_kind" data-goal-kind>
@@ -888,7 +886,7 @@
         const type = document.querySelector("[data-goal-exercise]")?.value;
         const kind = document.querySelector("[data-goal-kind]")?.value;
         const rank = kind === "rank";
-        const timeGoal = type === "run_5k" || type === "run_10k";
+        const timeGoal = type === "run_5k";
         const hybridGoal = type === "hybrid_score";
         const repsInput = document.querySelector("[data-goal-value]");
         const rankSelect = document.querySelector("[data-goal-rank]");

@@ -14,7 +14,7 @@ from django.contrib.auth.decorators import user_passes_test
 from django.contrib.auth.forms import AuthenticationForm
 from django.contrib.auth.models import User
 from django.core.serializers.json import DjangoJSONEncoder
-from django.http import HttpResponse
+from django.http import Http404, HttpResponse
 from django.db import IntegrityError, transaction
 from django.core.paginator import Paginator
 from django.db.models import F, Q
@@ -22,6 +22,7 @@ from django.views.decorators.http import require_POST
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils.dateparse import parse_datetime
+from django.utils.crypto import get_random_string
 from django.utils import timezone
 from django.utils.safestring import mark_safe
 
@@ -29,6 +30,8 @@ from .countries import COUNTRY_CHOICES
 from .forms import FlexibleUsernameCreationForm
 from .models import (
     ContentEnginePrompt,
+    ChallengeRoom,
+    ChallengeRoomEntry,
     Follow,
     Goal,
     NewsletterCampaign,
@@ -57,6 +60,7 @@ from .models import (
     get_rank_tier,
     get_submission_identity,
     normalize_discipline,
+    refresh_profile_stats,
 )
 from .media_utils import store_profile_image, store_submission_video
 
@@ -162,6 +166,8 @@ SITEMAP_STATIC_PAGES = [
     {"view_name": "challenge", "changefreq": "weekly", "priority": "0.9"},
     {"view_name": "leaderboard", "changefreq": "daily", "priority": "0.9"},
     {"view_name": "profiles", "changefreq": "daily", "priority": "0.8"},
+    {"view_name": "comparison_index", "changefreq": "daily", "priority": "0.75"},
+    {"view_name": "challenge_room_create", "changefreq": "weekly", "priority": "0.7"},
     {"view_name": "calculators", "changefreq": "monthly", "priority": "0.6"},
     {"view_name": "register", "changefreq": "monthly", "priority": "0.5"},
     {"view_name": "login", "changefreq": "monthly", "priority": "0.3"},
@@ -215,6 +221,88 @@ HYBRID_LEADERBOARD_CONFIG = {
 }
 
 OPEN_NO_PROOF_POINT_LIMIT = 600
+DISABLED_DISCIPLINE_KEYS = {Submission.DISCIPLINE_10K}
+ACTIVE_DISCIPLINE_KEYS = tuple(key for key in DISCIPLINE_CONFIG if key not in DISABLED_DISCIPLINE_KEYS)
+
+
+def active_discipline_configs():
+    return [DISCIPLINE_CONFIG[key] for key in ACTIVE_DISCIPLINE_KEYS]
+
+
+def is_active_discipline(discipline):
+    return normalize_discipline(discipline) in ACTIVE_DISCIPLINE_KEYS
+
+
+def active_discipline_or_default(discipline):
+    normalized = normalize_discipline(discipline or DISCIPLINE_PUSHUPS)
+    return normalized if normalized in ACTIVE_DISCIPLINE_KEYS else DISCIPLINE_PUSHUPS
+
+
+def get_room_from_token(token):
+    token = (token or "").strip()
+    if not token:
+        return None
+    rooms = ChallengeRoom.objects.select_related("created_by", "created_by__profile")
+    room = rooms.filter(token=token).first()
+    if not room and token.isdigit():
+        room = rooms.filter(pk=int(token)).first()
+    return room
+
+
+def get_room_from_request(request):
+    token = request.POST.get("room") or request.GET.get("room") or request.session.get("active_challenge_room")
+    room = get_room_from_token(token)
+    if room:
+        request.session["active_challenge_room"] = room.token
+    return room
+
+
+def room_query(room):
+    return urlencode({"room": room.token}) if room else ""
+
+
+def room_url(room):
+    return reverse("challenge_room", args=[room.token])
+
+
+def room_link(view_name, room, *args):
+    base = reverse(view_name, args=args)
+    return f"{base}?{room_query(room)}" if room else base
+
+
+def room_allowed_disciplines(room=None):
+    if room and not room.is_hybrid:
+        return [get_discipline_config(room.focus)]
+    return active_discipline_configs()
+
+
+def room_default_discipline(room=None, requested=None):
+    if room and not room.is_hybrid:
+        return room.focus
+    return active_discipline_or_default(requested or DISCIPLINE_PUSHUPS)
+
+
+def build_room_participant_key(request, submission):
+    if submission.user_id:
+        return f"user:{submission.user_id}"
+    test_session_id = request.session.get("test_session_id") if request else ""
+    if test_session_id:
+        return f"session:{test_session_id}"
+    if submission.email:
+        return f"email:{submission.email.lower()}"
+    if submission.name:
+        return f"name:{submission.name.strip().lower()}"
+    return f"submission:{submission.pk}"
+
+
+def attach_submission_to_room(room, submission, participant_key=""):
+    if not room or not submission:
+        return None
+    entry, created = ChallengeRoomEntry.objects.get_or_create(room=room, submission=submission)
+    if participant_key and (created or entry.participant_key != participant_key):
+        entry.participant_key = participant_key
+        entry.save(update_fields=["participant_key"])
+    return entry
 
 
 def points_for_score(score, discipline):
@@ -343,7 +431,7 @@ def build_hybrid_breakdown(user):
     verified_points = []
     verified_submissions = user.submission_set.filter(status=Submission.STATUS_VERIFIED).select_related("user")
     all_submissions = user.submission_set.all()
-    for config in DISCIPLINE_CONFIG.values():
+    for config in active_discipline_configs():
         best_submission = None
         for submission in verified_submissions:
             if submission.normalized_discipline != config["key"]:
@@ -356,7 +444,9 @@ def build_hybrid_breakdown(user):
             .order_by("-created_at")
             .first()
         )
+        preview_submission = latest_unverified
         points = best_submission.hybrid_points if best_submission else 0
+        preview_points = preview_submission.hybrid_points if preview_submission else 0
         if best_submission:
             verified_points.append(points)
         intensity = "empty"
@@ -375,12 +465,14 @@ def build_hybrid_breakdown(user):
                 "discipline": config,
                 "submission": best_submission,
                 "latest_unverified": latest_unverified,
+                "preview_submission": preview_submission,
                 "points": points,
+                "preview_points": preview_points,
                 "intensity": intensity,
                 "progress_percent": min(100, round((points / 1000) * 100)),
-                "display_score": best_submission.display_score if best_submission else "-",
-                "status": "Verified" if best_submission else "Missing",
-                "rank_name": best_submission.rank_name if best_submission else "No verified result",
+                "display_score": best_submission.display_score if best_submission else (preview_submission.display_score if preview_submission else "-"),
+                "status": "Verified" if best_submission else (f"{preview_submission.public_status_label} preview" if preview_submission else "Missing"),
+                "rank_name": best_submission.rank_name if best_submission else (f"{preview_submission.rank_name} preview" if preview_submission else "No verified result"),
                 "action_label": "Improve" if best_submission else ("Add proof" if latest_unverified and latest_unverified.status == Submission.STATUS_UNVERIFIED else "Submit result"),
                 "action_url": reverse("dashboard") if latest_unverified and latest_unverified.status == Submission.STATUS_UNVERIFIED else f"{reverse('challenge')}?discipline={config['key']}#submit-form-top",
             }
@@ -398,8 +490,8 @@ def build_hybrid_breakdown(user):
         "weakest_discipline": weakest_row or missing_row,
         "next_target_points": max(0, next((rank["min_score"] for rank in HYBRID_RANKS if rank["min_score"] > hybrid_score), 1000) - hybrid_score),
         "verified_count": len(verified_points),
-        "max_disciplines": len(DISCIPLINE_CONFIG),
-        "completion_percent": round((len(verified_points) / len(DISCIPLINE_CONFIG)) * 100),
+        "max_disciplines": len(ACTIVE_DISCIPLINE_KEYS),
+        "completion_percent": round((len(verified_points) / len(ACTIVE_DISCIPLINE_KEYS)) * 100),
     }
 
 
@@ -500,7 +592,7 @@ def build_improvement_recommendation(user, hybrid_summary=None):
 
 def build_goal_rank_options(user, hybrid_summary):
     options = {}
-    for key, config in DISCIPLINE_CONFIG.items():
+    for key, config in ((key, DISCIPLINE_CONFIG[key]) for key in ACTIVE_DISCIPLINE_KEYS):
         current = get_goal_current_value(user, key, hybrid_summary=hybrid_summary)
         rows = []
         for target in DISCIPLINE_TIER_TARGETS[key]:
@@ -556,6 +648,8 @@ def build_hybrid_leaderboard_rows(query="", mode_key="all"):
     grouped = {}
     lowered_query = query.lower()
     for submission in public_submissions:
+        if not is_active_discipline(submission.discipline):
+            continue
         if not is_submission_visible_on_open_board(submission):
             continue
         display_name = user_display_name(submission.user) if submission.user_id else submission.name
@@ -758,13 +852,23 @@ def build_submission_success(submission, request):
         "email": submission.email,
     })
     profile_url = reverse("athlete_profile", args=[submission.user.profile.slug]) if submission.user_id else ""
+    session_submission_ids = request.session.get("test_submission_ids", [])
+    if submission.user_id:
+        proof_url = reverse("dashboard")
+    elif submission.id in session_submission_ids:
+        proof_url = reverse("test_submission_proof", args=[submission.id])
+        room = get_room_from_request(request)
+        if room:
+            proof_url = f"{proof_url}?{room_query(room)}"
+    else:
+        proof_url = f"{reverse('challenge')}?{proof_params}#submit-form-top"
     return {
         "submission": submission,
         "is_official_pending": submission.has_proof,
         "leaderboard_url": leaderboard_url,
         "profile_url": profile_url,
         "register_url": f"{reverse('register')}?{register_params}" if register_params else reverse("register"),
-        "proof_url": reverse("dashboard") if submission.user_id else f"{reverse('challenge')}?{proof_params}#submit-form-top",
+        "proof_url": proof_url,
         "display_points": submission.hybrid_points,
         "is_founding_entry": is_founding_submission(submission),
         "share_text": (
@@ -772,6 +876,177 @@ def build_submission_success(submission, request):
             f"Can you beat me? {request.build_absolute_uri(challenge_url)}"
         ),
     }
+
+
+def ensure_test_session(request):
+    test_session_id = request.session.get("test_session_id")
+    if not test_session_id:
+        test_session_id = get_random_string(24)
+        request.session["test_session_id"] = test_session_id
+    return test_session_id
+
+
+def get_test_identity(request):
+    identity = request.session.get("test_identity") or {}
+    return {
+        "name": (identity.get("name") or "").strip(),
+        "email": (identity.get("email") or "").strip().lower(),
+        "age": (identity.get("age") or "").strip(),
+    }
+
+
+def store_test_identity(request, name="", email="", age=""):
+    current = get_test_identity(request)
+    request.session["test_identity"] = {
+        "name": (name or current["name"]).strip(),
+        "email": (email or current["email"]).strip().lower(),
+        "age": (age or current["age"]).strip(),
+    }
+    request.session.modified = True
+    return request.session["test_identity"]
+
+
+def remember_test_submission(request, submission):
+    ids = [item for item in request.session.get("test_submission_ids", []) if item != submission.id]
+    ids.append(submission.id)
+    request.session["test_submission_ids"] = ids[-12:]
+    request.session.modified = True
+
+
+def get_test_journey_submissions(request):
+    ids = request.session.get("test_submission_ids", [])
+    if not ids:
+        return []
+    submissions = list(Submission.objects.filter(id__in=ids).select_related("user", "user__profile"))
+    by_id = {submission.id: submission for submission in submissions}
+    return [by_id[item] for item in ids if item in by_id]
+
+
+def build_test_progress(request, latest_submission=None, room=None):
+    submissions = get_test_journey_submissions(request)
+    if latest_submission and latest_submission not in submissions:
+        submissions.append(latest_submission)
+    completed = {}
+    for submission in submissions:
+        key = submission.normalized_discipline
+        if key not in ACTIVE_DISCIPLINE_KEYS:
+            continue
+        current = completed.get(key)
+        if current is None or submission.created_at > current.created_at:
+            completed[key] = submission
+    rows = []
+    for config in active_discipline_configs():
+        submission = completed.get(config["key"])
+        rows.append(
+            {
+                "discipline": config,
+                "submission": submission,
+                "done": bool(submission),
+                "cta_label": f"Continue with {config['short_label']}" if config["score_type"] != "time" else f"Add {config['short_label']} time",
+                "url": f"{reverse('level_test')}?{urlencode({key: value for key, value in {'discipline': config['key'], 'room': room.token if room else ''}.items() if value})}",
+            }
+        )
+    points = [submission.hybrid_points for submission in completed.values()]
+    return {
+        "rows": rows,
+        "completed_count": len(completed),
+        "max_disciplines": len(ACTIVE_DISCIPLINE_KEYS),
+        "hybrid_state": "Hybrid Score incomplete" if len(completed) < len(ACTIVE_DISCIPLINE_KEYS) else "Hybrid Score preview complete",
+        "open_score": round(sum(points) / len(points)) if points else 0,
+        "next_rows": [row for row in rows if not row["done"]],
+    }
+
+
+def attach_test_session_submissions_to_user(request, user):
+    ids = request.session.get("test_submission_ids", [])
+    if not ids:
+        return 0
+    session_key = f"session:{request.session.get('test_session_id')}" if request.session.get("test_session_id") else ""
+    updated = Submission.objects.filter(id__in=ids, user__isnull=True).update(user=user, email=user.email)
+    if updated:
+        entry_updates = ChallengeRoomEntry.objects.filter(submission_id__in=ids)
+        if session_key:
+            entry_updates = entry_updates.filter(Q(participant_key="") | Q(participant_key=session_key))
+        entry_updates.update(participant_key=f"user:{user.id}")
+        refresh_profile_stats({user.id}, refresh_all_ranks=True)
+    return updated
+
+
+def build_room_leaderboard(room):
+    entries = list(room.entries.select_related("submission", "submission__user", "submission__user__profile").order_by("joined_at"))
+    grouped = {}
+    for entry in entries:
+        submission = entry.submission
+        if not room.is_hybrid and submission.normalized_discipline != room.focus:
+            continue
+        if not is_active_discipline(submission.discipline):
+            continue
+        identity = entry.participant_key or (f"user:{submission.user_id}" if submission.user_id else f"guest:{get_submission_identity(submission)}")
+        group = grouped.setdefault(
+            identity,
+            {
+                "display_name": user_display_name(submission.user) if submission.user_id else submission.name,
+                "user": submission.user if submission.user_id else None,
+                "profile": getattr(submission.user, "profile", None) if submission.user_id else None,
+                "submissions": [],
+            },
+        )
+        group["submissions"].append(submission)
+
+    rows = []
+    for group in grouped.values():
+        submissions = group["submissions"]
+        if room.is_hybrid:
+            best_by_discipline = {}
+            for submission in submissions:
+                current = best_by_discipline.get(submission.normalized_discipline)
+                if current is None or is_better_submission(submission, current):
+                    best_by_discipline[submission.normalized_discipline] = submission
+            best_submissions = list(best_by_discipline.values())
+            points = [submission.hybrid_points for submission in best_submissions]
+            if not points:
+                continue
+            score = round(sum(points) / len(points))
+            best_submission = max(best_submissions, key=lambda item: item.hybrid_points)
+            result_display = f"{score} Hybrid"
+            discipline_summary = ", ".join(
+                f"{submission.discipline_config['short_label']} {submission.display_score}"
+                for submission in sorted(best_submissions, key=lambda item: ACTIVE_DISCIPLINE_KEYS.index(item.normalized_discipline))
+            )
+            sort_value = -score
+        else:
+            config = get_discipline_config(room.focus)
+            best_submission = sorted(
+                submissions,
+                key=lambda item: (-item.reps if config["higher_is_better"] else item.reps, item.created_at),
+            )[0]
+            score = best_submission.reps
+            result_display = best_submission.display_score
+            discipline_summary = f"{best_submission.discipline_config['short_label']} {best_submission.display_score}"
+            sort_value = -score if config["higher_is_better"] else score
+        rows.append(
+            {
+                "position": 0,
+                "display_name": group["display_name"],
+                "profile": group["profile"],
+                "user": group["user"],
+                "is_claimed": bool(group["user"]),
+                "best_submission": best_submission,
+                "score": score,
+                "result_display": result_display,
+                "result_count": len(best_submissions) if room.is_hybrid else 1,
+                "discipline_summary": discipline_summary,
+                "points": best_submission.hybrid_points,
+                "status": best_submission.public_status_label,
+                "sort_value": sort_value,
+                "is_winner": False,
+            }
+        )
+    rows.sort(key=lambda row: (row["sort_value"], row["display_name"].lower()))
+    for index, row in enumerate(rows, start=1):
+        row["position"] = index
+        row["is_winner"] = index == 1
+    return rows
 
 
 def get_daily_suggestion(profile, verified_count, workout_count):
@@ -930,12 +1205,14 @@ def get_leaderboard_discipline(request, discipline_key=None):
     requested = (discipline_key or request.GET.get("discipline") or "hybrid").strip().lower()
     if requested == "hybrid":
         return HYBRID_LEADERBOARD_CONFIG
+    if not is_active_discipline(requested):
+        return HYBRID_LEADERBOARD_CONFIG
     return get_discipline_config(requested)
 
 
 def build_discipline_point_tiers():
     rows = {}
-    for key, config in DISCIPLINE_CONFIG.items():
+    for key, config in ((key, DISCIPLINE_CONFIG[key]) for key in ACTIVE_DISCIPLINE_KEYS):
         items = []
         for value, points in DISCIPLINE_POINT_CURVES[key]:
             if points <= 0:
@@ -1067,7 +1344,7 @@ def build_performance_progress_series(user):
             "points": [],
         }
     }
-    for config in DISCIPLINE_CONFIG.values():
+    for config in active_discipline_configs():
         series[config["key"]] = {
             "label": config["short_label"],
             "unit": "time" if config["score_type"] == "time" else "reps",
@@ -1077,6 +1354,8 @@ def build_performance_progress_series(user):
 
     for submission in submissions:
         key = submission.normalized_discipline
+        if key not in series:
+            continue
         current_best = best_by_discipline.get(key)
         if current_best is None or is_better_submission(submission, current_best):
             best_by_discipline[key] = submission
@@ -1853,7 +2132,7 @@ def home(request):
 
     context = {
         "rank_tiers": RANK_TIERS,
-        "discipline_cards": DISCIPLINE_CONFIG.values(),
+        "discipline_cards": active_discipline_configs(),
         "discipline_point_tiers": build_discipline_point_tiers(),
         "hybrid_top_five": build_hybrid_leaderboard_rows()[:5],
         "recent_activity": build_recent_activity_items(),
@@ -1867,25 +2146,43 @@ def home(request):
 
 
 def level_test(request):
+    ensure_test_session(request)
+    room = get_room_from_request(request)
     verified_submissions = get_official_verified_submissions()
+    requested_discipline = room_default_discipline(room, request.GET.get("discipline") or DISCIPLINE_PUSHUPS)
+    test_identity = get_test_identity(request)
     context = {
         "rank_tiers": RANK_TIERS,
         "discipline_point_tiers": build_discipline_point_tiers(),
         "total_verified": len(verified_submissions),
         "total_submissions": len(public_submission_queryset()),
+        "discipline_cards": room_allowed_disciplines(room),
+        "active_discipline_key": requested_discipline,
+        "test_identity": test_identity,
+        "test_progress": build_test_progress(request, room=room),
+        "has_saved_test_identity": request.user.is_authenticated or bool(test_identity["name"]),
+        "challenge_room": room,
+        "test_form_action": room_link("level_test", room),
     }
     success_submission_id = request.session.pop("last_test_submission_id", None) if request.method == "GET" else None
     if success_submission_id:
         success_submission = Submission.objects.filter(pk=success_submission_id).select_related("user", "user__profile").first()
         if success_submission:
             context["test_submission_success"] = build_submission_success(success_submission, request)
+            context["test_progress"] = build_test_progress(request, success_submission, room=room)
 
     if request.method == "POST":
-        discipline = normalize_discipline(request.POST.get("discipline") or DISCIPLINE_PUSHUPS)
+        discipline = room_default_discipline(room, request.POST.get("discipline") or DISCIPLINE_PUSHUPS)
         selected_discipline = get_discipline_config(discipline)
         score_raw = (request.POST.get("score") or request.POST.get("reps") or "").strip()
         name = (request.POST.get("name") or "").strip()
         email = (request.POST.get("email") or "").strip().lower()
+        age = (request.POST.get("age") or "").strip()
+        identity = store_test_identity(request, name=name, email=email, age=age)
+        if not name:
+            name = identity["name"]
+        if not email:
+            email = identity["email"]
 
         if request.POST.get("website"):
             messages.success(request, "You are in. Your result is on the open leaderboard.")
@@ -1915,9 +2212,11 @@ def level_test(request):
         active_filter = blocking_submission_queryset(discipline)
         active_submission = active_filter.filter(email__iexact=email).first() if email else active_filter.filter(name__iexact=name).first()
         if active_submission:
+            remember_test_submission(request, active_submission)
+            attach_submission_to_room(room, active_submission, build_room_participant_key(request, active_submission))
             request.session["last_test_submission_id"] = active_submission.id
             messages.info(request, "You are already in. Your recent result is on the open leaderboard.")
-            return redirect("level_test")
+            return redirect(room_url(room) if room else "level_test")
 
         blocker = find_submission_blocker(request, name, email, score_value, discipline)
         if blocker == "silent":
@@ -1935,6 +2234,8 @@ def level_test(request):
             reps=score_value,
             status=Submission.STATUS_UNVERIFIED,
         )
+        remember_test_submission(request, submission)
+        attach_submission_to_room(room, submission, build_room_participant_key(request, submission))
         safe_post_submission_side_effects(
             submission,
             VerificationEvent.ACTION_SUBMITTED,
@@ -1948,6 +2249,9 @@ def level_test(request):
         )
         request.session["last_test_submission_id"] = submission.id
         messages.success(request, "You are in. Your result is now on the open leaderboard.")
+        if room:
+            messages.info(request, "Your result is now inside the challenge room.")
+            return redirect("challenge_room", token=room.token)
         return redirect("level_test")
 
     return render(
@@ -1957,17 +2261,66 @@ def level_test(request):
     )
 
 
+def test_submission_proof(request, submission_id):
+    room = get_room_from_request(request)
+    session_submission_ids = request.session.get("test_submission_ids", [])
+    submission = get_object_or_404(Submission.objects.select_related("user", "user__profile"), pk=submission_id)
+    can_access = submission.id in session_submission_ids or (request.user.is_authenticated and submission.user_id == request.user.id)
+    if not can_access:
+        messages.error(request, "Open your own test result before adding proof.")
+        return redirect("level_test")
+
+    if submission.status != Submission.STATUS_UNVERIFIED:
+        messages.info(request, "Proof is already attached or this result is already in review.")
+        if room:
+            return redirect("challenge_room", token=room.token)
+        request.session["last_test_submission_id"] = submission.id
+        return redirect("level_test")
+
+    if request.method == "POST":
+        proof_link = (request.POST.get("proof_link") or "").strip()
+        video_file = request.FILES.get("video_file")
+        if not proof_link and not video_file:
+            messages.error(request, "Add a proof link or upload a proof video file.")
+            return render(request, "test_proof.html", {"submission": submission, "challenge_room": room})
+
+        submission.video_link = proof_link
+        if video_file:
+            stored_video = store_submission_video(submission, video_file)
+            submission.video_storage_path = stored_video["storage_path"]
+            submission.video_file = stored_video["local_file"] or ""
+        submission.status = Submission.STATUS_PENDING
+        submission.verified = False
+        submission.save(update_fields=["video_link", "video_storage_path", "video_file", "status", "verified"])
+        safe_post_submission_side_effects(
+            submission,
+            VerificationEvent.ACTION_PROOF_ADDED,
+            "Proof was added to a test result.",
+            "Earned Club proof received",
+            f"Your proof for {submission.discipline_label} {submission.display_score} was added and is waiting for review.",
+            request=request,
+        )
+        remember_test_submission(request, submission)
+        attach_submission_to_room(room, submission, build_room_participant_key(request, submission))
+        messages.success(request, "Proof added. This result is now waiting for review.")
+        if room:
+            return redirect("challenge_room", token=room.token)
+        request.session["last_test_submission_id"] = submission.id
+        return redirect("level_test")
+
+    return render(request, "test_proof.html", {"submission": submission, "challenge_room": room})
+
+
 def rank(request):
     raw_scores = {
         Submission.DISCIPLINE_PUSHUPS: (request.GET.get("pushups") or request.GET.get("reps") or "").strip(),
         Submission.DISCIPLINE_PULLUPS: (request.GET.get("pullups") or "").strip(),
         Submission.DISCIPLINE_5K: (request.GET.get("run_5k") or request.GET.get("5k") or "").strip(),
-        Submission.DISCIPLINE_10K: (request.GET.get("run_10k") or request.GET.get("10k") or "").strip(),
     }
     hybrid_breakdown = []
     points = []
     first_submit_params = None
-    for config in DISCIPLINE_CONFIG.values():
+    for config in active_discipline_configs():
         raw_value = raw_scores.get(config["key"], "")
         row = {"discipline": config, "raw_value": raw_value, "display_score": "-", "points": 0, "tier": None, "error": ""}
         if raw_value:
@@ -1996,8 +2349,8 @@ def rank(request):
         "score": hybrid_score,
         "rank": get_hybrid_rank(hybrid_score),
         "verified_count": len(points),
-        "max_disciplines": len(DISCIPLINE_CONFIG),
-        "completion_percent": round((len(points) / len(DISCIPLINE_CONFIG)) * 100),
+        "max_disciplines": len(ACTIVE_DISCIPLINE_KEYS),
+        "completion_percent": round((len(points) / len(ACTIVE_DISCIPLINE_KEYS)) * 100),
         "breakdown": hybrid_breakdown,
     }
     submit_url = f"{reverse('challenge')}?{first_submit_params}#submit-form-top" if first_submit_params else f"{reverse('challenge')}#submit-form-top"
@@ -2009,7 +2362,7 @@ def rank(request):
             "hybrid_estimate": hybrid_estimate,
             "submit_url": submit_url,
             "rank_tiers": RANK_TIERS,
-            "discipline_cards": DISCIPLINE_CONFIG.values(),
+            "discipline_cards": active_discipline_configs(),
             "discipline_point_tiers": build_discipline_point_tiers(),
             "has_rank_input": any(raw_scores.values()),
             "raw_scores": raw_scores,
@@ -2074,7 +2427,7 @@ def leaderboard(request, discipline_key=None):
             on_ends=1,
         ),
         "leaderboard_modes": LEADERBOARD_MODES,
-        "discipline_cards": DISCIPLINE_CONFIG.values(),
+        "discipline_cards": active_discipline_configs(),
         "discipline_point_tiers": build_discipline_point_tiers(),
         "hybrid_leaderboard": HYBRID_LEADERBOARD_CONFIG,
         "hybrid_ranks": HYBRID_RANKS,
@@ -2098,6 +2451,8 @@ def register(request):
     if request.user.is_authenticated:
         return redirect("dashboard")
 
+    room = get_room_from_request(request)
+    next_url = request.GET.get("next") or request.POST.get("next") or (room_url(room) if room else "")
     if request.method == "POST":
         form = FlexibleUsernameCreationForm(request.POST)
         email = (request.POST.get("email") or "").strip().lower()
@@ -2109,9 +2464,13 @@ def register(request):
             profile.display_name = user.username
             profile.slug = ""
             profile.save()
+            attached_count = attach_test_session_submissions_to_user(request, user)
             login(request, user)
-            messages.success(request, "Account created. Your athlete profile is ready.")
-            return redirect("dashboard")
+            if attached_count:
+                messages.success(request, f"Athlete profile claimed. {attached_count} test result(s) are now saved to your profile.")
+            else:
+                messages.success(request, "Athlete profile claimed. Your Hybrid Score can now become official.")
+            return redirect(next_url or "dashboard")
     else:
         form = FlexibleUsernameCreationForm()
 
@@ -2122,6 +2481,8 @@ def register(request):
             "form": form,
             "prefill_username": (request.GET.get("name") or "").strip(),
             "prefill_email": (request.GET.get("email") or "").strip(),
+            "next_url": next_url,
+            "challenge_room": room,
         },
     )
 
@@ -2134,7 +2495,8 @@ def login_view(request):
     if request.method == "POST" and form.is_valid():
         login(request, form.get_user())
         messages.success(request, "Welcome back.")
-        next_url = request.GET.get("next") or "dashboard"
+        room = get_room_from_request(request)
+        next_url = request.GET.get("next") or (room_url(room) if room else "dashboard")
         return redirect(next_url)
 
     return render(request, "login.html", {"form": form})
@@ -2156,6 +2518,9 @@ def dashboard(request):
             goal_exercise = request.POST.get("goal_exercise")
             goal_kind = request.POST.get("goal_kind")
             goal_type = goal_exercise or request.POST.get("goal_type") or Goal.GOAL_PUSHUPS
+            if goal_type in DISCIPLINE_CONFIG and not is_active_discipline(goal_type):
+                messages.error(request, "That discipline is temporarily unavailable for new goals.")
+                return redirect("dashboard")
             target_raw = request.POST.get("rank_target" if goal_kind == "rank" else "target_value")
             note = (request.POST.get("note") or "").strip()
             is_public = request.POST.get("is_public") == "on"
@@ -2484,6 +2849,81 @@ def social_list(request, slug, kind):
     return render(request, "social_list.html", {"profile": profile, "users": users, "kind": kind, "title": title})
 
 
+def build_comparison_discipline_rows(left_summary, right_summary):
+    rows = []
+    for left_item, right_item in zip(left_summary["breakdown"], right_summary["breakdown"]):
+        margin = abs(left_item["points"] - right_item["points"])
+        if left_item["points"] > right_item["points"]:
+            leader = "left"
+            leader_label = "Left leads"
+        elif right_item["points"] > left_item["points"]:
+            leader = "right"
+            leader_label = "Right leads"
+        else:
+            leader = "tie"
+            leader_label = "Even"
+        rows.append(
+            {
+                "discipline": left_item["discipline"],
+                "left": left_item,
+                "right": right_item,
+                "margin": margin,
+                "leader": leader,
+                "leader_label": leader_label,
+            }
+        )
+    return rows
+
+
+def build_comparison_profile_notes(summary):
+    strongest = summary.get("best_discipline")
+    weakest = summary.get("weakest_discipline")
+    strengths = []
+    weaknesses = []
+    if strongest and strongest["points"]:
+        strengths.append(f"{strongest['discipline']['short_label']} is the strongest verified lane at {strongest['points']} points.")
+    if summary["verified_count"] >= 2:
+        strengths.append(f"{summary['verified_count']} verified disciplines make this Hybrid Score harder to dismiss.")
+    if weakest:
+        if weakest["submission"]:
+            weaknesses.append(f"{weakest['discipline']['short_label']} is the best place to gain the next Hybrid points.")
+        else:
+            weaknesses.append(f"{weakest['discipline']['short_label']} is still unclaimed on the official profile.")
+    if summary["verified_count"] < summary["max_disciplines"]:
+        missing_count = summary["max_disciplines"] - summary["verified_count"]
+        weaknesses.append(f"{missing_count} discipline lane{'s' if missing_count != 1 else ''} still need verified results.")
+    return {"strengths": strengths, "weaknesses": weaknesses}
+
+
+def comparison_index(request):
+    query = (request.GET.get("q") or "").strip()
+    profiles = Profile.objects.select_related("user").order_by("display_name")
+    if query:
+        profiles = profiles.filter(Q(display_name__icontains=query) | Q(user__username__icontains=query))
+    profile_rows = [
+        {
+            "profile": profile,
+            "hybrid_summary": build_hybrid_breakdown(profile.user),
+        }
+        for profile in profiles[:24]
+    ]
+    if request.method == "POST":
+        left_slug = (request.POST.get("left") or "").strip()
+        right_slug = (request.POST.get("right") or "").strip()
+        if left_slug and right_slug and left_slug != right_slug:
+            return redirect("comparison", left=left_slug, right=right_slug)
+        messages.error(request, "Choose two different athlete profiles to compare.")
+    return render(
+        request,
+        "comparison.html",
+        {
+            "is_picker": True,
+            "profiles": profile_rows,
+            "query": query,
+        },
+    )
+
+
 def comparison(request, left, right):
     left_profile = get_object_or_404(Profile, slug=left)
     right_profile = get_object_or_404(Profile, slug=right)
@@ -2502,6 +2942,14 @@ def comparison(request, left, right):
     else:
         winner_profile = None
         result_label = "Dead even on Hybrid Score"
+    comparison_rows = build_comparison_discipline_rows(left_summary, right_summary)
+    left_notes = build_comparison_profile_notes(left_summary)
+    right_notes = build_comparison_profile_notes(right_summary)
+    share_url = request.build_absolute_uri(reverse("comparison", args=[left_profile.slug, right_profile.slug]))
+    share_text = f"{left_profile.display_name} vs {right_profile.display_name} on Earned Club: {result_label}. {share_url}"
+    joined_profiles = [left_profile, right_profile]
+    if request.user.is_authenticated and request.user.profile not in joined_profiles:
+        joined_profiles.append(request.user.profile)
     return render(
         request,
         "comparison.html",
@@ -2518,6 +2966,76 @@ def comparison(request, left, right):
             "completion_margin": completion_margin,
             "winner_profile": winner_profile,
             "result_label": result_label,
+            "comparison_rows": comparison_rows,
+            "left_notes": left_notes,
+            "right_notes": right_notes,
+            "share_url": share_url,
+            "share_text": share_text,
+            "joined_profiles": joined_profiles,
+        },
+    )
+
+
+@require_POST
+def join_comparison_challenge(request, left, right):
+    left_profile = get_object_or_404(Profile, slug=left)
+    right_profile = get_object_or_404(Profile, slug=right)
+    if not request.user.is_authenticated:
+        messages.info(request, f"{left_profile.display_name} challenged you. Claim your athlete profile to join officially.")
+        params = urlencode({"next": reverse("comparison", args=[left_profile.slug, right_profile.slug])})
+        return redirect(f"{reverse('register')}?{params}")
+    messages.success(request, "Challenge joined officially. Test your next score to make the battle history real.")
+    return redirect("comparison", left=left_profile.slug, right=right_profile.slug)
+
+
+def challenge_room_create(request):
+    focus_choices = ChallengeRoom.FOCUS_CHOICES
+    if request.method == "POST":
+        title = (request.POST.get("title") or "").strip()
+        description = (request.POST.get("description") or "").strip()
+        focus = (request.POST.get("focus") or ChallengeRoom.FOCUS_HYBRID).strip()
+        valid_focuses = {value for value, _ in focus_choices}
+        if focus not in valid_focuses or (focus in DISCIPLINE_CONFIG and not is_active_discipline(focus)):
+            messages.error(request, "Choose a supported challenge focus.")
+            return render(request, "challenge_room_create.html", {"focus_choices": focus_choices})
+        room = ChallengeRoom.objects.create(
+            title=title,
+            description=description,
+            focus=focus,
+            created_by=request.user if request.user.is_authenticated else None,
+        )
+        request.session["active_challenge_room"] = room.token
+        messages.success(request, "Challenge room created. Copy the link and send it to the group.")
+        return redirect("challenge_room", token=room.token)
+    return render(request, "challenge_room_create.html", {"focus_choices": focus_choices})
+
+
+def challenge_room_detail(request, token):
+    room = get_room_from_token(token)
+    if not room:
+        raise Http404("Challenge room not found")
+    if token != room.token:
+        return redirect("challenge_room", token=room.token)
+    request.session["active_challenge_room"] = room.token
+    rows = build_room_leaderboard(room)
+    share_url = request.build_absolute_uri(room_url(room))
+    submit_url = room_link("challenge", room)
+    join_url = room_link("level_test", room)
+    register_url = room_link("register", room)
+    login_url = room_link("login", room)
+    return render(
+        request,
+        "challenge_room.html",
+        {
+            "room": room,
+            "leaderboard_rows": rows,
+            "winner": rows[0] if rows else None,
+            "share_url": share_url,
+            "share_text": f"Join my EarnedClub challenge and compare your score. {share_url}",
+            "submit_url": submit_url,
+            "join_url": join_url,
+            "register_url": register_url,
+            "login_url": login_url,
         },
     )
 
@@ -2539,12 +3057,15 @@ def toggle_follow(request, slug):
 
 
 def challenge(request):
+    room = get_room_from_request(request)
     verified_submissions = get_official_verified_submissions()
-    selected_discipline = get_discipline_config((request.POST.get("discipline") if request.method == "POST" else request.GET.get("discipline")) or DISCIPLINE_PUSHUPS)
+    selected_discipline = get_discipline_config(room_default_discipline(room, (request.POST.get("discipline") if request.method == "POST" else request.GET.get("discipline")) or DISCIPLINE_PUSHUPS))
     context = {
         "rank_tiers": RANK_TIERS,
-        "discipline_cards": DISCIPLINE_CONFIG.values(),
+        "discipline_cards": room_allowed_disciplines(room),
         "selected_discipline": selected_discipline,
+        "challenge_room": room,
+        "discipline_locked": bool(room and not room.is_hybrid),
         "verified_count": len(verified_submissions),
         "leaderboard_preview": build_leaderboard_rows(list(public_submission_queryset(discipline=selected_discipline["key"]))[:3]),
         "form_data": request.GET,
@@ -2675,7 +3196,10 @@ def challenge(request):
                     "Your result is pending review. If approved, your official rank will update.",
                 )
                 messages.info(request, "Next: open your dashboard, watch review status, and build the next discipline.")
+                attach_submission_to_room(room, active_submission, build_room_participant_key(request, active_submission))
                 request.session["last_submission_id"] = active_submission.id
+                if room:
+                    return redirect("challenge_room", token=room.token)
                 return redirect("challenge")
 
             messages.error(
@@ -2746,7 +3270,11 @@ def challenge(request):
             ),
         )
         messages.info(request, "Next: open the leaderboard, share your result, or add proof for official status.")
+        attach_submission_to_room(room, submission, build_room_participant_key(request, submission))
         request.session["last_submission_id"] = submission.id
+        if room:
+            messages.info(request, "Your result is now inside the challenge room.")
+            return redirect("challenge_room", token=room.token)
         return redirect("challenge")
 
     return render(request, "challenge.html", context)
@@ -2850,7 +3378,10 @@ def admin_pages(request):
         {"name": "leaderboard", "route": "/leaderboard/", "url": reverse("leaderboard"), "access": "Public"},
         {"name": "profiles", "route": "/profiles/", "url": reverse("profiles"), "access": "Public"},
         {"name": "athlete_profile", "route": "/athlete/<slug>/", "url": "", "access": "Public"},
-        {"name": "comparison", "route": "/comparison/<left>vs<right>/", "url": "", "access": "Public"},
+        {"name": "comparison", "route": "/comparison/", "url": reverse("comparison_index"), "access": "Public"},
+        {"name": "comparison detail", "route": "/comparison/<left>vs<right>/", "url": "", "access": "Public"},
+        {"name": "challenge room create", "route": "/challenge-room/create/", "url": reverse("challenge_room_create"), "access": "Public"},
+        {"name": "challenge room detail", "route": "/challenge-room/<token>/", "url": "", "access": "Public"},
         {"name": "workout_detail", "route": "/workout/<slug>/", "url": "", "access": "Public"},
         {"name": "calculators", "route": "/calculators/", "url": reverse("calculators"), "access": "Public"},
         {"name": "privacy", "route": "/privacy/", "url": reverse("privacy"), "access": "Public"},
@@ -3203,7 +3734,7 @@ def calculators(request):
         {
             "rank_tiers": RANK_TIERS,
             "content_prompts": prompts,
-            "discipline_cards": DISCIPLINE_CONFIG.values(),
+            "discipline_cards": active_discipline_configs(),
             "discipline_point_tiers": build_discipline_point_tiers(),
             "hybrid_ranks": HYBRID_RANKS,
         },
