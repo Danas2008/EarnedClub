@@ -32,6 +32,7 @@ urlpatterns = [
     path("admin-menu/pages/", views.admin_pages, name="admin_pages"),
     path("admin-menu/challenge-rooms/", views.admin_challenge_rooms, name="admin_challenge_rooms"),
     path("admin-menu/users/", views.admin_users, name="admin_users"),
+    path("admin-menu/users/<int:user_id>/", views.admin_user_detail, name="admin_user_detail"),
     path("admin-review/", views.admin_review, name="admin_review"),
     path("admin-review/<int:submission_id>/", views.review_submission, name="review_submission"),
     path("content/", views.content_engine_admin, name="content_engine_admin"),

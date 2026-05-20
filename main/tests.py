@@ -319,6 +319,18 @@ class SubmissionFlowTests(TestCase):
         self.assertTrue(anonymous["is_anonymous"])
         self.assertEqual(anonymous["verified_count"], 2)
 
+    def test_hybrid_leaderboard_groups_anonymous_test_results_by_name_without_email(self):
+        Submission.objects.create(name="Guest Hybrid", email="", reps=40, discipline=Submission.DISCIPLINE_PUSHUPS, status=Submission.STATUS_UNVERIFIED)
+        Submission.objects.create(name="Guest Hybrid", email="", reps=10, discipline=Submission.DISCIPLINE_PULLUPS, status=Submission.STATUS_UNVERIFIED)
+        Submission.objects.create(name="Guest Hybrid", email="", reps=22 * 60, discipline=Submission.DISCIPLINE_5K, status=Submission.STATUS_UNVERIFIED)
+
+        response = self.client.get(reverse("leaderboard"))
+        rows = [row for row in response.context["leaderboard_rows"].object_list if row["display_name"] == "Guest Hybrid"]
+
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["open_count"], 3)
+        self.assertEqual(rows[0]["hybrid_score"], 517)
+
     def test_hybrid_leaderboard_includes_eligible_unverified_results(self):
         Submission.objects.create(
             name="Open Hybrid",
@@ -1158,6 +1170,11 @@ class SubmissionFlowTests(TestCase):
         self.assertContains(response, "This is your current Hybrid Score preview")
         self.assertTrue(response.context["test_progress"]["is_full_hybrid"])
 
+        revisit_response = self.client.get(reverse("level_test"))
+        self.assertContains(revisit_response, "Full Hybrid Score completed")
+        self.assertContains(revisit_response, "3/3 disciplines completed")
+        self.assertNotContains(revisit_response, '<span class="kicker">Discipline</span>', html=False)
+
     def test_level_test_strong_result_is_saved_and_guided_to_proof(self):
         response = self.client.post(
             reverse("level_test"),
@@ -1259,6 +1276,8 @@ class SubmissionFlowTests(TestCase):
         self.assertEqual(submission.user, user)
         self.assertEqual(submission.status, Submission.STATUS_UNVERIFIED)
         self.assertEqual(response.context["hybrid_summary"]["score"], 0)
+        self.assertEqual(response.context["hybrid_summary"]["open_score"], 350)
+        self.assertContains(response, "Open Score Preview")
         self.assertContains(response, "test result(s) are now saved to your profile")
 
     def test_level_test_requires_name_for_anonymous_submission(self):
@@ -1500,7 +1519,8 @@ class SubmissionFlowTests(TestCase):
         self.assertContains(response, "Not official yet. Add proof to make this count toward Hybrid Score.")
         self.assertContains(response, "Preview 510")
         self.assertContains(response, "Hybrid Score")
-        self.assertContains(response, '<div class="profile-pr-number">0</div>', html=False)
+        self.assertContains(response, '<div class="profile-pr-number">510</div>', html=False)
+        self.assertContains(response, "Open Score Preview")
 
     def test_comparison_uses_hybrid_score_not_pushup_delta(self):
         left = User.objects.create_user(username="compare-left", password="StrongPass12345")
@@ -2265,7 +2285,35 @@ class SubmissionFlowTests(TestCase):
         self.assertContains(response, "Registered users")
         self.assertContains(response, "overview-athlete")
         self.assertContains(response, "athlete@example.com")
-        self.assertContains(response, reverse("admin:auth_user_change", args=[athlete.id]), html=False)
+        self.assertContains(response, reverse("admin_user_detail", args=[athlete.id]), html=False)
+        self.assertNotContains(response, reverse("admin:auth_user_change", args=[athlete.id]), html=False)
+
+    def test_staff_can_edit_registered_user_inside_app_admin(self):
+        staff = User.objects.create_user(username="edit-staff", password="StrongPass12345", is_staff=True)
+        athlete = User.objects.create_user(username="editable-athlete", email="old@example.com", password="StrongPass12345")
+        self.client.force_login(staff)
+
+        response = self.client.post(
+            reverse("admin_user_detail", args=[athlete.id]),
+            {
+                "username": "edited-athlete",
+                "email": "new@example.com",
+                "display_name": "Edited Athlete",
+                "country": "Czech Republic",
+                "age": "22",
+                "bio": "Updated by admin",
+                "is_active": "on",
+            },
+            follow=True,
+        )
+
+        athlete.refresh_from_db()
+        athlete.profile.refresh_from_db()
+        self.assertContains(response, "User edited-athlete was updated")
+        self.assertEqual(athlete.username, "edited-athlete")
+        self.assertEqual(athlete.email, "new@example.com")
+        self.assertEqual(athlete.profile.display_name, "Edited Athlete")
+        self.assertFalse(athlete.is_staff)
 
     def test_review_page_requires_staff_or_superuser(self):
         user = User.objects.create_user(username="regular", password="StrongPass12345")

@@ -246,9 +246,18 @@
 
         <aside class="profile-status-card">
             <div>
-                <span class="kicker">Hybrid Score</span>
-                <div class="profile-pr-number">{{ hybrid_summary.score }}</div>
-                <p class="muted">{{ hybrid_summary.rank.name }}{% if hybrid_rank_position %} - Hybrid Rank #{{ hybrid_rank_position }}{% endif %}</p>
+                <span class="kicker">{% if hybrid_summary.score %}Official Hybrid Score{% else %}Open Score Preview{% endif %}</span>
+                <div class="profile-pr-number">{% if hybrid_summary.score %}{{ hybrid_summary.score }}{% else %}{{ hybrid_summary.open_score }}{% endif %}</div>
+                <p class="muted">
+                    {% if hybrid_summary.score %}
+                        {{ hybrid_summary.rank.name }}{% if hybrid_rank_position %} - Hybrid Rank #{{ hybrid_rank_position }}{% endif %}
+                    {% else %}
+                        {{ hybrid_summary.open_rank.name }} - not official until verified
+                    {% endif %}
+                </p>
+                {% if hybrid_summary.open_score and hybrid_summary.score %}
+                    <p class="muted">Open Score Preview: {{ hybrid_summary.open_score }}</p>
+                {% endif %}
             </div>
             <div class="profile-status-grid">
                 <div class="profile-mini-stat">

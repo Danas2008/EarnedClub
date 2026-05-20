@@ -431,6 +431,7 @@ def build_recent_activity_items(limit=6):
 def build_hybrid_breakdown(user):
     rows = []
     verified_points = []
+    open_points = []
     verified_submissions = user.submission_set.filter(status=Submission.STATUS_VERIFIED).select_related("user")
     all_submissions = user.submission_set.all()
     for config in active_discipline_configs():
@@ -451,6 +452,9 @@ def build_hybrid_breakdown(user):
         preview_points = preview_submission.hybrid_points if preview_submission else 0
         if best_submission:
             verified_points.append(points)
+        open_submission = best_submission or preview_submission
+        if open_submission:
+            open_points.append(open_submission.hybrid_points)
         intensity = "empty"
         if points >= 900:
             intensity = "legend"
@@ -480,13 +484,16 @@ def build_hybrid_breakdown(user):
             }
         )
     hybrid_score = round(sum(verified_points) / len(verified_points)) if verified_points else 0
+    open_score = round(sum(open_points) / len(open_points)) if open_points else 0
     verified_rows = [row for row in rows if row["submission"]]
     best_row = max(verified_rows, key=lambda row: row["points"], default=None)
     weakest_row = min(verified_rows, key=lambda row: row["points"], default=None)
     missing_row = next((row for row in rows if not row["submission"]), None)
     return {
         "score": hybrid_score,
+        "open_score": open_score,
         "rank": get_hybrid_rank(hybrid_score),
+        "open_rank": get_hybrid_rank(open_score),
         "breakdown": rows,
         "best_discipline": best_row,
         "weakest_discipline": weakest_row or missing_row,
@@ -658,7 +665,12 @@ def build_hybrid_leaderboard_rows(query="", mode_key="all"):
         email = submission.email or ""
         if lowered_query and lowered_query not in display_name.lower() and lowered_query not in email.lower():
             continue
-        identity = f"user:{submission.user_id}" if submission.user_id else f"anon:{get_submission_identity(submission)}"
+        if submission.user_id:
+            identity = f"user:{submission.user_id}"
+        elif submission.email:
+            identity = f"email:{submission.email.lower()}"
+        else:
+            identity = f"name:{submission.name.strip().lower()}"
         group = grouped.setdefault(
             identity,
             {
@@ -2214,6 +2226,8 @@ def level_test(request):
     verified_submissions = get_official_verified_submissions()
     requested_discipline = room_default_discipline(room, request.GET.get("discipline") or DISCIPLINE_PUSHUPS)
     test_identity = get_test_identity(request)
+    existing_progress = build_test_progress(request, room=room)
+    latest_existing_submission = existing_progress["completed_submissions"][-1] if existing_progress["completed_submissions"] else None
     context = {
         "rank_tiers": RANK_TIERS,
         "discipline_point_tiers": build_discipline_point_tiers(),
@@ -2222,7 +2236,7 @@ def level_test(request):
         "discipline_cards": room_allowed_disciplines(room),
         "active_discipline_key": requested_discipline,
         "test_identity": test_identity,
-        "test_progress": build_test_progress(request, room=room),
+        "test_progress": existing_progress,
         "has_saved_test_identity": request.user.is_authenticated or bool(test_identity["name"]),
         "challenge_room": room,
         "test_form_action": room_link("level_test", room),
@@ -2233,6 +2247,8 @@ def level_test(request):
         if success_submission:
             context["test_submission_success"] = build_submission_success(success_submission, request)
             context["test_progress"] = build_test_progress(request, success_submission, room=room)
+    elif request.method == "GET" and latest_existing_submission and (existing_progress["is_complete"] or request.GET.get("result") == "1"):
+        context["test_submission_success"] = build_submission_success(latest_existing_submission, request)
 
     if request.method == "POST":
         discipline = room_default_discipline(room, request.POST.get("discipline") or DISCIPLINE_PUSHUPS)
@@ -3628,7 +3644,62 @@ def admin_users(request):
             "page_obj": page_obj,
             "query": query,
             "user_count": users.count(),
-            "admin_add_url": reverse("admin:auth_user_add"),
+        },
+    )
+
+
+@user_passes_test(is_app_admin, login_url="login")
+def admin_user_detail(request, user_id):
+    account = get_object_or_404(User.objects.select_related("profile"), pk=user_id)
+    if request.method == "POST":
+        action = request.POST.get("action") or "save"
+        if action == "delete":
+            if account == request.user:
+                messages.error(request, "You cannot delete your own staff account here.")
+                return redirect("admin_user_detail", user_id=account.id)
+            username = account.username
+            account.delete()
+            messages.success(request, f"User {username} was deleted.")
+            return redirect("admin_users")
+
+        username = (request.POST.get("username") or "").strip()
+        email = (request.POST.get("email") or "").strip().lower()
+        display_name = (request.POST.get("display_name") or "").strip()
+        country = (request.POST.get("country") or "").strip()
+        age_raw = (request.POST.get("age") or "").strip()
+        bio = (request.POST.get("bio") or "").strip()
+        is_active = request.POST.get("is_active") == "on"
+        is_staff = request.POST.get("is_staff") == "on"
+
+        if not username:
+            messages.error(request, "Username is required.")
+            return redirect("admin_user_detail", user_id=account.id)
+        if User.objects.filter(username__iexact=username).exclude(pk=account.pk).exists():
+            messages.error(request, "That username is already used.")
+            return redirect("admin_user_detail", user_id=account.id)
+
+        account.username = username
+        account.email = email
+        account.is_active = is_active
+        account.is_staff = is_staff
+        account.save(update_fields=["username", "email", "is_active", "is_staff"])
+
+        profile = account.profile
+        profile.display_name = display_name or username
+        profile.country = country
+        profile.bio = bio
+        profile.age = int(age_raw) if age_raw.isdigit() else None
+        profile.save(update_fields=["display_name", "country", "bio", "age", "updated_at"])
+        messages.success(request, f"User {account.username} was updated.")
+        return redirect("admin_user_detail", user_id=account.id)
+
+    submissions = account.submission_set.order_by("-created_at")[:10]
+    return render(
+        request,
+        "admin_user_detail.html",
+        {
+            "account": account,
+            "submissions": submissions,
         },
     )
 

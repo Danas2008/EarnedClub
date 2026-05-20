@@ -6,10 +6,9 @@
 <section class="hero-card">
     <div class="eyebrow">Admin</div>
     <h1>Registered users.</h1>
-    <p class="muted">{{ user_count }} account(s) found. Use Edit to change details, permissions, password, or delete through Django admin.</p>
+    <p class="muted">{{ user_count }} account(s) found. Use Edit to change account/profile details or delete users inside this admin.</p>
     <div class="button-row">
         <a class="btn-secondary" href="{% url 'admin_menu' %}">Back to Admin Menu</a>
-        <a class="btn-main" href="{{ admin_add_url }}">Create User In Admin</a>
     </div>
 </section>
 
@@ -55,7 +54,7 @@
                     <td>{{ account.submission_count }}</td>
                     <td>{{ account.room_count }}</td>
                     <td><span class="submission-meta">{{ account.date_joined|date:"Y-m-d H:i" }}</span></td>
-                    <td><a class="btn-secondary" style="min-height: 34px; padding: 6px 10px;" href="{% url 'admin:auth_user_change' account.id %}">Edit</a></td>
+                    <td><a class="btn-secondary" style="min-height: 34px; padding: 6px 10px;" href="{% url 'admin_user_detail' account.id %}">Edit</a></td>
                 </tr>
             {% empty %}
                 <tr><td colspan="7"><span class="submission-meta">No users found.</span></td></tr>
@@ -72,7 +71,7 @@
                     <div class="submission-meta">{{ account.submission_count }} submissions - {{ account.room_count }} rooms</div>
                 </div>
                 <div class="score-row-score">
-                    <a class="btn-secondary" style="min-height: 34px; padding: 6px 10px;" href="{% url 'admin:auth_user_change' account.id %}">Edit</a>
+                    <a class="btn-secondary" style="min-height: 34px; padding: 6px 10px;" href="{% url 'admin_user_detail' account.id %}">Edit</a>
                 </div>
             </div>
         {% endfor %}

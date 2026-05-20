@@ -4,22 +4,87 @@
 {% block meta_description %}See this Earned Club Hybrid Score preview and try to beat it.{% endblock %}
 
 {% block content %}
+<style>
+    .preview-card {
+        display: grid;
+        gap: 14px;
+        padding: 18px;
+        border-radius: var(--radius-lg);
+        border: 1px solid rgba(247, 183, 51, .28);
+        background:
+            linear-gradient(155deg, rgba(247, 183, 51, .16), rgba(30, 157, 116, .08)),
+            rgba(8, 11, 15, .48);
+        box-shadow: 0 18px 48px rgba(0, 0, 0, .28);
+    }
+
+    .preview-top {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        align-items: start;
+    }
+
+    .preview-score {
+        font-family: "Archivo", sans-serif;
+        font-size: clamp(4rem, 22vw, 7rem);
+        line-height: .78;
+        color: var(--accent);
+        font-weight: 900;
+    }
+
+    .preview-grid {
+        display: grid;
+        gap: 10px;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .preview-stat {
+        padding: 12px;
+        border-radius: var(--radius-md);
+        border: 1px solid rgba(255, 255, 255, .08);
+        background: rgba(255, 255, 255, .04);
+    }
+
+    @media (min-width: 760px) {
+        .preview-card {
+            grid-template-columns: minmax(0, .95fr) minmax(220px, .65fr);
+            align-items: center;
+        }
+    }
+</style>
+
 <section class="hero-card">
-    <div class="content-split">
+    <div class="preview-card">
         <div>
-            <span class="eyebrow">Hybrid Score Challenge</span>
-            <h1>{{ owner_name }} scored {{ test_progress.open_score }}.</h1>
+            <div class="preview-top">
+                <div>
+                    <span class="kicker">Hybrid Score Challenge</span>
+                    <h1>{{ owner_name }}</h1>
+                </div>
+                <span class="status-pill unverified">Open / Unverified</span>
+            </div>
             <p class="muted">{{ test_progress.completed_count }}/{{ test_progress.max_disciplines }} disciplines completed. Beat this score with your own Push-ups, Pull-ups, and 5K result.</p>
+            <div class="preview-grid">
+                {% for row in test_progress.rows %}
+                    {% if row.done %}
+                        <div class="preview-stat">
+                            <span class="kicker">{{ row.discipline.short_label }}</span>
+                            <div class="submission-name">{{ row.submission.display_score }}</div>
+                            <div class="submission-meta">{{ row.submission.hybrid_points }} pts</div>
+                        </div>
+                    {% endif %}
+                {% endfor %}
+            </div>
             <div class="button-row">
                 <a class="btn-main" href="{{ try_url }}">Try It Yourself</a>
                 <a class="btn-secondary" href="{{ try_url }}">Beat This Score</a>
                 <a class="btn-secondary" href="{{ leaderboard_url }}">View Hybrid Leaderboard</a>
             </div>
         </div>
-        <div class="stat-grid">
-            <div class="stat-card"><span class="kicker">Hybrid Score Preview</span><span class="stat-value">{{ test_progress.open_score }}</span></div>
-            <div class="stat-card"><span class="kicker">Title</span><span class="stat-value" style="font-size: 1.15rem;">{{ test_progress.rank.name }}</span></div>
-            <div class="stat-card"><span class="kicker">Status</span><span class="stat-value" style="font-size: 1.1rem;">Open / Unverified</span></div>
+        <div>
+            <span class="kicker">Hybrid Score Preview</span>
+            <div class="preview-score">{{ test_progress.open_score }}</div>
+            <p class="muted">{{ test_progress.rank.name }}. Official Hybrid Score uses verified results only.</p>
         </div>
     </div>
 </section>

@@ -280,7 +280,7 @@
         <div class="test-inner">
             <div class="test-progress" aria-hidden="true"><span data-progress></span></div>
 
-            <div class="test-step is-active" data-step="0">
+            <div class="test-step{% if not test_submission_success %} is-active{% endif %}" data-step="0">
                 <div class="eyebrow">Step 1 / 5</div>
                 <div>
                     <h1>{% if challenge_room and not challenge_room.is_hybrid %}{{ challenge_room.focus_label }} challenge result{% else %}What is your strongest discipline?{% endif %}</h1>
@@ -351,9 +351,9 @@
                 </div>
             </div>
 
-            <div class="test-step" data-step="5">
+            <div class="test-step{% if test_submission_success %} is-active{% endif %}" data-step="5">
                 {% if test_submission_success %}
-                    <div class="eyebrow">You're in!</div>
+                    <div class="eyebrow">{% if test_progress.is_full_hybrid %}Full Hybrid Score completed{% else %}You're in!{% endif %}</div>
                     <div class="preview-card">
                         <div>
                             <div class="preview-top">
@@ -363,28 +363,36 @@
                                 </div>
                                 <span class="status-pill {{ test_submission_success.submission.status }}">{{ test_submission_success.submission.public_status_label }}</span>
                             </div>
-                            <div class="preview-grid">
-                                <div class="preview-stat">
-                                    <span class="kicker">Discipline</span>
-                                    <div class="submission-name">{{ test_submission_success.submission.discipline_label }}</div>
+                            {% if test_progress.is_full_hybrid %}
+                                <div class="preview-grid">
+                                    {% for row in test_progress.rows %}
+                                        <div class="preview-stat">
+                                            <span class="kicker">{{ row.discipline.short_label }}</span>
+                                            <div class="submission-name">{{ row.submission.display_score }}</div>
+                                            <div class="submission-meta">{{ row.submission.hybrid_points }} pts - {{ row.submission.public_status_label }}</div>
+                                        </div>
+                                    {% endfor %}
                                 </div>
-                                <div class="preview-stat">
-                                    <span class="kicker">Result</span>
-                                    <div class="submission-name">{{ test_submission_success.submission.display_score }}</div>
+                            {% else %}
+                                <div class="preview-grid">
+                                    <div class="preview-stat">
+                                        <span class="kicker">Discipline</span>
+                                        <div class="submission-name">{{ test_submission_success.submission.discipline_label }}</div>
+                                    </div>
+                                    <div class="preview-stat">
+                                        <span class="kicker">Result</span>
+                                        <div class="submission-name">{{ test_submission_success.submission.display_score }}</div>
+                                    </div>
+                                    <div class="preview-stat">
+                                        <span class="kicker">Tier</span>
+                                        <div class="submission-name">{{ test_submission_success.submission.rank_name }}</div>
+                                    </div>
+                                    <div class="preview-stat">
+                                        <span class="kicker">Discipline points</span>
+                                        <div class="submission-name">{{ test_submission_success.display_points }} pts</div>
+                                    </div>
                                 </div>
-                                <div class="preview-stat">
-                                    <span class="kicker">Tier</span>
-                                    <div class="submission-name">{{ test_submission_success.submission.rank_name }}</div>
-                                </div>
-                                <div class="preview-stat">
-                                    <span class="kicker">Discipline points</span>
-                                    <div class="submission-name">{{ test_submission_success.display_points }} pts</div>
-                                </div>
-                                <div class="preview-stat">
-                                    <span class="kicker">Hybrid Score Preview</span>
-                                    <div class="submission-name">{{ test_progress.open_score }}</div>
-                                </div>
-                            </div>
+                            {% endif %}
                         </div>
                         <div>
                             <span class="kicker">Open Score</span>
@@ -469,12 +477,13 @@
     const progress = document.querySelector("[data-progress]");
     const requiresName = {% if request.user.is_authenticated %}false{% else %}true{% endif %};
     const hasSavedIdentity = {% if has_saved_test_identity %}true{% else %}false{% endif %};
+    const initialStep = {% if test_submission_success %}5{% else %}0{% endif %};
     const disciplineLabels = {
         pushups: { label: "Push-ups", unit: "reps", placeholder: "42", help: "Enter max clean reps.", hint: "Higher reps rank higher." },
         pullups: { label: "Pull-ups", unit: "reps", placeholder: "12", help: "Enter max clean reps.", hint: "Higher reps rank higher." },
         run_5k: { label: "5K", unit: "time", placeholder: "21:34", help: "Use MM:SS, e.g. 21:34.", hint: "Use MM:SS or HH:MM:SS. Lower time ranks higher." },
     };
-    let active = 0;
+    let active = initialStep;
 
     function selectedDiscipline() {
         return document.querySelector("input[name='discipline_choice']:checked")?.value || "pushups";
