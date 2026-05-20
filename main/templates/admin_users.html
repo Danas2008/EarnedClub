@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+
+{% block title %}Admin Users{% endblock %}
+
+{% block content %}
+<section class="hero-card">
+    <div class="eyebrow">Admin</div>
+    <h1>Registered users.</h1>
+    <p class="muted">{{ user_count }} account(s) found. Use Edit to change details, permissions, password, or delete through Django admin.</p>
+    <div class="button-row">
+        <a class="btn-secondary" href="{% url 'admin_menu' %}">Back to Admin Menu</a>
+        <a class="btn-main" href="{{ admin_add_url }}">Create User In Admin</a>
+    </div>
+</section>
+
+<section class="card-dark">
+    <div class="section-spread">
+        <div>
+            <h2>User overview</h2>
+            <p class="muted">Search by username, email, name, or profile display name.</p>
+        </div>
+        <form class="filter-form" method="get">
+            <input class="input" type="search" name="q" value="{{ query }}" placeholder="Search users">
+            <button class="btn-secondary" type="submit">Search</button>
+        </form>
+    </div>
+    <table class="leaderboard-table">
+        <thead>
+            <tr>
+                <th>User</th>
+                <th>Email</th>
+                <th>Profile</th>
+                <th>Submissions</th>
+                <th>Rooms</th>
+                <th>Joined</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for account in page_obj %}
+                <tr>
+                    <td>
+                        <span class="submission-name">{{ account.username }}</span>
+                        <div class="submission-meta">{% if account.is_staff %}Staff{% else %}Athlete{% endif %}{% if not account.is_active %} - inactive{% endif %}</div>
+                    </td>
+                    <td><span class="submission-meta">{{ account.email|default:"No email" }}</span></td>
+                    <td>
+                        {% if account.profile %}
+                            <span class="submission-name">{{ account.profile.display_name }}</span>
+                            <div class="submission-meta">{{ account.profile.country|default:"No country" }}</div>
+                        {% else %}
+                            <span class="submission-meta">No profile</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ account.submission_count }}</td>
+                    <td>{{ account.room_count }}</td>
+                    <td><span class="submission-meta">{{ account.date_joined|date:"Y-m-d H:i" }}</span></td>
+                    <td><a class="btn-secondary" style="min-height: 34px; padding: 6px 10px;" href="{% url 'admin:auth_user_change' account.id %}">Edit</a></td>
+                </tr>
+            {% empty %}
+                <tr><td colspan="7"><span class="submission-meta">No users found.</span></td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <div class="mobile-cards compact-board">
+        {% for account in page_obj %}
+            <div class="score-row">
+                <div class="score-row-main">
+                    <div class="submission-name">{{ account.username }}</div>
+                    <div class="submission-meta">{{ account.email|default:"No email" }}</div>
+                    <div class="submission-meta">{{ account.submission_count }} submissions - {{ account.room_count }} rooms</div>
+                </div>
+                <div class="score-row-score">
+                    <a class="btn-secondary" style="min-height: 34px; padding: 6px 10px;" href="{% url 'admin:auth_user_change' account.id %}">Edit</a>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+</section>
+{% endblock %}

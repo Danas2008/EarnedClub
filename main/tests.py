@@ -2142,6 +2142,32 @@ class SubmissionFlowTests(TestCase):
         self.assertContains(response, "/rank/")
         self.assertContains(response, "/challenge/")
 
+    def test_staff_can_view_challenge_room_overview(self):
+        staff = User.objects.create_user(username="rooms-staff", password="StrongPass12345", is_staff=True)
+        self.client.force_login(staff)
+        room = ChallengeRoom.objects.create(title="Friday Room", focus=ChallengeRoom.FOCUS_HYBRID, created_by=staff)
+
+        response = self.client.get(reverse("admin_challenge_rooms"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Challenge rooms")
+        self.assertContains(response, "Friday Room")
+        self.assertContains(response, room.token)
+        self.assertContains(response, reverse("admin:main_challengeroom_change", args=[room.id]), html=False)
+
+    def test_staff_can_view_registered_user_overview(self):
+        staff = User.objects.create_user(username="users-staff", password="StrongPass12345", is_staff=True)
+        athlete = User.objects.create_user(username="overview-athlete", email="athlete@example.com", password="StrongPass12345")
+        self.client.force_login(staff)
+
+        response = self.client.get(reverse("admin_users"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Registered users")
+        self.assertContains(response, "overview-athlete")
+        self.assertContains(response, "athlete@example.com")
+        self.assertContains(response, reverse("admin:auth_user_change", args=[athlete.id]), html=False)
+
     def test_review_page_requires_staff_or_superuser(self):
         user = User.objects.create_user(username="regular", password="StrongPass12345")
         self.client.force_login(user)

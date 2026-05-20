@@ -17,7 +17,7 @@ from django.core.serializers.json import DjangoJSONEncoder
 from django.http import Http404, HttpResponse
 from django.db import IntegrityError, transaction
 from django.core.paginator import Paginator
-from django.db.models import F, Q
+from django.db.models import Count, F, Q
 from django.views.decorators.http import require_POST
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -3351,6 +3351,8 @@ def admin_menu(request):
             "pending_count": pending_submission_queryset().count(),
             "subscriber_count": NewsletterSubscriber.objects.count(),
             "prompt_count": ContentEnginePrompt.objects.count(),
+            "room_count": ChallengeRoom.objects.count(),
+            "user_count": User.objects.count(),
             "site_health": {
                 "email_backend": settings.EMAIL_BACKEND,
                 "default_from_email": settings.DEFAULT_FROM_EMAIL,
@@ -3392,6 +3394,8 @@ def admin_pages(request):
         {"name": "workouts", "route": "/workouts/", "url": reverse("workouts"), "access": "Account"},
         {"name": "admin_menu", "route": "/admin-menu/", "url": reverse("admin_menu"), "access": "Staff"},
         {"name": "admin_pages", "route": "/admin-menu/pages/", "url": reverse("admin_pages"), "access": "Staff"},
+        {"name": "admin_challenge_rooms", "route": "/admin-menu/challenge-rooms/", "url": reverse("admin_challenge_rooms"), "access": "Staff"},
+        {"name": "admin_users", "route": "/admin-menu/users/", "url": reverse("admin_users"), "access": "Staff"},
         {"name": "admin_review", "route": "/admin-review/", "url": reverse("admin_review"), "access": "Staff"},
         {"name": "content_engine_admin", "route": "/content/", "url": reverse("content_engine_admin"), "access": "Staff"},
         {"name": "newsletter_admin", "route": "/newsletter/", "url": reverse("newsletter_admin"), "access": "Staff"},
@@ -3405,6 +3409,73 @@ def admin_pages(request):
         {
             "page_rows": page_rows,
             "page_count": len(page_rows),
+        },
+    )
+
+
+@user_passes_test(is_app_admin, login_url="login")
+def admin_challenge_rooms(request):
+    query = (request.GET.get("q") or "").strip()
+    rooms = ChallengeRoom.objects.select_related("created_by", "created_by__profile").annotate(entry_count=Count("entries", distinct=True))
+    if query:
+        rooms = rooms.filter(
+            Q(title__icontains=query)
+            | Q(description__icontains=query)
+            | Q(token__icontains=query)
+            | Q(created_by__username__icontains=query)
+            | Q(created_by__email__icontains=query)
+            | Q(created_by__profile__display_name__icontains=query)
+        )
+    paginator = Paginator(rooms.order_by("-created_at"), 50)
+    page_obj = paginator.get_page(request.GET.get("page"))
+    room_rows = []
+    for room in page_obj:
+        room_rows.append(
+            {
+                "room": room,
+                "participant_count": len(build_room_leaderboard(room)),
+                "public_url": room_url(room),
+                "admin_url": reverse("admin:main_challengeroom_change", args=[room.id]),
+            }
+        )
+    return render(
+        request,
+        "admin_challenge_rooms.html",
+        {
+            "page_obj": page_obj,
+            "room_rows": room_rows,
+            "query": query,
+            "room_count": rooms.count(),
+            "admin_add_url": reverse("admin:main_challengeroom_add"),
+        },
+    )
+
+
+@user_passes_test(is_app_admin, login_url="login")
+def admin_users(request):
+    query = (request.GET.get("q") or "").strip()
+    users = User.objects.select_related("profile").annotate(
+        submission_count=Count("submission", distinct=True),
+        room_count=Count("challenge_rooms", distinct=True),
+    )
+    if query:
+        users = users.filter(
+            Q(username__icontains=query)
+            | Q(email__icontains=query)
+            | Q(first_name__icontains=query)
+            | Q(last_name__icontains=query)
+            | Q(profile__display_name__icontains=query)
+        )
+    paginator = Paginator(users.order_by("-date_joined"), 50)
+    page_obj = paginator.get_page(request.GET.get("page"))
+    return render(
+        request,
+        "admin_users.html",
+        {
+            "page_obj": page_obj,
+            "query": query,
+            "user_count": users.count(),
+            "admin_add_url": reverse("admin:auth_user_add"),
         },
     )
 

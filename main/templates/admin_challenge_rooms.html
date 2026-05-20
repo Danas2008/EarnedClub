@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+
+{% block title %}Admin Challenge Rooms{% endblock %}
+
+{% block content %}
+<section class="hero-card">
+    <div class="eyebrow">Admin</div>
+    <h1>Challenge rooms.</h1>
+    <p class="muted">{{ room_count }} room(s) found. Open the public room or edit/delete it in Django admin.</p>
+    <div class="button-row">
+        <a class="btn-secondary" href="{% url 'admin_menu' %}">Back to Admin Menu</a>
+        <a class="btn-main" href="{{ admin_add_url }}">Create Room In Admin</a>
+    </div>
+</section>
+
+<section class="card-dark">
+    <div class="section-spread">
+        <div>
+            <h2>Room overview</h2>
+            <p class="muted">Search by title, token, description, or creator.</p>
+        </div>
+        <form class="filter-form" method="get">
+            <input class="input" type="search" name="q" value="{{ query }}" placeholder="Search rooms">
+            <button class="btn-secondary" type="submit">Search</button>
+        </form>
+    </div>
+    <table class="leaderboard-table">
+        <thead>
+            <tr>
+                <th>Room</th>
+                <th>Focus</th>
+                <th>Entries</th>
+                <th>Participants</th>
+                <th>Created</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in room_rows %}
+                <tr>
+                    <td>
+                        <span class="submission-name">{{ row.room.display_title }}</span>
+                        <div class="submission-meta">{{ row.room.token }}{% if row.room.created_by %} - {{ row.room.created_by.username }}{% endif %}</div>
+                    </td>
+                    <td><span class="tag-pill">{{ row.room.focus_label }}</span></td>
+                    <td>{{ row.room.entry_count }}</td>
+                    <td>{{ row.participant_count }}</td>
+                    <td><span class="submission-meta">{{ row.room.created_at|date:"Y-m-d H:i" }}</span></td>
+                    <td>
+                        <div class="button-row">
+                            <a class="btn-secondary" style="min-height: 34px; padding: 6px 10px;" href="{{ row.public_url }}">Open</a>
+                            <a class="btn-secondary" style="min-height: 34px; padding: 6px 10px;" href="{{ row.admin_url }}">Edit</a>
+                        </div>
+                    </td>
+                </tr>
+            {% empty %}
+                <tr><td colspan="6"><span class="submission-meta">No challenge rooms found.</span></td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <div class="mobile-cards compact-board">
+        {% for row in room_rows %}
+            <div class="score-row">
+                <div class="score-row-main">
+                    <div class="submission-name">{{ row.room.display_title }}</div>
+                    <div class="submission-meta">{{ row.room.token }} - {{ row.room.focus_label }}</div>
+                    <div class="submission-meta">{{ row.room.entry_count }} entries - {{ row.participant_count }} participant(s)</div>
+                </div>
+                <div class="score-row-score">
+                    <a class="btn-secondary" style="min-height: 34px; padding: 6px 10px;" href="{{ row.public_url }}">Open</a>
+                    <a class="btn-secondary" style="min-height: 34px; padding: 6px 10px;" href="{{ row.admin_url }}">Edit</a>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+</section>
+{% endblock %}

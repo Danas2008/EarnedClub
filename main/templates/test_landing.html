@@ -197,7 +197,7 @@
 
     .test-check-row {
         display: grid;
-        grid-template-columns: auto minmax(0, 1fr) auto;
+        grid-template-columns: 28px minmax(0, 1fr);
         gap: 10px;
         align-items: center;
         padding: 10px 12px;
@@ -215,10 +215,28 @@
         color: #111;
         background: rgba(255, 255, 255, .18);
         font-weight: 900;
+        font-size: .78rem;
+        line-height: 1;
+        flex: 0 0 28px;
     }
 
     .test-check-row.is-done .test-check-mark {
         background: linear-gradient(145deg, var(--accent), #fff0bd);
+    }
+
+    .test-check-row > .btn-secondary,
+    .test-check-row > .status-pill {
+        grid-column: 2;
+        justify-self: start;
+        max-width: 100%;
+    }
+
+    .test-check-row > .btn-secondary {
+        width: 100%;
+        min-height: 42px;
+        white-space: normal;
+        text-align: left;
+        line-height: 1.15;
     }
 
     @keyframes testStep {
@@ -233,6 +251,21 @@
     @media (min-width: 760px) {
         .test-options {
             grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .test-check-row {
+            grid-template-columns: auto minmax(0, 1fr) auto;
+        }
+
+        .test-check-row > .btn-secondary,
+        .test-check-row > .status-pill {
+            grid-column: auto;
+        }
+
+        .test-check-row > .btn-secondary {
+            width: auto;
+            text-align: center;
+            white-space: nowrap;
         }
 
         .preview-card {

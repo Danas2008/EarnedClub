@@ -414,6 +414,8 @@ Admin/staff:
 
 - `/admin/`: Django admin
 - `/admin-menu/`: in-app admin menu
+- `/admin-menu/challenge-rooms/`: staff overview of existing challenge rooms with public and Django-admin edit links
+- `/admin-menu/users/`: staff overview of registered users with Django-admin edit links
 - `/admin-review/`: review queue
 - `/admin-review/<submission_id>/`: review detail/action
 - `/content/`: content engine admin
@@ -451,6 +453,8 @@ Main templates:
 - `workout_detail.html`: public workout page.
 - `workout_session.html`: active session tracker.
 - `admin_menu.html`: staff entry point.
+- `admin_challenge_rooms.html`: staff challenge room overview with search, participant counts, public links, and Django-admin edit actions.
+- `admin_users.html`: staff registered-user overview with search, account/profile/submission context, and Django-admin edit actions.
 - `admin_review.html`: in-app verification queue.
 - `content_engine_admin.html`: content prompt management.
 - `newsletter_admin.html`: newsletter campaign/admin page.
@@ -738,6 +742,15 @@ Usually touches:
 ## Change Log
 
 Note: the newest entry is authoritative for current product direction. Older entries are preserved as historical implementation notes and may describe behavior that was later superseded.
+
+### 2026-05-20 mobile test continuation and admin overview update
+
+- `/test/` post-result Hybrid Score continuation rows now use a mobile-first two-row layout so discipline labels, status, and next-discipline CTAs do not squeeze into vertical text on small screens.
+- The continuation checklist still shows completed disciplines, unverified status, and next active disciplines for building a fuller Hybrid Score.
+- `/admin/` is explicitly mounted in project URLs so registered Django admin model screens are reachable.
+- `/admin-menu/` now links to challenge room and registered user overviews.
+- `/admin-menu/challenge-rooms/` lists existing challenge rooms with search, focus, entry count, participant count, public room links, and Django-admin edit/delete access.
+- `/admin-menu/users/` lists registered users with search, email/profile context, submission count, created-room count, and Django-admin edit/delete access.
 
 ### 2026-05-17 early-submission conversion update
 
