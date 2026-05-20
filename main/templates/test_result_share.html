@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+
+{% block title %}{{ owner_name }} Hybrid Score Challenge{% endblock %}
+{% block meta_description %}See this Earned Club Hybrid Score preview and try to beat it.{% endblock %}
+
+{% block content %}
+<section class="hero-card">
+    <div class="content-split">
+        <div>
+            <span class="eyebrow">Hybrid Score Challenge</span>
+            <h1>{{ owner_name }} scored {{ test_progress.open_score }}.</h1>
+            <p class="muted">{{ test_progress.completed_count }}/{{ test_progress.max_disciplines }} disciplines completed. Beat this score with your own Push-ups, Pull-ups, and 5K result.</p>
+            <div class="button-row">
+                <a class="btn-main" href="{{ try_url }}">Try It Yourself</a>
+                <a class="btn-secondary" href="{{ try_url }}">Beat This Score</a>
+                <a class="btn-secondary" href="{{ leaderboard_url }}">View Hybrid Leaderboard</a>
+            </div>
+        </div>
+        <div class="stat-grid">
+            <div class="stat-card"><span class="kicker">Hybrid Score Preview</span><span class="stat-value">{{ test_progress.open_score }}</span></div>
+            <div class="stat-card"><span class="kicker">Title</span><span class="stat-value" style="font-size: 1.15rem;">{{ test_progress.rank.name }}</span></div>
+            <div class="stat-card"><span class="kicker">Status</span><span class="stat-value" style="font-size: 1.1rem;">Open / Unverified</span></div>
+        </div>
+    </div>
+</section>
+
+<section class="card-dark">
+    <div class="section-spread">
+        <div>
+            <h2>Discipline breakdown</h2>
+            <p class="muted">Open Score is a preview. Official Hybrid Score uses verified results only.</p>
+        </div>
+    </div>
+    <div class="compact-board">
+        {% for row in test_progress.rows %}
+            <div class="score-row{% if row.done %} is-active{% endif %}">
+                <div class="score-row-main">
+                    <div class="submission-name">{{ row.discipline.short_label }}</div>
+                    {% if row.done %}
+                        <div class="submission-meta">{{ row.submission.display_score }} - {{ row.submission.hybrid_points }} pts - {{ row.submission.public_status_label }}</div>
+                    {% else %}
+                        <div class="submission-meta">Not completed yet</div>
+                    {% endif %}
+                </div>
+                <div class="score-row-score">
+                    {% if row.done %}<span class="status-pill {{ row.submission.status }}">{{ row.submission.public_status_label }}</span>{% else %}<span class="tag-pill">Open slot</span>{% endif %}
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+    <div class="button-row">
+        <a class="btn-main" href="{{ try_url }}">Test Your Hybrid Score</a>
+    </div>
+</section>
+{% endblock %}

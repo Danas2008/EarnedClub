@@ -358,7 +358,7 @@
                         <div>
                             <div class="preview-top">
                                 <div>
-                                    <span class="kicker">You're on the open leaderboard</span>
+                                    <span class="kicker">Your Open Score is live</span>
                                     <h1>{{ test_submission_success.submission.name }}</h1>
                                 </div>
                                 <span class="status-pill {{ test_submission_success.submission.status }}">{{ test_submission_success.submission.public_status_label }}</span>
@@ -377,16 +377,20 @@
                                     <div class="submission-name">{{ test_submission_success.submission.rank_name }}</div>
                                 </div>
                                 <div class="preview-stat">
-                                    <span class="kicker">Open points</span>
+                                    <span class="kicker">Discipline points</span>
                                     <div class="submission-name">{{ test_submission_success.display_points }} pts</div>
+                                </div>
+                                <div class="preview-stat">
+                                    <span class="kicker">Hybrid Score Preview</span>
+                                    <div class="submission-name">{{ test_progress.open_score }}</div>
                                 </div>
                             </div>
                         </div>
                         <div>
-                            <span class="kicker">Unverified</span>
-                            <div class="preview-score">{{ test_submission_success.display_points }}</div>
+                            <span class="kicker">Open Score</span>
+                            <div class="preview-score">{{ test_progress.open_score }}</div>
                             <p class="muted">
-                                This score is visible now, but it is only a preview until you claim it.
+                                Your Open Score is live. Add proof to make it official. Official Hybrid Score uses verified results only.
                                 {% if test_submission_success.is_founding_entry %}Founding athlete: this is one of the first 100 Earned Club entries.{% endif %}
                             </p>
                         </div>
@@ -395,7 +399,17 @@
                         <div>
                             <span class="kicker">{{ test_progress.hybrid_state }}</span>
                             <h2>{{ test_progress.completed_count }}/{{ test_progress.max_disciplines }} disciplines completed</h2>
-                            <p class="muted">One result puts you on the leaderboard. More disciplines build your Hybrid Score. Claim your profile to save all results together.</p>
+                            <p class="muted">
+                                {% if test_progress.is_full_hybrid %}
+                                    This is your current Hybrid Score preview. Claim your profile to save all results together.
+                                {% else %}
+                                    One result puts you on the leaderboard. More disciplines build your Hybrid Score. Claim your profile to save all results together.
+                                {% endif %}
+                            </p>
+                            <div class="stat-grid">
+                                <div class="stat-card"><span class="kicker">Hybrid Score Preview</span><span class="stat-value">{{ test_progress.open_score }}</span></div>
+                                <div class="stat-card"><span class="kicker">Title</span><span class="stat-value" style="font-size: 1.2rem;">{{ test_progress.rank.name }}</span></div>
+                            </div>
                         </div>
                         <div class="test-checklist">
                             {% for row in test_progress.rows %}
@@ -403,7 +417,13 @@
                                     <span class="test-check-mark">{% if row.done %}OK{% else %}+{% endif %}</span>
                                     <div>
                                         <div class="submission-name">{{ row.discipline.short_label }}</div>
-                                        <div class="submission-meta">{% if row.done %}Done - {{ row.submission.display_score }} - {{ row.submission.hybrid_points }} pts{% else %}Next step for a fuller Hybrid Score{% endif %}</div>
+                                        <div class="submission-meta">
+                                            {% if row.done %}
+                                                Done - {{ row.submission.display_score }} - {{ row.submission.hybrid_points }} pts{% if row.needs_proof %} - proof needed for open/official eligibility{% endif %}
+                                            {% else %}
+                                                Next step for a fuller Hybrid Score
+                                            {% endif %}
+                                        </div>
                                     </div>
                                     {% if not row.done %}<a class="btn-secondary" href="{{ row.url }}">{{ row.cta_label }}</a>{% else %}<span class="status-pill {{ row.submission.status }}">{{ row.submission.public_status_label }}</span>{% endif %}
                                 </div>
@@ -411,10 +431,11 @@
                         </div>
                     </div>
                     <div class="hero-actions">
-                        <a class="btn-main" href="{{ test_submission_success.proof_url }}">Make Your Score Official</a>
-                        <a class="btn-secondary" href="{{ test_submission_success.register_url }}">Claim Your Athlete Profile</a>
+                        <a class="btn-main" href="{{ test_submission_success.register_url }}">Claim Your Athlete Profile</a>
+                        <a class="btn-secondary" href="{{ test_submission_success.proof_url }}">Make Your Score Official</a>
                         <button class="btn-secondary" type="button" data-share-text="{{ test_submission_success.share_text }}">Challenge a Friend</button>
                         <a class="btn-secondary" href="{{ test_submission_success.leaderboard_url }}">See Yourself On The Leaderboard</a>
+                        {% if challenge_room %}<a class="btn-secondary" href="{% url 'challenge_room' challenge_room.token %}">Back To Challenge Room</a>{% endif %}
                     </div>
                 {% else %}
                     <div class="eyebrow">Result required</div>

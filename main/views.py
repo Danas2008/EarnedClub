@@ -13,6 +13,8 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.decorators import user_passes_test
 from django.contrib.auth.forms import AuthenticationForm
 from django.contrib.auth.models import User
+from django.core import signing
+from django.core.signing import BadSignature
 from django.core.serializers.json import DjangoJSONEncoder
 from django.http import Http404, HttpResponse
 from django.db import IntegrityError, transaction
@@ -842,8 +844,7 @@ def get_pr_share_message(profile, request):
 
 def build_submission_success(submission, request):
     discipline_config = get_discipline_config(submission.discipline)
-    leaderboard_url = f"{reverse('leaderboard')}?discipline={submission.discipline}#full-leaderboard"
-    challenge_url = reverse("level_test")
+    leaderboard_url = reverse("leaderboard")
     register_params = urlencode({"name": submission.name, "email": submission.email}) if submission.email else urlencode({"name": submission.name})
     proof_params = urlencode({
         "discipline": submission.discipline,
@@ -853,13 +854,13 @@ def build_submission_success(submission, request):
     })
     profile_url = reverse("athlete_profile", args=[submission.user.profile.slug]) if submission.user_id else ""
     session_submission_ids = request.session.get("test_submission_ids", [])
-    if submission.user_id:
-        proof_url = reverse("dashboard")
-    elif submission.id in session_submission_ids:
-        proof_url = reverse("test_submission_proof", args=[submission.id])
+    if submission.id in session_submission_ids:
+        proof_url = reverse("test_session_official")
         room = get_room_from_request(request)
         if room:
             proof_url = f"{proof_url}?{room_query(room)}"
+    elif submission.user_id:
+        proof_url = reverse("dashboard")
     else:
         proof_url = f"{reverse('challenge')}?{proof_params}#submit-form-top"
     return {
@@ -871,9 +872,10 @@ def build_submission_success(submission, request):
         "proof_url": proof_url,
         "display_points": submission.hybrid_points,
         "is_founding_entry": is_founding_submission(submission),
+        "share_url": request.build_absolute_uri(build_test_result_url(request)),
         "share_text": (
-            f"I scored {submission.display_score} in {submission.discipline_label} on Earned Club. "
-            f"Can you beat me? {request.build_absolute_uri(challenge_url)}"
+            f"I scored {build_test_progress(request, submission)['open_score']} Hybrid Score Preview on Earned Club. "
+            f"Can you beat it? {request.build_absolute_uri(build_test_result_url(request))}"
         ),
     }
 
@@ -922,38 +924,99 @@ def get_test_journey_submissions(request):
     return [by_id[item] for item in ids if item in by_id]
 
 
+def best_submissions_by_active_discipline(submissions, allowed_keys=None):
+    allowed_keys = tuple(allowed_keys or ACTIVE_DISCIPLINE_KEYS)
+    completed = {}
+    for submission in submissions:
+        key = submission.normalized_discipline
+        if key not in allowed_keys:
+            continue
+        current = completed.get(key)
+        if current is None or is_better_submission(submission, current):
+            completed[key] = submission
+    return completed
+
+
 def build_test_progress(request, latest_submission=None, room=None):
     submissions = get_test_journey_submissions(request)
     if latest_submission and latest_submission not in submissions:
         submissions.append(latest_submission)
-    completed = {}
-    for submission in submissions:
-        key = submission.normalized_discipline
-        if key not in ACTIVE_DISCIPLINE_KEYS:
-            continue
-        current = completed.get(key)
-        if current is None or submission.created_at > current.created_at:
-            completed[key] = submission
+    allowed_disciplines = room_allowed_disciplines(room)
+    allowed_keys = tuple(config["key"] for config in allowed_disciplines)
+    completed = best_submissions_by_active_discipline(submissions, allowed_keys)
     rows = []
-    for config in active_discipline_configs():
+    for config in allowed_disciplines:
         submission = completed.get(config["key"])
+        needs_proof = bool(submission and needs_proof_before_open_leaderboard(submission.reps, submission.discipline) and not submission.has_proof and not submission.is_verified)
         rows.append(
             {
                 "discipline": config,
                 "submission": submission,
                 "done": bool(submission),
-                "cta_label": f"Continue with {config['short_label']}" if config["score_type"] != "time" else f"Add {config['short_label']} time",
+                "needs_proof": needs_proof,
+                "cta_label": f"Add {config['short_label']}",
                 "url": f"{reverse('level_test')}?{urlencode({key: value for key, value in {'discipline': config['key'], 'room': room.token if room else ''}.items() if value})}",
             }
         )
     points = [submission.hybrid_points for submission in completed.values()]
+    open_score = round(sum(points) / len(points)) if points else 0
+    completed_count = len(completed)
+    max_disciplines = len(allowed_keys)
+    is_complete = completed_count >= max_disciplines and max_disciplines > 0
     return {
         "rows": rows,
-        "completed_count": len(completed),
-        "max_disciplines": len(ACTIVE_DISCIPLINE_KEYS),
-        "hybrid_state": "Hybrid Score incomplete" if len(completed) < len(ACTIVE_DISCIPLINE_KEYS) else "Hybrid Score preview complete",
-        "open_score": round(sum(points) / len(points)) if points else 0,
+        "completed_submissions": [completed[key] for key in allowed_keys if key in completed],
+        "completed_count": completed_count,
+        "max_disciplines": max_disciplines,
+        "hybrid_state": "Full Hybrid Score completed" if is_complete and max_disciplines == len(ACTIVE_DISCIPLINE_KEYS) else ("Challenge result completed" if is_complete else "Hybrid Score incomplete"),
+        "open_score": open_score,
+        "rank": get_hybrid_rank(open_score),
+        "is_complete": is_complete,
+        "is_full_hybrid": is_complete and max_disciplines == len(ACTIVE_DISCIPLINE_KEYS),
         "next_rows": [row for row in rows if not row["done"]],
+    }
+
+
+def build_test_result_token(request):
+    ids = request.session.get("test_submission_ids", [])
+    token_payload = {"ids": ids, "nonce": get_random_string(10)}
+    return signing.dumps(token_payload, salt="earnedclub-test-result")
+
+
+def build_test_result_url(request):
+    return reverse("test_result_share", args=[build_test_result_token(request)])
+
+
+def submissions_from_test_result_token(token):
+    try:
+        payload = signing.loads(token, salt="earnedclub-test-result")
+    except BadSignature:
+        return []
+    ids = payload.get("ids") or []
+    if not isinstance(ids, list):
+        return []
+    submissions = list(Submission.objects.filter(id__in=ids).select_related("user", "user__profile"))
+    by_id = {submission.id: submission for submission in submissions}
+    return [by_id[item] for item in ids if item in by_id]
+
+
+def build_test_progress_from_submissions(submissions):
+    completed = best_submissions_by_active_discipline(submissions)
+    rows = []
+    for config in active_discipline_configs():
+        submission = completed.get(config["key"])
+        rows.append({"discipline": config, "submission": submission, "done": bool(submission)})
+    points = [submission.hybrid_points for submission in completed.values()]
+    open_score = round(sum(points) / len(points)) if points else 0
+    completed_count = len(completed)
+    return {
+        "rows": rows,
+        "completed_submissions": [completed[key] for key in ACTIVE_DISCIPLINE_KEYS if key in completed],
+        "completed_count": completed_count,
+        "max_disciplines": len(ACTIVE_DISCIPLINE_KEYS),
+        "open_score": open_score,
+        "rank": get_hybrid_rank(open_score),
+        "is_full_hybrid": completed_count == len(ACTIVE_DISCIPLINE_KEYS),
     }
 
 
@@ -2205,10 +2268,6 @@ def level_test(request):
         if score_error:
             messages.error(request, score_error)
             return render(request, "test_landing.html", context)
-        if needs_proof_before_open_leaderboard(score_value, discipline):
-            messages.error(request, open_leaderboard_proof_message())
-            return render(request, "test_landing.html", context)
-
         active_filter = blocking_submission_queryset(discipline)
         active_submission = active_filter.filter(email__iexact=email).first() if email else active_filter.filter(name__iexact=name).first()
         if active_submission:
@@ -2216,7 +2275,7 @@ def level_test(request):
             attach_submission_to_room(room, active_submission, build_room_participant_key(request, active_submission))
             request.session["last_test_submission_id"] = active_submission.id
             messages.info(request, "You are already in. Your recent result is on the open leaderboard.")
-            return redirect(room_url(room) if room else "level_test")
+            return redirect("level_test")
 
         blocker = find_submission_blocker(request, name, email, score_value, discipline)
         if blocker == "silent":
@@ -2248,10 +2307,12 @@ def level_test(request):
             request=request,
         )
         request.session["last_test_submission_id"] = submission.id
-        messages.success(request, "You are in. Your result is now on the open leaderboard.")
+        if needs_proof_before_open_leaderboard(score_value, discipline):
+            messages.success(request, "Your Open Score is saved. Add proof to make it visible on the open leaderboard and eligible for official review.")
+        else:
+            messages.success(request, "Your Open Score is live. Add proof to make it official.")
         if room:
             messages.info(request, "Your result is now inside the challenge room.")
-            return redirect("challenge_room", token=room.token)
         return redirect("level_test")
 
     return render(
@@ -2309,6 +2370,94 @@ def test_submission_proof(request, submission_id):
         return redirect("level_test")
 
     return render(request, "test_proof.html", {"submission": submission, "challenge_room": room})
+
+
+def test_session_official(request):
+    room = get_room_from_request(request)
+    submissions = get_test_journey_submissions(request)
+    if not submissions:
+        messages.error(request, "Complete a test result before adding proof.")
+        return redirect(room_link("level_test", room) if room else "level_test")
+    progress = build_test_progress(request, room=room)
+    proof_rows = []
+    for row in progress["rows"]:
+        submission = row["submission"]
+        if not submission:
+            continue
+        proof_rows.append(
+            {
+                "submission": submission,
+                "discipline": row["discipline"],
+                "proof_required": needs_proof_before_open_leaderboard(submission.reps, submission.discipline) or requires_proof(submission.reps, submission.discipline),
+                "needs_proof": not submission.has_proof and submission.status == Submission.STATUS_UNVERIFIED,
+                "open_eligible": is_submission_visible_on_open_board(submission),
+            }
+        )
+
+    if request.method == "POST":
+        submission_id = request.POST.get("submission_id")
+        submission = next((row["submission"] for row in proof_rows if str(row["submission"].id) == str(submission_id)), None)
+        if not submission:
+            messages.error(request, "Choose one of your completed test results.")
+            return redirect(room_link("test_session_official", room) if room else "test_session_official")
+        if submission.status != Submission.STATUS_UNVERIFIED:
+            messages.info(request, f"{submission.discipline_label} already has proof or is already in review.")
+            return redirect(room_link("test_session_official", room) if room else "test_session_official")
+
+        proof_link = (request.POST.get("proof_link") or "").strip()
+        video_file = request.FILES.get("video_file")
+        if not proof_link and not video_file:
+            messages.error(request, "Add a proof link or upload a proof file.")
+            return render(request, "test_session_official.html", {"proof_rows": proof_rows, "test_progress": progress, "challenge_room": room})
+
+        submission.video_link = proof_link
+        if video_file:
+            stored_video = store_submission_video(submission, video_file)
+            submission.video_storage_path = stored_video["storage_path"]
+            submission.video_file = stored_video["local_file"] or ""
+        submission.status = Submission.STATUS_PENDING
+        submission.verified = False
+        submission.save(update_fields=["video_link", "video_storage_path", "video_file", "status", "verified"])
+        safe_post_submission_side_effects(
+            submission,
+            VerificationEvent.ACTION_PROOF_ADDED,
+            "Proof was added to a test result.",
+            "Earned Club proof received",
+            f"Your proof for {submission.discipline_label} {submission.display_score} was added and is waiting for review.",
+            request=request,
+        )
+        remember_test_submission(request, submission)
+        attach_submission_to_room(room, submission, build_room_participant_key(request, submission))
+        messages.success(request, f"Proof added for {submission.discipline_label}. This result is now waiting for review.")
+        return redirect(room_link("test_session_official", room) if room else "test_session_official")
+
+    return render(
+        request,
+        "test_session_official.html",
+        {
+            "proof_rows": proof_rows,
+            "test_progress": progress,
+            "challenge_room": room,
+        },
+    )
+
+
+def test_result_share(request, token):
+    submissions = submissions_from_test_result_token(token)
+    if not submissions:
+        raise Http404("Test result not found")
+    progress = build_test_progress_from_submissions(submissions)
+    owner = progress["completed_submissions"][0].name if progress["completed_submissions"] else "Earned Club athlete"
+    return render(
+        request,
+        "test_result_share.html",
+        {
+            "owner_name": owner,
+            "test_progress": progress,
+            "try_url": reverse("level_test"),
+            "leaderboard_url": reverse("leaderboard"),
+        },
+    )
 
 
 def rank(request):
@@ -2493,8 +2642,12 @@ def login_view(request):
 
     form = AuthenticationForm(request, data=request.POST or None)
     if request.method == "POST" and form.is_valid():
-        login(request, form.get_user())
+        user = form.get_user()
+        login(request, user)
+        attached_count = attach_test_session_submissions_to_user(request, user)
         messages.success(request, "Welcome back.")
+        if attached_count:
+            messages.success(request, f"{attached_count} test result(s) are now saved to your profile.")
         room = get_room_from_request(request)
         next_url = request.GET.get("next") or (room_url(room) if room else "dashboard")
         return redirect(next_url)
