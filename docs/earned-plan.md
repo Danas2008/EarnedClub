@@ -369,6 +369,8 @@ Public:
 
 - `/`: home
 - `/test/`: fast onboarding-style performance funnel
+- `/test/official/`: session-level proof flow for completed `/test/` results; updates existing submissions instead of creating duplicates
+- `/test/result/<token>/`: public share page for a test-session Hybrid Score preview challenge
 - `/challenge/`: challenge submission
 - `/rank/`: discipline rank check and Hybrid Score calculator
 - `/leaderboard/`: default Hybrid Leaderboard
@@ -415,6 +417,8 @@ Admin/staff:
 
 - `/admin/`: Django admin
 - `/admin-menu/`: in-app admin menu
+- `/admin-menu/challenge-rooms/`: staff overview of existing challenge rooms with public and Django-admin edit links
+- `/admin-menu/users/`: staff overview of registered users with Django-admin edit links
 - `/admin-review/`: review queue
 - `/admin-review/<submission_id>/`: review detail/action
 - `/content/`: content engine admin
@@ -438,6 +442,8 @@ Main templates:
 - `home.html`: first public page centered on Hybrid Score, proof, rank tiers, and the primary "Submit Your Score" CTA.
 - `test_landing.html`: fast onboarding funnel: choose strongest discipline, enter result, enter name/age, optionally skip email, then show an unverified preview card.
 - `test_proof.html`: proof upload/link page for a session-known `/test/` submission; updates the existing result and sends it to review.
+- `test_session_official.html`: lists completed `/test/` session disciplines and allows adding proof to each existing result.
+- `test_result_share.html`: social-friendly public result summary for challenging friends to beat a test-session Hybrid Score preview.
 - `challenge.html`: multi-discipline submission workflow.
 - `leaderboard.html`: Hybrid Leaderboard, discipline cards, discipline leaderboard modes, and ranking display.
 - `rank.html`: discipline rank check and Hybrid Score calculator.
@@ -453,6 +459,9 @@ Main templates:
 - `workout_detail.html`: public workout page.
 - `workout_session.html`: active session tracker.
 - `admin_menu.html`: staff entry point.
+- `admin_challenge_rooms.html`: staff challenge room overview with search, participant counts, public links, and Django-admin edit actions.
+- `admin_users.html`: staff registered-user overview with search, account/profile/submission context, and in-app edit actions.
+- `admin_user_detail.html`: staff account/profile edit screen with active/staff toggles, recent submissions, and guarded delete action.
 - `admin_review.html`: in-app verification queue.
 - `content_engine_admin.html`: content prompt management.
 - `newsletter_admin.html`: newsletter campaign/admin page.
@@ -750,6 +759,34 @@ Note: the newest entry is authoritative for current product direction. Older ent
 - Added a minimal black/yellow cookie consent banner with Accept and Learn More actions. Consent is stored in `localStorage` under `earnedclub_cookie_consent`.
 - Added `/verification-rules/` to the sitemap/static crawlable page list and admin pages index.
 - Added regression tests for legal page loading, footer links, cookie banner rendering/persistence script, and sitemap crawlability.
+
+### 2026-05-20 mobile test continuation and admin overview update
+
+- `/test/` post-result Hybrid Score continuation rows now use a mobile-first two-row layout so discipline labels, status, and next-discipline CTAs do not squeeze into vertical text on small screens.
+- The continuation checklist still shows completed disciplines, unverified status, and next active disciplines for building a fuller Hybrid Score.
+- `/admin/` is explicitly mounted in project URLs so registered Django admin model screens are reachable.
+- `/admin-menu/` now links to challenge room and registered user overviews.
+- `/admin-menu/challenge-rooms/` lists existing challenge rooms with search, focus, entry count, participant count, public room links, and Django-admin edit/delete access.
+- `/admin-menu/users/` lists registered users with search, email/profile context, submission count, created-room count, and in-app edit/delete access.
+
+### 2026-05-20 full /test/ Hybrid journey update
+
+- `/test/` now behaves as a multi-discipline Hybrid Score journey across active disciplines: push-ups, pull-ups, and 5K.
+- 10K remains parked from active `/test/` UI.
+- The test journey keeps using `test_session_id` and remembered submission ids to group anonymous or logged-in test results.
+- After each completed discipline, `/test/` shows discipline points, Hybrid Score Preview average, completion checklist, open/unverified status, and next-discipline CTAs.
+- Hybrid Score Preview averages only completed test-session disciplines.
+- Completing all three active disciplines shows "Full Hybrid Score completed", "3/3 disciplines completed", current preview score, title, and final CTAs.
+- Returning to `/test/` after completing all active disciplines opens the completed result card instead of restarting at Step 1.
+- The completed result and public share page use the same Hybrid Score overview card style with discipline breakdown and one averaged preview score.
+- Strong `/test/` results above the no-proof open threshold are now saved first, then guided to proof, instead of being blocked before submission.
+- `/test/official/` lists all completed session disciplines and lets athletes add proof to existing submissions without creating duplicates.
+- Added public share pages at `/test/result/<token>/` so Challenge a Friend summarizes the athlete name, Hybrid Score Preview, completed count, and discipline breakdown instead of sharing a generic `/test/` link.
+- Challenge room context remains preserved through `/test/`; discipline-specific rooms lock `/test/` to the room discipline, while Hybrid rooms allow push-ups, pull-ups, and 5K.
+- Logged-in profile claiming now attaches remembered test-session submissions on login as well as registration where safely possible.
+- Claimed unverified test results now surface as an Open Score Preview on dashboard and public profile while keeping official status verified-only.
+- Anonymous no-email Hybrid Leaderboard entries from the same test name are grouped into one averaged Hybrid row instead of three separate discipline rows.
+- Official profile/dashboard Hybrid Score remains verified-only; `/test/` preview and Open Score remain non-official until proof and staff verification.
 
 ### 2026-05-17 early-submission conversion update
 

@@ -13,11 +13,13 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.decorators import user_passes_test
 from django.contrib.auth.forms import AuthenticationForm
 from django.contrib.auth.models import User
+from django.core import signing
+from django.core.signing import BadSignature
 from django.core.serializers.json import DjangoJSONEncoder
 from django.http import Http404, HttpResponse
 from django.db import IntegrityError, transaction
 from django.core.paginator import Paginator
-from django.db.models import F, Q
+from django.db.models import Count, F, Q
 from django.views.decorators.http import require_POST
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -430,6 +432,7 @@ def build_recent_activity_items(limit=6):
 def build_hybrid_breakdown(user):
     rows = []
     verified_points = []
+    open_points = []
     verified_submissions = user.submission_set.filter(status=Submission.STATUS_VERIFIED).select_related("user")
     all_submissions = user.submission_set.all()
     for config in active_discipline_configs():
@@ -450,6 +453,9 @@ def build_hybrid_breakdown(user):
         preview_points = preview_submission.hybrid_points if preview_submission else 0
         if best_submission:
             verified_points.append(points)
+        open_submission = best_submission or preview_submission
+        if open_submission:
+            open_points.append(open_submission.hybrid_points)
         intensity = "empty"
         if points >= 900:
             intensity = "legend"
@@ -479,13 +485,16 @@ def build_hybrid_breakdown(user):
             }
         )
     hybrid_score = round(sum(verified_points) / len(verified_points)) if verified_points else 0
+    open_score = round(sum(open_points) / len(open_points)) if open_points else 0
     verified_rows = [row for row in rows if row["submission"]]
     best_row = max(verified_rows, key=lambda row: row["points"], default=None)
     weakest_row = min(verified_rows, key=lambda row: row["points"], default=None)
     missing_row = next((row for row in rows if not row["submission"]), None)
     return {
         "score": hybrid_score,
+        "open_score": open_score,
         "rank": get_hybrid_rank(hybrid_score),
+        "open_rank": get_hybrid_rank(open_score),
         "breakdown": rows,
         "best_discipline": best_row,
         "weakest_discipline": weakest_row or missing_row,
@@ -657,7 +666,12 @@ def build_hybrid_leaderboard_rows(query="", mode_key="all"):
         email = submission.email or ""
         if lowered_query and lowered_query not in display_name.lower() and lowered_query not in email.lower():
             continue
-        identity = f"user:{submission.user_id}" if submission.user_id else f"anon:{get_submission_identity(submission)}"
+        if submission.user_id:
+            identity = f"user:{submission.user_id}"
+        elif submission.email:
+            identity = f"email:{submission.email.lower()}"
+        else:
+            identity = f"name:{submission.name.strip().lower()}"
         group = grouped.setdefault(
             identity,
             {
@@ -843,8 +857,7 @@ def get_pr_share_message(profile, request):
 
 def build_submission_success(submission, request):
     discipline_config = get_discipline_config(submission.discipline)
-    leaderboard_url = f"{reverse('leaderboard')}?discipline={submission.discipline}#full-leaderboard"
-    challenge_url = reverse("level_test")
+    leaderboard_url = reverse("leaderboard")
     register_params = urlencode({"name": submission.name, "email": submission.email}) if submission.email else urlencode({"name": submission.name})
     proof_params = urlencode({
         "discipline": submission.discipline,
@@ -854,13 +867,13 @@ def build_submission_success(submission, request):
     })
     profile_url = reverse("athlete_profile", args=[submission.user.profile.slug]) if submission.user_id else ""
     session_submission_ids = request.session.get("test_submission_ids", [])
-    if submission.user_id:
-        proof_url = reverse("dashboard")
-    elif submission.id in session_submission_ids:
-        proof_url = reverse("test_submission_proof", args=[submission.id])
+    if submission.id in session_submission_ids:
+        proof_url = reverse("test_session_official")
         room = get_room_from_request(request)
         if room:
             proof_url = f"{proof_url}?{room_query(room)}"
+    elif submission.user_id:
+        proof_url = reverse("dashboard")
     else:
         proof_url = f"{reverse('challenge')}?{proof_params}#submit-form-top"
     return {
@@ -872,9 +885,10 @@ def build_submission_success(submission, request):
         "proof_url": proof_url,
         "display_points": submission.hybrid_points,
         "is_founding_entry": is_founding_submission(submission),
+        "share_url": request.build_absolute_uri(build_test_result_url(request)),
         "share_text": (
-            f"I scored {submission.display_score} in {submission.discipline_label} on Earned Club. "
-            f"Can you beat me? {request.build_absolute_uri(challenge_url)}"
+            f"I scored {build_test_progress(request, submission)['open_score']} Hybrid Score Preview on Earned Club. "
+            f"Can you beat it? {request.build_absolute_uri(build_test_result_url(request))}"
         ),
     }
 
@@ -923,38 +937,99 @@ def get_test_journey_submissions(request):
     return [by_id[item] for item in ids if item in by_id]
 
 
+def best_submissions_by_active_discipline(submissions, allowed_keys=None):
+    allowed_keys = tuple(allowed_keys or ACTIVE_DISCIPLINE_KEYS)
+    completed = {}
+    for submission in submissions:
+        key = submission.normalized_discipline
+        if key not in allowed_keys:
+            continue
+        current = completed.get(key)
+        if current is None or is_better_submission(submission, current):
+            completed[key] = submission
+    return completed
+
+
 def build_test_progress(request, latest_submission=None, room=None):
     submissions = get_test_journey_submissions(request)
     if latest_submission and latest_submission not in submissions:
         submissions.append(latest_submission)
-    completed = {}
-    for submission in submissions:
-        key = submission.normalized_discipline
-        if key not in ACTIVE_DISCIPLINE_KEYS:
-            continue
-        current = completed.get(key)
-        if current is None or submission.created_at > current.created_at:
-            completed[key] = submission
+    allowed_disciplines = room_allowed_disciplines(room)
+    allowed_keys = tuple(config["key"] for config in allowed_disciplines)
+    completed = best_submissions_by_active_discipline(submissions, allowed_keys)
     rows = []
-    for config in active_discipline_configs():
+    for config in allowed_disciplines:
         submission = completed.get(config["key"])
+        needs_proof = bool(submission and needs_proof_before_open_leaderboard(submission.reps, submission.discipline) and not submission.has_proof and not submission.is_verified)
         rows.append(
             {
                 "discipline": config,
                 "submission": submission,
                 "done": bool(submission),
-                "cta_label": f"Continue with {config['short_label']}" if config["score_type"] != "time" else f"Add {config['short_label']} time",
+                "needs_proof": needs_proof,
+                "cta_label": f"Add {config['short_label']}",
                 "url": f"{reverse('level_test')}?{urlencode({key: value for key, value in {'discipline': config['key'], 'room': room.token if room else ''}.items() if value})}",
             }
         )
     points = [submission.hybrid_points for submission in completed.values()]
+    open_score = round(sum(points) / len(points)) if points else 0
+    completed_count = len(completed)
+    max_disciplines = len(allowed_keys)
+    is_complete = completed_count >= max_disciplines and max_disciplines > 0
     return {
         "rows": rows,
-        "completed_count": len(completed),
-        "max_disciplines": len(ACTIVE_DISCIPLINE_KEYS),
-        "hybrid_state": "Hybrid Score incomplete" if len(completed) < len(ACTIVE_DISCIPLINE_KEYS) else "Hybrid Score preview complete",
-        "open_score": round(sum(points) / len(points)) if points else 0,
+        "completed_submissions": [completed[key] for key in allowed_keys if key in completed],
+        "completed_count": completed_count,
+        "max_disciplines": max_disciplines,
+        "hybrid_state": "Full Hybrid Score completed" if is_complete and max_disciplines == len(ACTIVE_DISCIPLINE_KEYS) else ("Challenge result completed" if is_complete else "Hybrid Score incomplete"),
+        "open_score": open_score,
+        "rank": get_hybrid_rank(open_score),
+        "is_complete": is_complete,
+        "is_full_hybrid": is_complete and max_disciplines == len(ACTIVE_DISCIPLINE_KEYS),
         "next_rows": [row for row in rows if not row["done"]],
+    }
+
+
+def build_test_result_token(request):
+    ids = request.session.get("test_submission_ids", [])
+    token_payload = {"ids": ids, "nonce": get_random_string(10)}
+    return signing.dumps(token_payload, salt="earnedclub-test-result")
+
+
+def build_test_result_url(request):
+    return reverse("test_result_share", args=[build_test_result_token(request)])
+
+
+def submissions_from_test_result_token(token):
+    try:
+        payload = signing.loads(token, salt="earnedclub-test-result")
+    except BadSignature:
+        return []
+    ids = payload.get("ids") or []
+    if not isinstance(ids, list):
+        return []
+    submissions = list(Submission.objects.filter(id__in=ids).select_related("user", "user__profile"))
+    by_id = {submission.id: submission for submission in submissions}
+    return [by_id[item] for item in ids if item in by_id]
+
+
+def build_test_progress_from_submissions(submissions):
+    completed = best_submissions_by_active_discipline(submissions)
+    rows = []
+    for config in active_discipline_configs():
+        submission = completed.get(config["key"])
+        rows.append({"discipline": config, "submission": submission, "done": bool(submission)})
+    points = [submission.hybrid_points for submission in completed.values()]
+    open_score = round(sum(points) / len(points)) if points else 0
+    completed_count = len(completed)
+    return {
+        "rows": rows,
+        "completed_submissions": [completed[key] for key in ACTIVE_DISCIPLINE_KEYS if key in completed],
+        "completed_count": completed_count,
+        "max_disciplines": len(ACTIVE_DISCIPLINE_KEYS),
+        "open_score": open_score,
+        "rank": get_hybrid_rank(open_score),
+        "is_full_hybrid": completed_count == len(ACTIVE_DISCIPLINE_KEYS),
     }
 
 
@@ -2152,6 +2227,8 @@ def level_test(request):
     verified_submissions = get_official_verified_submissions()
     requested_discipline = room_default_discipline(room, request.GET.get("discipline") or DISCIPLINE_PUSHUPS)
     test_identity = get_test_identity(request)
+    existing_progress = build_test_progress(request, room=room)
+    latest_existing_submission = existing_progress["completed_submissions"][-1] if existing_progress["completed_submissions"] else None
     context = {
         "rank_tiers": RANK_TIERS,
         "discipline_point_tiers": build_discipline_point_tiers(),
@@ -2160,7 +2237,7 @@ def level_test(request):
         "discipline_cards": room_allowed_disciplines(room),
         "active_discipline_key": requested_discipline,
         "test_identity": test_identity,
-        "test_progress": build_test_progress(request, room=room),
+        "test_progress": existing_progress,
         "has_saved_test_identity": request.user.is_authenticated or bool(test_identity["name"]),
         "challenge_room": room,
         "test_form_action": room_link("level_test", room),
@@ -2171,6 +2248,8 @@ def level_test(request):
         if success_submission:
             context["test_submission_success"] = build_submission_success(success_submission, request)
             context["test_progress"] = build_test_progress(request, success_submission, room=room)
+    elif request.method == "GET" and latest_existing_submission and (existing_progress["is_complete"] or request.GET.get("result") == "1"):
+        context["test_submission_success"] = build_submission_success(latest_existing_submission, request)
 
     if request.method == "POST":
         discipline = room_default_discipline(room, request.POST.get("discipline") or DISCIPLINE_PUSHUPS)
@@ -2206,10 +2285,6 @@ def level_test(request):
         if score_error:
             messages.error(request, score_error)
             return render(request, "test_landing.html", context)
-        if needs_proof_before_open_leaderboard(score_value, discipline):
-            messages.error(request, open_leaderboard_proof_message())
-            return render(request, "test_landing.html", context)
-
         active_filter = blocking_submission_queryset(discipline)
         active_submission = active_filter.filter(email__iexact=email).first() if email else active_filter.filter(name__iexact=name).first()
         if active_submission:
@@ -2217,7 +2292,7 @@ def level_test(request):
             attach_submission_to_room(room, active_submission, build_room_participant_key(request, active_submission))
             request.session["last_test_submission_id"] = active_submission.id
             messages.info(request, "You are already in. Your recent result is on the open leaderboard.")
-            return redirect(room_url(room) if room else "level_test")
+            return redirect("level_test")
 
         blocker = find_submission_blocker(request, name, email, score_value, discipline)
         if blocker == "silent":
@@ -2249,10 +2324,12 @@ def level_test(request):
             request=request,
         )
         request.session["last_test_submission_id"] = submission.id
-        messages.success(request, "You are in. Your result is now on the open leaderboard.")
+        if needs_proof_before_open_leaderboard(score_value, discipline):
+            messages.success(request, "Your Open Score is saved. Add proof to make it visible on the open leaderboard and eligible for official review.")
+        else:
+            messages.success(request, "Your Open Score is live. Add proof to make it official.")
         if room:
             messages.info(request, "Your result is now inside the challenge room.")
-            return redirect("challenge_room", token=room.token)
         return redirect("level_test")
 
     return render(
@@ -2310,6 +2387,94 @@ def test_submission_proof(request, submission_id):
         return redirect("level_test")
 
     return render(request, "test_proof.html", {"submission": submission, "challenge_room": room})
+
+
+def test_session_official(request):
+    room = get_room_from_request(request)
+    submissions = get_test_journey_submissions(request)
+    if not submissions:
+        messages.error(request, "Complete a test result before adding proof.")
+        return redirect(room_link("level_test", room) if room else "level_test")
+    progress = build_test_progress(request, room=room)
+    proof_rows = []
+    for row in progress["rows"]:
+        submission = row["submission"]
+        if not submission:
+            continue
+        proof_rows.append(
+            {
+                "submission": submission,
+                "discipline": row["discipline"],
+                "proof_required": needs_proof_before_open_leaderboard(submission.reps, submission.discipline) or requires_proof(submission.reps, submission.discipline),
+                "needs_proof": not submission.has_proof and submission.status == Submission.STATUS_UNVERIFIED,
+                "open_eligible": is_submission_visible_on_open_board(submission),
+            }
+        )
+
+    if request.method == "POST":
+        submission_id = request.POST.get("submission_id")
+        submission = next((row["submission"] for row in proof_rows if str(row["submission"].id) == str(submission_id)), None)
+        if not submission:
+            messages.error(request, "Choose one of your completed test results.")
+            return redirect(room_link("test_session_official", room) if room else "test_session_official")
+        if submission.status != Submission.STATUS_UNVERIFIED:
+            messages.info(request, f"{submission.discipline_label} already has proof or is already in review.")
+            return redirect(room_link("test_session_official", room) if room else "test_session_official")
+
+        proof_link = (request.POST.get("proof_link") or "").strip()
+        video_file = request.FILES.get("video_file")
+        if not proof_link and not video_file:
+            messages.error(request, "Add a proof link or upload a proof file.")
+            return render(request, "test_session_official.html", {"proof_rows": proof_rows, "test_progress": progress, "challenge_room": room})
+
+        submission.video_link = proof_link
+        if video_file:
+            stored_video = store_submission_video(submission, video_file)
+            submission.video_storage_path = stored_video["storage_path"]
+            submission.video_file = stored_video["local_file"] or ""
+        submission.status = Submission.STATUS_PENDING
+        submission.verified = False
+        submission.save(update_fields=["video_link", "video_storage_path", "video_file", "status", "verified"])
+        safe_post_submission_side_effects(
+            submission,
+            VerificationEvent.ACTION_PROOF_ADDED,
+            "Proof was added to a test result.",
+            "Earned Club proof received",
+            f"Your proof for {submission.discipline_label} {submission.display_score} was added and is waiting for review.",
+            request=request,
+        )
+        remember_test_submission(request, submission)
+        attach_submission_to_room(room, submission, build_room_participant_key(request, submission))
+        messages.success(request, f"Proof added for {submission.discipline_label}. This result is now waiting for review.")
+        return redirect(room_link("test_session_official", room) if room else "test_session_official")
+
+    return render(
+        request,
+        "test_session_official.html",
+        {
+            "proof_rows": proof_rows,
+            "test_progress": progress,
+            "challenge_room": room,
+        },
+    )
+
+
+def test_result_share(request, token):
+    submissions = submissions_from_test_result_token(token)
+    if not submissions:
+        raise Http404("Test result not found")
+    progress = build_test_progress_from_submissions(submissions)
+    owner = progress["completed_submissions"][0].name if progress["completed_submissions"] else "Earned Club athlete"
+    return render(
+        request,
+        "test_result_share.html",
+        {
+            "owner_name": owner,
+            "test_progress": progress,
+            "try_url": reverse("level_test"),
+            "leaderboard_url": reverse("leaderboard"),
+        },
+    )
 
 
 def rank(request):
@@ -2494,8 +2659,12 @@ def login_view(request):
 
     form = AuthenticationForm(request, data=request.POST or None)
     if request.method == "POST" and form.is_valid():
-        login(request, form.get_user())
+        user = form.get_user()
+        login(request, user)
+        attached_count = attach_test_session_submissions_to_user(request, user)
         messages.success(request, "Welcome back.")
+        if attached_count:
+            messages.success(request, f"{attached_count} test result(s) are now saved to your profile.")
         room = get_room_from_request(request)
         next_url = request.GET.get("next") or (room_url(room) if room else "dashboard")
         return redirect(next_url)
@@ -3352,6 +3521,8 @@ def admin_menu(request):
             "pending_count": pending_submission_queryset().count(),
             "subscriber_count": NewsletterSubscriber.objects.count(),
             "prompt_count": ContentEnginePrompt.objects.count(),
+            "room_count": ChallengeRoom.objects.count(),
+            "user_count": User.objects.count(),
             "site_health": {
                 "email_backend": settings.EMAIL_BACKEND,
                 "default_from_email": settings.DEFAULT_FROM_EMAIL,
@@ -3394,6 +3565,8 @@ def admin_pages(request):
         {"name": "workouts", "route": "/workouts/", "url": reverse("workouts"), "access": "Account"},
         {"name": "admin_menu", "route": "/admin-menu/", "url": reverse("admin_menu"), "access": "Staff"},
         {"name": "admin_pages", "route": "/admin-menu/pages/", "url": reverse("admin_pages"), "access": "Staff"},
+        {"name": "admin_challenge_rooms", "route": "/admin-menu/challenge-rooms/", "url": reverse("admin_challenge_rooms"), "access": "Staff"},
+        {"name": "admin_users", "route": "/admin-menu/users/", "url": reverse("admin_users"), "access": "Staff"},
         {"name": "admin_review", "route": "/admin-review/", "url": reverse("admin_review"), "access": "Staff"},
         {"name": "content_engine_admin", "route": "/content/", "url": reverse("content_engine_admin"), "access": "Staff"},
         {"name": "newsletter_admin", "route": "/newsletter/", "url": reverse("newsletter_admin"), "access": "Staff"},
@@ -3407,6 +3580,128 @@ def admin_pages(request):
         {
             "page_rows": page_rows,
             "page_count": len(page_rows),
+        },
+    )
+
+
+@user_passes_test(is_app_admin, login_url="login")
+def admin_challenge_rooms(request):
+    query = (request.GET.get("q") or "").strip()
+    rooms = ChallengeRoom.objects.select_related("created_by", "created_by__profile").annotate(entry_count=Count("entries", distinct=True))
+    if query:
+        rooms = rooms.filter(
+            Q(title__icontains=query)
+            | Q(description__icontains=query)
+            | Q(token__icontains=query)
+            | Q(created_by__username__icontains=query)
+            | Q(created_by__email__icontains=query)
+            | Q(created_by__profile__display_name__icontains=query)
+        )
+    paginator = Paginator(rooms.order_by("-created_at"), 50)
+    page_obj = paginator.get_page(request.GET.get("page"))
+    room_rows = []
+    for room in page_obj:
+        room_rows.append(
+            {
+                "room": room,
+                "participant_count": len(build_room_leaderboard(room)),
+                "public_url": room_url(room),
+                "admin_url": reverse("admin:main_challengeroom_change", args=[room.id]),
+            }
+        )
+    return render(
+        request,
+        "admin_challenge_rooms.html",
+        {
+            "page_obj": page_obj,
+            "room_rows": room_rows,
+            "query": query,
+            "room_count": rooms.count(),
+            "admin_add_url": reverse("admin:main_challengeroom_add"),
+        },
+    )
+
+
+@user_passes_test(is_app_admin, login_url="login")
+def admin_users(request):
+    query = (request.GET.get("q") or "").strip()
+    users = User.objects.select_related("profile").annotate(
+        submission_count=Count("submission", distinct=True),
+        room_count=Count("challenge_rooms", distinct=True),
+    )
+    if query:
+        users = users.filter(
+            Q(username__icontains=query)
+            | Q(email__icontains=query)
+            | Q(first_name__icontains=query)
+            | Q(last_name__icontains=query)
+            | Q(profile__display_name__icontains=query)
+        )
+    paginator = Paginator(users.order_by("-date_joined"), 50)
+    page_obj = paginator.get_page(request.GET.get("page"))
+    return render(
+        request,
+        "admin_users.html",
+        {
+            "page_obj": page_obj,
+            "query": query,
+            "user_count": users.count(),
+        },
+    )
+
+
+@user_passes_test(is_app_admin, login_url="login")
+def admin_user_detail(request, user_id):
+    account = get_object_or_404(User.objects.select_related("profile"), pk=user_id)
+    if request.method == "POST":
+        action = request.POST.get("action") or "save"
+        if action == "delete":
+            if account == request.user:
+                messages.error(request, "You cannot delete your own staff account here.")
+                return redirect("admin_user_detail", user_id=account.id)
+            username = account.username
+            account.delete()
+            messages.success(request, f"User {username} was deleted.")
+            return redirect("admin_users")
+
+        username = (request.POST.get("username") or "").strip()
+        email = (request.POST.get("email") or "").strip().lower()
+        display_name = (request.POST.get("display_name") or "").strip()
+        country = (request.POST.get("country") or "").strip()
+        age_raw = (request.POST.get("age") or "").strip()
+        bio = (request.POST.get("bio") or "").strip()
+        is_active = request.POST.get("is_active") == "on"
+        is_staff = request.POST.get("is_staff") == "on"
+
+        if not username:
+            messages.error(request, "Username is required.")
+            return redirect("admin_user_detail", user_id=account.id)
+        if User.objects.filter(username__iexact=username).exclude(pk=account.pk).exists():
+            messages.error(request, "That username is already used.")
+            return redirect("admin_user_detail", user_id=account.id)
+
+        account.username = username
+        account.email = email
+        account.is_active = is_active
+        account.is_staff = is_staff
+        account.save(update_fields=["username", "email", "is_active", "is_staff"])
+
+        profile = account.profile
+        profile.display_name = display_name or username
+        profile.country = country
+        profile.bio = bio
+        profile.age = int(age_raw) if age_raw.isdigit() else None
+        profile.save(update_fields=["display_name", "country", "bio", "age", "updated_at"])
+        messages.success(request, f"User {account.username} was updated.")
+        return redirect("admin_user_detail", user_id=account.id)
+
+    submissions = account.submission_set.order_by("-created_at")[:10]
+    return render(
+        request,
+        "admin_user_detail.html",
+        {
+            "account": account,
+            "submissions": submissions,
         },
     )
 

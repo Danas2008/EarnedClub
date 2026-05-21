@@ -197,7 +197,7 @@
 
     .test-check-row {
         display: grid;
-        grid-template-columns: auto minmax(0, 1fr) auto;
+        grid-template-columns: 28px minmax(0, 1fr);
         gap: 10px;
         align-items: center;
         padding: 10px 12px;
@@ -215,10 +215,28 @@
         color: #111;
         background: rgba(255, 255, 255, .18);
         font-weight: 900;
+        font-size: .78rem;
+        line-height: 1;
+        flex: 0 0 28px;
     }
 
     .test-check-row.is-done .test-check-mark {
         background: linear-gradient(145deg, var(--accent), #fff0bd);
+    }
+
+    .test-check-row > .btn-secondary,
+    .test-check-row > .status-pill {
+        grid-column: 2;
+        justify-self: start;
+        max-width: 100%;
+    }
+
+    .test-check-row > .btn-secondary {
+        width: 100%;
+        min-height: 42px;
+        white-space: normal;
+        text-align: left;
+        line-height: 1.15;
     }
 
     @keyframes testStep {
@@ -235,6 +253,21 @@
             grid-template-columns: repeat(2, minmax(0, 1fr));
         }
 
+        .test-check-row {
+            grid-template-columns: auto minmax(0, 1fr) auto;
+        }
+
+        .test-check-row > .btn-secondary,
+        .test-check-row > .status-pill {
+            grid-column: auto;
+        }
+
+        .test-check-row > .btn-secondary {
+            width: auto;
+            text-align: center;
+            white-space: nowrap;
+        }
+
         .preview-card {
             grid-template-columns: minmax(0, .95fr) minmax(220px, .65fr);
             align-items: center;
@@ -247,7 +280,7 @@
         <div class="test-inner">
             <div class="test-progress" aria-hidden="true"><span data-progress></span></div>
 
-            <div class="test-step is-active" data-step="0">
+            <div class="test-step{% if not test_submission_success %} is-active{% endif %}" data-step="0">
                 <div class="eyebrow">Step 1 / 5</div>
                 <div>
                     <h1>{% if challenge_room and not challenge_room.is_hybrid %}{{ challenge_room.focus_label }} challenge result{% else %}What is your strongest discipline?{% endif %}</h1>
@@ -318,42 +351,54 @@
                 </div>
             </div>
 
-            <div class="test-step" data-step="5">
+            <div class="test-step{% if test_submission_success %} is-active{% endif %}" data-step="5">
                 {% if test_submission_success %}
-                    <div class="eyebrow">You're in!</div>
+                    <div class="eyebrow">{% if test_progress.is_full_hybrid %}Full Hybrid Score completed{% else %}You're in!{% endif %}</div>
                     <div class="preview-card">
                         <div>
                             <div class="preview-top">
                                 <div>
-                                    <span class="kicker">You're on the open leaderboard</span>
+                                    <span class="kicker">Your Open Score is live</span>
                                     <h1>{{ test_submission_success.submission.name }}</h1>
                                 </div>
                                 <span class="status-pill {{ test_submission_success.submission.status }}">{{ test_submission_success.submission.public_status_label }}</span>
                             </div>
-                            <div class="preview-grid">
-                                <div class="preview-stat">
-                                    <span class="kicker">Discipline</span>
-                                    <div class="submission-name">{{ test_submission_success.submission.discipline_label }}</div>
+                            {% if test_progress.is_full_hybrid %}
+                                <div class="preview-grid">
+                                    {% for row in test_progress.rows %}
+                                        <div class="preview-stat">
+                                            <span class="kicker">{{ row.discipline.short_label }}</span>
+                                            <div class="submission-name">{{ row.submission.display_score }}</div>
+                                            <div class="submission-meta">{{ row.submission.hybrid_points }} pts - {{ row.submission.public_status_label }}</div>
+                                        </div>
+                                    {% endfor %}
                                 </div>
-                                <div class="preview-stat">
-                                    <span class="kicker">Result</span>
-                                    <div class="submission-name">{{ test_submission_success.submission.display_score }}</div>
+                            {% else %}
+                                <div class="preview-grid">
+                                    <div class="preview-stat">
+                                        <span class="kicker">Discipline</span>
+                                        <div class="submission-name">{{ test_submission_success.submission.discipline_label }}</div>
+                                    </div>
+                                    <div class="preview-stat">
+                                        <span class="kicker">Result</span>
+                                        <div class="submission-name">{{ test_submission_success.submission.display_score }}</div>
+                                    </div>
+                                    <div class="preview-stat">
+                                        <span class="kicker">Tier</span>
+                                        <div class="submission-name">{{ test_submission_success.submission.rank_name }}</div>
+                                    </div>
+                                    <div class="preview-stat">
+                                        <span class="kicker">Discipline points</span>
+                                        <div class="submission-name">{{ test_submission_success.display_points }} pts</div>
+                                    </div>
                                 </div>
-                                <div class="preview-stat">
-                                    <span class="kicker">Tier</span>
-                                    <div class="submission-name">{{ test_submission_success.submission.rank_name }}</div>
-                                </div>
-                                <div class="preview-stat">
-                                    <span class="kicker">Open points</span>
-                                    <div class="submission-name">{{ test_submission_success.display_points }} pts</div>
-                                </div>
-                            </div>
+                            {% endif %}
                         </div>
                         <div>
-                            <span class="kicker">Unverified</span>
-                            <div class="preview-score">{{ test_submission_success.display_points }}</div>
+                            <span class="kicker">Open Score</span>
+                            <div class="preview-score">{{ test_progress.open_score }}</div>
                             <p class="muted">
-                                This score is visible now, but it is only a preview until you claim it.
+                                Your Open Score is live. Add proof to make it official. Official Hybrid Score uses verified results only.
                                 {% if test_submission_success.is_founding_entry %}Founding athlete: this is one of the first 100 Earned Club entries.{% endif %}
                             </p>
                         </div>
@@ -362,7 +407,17 @@
                         <div>
                             <span class="kicker">{{ test_progress.hybrid_state }}</span>
                             <h2>{{ test_progress.completed_count }}/{{ test_progress.max_disciplines }} disciplines completed</h2>
-                            <p class="muted">One result puts you on the leaderboard. More disciplines build your Hybrid Score. Claim your profile to save all results together.</p>
+                            <p class="muted">
+                                {% if test_progress.is_full_hybrid %}
+                                    This is your current Hybrid Score preview. Claim your profile to save all results together.
+                                {% else %}
+                                    One result puts you on the leaderboard. More disciplines build your Hybrid Score. Claim your profile to save all results together.
+                                {% endif %}
+                            </p>
+                            <div class="stat-grid">
+                                <div class="stat-card"><span class="kicker">Hybrid Score Preview</span><span class="stat-value">{{ test_progress.open_score }}</span></div>
+                                <div class="stat-card"><span class="kicker">Title</span><span class="stat-value" style="font-size: 1.2rem;">{{ test_progress.rank.name }}</span></div>
+                            </div>
                         </div>
                         <div class="test-checklist">
                             {% for row in test_progress.rows %}
@@ -370,7 +425,13 @@
                                     <span class="test-check-mark">{% if row.done %}OK{% else %}+{% endif %}</span>
                                     <div>
                                         <div class="submission-name">{{ row.discipline.short_label }}</div>
-                                        <div class="submission-meta">{% if row.done %}Done - {{ row.submission.display_score }} - {{ row.submission.hybrid_points }} pts{% else %}Next step for a fuller Hybrid Score{% endif %}</div>
+                                        <div class="submission-meta">
+                                            {% if row.done %}
+                                                Done - {{ row.submission.display_score }} - {{ row.submission.hybrid_points }} pts{% if row.needs_proof %} - proof needed for open/official eligibility{% endif %}
+                                            {% else %}
+                                                Next step for a fuller Hybrid Score
+                                            {% endif %}
+                                        </div>
                                     </div>
                                     {% if not row.done %}<a class="btn-secondary" href="{{ row.url }}">{{ row.cta_label }}</a>{% else %}<span class="status-pill {{ row.submission.status }}">{{ row.submission.public_status_label }}</span>{% endif %}
                                 </div>
@@ -378,10 +439,11 @@
                         </div>
                     </div>
                     <div class="hero-actions">
-                        <a class="btn-main" href="{{ test_submission_success.proof_url }}">Make Your Score Official</a>
-                        <a class="btn-secondary" href="{{ test_submission_success.register_url }}">Claim Your Athlete Profile</a>
+                        <a class="btn-main" href="{{ test_submission_success.register_url }}">Claim Your Athlete Profile</a>
+                        <a class="btn-secondary" href="{{ test_submission_success.proof_url }}">Make Your Score Official</a>
                         <button class="btn-secondary" type="button" data-share-text="{{ test_submission_success.share_text }}">Challenge a Friend</button>
                         <a class="btn-secondary" href="{{ test_submission_success.leaderboard_url }}">See Yourself On The Leaderboard</a>
+                        {% if challenge_room %}<a class="btn-secondary" href="{% url 'challenge_room' challenge_room.token %}">Back To Challenge Room</a>{% endif %}
                     </div>
                 {% else %}
                     <div class="eyebrow">Result required</div>
@@ -415,12 +477,13 @@
     const progress = document.querySelector("[data-progress]");
     const requiresName = {% if request.user.is_authenticated %}false{% else %}true{% endif %};
     const hasSavedIdentity = {% if has_saved_test_identity %}true{% else %}false{% endif %};
+    const initialStep = {% if test_submission_success %}5{% else %}0{% endif %};
     const disciplineLabels = {
         pushups: { label: "Push-ups", unit: "reps", placeholder: "42", help: "Enter max clean reps.", hint: "Higher reps rank higher." },
         pullups: { label: "Pull-ups", unit: "reps", placeholder: "12", help: "Enter max clean reps.", hint: "Higher reps rank higher." },
         run_5k: { label: "5K", unit: "time", placeholder: "21:34", help: "Use MM:SS, e.g. 21:34.", hint: "Use MM:SS or HH:MM:SS. Lower time ranks higher." },
     };
-    let active = 0;
+    let active = initialStep;
 
     function selectedDiscipline() {
         return document.querySelector("input[name='discipline_choice']:checked")?.value || "pushups";

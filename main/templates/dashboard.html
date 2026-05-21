@@ -310,7 +310,7 @@
             {% for item in hybrid_summary.breakdown %}
                 <div class="feature-card">
                     <span class="kicker">{{ item.discipline.short_label }}</span>
-                    <h3>{{ item.points }} pts</h3>
+                    <h3>{% if item.points %}{{ item.points }}{% else %}{{ item.preview_points }}{% endif %} pts</h3>
                     <p class="muted">{{ item.display_score }}</p>
                 </div>
             {% endfor %}
@@ -318,11 +318,11 @@
     </div>
     <div class="dashboard-status-card">
         <div>
-            <span class="kicker">Hybrid Score</span>
-            <div class="dashboard-score-number">{{ hybrid_summary.score }}</div>
-            <h2>{{ hybrid_summary.rank.name }}</h2>
+            <span class="kicker">{% if hybrid_summary.score %}Official Hybrid Score{% else %}Open Score Preview{% endif %}</span>
+            <div class="dashboard-score-number">{% if hybrid_summary.score %}{{ hybrid_summary.score }}{% else %}{{ hybrid_summary.open_score }}{% endif %}</div>
+            <h2>{% if hybrid_summary.score %}{{ hybrid_summary.rank.name }}{% else %}{{ hybrid_summary.open_rank.name }}{% endif %}</h2>
             <div class="status-chip-row">
-                <span class="status-pill verified">Official</span>
+                <span class="status-pill {% if hybrid_summary.score %}verified{% else %}unverified{% endif %}">{% if hybrid_summary.score %}Official{% else %}Open Preview{% endif %}</span>
                 <span class="tag-pill">{{ hybrid_summary.verified_count }}/{{ hybrid_summary.max_disciplines }} verified</span>
             </div>
             <p class="muted">Official score uses verified performances. Earned status, not claimed stats.</p>

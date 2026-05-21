@@ -6,7 +6,7 @@
 <section class="hero-card">
     <div class="eyebrow">Admin</div>
     <h1>Admin menu.</h1>
-    <p class="muted">Review submissions, manage content prompts, and prepare weekly newsletters.</p>
+    <p class="muted">Review submissions, inspect challenge rooms, manage users, content prompts, and newsletter records.</p>
 </section>
 
 <section class="grid-3">
@@ -24,6 +24,16 @@
         <span class="kicker">Newsletter</span>
         <h2>Weekly Email</h2>
         <p class="muted">{{ subscriber_count }} subscriber(s) linked from signups.</p>
+    </a>
+    <a class="feature-card" href="{% url 'admin_challenge_rooms' %}">
+        <span class="kicker">Rooms</span>
+        <h2>Challenge Rooms</h2>
+        <p class="muted">{{ room_count }} room(s) exist across public challenge links.</p>
+    </a>
+    <a class="feature-card" href="{% url 'admin_users' %}">
+        <span class="kicker">Accounts</span>
+        <h2>Registered Users</h2>
+        <p class="muted">{{ user_count }} registered account(s) can be inspected or edited.</p>
     </a>
     <a class="feature-card" href="{% url 'admin_pages' %}">
         <span class="kicker">Pages</span>
