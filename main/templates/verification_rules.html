@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+
+{% block title %}Verification Rules | EarnedClub{% endblock %}
+{% block meta_description %}EarnedClub verification rules explaining open scores, official scores, pending review, valid proof, rejected proof, and fake result moderation.{% endblock %}
+
+{% block content %}
+<section class="hero-card legal-hero">
+    <div class="eyebrow">Verification Rules</div>
+    <h1>Open is visible. Official is earned.</h1>
+    <p class="muted">EarnedClub uses open leaderboards for momentum and internal verification for official platform status. This page explains the difference before disputes start.</p>
+    <div class="legal-meta">Active disciplines: Push-ups, Pull-ups, and 5K</div>
+</section>
+
+<section class="legal-grid">
+    <article class="legal-card legal-card-highlight">
+        <h2>Open Score</h2>
+        <p>An Open Score is a submitted result that may appear publicly before verification. It can help athletes join the board, challenge friends, and start a profile claim, but it is not official platform status.</p>
+    </article>
+
+    <article class="legal-card legal-card-highlight">
+        <h2>Official Score</h2>
+        <p>An Official Score is a performance EarnedClub has reviewed and marked verified. Official Hybrid Scores, official ranks, verified history, and earned status come from verified performances.</p>
+    </article>
+
+    <article class="legal-card">
+        <h2>Verification Statuses</h2>
+        <ul class="rule-list">
+            <li><strong>Unverified:</strong> saved on the open leaderboard, but no accepted proof yet.</li>
+            <li><strong>Pending Review:</strong> proof has been submitted and is waiting for staff/admin review.</li>
+            <li><strong>Verified:</strong> accepted by EarnedClub as official platform/community verification.</li>
+            <li><strong>Rejected:</strong> proof or result did not meet the platform standard.</li>
+        </ul>
+    </article>
+
+    <article class="legal-card">
+        <h2>When Proof Is Required</h2>
+        <p>Proof may be required for strong results, official rank, Official Hybrid Score, suspicious submissions, disputed results, or any performance EarnedClub needs to review before trusting it as official.</p>
+    </article>
+
+    <article class="legal-card">
+        <h2>Valid Proof</h2>
+        <ul class="rule-list">
+            <li>Clear workout or test video for strength submissions.</li>
+            <li>Race result screenshots or public result pages for 5K submissions.</li>
+            <li>Strava/activity links or similar proof links where the performance can be reasonably checked.</li>
+            <li>Proof that matches the submitted discipline, athlete identity, and performance claim.</li>
+        </ul>
+    </article>
+
+    <article class="legal-card">
+        <h2>Why Proof May Be Rejected</h2>
+        <ul class="rule-list">
+            <li>The athlete, movement, distance, time, or score cannot be checked clearly.</li>
+            <li>The proof does not match the submitted result or discipline.</li>
+            <li>The video is cut, obscured, manipulated, or missing key parts of the attempt.</li>
+            <li>The race/activity proof looks edited, private, broken, duplicated, or not connected to the athlete.</li>
+            <li>The result is impossible, unsafe to accept, or inconsistent with platform standards.</li>
+        </ul>
+    </article>
+
+    <article class="legal-card">
+        <h2>Fake Or Manipulated Proof</h2>
+        <p>Fake, edited, stolen, duplicated, or manipulated proof can lead to removed scores, rejected submissions, adjusted rankings, account removal, and loss of official status.</p>
+    </article>
+
+    <article class="legal-card">
+        <h2>Ranking Changes</h2>
+        <p>Open leaderboards may include visible unverified context. Official rankings and Official Hybrid Scores require verified performances and may change after review, moderation, scoring updates, or new athlete results.</p>
+    </article>
+</section>
+{% endblock %}

@@ -387,6 +387,7 @@ Public:
 - `/workout/<slug>/`: public workout detail
 - `/privacy/`: privacy page
 - `/terms/`: terms page
+- `/verification-rules/`: public explanation of Open Score vs Official Score, proof review, and verification rules
 
 Account:
 
@@ -447,6 +448,7 @@ Main templates:
 - `challenge_room_create.html`: room creation form for Hybrid Score, push-ups, pull-ups, and 5K.
 - `challenge_room.html`: mobile-first room leaderboard with share link, current winner, participant rows, claimed/unclaimed status, and room-preserved CTAs.
 - `social_list.html`: followers/following lists.
+- `verification_rules.html`: public verification rules page explaining Open Scores, Official Scores, pending review, proof standards, rejection reasons, and fake/manipulated proof policy.
 - `workouts.html`: workout creation/listing/generation.
 - `workout_detail.html`: public workout page.
 - `workout_session.html`: active session tracker.
@@ -455,7 +457,7 @@ Main templates:
 - `content_engine_admin.html`: content prompt management.
 - `newsletter_admin.html`: newsletter campaign/admin page.
 - `newsletter_subscriber_detail.html`: subscriber detail/admin page.
-- `calculators.html`, `privacy.html`, `terms.html`, `login.html`, `register.html`, `sitemap.xsl`.
+- `calculators.html`, `privacy.html`, `terms.html`, `verification_rules.html`, `login.html`, `register.html`, `sitemap.xsl`.
 
 When editing UI, keep the experience utilitarian and athlete/status focused. Avoid turning operational pages into marketing-style pages. Dashboard, review, newsletter, and workout tools should be dense, readable, and efficient.
 
@@ -738,6 +740,16 @@ Usually touches:
 ## Change Log
 
 Note: the newest entry is authoritative for current product direction. Older entries are preserved as historical implementation notes and may describe behavior that was later superseded.
+
+### 2026-05-21 legal launch readiness update
+
+- Reworked `/privacy/` into a production-ready startup-level privacy policy for accounts, athlete profiles, submitted performances, proof uploads, public leaderboard/profile data, cookies/session data, technical/server data, deletion requests, and under-13 age guidance.
+- Reworked `/terms/` into concise launch-ready terms covering user responsibility, internal/community verification disclaimer, moderation rights, leaderboard/Hybrid Score changes, public profiles, fitness risk, no service guarantee, intellectual property, and contact.
+- Added `/verification-rules/` to explain Open Scores vs Official Scores, unverified/pending/verified/rejected states, when proof is required, valid proof, rejection reasons, and fake/manipulated proof policy.
+- Added footer links for Privacy Policy, Terms of Service, and Verification Rules across the site.
+- Added a minimal black/yellow cookie consent banner with Accept and Learn More actions. Consent is stored in `localStorage` under `earnedclub_cookie_consent`.
+- Added `/verification-rules/` to the sitemap/static crawlable page list and admin pages index.
+- Added regression tests for legal page loading, footer links, cookie banner rendering/persistence script, and sitemap crawlability.
 
 ### 2026-05-17 early-submission conversion update
 

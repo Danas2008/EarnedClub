@@ -2025,6 +2025,39 @@ class SubmissionFlowTests(TestCase):
         self.assertIn("https://earnedclub.club/challenge/", locs)
         self.assertIn("https://earnedclub.club/comparison/", locs)
         self.assertIn("https://earnedclub.club/test/", locs)
+        self.assertIn("https://earnedclub.club/privacy/", locs)
+        self.assertIn("https://earnedclub.club/terms/", locs)
+        self.assertIn("https://earnedclub.club/verification-rules/", locs)
+
+    def test_legal_pages_load_with_required_content(self):
+        page_expectations = [
+            ("privacy", "Your data should be as clear as your rank.", "earnedclub1@gmail.com"),
+            ("terms", "Verified status is an internal EarnedClub platform/community verification", "provided as is"),
+            ("verification_rules", "Open is visible. Official is earned.", "Fake Or Manipulated Proof"),
+        ]
+
+        for view_name, heading, required_text in page_expectations:
+            with self.subTest(view_name=view_name):
+                response = self.client.get(reverse(view_name))
+
+                self.assertEqual(response.status_code, 200)
+                self.assertContains(response, heading)
+                self.assertContains(response, required_text)
+
+    def test_footer_links_and_cookie_banner_render(self):
+        response = self.client.get(reverse("home"))
+
+        self.assertContains(response, f'href="{reverse("privacy")}"', html=False)
+        self.assertContains(response, f'href="{reverse("terms")}"', html=False)
+        self.assertContains(response, f'href="{reverse("verification_rules")}"', html=False)
+        self.assertContains(response, "Privacy Policy")
+        self.assertContains(response, "Terms of Service")
+        self.assertContains(response, "Verification Rules")
+        self.assertContains(response, "data-cookie-banner", html=False)
+        self.assertContains(response, "We use cookies for login, analytics and improving the platform.")
+        self.assertContains(response, "earnedclub_cookie_consent")
+        self.assertContains(response, 'localStorage.setItem(cookieConsentKey, "accepted")', html=False)
+        self.assertContains(response, 'localStorage.getItem(cookieConsentKey) !== "accepted"', html=False)
 
     def test_sitemap_xml_lists_public_athlete_profiles(self):
         user = User.objects.create_user(username="sitemap-athlete", password="StrongPass12345")

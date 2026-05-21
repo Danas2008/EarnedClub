@@ -173,6 +173,7 @@ SITEMAP_STATIC_PAGES = [
     {"view_name": "login", "changefreq": "monthly", "priority": "0.3"},
     {"view_name": "privacy", "changefreq": "yearly", "priority": "0.2"},
     {"view_name": "terms", "changefreq": "yearly", "priority": "0.2"},
+    {"view_name": "verification_rules", "changefreq": "monthly", "priority": "0.4"},
 ]
 
 LEADERBOARD_MODES = [
@@ -3386,6 +3387,7 @@ def admin_pages(request):
         {"name": "calculators", "route": "/calculators/", "url": reverse("calculators"), "access": "Public"},
         {"name": "privacy", "route": "/privacy/", "url": reverse("privacy"), "access": "Public"},
         {"name": "terms", "route": "/terms/", "url": reverse("terms"), "access": "Public"},
+        {"name": "verification_rules", "route": "/verification-rules/", "url": reverse("verification_rules"), "access": "Public"},
         {"name": "register", "route": "/register/", "url": reverse("register"), "access": "Account"},
         {"name": "login", "route": "/login/", "url": reverse("login"), "access": "Account"},
         {"name": "dashboard", "route": "/dashboard/", "url": reverse("dashboard"), "access": "Account"},
@@ -4016,3 +4018,7 @@ def privacy(request):
 
 def terms(request):
     return render(request, "terms.html")
+
+
+def verification_rules(request):
+    return render(request, "verification_rules.html")

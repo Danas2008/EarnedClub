@@ -52,4 +52,5 @@ urlpatterns = [
     path("newsletter-signup/", views.newsletter_signup, name="newsletter_signup"),
     path("privacy/", views.privacy, name="privacy"),
     path("terms/", views.terms, name="terms"),
+    path("verification-rules/", views.verification_rules, name="verification_rules"),
 ]
