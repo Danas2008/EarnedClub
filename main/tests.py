@@ -449,7 +449,7 @@ class SubmissionFlowTests(TestCase):
         self.assertContains(response, "No one owns this board yet. Be first.")
         self.assertContains(response, reverse("level_test"))
 
-    def test_founding_athlete_status_appears_on_profile_and_leaderboard(self):
+    def test_founding_athlete_status_appears_only_on_profile(self):
         user = User.objects.create_user(username="founding-user", password="StrongPass12345")
         user.profile.display_name = "Founding User"
         user.profile.save()
@@ -466,7 +466,7 @@ class SubmissionFlowTests(TestCase):
 
         self.assertContains(profile_response, "Founding athlete")
         self.assertContains(profile_response, "one of the first 100")
-        self.assertContains(leaderboard_response, "Founding athlete")
+        self.assertNotContains(leaderboard_response, "Founding athlete")
 
     def test_profile_prioritizes_hybrid_score_and_breakdown(self):
         user = User.objects.create_user(username="hybrid-profile", password="StrongPass12345")
@@ -1048,7 +1048,9 @@ class SubmissionFlowTests(TestCase):
     def test_level_test_is_fast_single_discipline_funnel(self):
         response = self.client.get(reverse("level_test"))
 
-        self.assertContains(response, "What is your strongest discipline?")
+        self.assertContains(response, "What's your Hybrid Score?")
+        self.assertContains(response, "Choose your first discipline.")
+        self.assertContains(response, "Step 4 / 4")
         self.assertContains(response, 'value="pushups"', html=False)
         self.assertContains(response, 'value="pullups"', html=False)
         self.assertContains(response, 'value="run_5k"', html=False)
@@ -1056,6 +1058,7 @@ class SubmissionFlowTests(TestCase):
         self.assertNotContains(response, "10K")
         self.assertContains(response, "Where should we send your result?")
         self.assertContains(response, "Skip Email")
+        self.assertNotContains(response, "How old are you?")
         self.assertContains(response, "Result required")
         self.assertContains(response, "Post My Result")
         self.assertContains(response, 'method="POST" action="{}"'.format(reverse("level_test")), html=False)
@@ -1086,7 +1089,7 @@ class SubmissionFlowTests(TestCase):
         self.assertEqual(submission.status, Submission.STATUS_UNVERIFIED)
         self.assertEqual(submission.email, "")
         self.assertContains(response, reverse("test_session_official"), html=False)
-        self.assertContains(response, reverse("leaderboard"), html=False)
+        self.assertContains(response, f"{reverse('leaderboard')}#full-leaderboard", html=False)
 
     def test_level_test_make_official_adds_proof_to_existing_result(self):
         self.client.post(
@@ -1134,6 +1137,7 @@ class SubmissionFlowTests(TestCase):
 
         pushup_submission.refresh_from_db()
         self.assertContains(get_response, "Completed test disciplines")
+        self.assertContains(get_response, "Choose one: paste a proof link or upload a proof file.")
         self.assertContains(get_response, "Push-ups")
         self.assertContains(get_response, "Pull-ups")
         self.assertEqual(Submission.objects.filter(name="Session Proof", discipline=Submission.DISCIPLINE_PUSHUPS).count(), 1)
@@ -1208,6 +1212,8 @@ class SubmissionFlowTests(TestCase):
         self.assertContains(share_response, "Hybrid Score Preview")
         self.assertContains(share_response, "Push-ups")
         self.assertContains(share_response, "Try It Yourself")
+        self.assertContains(share_response, "See The Tiers")
+        self.assertNotContains(share_response, "Beat This Score")
         self.assertContains(share_response, "Test Your Hybrid Score")
 
     def test_session_proof_route_rejects_unrelated_submission(self):
@@ -1232,9 +1238,9 @@ class SubmissionFlowTests(TestCase):
 
         next_response = self.client.get(f"{reverse('level_test')}?discipline={Submission.DISCIPLINE_PULLUPS}")
         self.assertContains(next_response, 'value="Journey Athlete"', html=False)
-        self.assertContains(next_response, 'value="24"', html=False)
         self.assertContains(next_response, 'value="journey@example.com"', html=False)
         self.assertContains(next_response, "Continuing as Journey Athlete")
+        self.assertNotContains(next_response, "How old are you?")
 
         response = self.client.post(
             reverse("level_test"),
@@ -1259,6 +1265,8 @@ class SubmissionFlowTests(TestCase):
                 "score": "30",
             },
         )
+        self.client.post(reverse("level_test"), {"discipline": Submission.DISCIPLINE_PULLUPS, "score": "5"})
+        self.client.post(reverse("level_test"), {"discipline": Submission.DISCIPLINE_5K, "score": "22:00"})
 
         response = self.client.post(
             reverse("register"),
@@ -1272,13 +1280,16 @@ class SubmissionFlowTests(TestCase):
         )
 
         user = User.objects.get(username="claimjourney")
-        submission = Submission.objects.get(name="Claim Journey")
-        self.assertEqual(submission.user, user)
-        self.assertEqual(submission.status, Submission.STATUS_UNVERIFIED)
+        submissions = Submission.objects.filter(user=user).order_by("discipline")
+        self.assertEqual(submissions.count(), 3)
+        self.assertTrue(all(submission.name == "claimjourney" for submission in submissions))
+        self.assertTrue(all(submission.status == Submission.STATUS_UNVERIFIED for submission in submissions))
         self.assertEqual(response.context["hybrid_summary"]["score"], 0)
-        self.assertEqual(response.context["hybrid_summary"]["open_score"], 350)
+        self.assertEqual(response.context["hybrid_summary"]["open_score"], 400)
+        self.assertEqual(response.context["hybrid_summary"]["best_discipline"]["working_points"], 600)
         self.assertContains(response, "Open Score Preview")
-        self.assertContains(response, "test result(s) are now saved to your profile")
+        self.assertContains(response, "Add Proof")
+        self.assertContains(response, "3 test result(s) are now saved to your profile")
 
     def test_level_test_requires_name_for_anonymous_submission(self):
         response = self.client.post(
@@ -1799,7 +1810,7 @@ class SubmissionFlowTests(TestCase):
             follow=True,
         )
 
-        submission = Submission.objects.get(name="Claim Room Guest")
+        submission = Submission.objects.get(name="roomclaim")
         self.assertEqual(submission.user.username, "roomclaim")
         self.assertRedirects(response, reverse("challenge_room", args=[room.token]))
         self.assertContains(response, "Claimed profile")

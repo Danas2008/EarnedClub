@@ -259,7 +259,6 @@
                         <td><span class="tag-pill rank-pill rank-{{ row.rank_intensity }}">{{ row.hybrid_rank.name }}</span></td>
                         <td>
                             <span class="status-pill {% if row.status_label == 'Official' %}verified{% else %}unverified{% endif %}">{{ row.status_label }}</span>
-                            {% if row.is_founding_entry %}<div class="submission-meta">Founding athlete</div>{% endif %}
                         </td>
                         <td>
                             #{{ row.position }}
@@ -282,7 +281,7 @@
                     {% endif %}
                     <div class="score-row-main">
                         <div class="submission-name">{% if row.profile %}<a href="{% url 'athlete_profile' row.profile.slug %}">{{ row.profile.display_name }}</a>{% else %}{{ row.display_name }}{% endif %}</div>
-                        <div class="submission-meta">{{ row.hybrid_rank.name }} - {{ row.status_label }} - #{{ row.position }}{% if row.is_founding_entry %} - Founding athlete{% endif %}</div>
+                        <div class="submission-meta">{{ row.hybrid_rank.name }} - {{ row.status_label }} - #{{ row.position }}</div>
                     </div>
                     <div class="score-row-score">
                         <span class="position-pill">#{{ row.position }}</span>
@@ -327,7 +326,6 @@
                         <td>
                             {% if row.verified_position %}Official rank #{{ row.verified_position }}{% else %}-{% endif %}
                             {% if not row.verified_position %}<div class="submission-meta">Waiting for verification</div>{% endif %}
-                            {% if row.is_founding_entry %}<div class="submission-meta">Founding athlete</div>{% endif %}
                             {% if request.user.is_authenticated and row.profile and row.profile.user != request.user %}
                                 <a class="btn-secondary" style="margin-top: 8px; min-height: 34px; padding: 6px 10px;" href="{% url 'comparison' request.user.profile.slug row.profile.slug %}">1v1</a>
                             {% endif %}
@@ -349,7 +347,7 @@
                     {% endif %}
                     <div class="score-row-main">
                         <div class="submission-name">{% if row.profile %}<a href="{% url 'athlete_profile' row.profile.slug %}">{{ row.submission.name }}</a>{% else %}{{ row.submission.name }}{% endif %}</div>
-                        <div class="submission-meta">{{ row.submission.discipline_label }} - {{ row.submission.display_score }} - {{ row.submission.public_status_label }} - {{ row.display_points }} pts{% if row.is_founding_entry %} - Founding athlete{% endif %}</div>
+                        <div class="submission-meta">{{ row.submission.discipline_label }} - {{ row.submission.display_score }} - {{ row.submission.public_status_label }} - {{ row.display_points }} pts</div>
                     </div>
                     <div class="score-row-score">
                         <span class="position-pill">#{{ row.position }}</span>

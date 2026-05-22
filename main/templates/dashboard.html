@@ -29,6 +29,19 @@
         min-height: 0;
     }
 
+    .dashboard-status-card[data-intensity="beginner"] { border-color: rgba(148, 163, 184, .26); }
+    .dashboard-status-card[data-intensity="intermediate"] { border-color: rgba(59, 130, 246, .34); background: linear-gradient(160deg, rgba(59, 130, 246, .16), rgba(18, 25, 34, .94)); }
+    .dashboard-status-card[data-intensity="advanced"] { border-color: rgba(247, 183, 51, .38); }
+    .dashboard-status-card[data-intensity="elite"] { border-color: rgba(252, 74, 26, .40); background: linear-gradient(160deg, rgba(252, 74, 26, .15), rgba(18, 25, 34, .94)); }
+    .dashboard-status-card[data-intensity="legend"] { border-color: rgba(30, 157, 116, .42); background: linear-gradient(160deg, rgba(30, 157, 116, .16), rgba(18, 25, 34, .94)); }
+
+    .dashboard-status-actions {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        margin-top: 12px;
+    }
+
     .status-chip-row,
     .dashboard-insights,
     .discipline-meta-row {
@@ -68,10 +81,20 @@
         margin-top: 14px;
     }
 
+    .mobile-status-breakdown {
+        display: none;
+        margin: 0 0 14px;
+    }
+
     .dashboard-discipline-strip .feature-card {
         padding: 11px;
         min-height: 86px;
     }
+
+    .dashboard-discipline-strip .feature-card[data-intensity="intermediate"] { border-color: rgba(59, 130, 246, .22); background: rgba(59, 130, 246, .07); }
+    .dashboard-discipline-strip .feature-card[data-intensity="advanced"] { border-color: rgba(247, 183, 51, .30); background: rgba(247, 183, 51, .09); }
+    .dashboard-discipline-strip .feature-card[data-intensity="elite"] { border-color: rgba(252, 74, 26, .34); background: rgba(252, 74, 26, .10); }
+    .dashboard-discipline-strip .feature-card[data-intensity="legend"] { border-color: rgba(30, 157, 116, .36); background: rgba(30, 157, 116, .10); }
 
     .dashboard-discipline-strip h3 {
         font-size: 1.25rem;
@@ -276,6 +299,14 @@
             grid-template-columns: repeat(2, minmax(0, 1fr));
         }
 
+        .desktop-discipline-strip {
+            display: none;
+        }
+
+        .mobile-status-breakdown {
+            display: grid;
+        }
+
         .dashboard-identity {
             align-items: flex-start;
         }
@@ -306,35 +337,52 @@
                 </p>
             </div>
         </div>
-        <div class="dashboard-discipline-strip">
+        <div class="dashboard-discipline-strip desktop-discipline-strip">
             {% for item in hybrid_summary.breakdown %}
-                <div class="feature-card">
+                <div class="feature-card" data-intensity="{{ item.intensity }}">
                     <span class="kicker">{{ item.discipline.short_label }}</span>
-                    <h3>{% if item.points %}{{ item.points }}{% else %}{{ item.preview_points }}{% endif %} pts</h3>
+                    <h3>{{ item.working_points }} pts</h3>
                     <p class="muted">{{ item.display_score }}</p>
                 </div>
             {% endfor %}
         </div>
     </div>
-    <div class="dashboard-status-card">
+    <div class="dashboard-status-card" data-intensity="{% if hybrid_summary.score %}{{ hybrid_summary.rank.intensity }}{% else %}{{ hybrid_summary.open_rank.intensity }}{% endif %}">
         <div>
+            <div class="dashboard-discipline-strip mobile-status-breakdown">
+                {% for item in hybrid_summary.breakdown %}
+                    <div class="feature-card" data-intensity="{{ item.intensity }}">
+                        <span class="kicker">{{ item.discipline.short_label }}</span>
+                        <h3>{{ item.working_points }} pts</h3>
+                        <p class="muted">{{ item.display_score }}</p>
+                    </div>
+                {% endfor %}
+            </div>
             <span class="kicker">{% if hybrid_summary.score %}Official Hybrid Score{% else %}Open Score Preview{% endif %}</span>
             <div class="dashboard-score-number">{% if hybrid_summary.score %}{{ hybrid_summary.score }}{% else %}{{ hybrid_summary.open_score }}{% endif %}</div>
-            <h2>{% if hybrid_summary.score %}{{ hybrid_summary.rank.name }}{% else %}{{ hybrid_summary.open_rank.name }}{% endif %}</h2>
+            <div class="rank-hero-badge rank-{% if hybrid_summary.score %}{{ hybrid_summary.rank.intensity }}{% else %}{{ hybrid_summary.open_rank.intensity }}{% endif %}">
+                <span>{% if hybrid_summary.score %}Verified title{% else %}Open title preview{% endif %}</span>
+                <strong>{% if hybrid_summary.score %}{{ hybrid_summary.rank.name }}{% else %}{{ hybrid_summary.open_rank.name }}{% endif %}</strong>
+            </div>
             <div class="status-chip-row">
                 <span class="status-pill {% if hybrid_summary.score %}verified{% else %}unverified{% endif %}">{% if hybrid_summary.score %}Official{% else %}Open Preview{% endif %}</span>
-                <span class="tag-pill">{{ hybrid_summary.verified_count }}/{{ hybrid_summary.max_disciplines }} verified</span>
+                <span class="tag-pill">{% if hybrid_summary.score %}{{ hybrid_summary.verified_count }}/{{ hybrid_summary.max_disciplines }} verified{% else %}{{ hybrid_summary.open_count }}/{{ hybrid_summary.max_disciplines }} completed{% endif %}</span>
             </div>
             <p class="muted">Official score uses verified performances. Earned status, not claimed stats.</p>
-            <p class="muted">Discipline titles stay yours. Adding disciplines builds completion.</p>
+            <p class="muted">{% if hybrid_summary.score %}Discipline titles stay yours. Adding disciplines builds completion.{% else %}Your dashboard works with Open Scores now. Add proof to turn this into earned status.{% endif %}</p>
         </div>
-        <a class="btn-main" href="{% url 'leaderboard' %}#full-leaderboard">View Hybrid Rank</a>
+        <div class="dashboard-status-actions">
+            <a class="btn-main" href="{% url 'leaderboard' %}#full-leaderboard">View Hybrid Rank</a>
+            {% if hybrid_summary.open_score and not hybrid_summary.score %}
+                <a class="btn-secondary" href="#hybrid-breakdown">Add Proof</a>
+            {% endif %}
+        </div>
     </div>
     <div class="dashboard-insights">
         <div class="dashboard-insight">
             <span class="kicker">Best discipline</span>
             <strong>{% if hybrid_summary.best_discipline %}{{ hybrid_summary.best_discipline.discipline.short_label }}{% else %}-{% endif %}</strong>
-            <div class="muted">{% if hybrid_summary.best_discipline %}{{ hybrid_summary.best_discipline.points }} pts{% else %}Verify a result to start.{% endif %}</div>
+            <div class="muted">{% if hybrid_summary.best_discipline %}{{ hybrid_summary.best_discipline.working_points }} pts{% else %}Submit a result to start.{% endif %}</div>
         </div>
         <div class="dashboard-insight">
             <span class="kicker">Weakest discipline</span>
@@ -348,8 +396,8 @@
         </div>
         <div class="dashboard-insight">
             <span class="kicker">Completion</span>
-            <strong>{{ hybrid_summary.completion_percent }}%</strong>
-            <div class="muted">{{ hybrid_summary.verified_count }}/{{ hybrid_summary.max_disciplines }} verified disciplines.</div>
+            <strong>{% if hybrid_summary.score %}{{ hybrid_summary.completion_percent }}{% else %}{{ hybrid_summary.open_completion_percent }}{% endif %}%</strong>
+            <div class="muted">{% if hybrid_summary.score %}{{ hybrid_summary.verified_count }}/{{ hybrid_summary.max_disciplines }} verified disciplines.{% else %}{{ hybrid_summary.open_count }}/{{ hybrid_summary.max_disciplines }} completed disciplines.{% endif %}</div>
         </div>
     </div>
     <div class="button-row hero-action-row">
@@ -435,11 +483,11 @@
 </section>
 {% endif %}
 
-<section class="card-dark">
+<section class="card-dark" id="hybrid-breakdown">
     <div class="section-spread">
         <div>
             <h2>Hybrid Score Breakdown</h2>
-            <p class="muted">Only verified performances count toward the official Overall Athlete Rating.</p>
+            <p class="muted">Open previews keep your dashboard useful. Proof is what makes the score official.</p>
         </div>
         <a class="btn-secondary" href="{% url 'home' %}#rank-tiers">Hybrid Rankings</a>
     </div>
@@ -451,13 +499,13 @@
                         <span class="kicker">{{ item.status }}</span>
                         <h3>{{ item.discipline.short_label }}</h3>
                     </div>
-                    <span class="status-pill {% if item.submission %}verified{% else %}unverified{% endif %}">{{ item.points }} pts</span>
+                    <span class="status-pill {% if item.submission %}verified{% else %}unverified{% endif %}">{{ item.working_points }} pts</span>
                 </div>
                 <div class="discipline-meter" style="--meter-width: {{ item.progress_percent }}%;"><span></span></div>
                 <div>
                     <div class="submission-name">{{ item.display_score }}</div>
                     <div class="submission-meta">
-                        {{ item.rank_name }}{% if item.latest_unverified %} - {{ item.latest_unverified.public_status_label }} waiting{% endif %}
+                        {{ item.rank_name }}{% if item.latest_unverified %} - {{ item.latest_unverified.public_status_label }}{% endif %}
                         {% if hybrid_summary.best_discipline.discipline.key == item.discipline.key %} - strongest{% endif %}
                         {% if hybrid_summary.weakest_discipline.discipline.key == item.discipline.key %} - improve next{% endif %}
                     </div>
@@ -653,7 +701,7 @@
     </div>
 </section>
 
-<section class="card-dark">
+<section class="card-dark" id="submissions">
         <h2>Submissions</h2>
     {% for submission in history_submissions %}
         <div class="athlete-row">
@@ -667,10 +715,8 @@
                         <form class="submission-form" method="POST" action="{% url 'add_submission_proof' submission.id %}" enctype="multipart/form-data" style="margin-top: 12px;">
                             {% csrf_token %}
                             <input class="input" type="url" name="proof_link" placeholder="{% if submission.is_time_based %}Race or Strava result link{% else %}Proof link{% endif %}">
-                            <div class="hint">Use a race result, Strava activity, or another public proof link.</div>
-                            {% if not submission.is_time_based %}
-                            <input class="input" type="file" name="video_file" accept="video/*">
-                            {% endif %}
+                            <div class="hint">Choose one: paste a proof link or upload a proof file.</div>
+                            <input class="input" type="file" name="video_file" accept="video/*,image/*">
                             <button class="btn-main" type="submit">Submit Proof</button>
                         </form>
                     </details>

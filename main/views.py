@@ -434,7 +434,7 @@ def build_hybrid_breakdown(user):
     verified_points = []
     open_points = []
     verified_submissions = user.submission_set.filter(status=Submission.STATUS_VERIFIED).select_related("user")
-    all_submissions = user.submission_set.all()
+    all_submissions = user.submission_set.exclude(status=Submission.STATUS_REJECTED).select_related("user")
     for config in active_discipline_configs():
         best_submission = None
         for submission in verified_submissions:
@@ -442,31 +442,48 @@ def build_hybrid_breakdown(user):
                 continue
             if best_submission is None or is_better_submission(submission, best_submission):
                 best_submission = submission
-        latest_unverified = (
+        open_candidates = list(
             all_submissions.filter(discipline=config["key"])
             .exclude(status=Submission.STATUS_VERIFIED)
-            .order_by("-created_at")
-            .first()
+            .order_by("-created_at", "-id")
         )
-        preview_submission = latest_unverified
+        latest_unverified = open_candidates[0] if open_candidates else None
+        preview_submission = None
+        for submission in open_candidates:
+            if preview_submission is None or is_better_submission(submission, preview_submission):
+                preview_submission = submission
         points = best_submission.hybrid_points if best_submission else 0
         preview_points = preview_submission.hybrid_points if preview_submission else 0
         if best_submission:
             verified_points.append(points)
-        open_submission = best_submission or preview_submission
+        open_submission = best_submission
+        if preview_submission and (open_submission is None or is_better_submission(preview_submission, open_submission)):
+            open_submission = preview_submission
         if open_submission:
             open_points.append(open_submission.hybrid_points)
-        intensity = "empty"
-        if points >= 900:
-            intensity = "legend"
-        elif points >= 750:
-            intensity = "elite"
-        elif points >= 550:
-            intensity = "advanced"
-        elif points >= 350:
-            intensity = "intermediate"
-        elif points > 0:
-            intensity = "beginner"
+        working_points = open_submission.hybrid_points if open_submission else 0
+        display_submission = open_submission or best_submission or preview_submission
+        if best_submission and display_submission == best_submission:
+            status_label = "Verified"
+            rank_label = best_submission.rank_name
+        elif display_submission:
+            status_label = f"{display_submission.public_status_label} preview"
+            rank_label = f"{display_submission.rank_name} preview"
+        else:
+            status_label = "Missing"
+            rank_label = "No result yet"
+        if latest_unverified and latest_unverified.status == Submission.STATUS_UNVERIFIED:
+            action_label = "Add proof"
+            action_url = f"{reverse('dashboard')}#submissions"
+        elif latest_unverified and latest_unverified.status == Submission.STATUS_PENDING:
+            action_label = "In review"
+            action_url = reverse("dashboard")
+        elif best_submission:
+            action_label = "Improve"
+            action_url = f"{reverse('challenge')}?discipline={config['key']}#submit-form-top"
+        else:
+            action_label = "Submit result"
+            action_url = f"{reverse('challenge')}?discipline={config['key']}#submit-form-top"
         rows.append(
             {
                 "discipline": config,
@@ -475,21 +492,26 @@ def build_hybrid_breakdown(user):
                 "preview_submission": preview_submission,
                 "points": points,
                 "preview_points": preview_points,
-                "intensity": intensity,
-                "progress_percent": min(100, round((points / 1000) * 100)),
-                "display_score": best_submission.display_score if best_submission else (preview_submission.display_score if preview_submission else "-"),
-                "status": "Verified" if best_submission else (f"{preview_submission.public_status_label} preview" if preview_submission else "Missing"),
-                "rank_name": best_submission.rank_name if best_submission else (f"{preview_submission.rank_name} preview" if preview_submission else "No verified result"),
-                "action_label": "Improve" if best_submission else ("Add proof" if latest_unverified and latest_unverified.status == Submission.STATUS_UNVERIFIED else "Submit result"),
-                "action_url": reverse("dashboard") if latest_unverified and latest_unverified.status == Submission.STATUS_UNVERIFIED else f"{reverse('challenge')}?discipline={config['key']}#submit-form-top",
+                "working_submission": display_submission,
+                "working_points": working_points,
+                "intensity": get_rank_intensity(working_points),
+                "progress_percent": min(100, round((working_points / 1000) * 100)),
+                "display_score": display_submission.display_score if display_submission else "-",
+                "status": status_label,
+                "rank_name": rank_label,
+                "action_label": action_label,
+                "action_url": action_url,
             }
         )
     hybrid_score = round(sum(verified_points) / len(verified_points)) if verified_points else 0
     open_score = round(sum(open_points) / len(open_points)) if open_points else 0
     verified_rows = [row for row in rows if row["submission"]]
-    best_row = max(verified_rows, key=lambda row: row["points"], default=None)
-    weakest_row = min(verified_rows, key=lambda row: row["points"], default=None)
-    missing_row = next((row for row in rows if not row["submission"]), None)
+    working_rows = [row for row in rows if row["working_points"]]
+    score_for_next_target = hybrid_score or open_score
+    completed_count = len(working_rows)
+    best_row = max(working_rows or verified_rows, key=lambda row: row["working_points"] or row["points"], default=None)
+    weakest_row = min(working_rows or verified_rows, key=lambda row: row["working_points"] or row["points"], default=None)
+    missing_row = next((row for row in rows if not row["working_points"]), None)
     return {
         "score": hybrid_score,
         "open_score": open_score,
@@ -498,10 +520,12 @@ def build_hybrid_breakdown(user):
         "breakdown": rows,
         "best_discipline": best_row,
         "weakest_discipline": weakest_row or missing_row,
-        "next_target_points": max(0, next((rank["min_score"] for rank in HYBRID_RANKS if rank["min_score"] > hybrid_score), 1000) - hybrid_score),
+        "next_target_points": max(0, next((rank["min_score"] for rank in HYBRID_RANKS if rank["min_score"] > score_for_next_target), 1000) - score_for_next_target),
         "verified_count": len(verified_points),
+        "open_count": completed_count,
         "max_disciplines": len(ACTIVE_DISCIPLINE_KEYS),
         "completion_percent": round((len(verified_points) / len(ACTIVE_DISCIPLINE_KEYS)) * 100),
+        "open_completion_percent": round((completed_count / len(ACTIVE_DISCIPLINE_KEYS)) * 100),
     }
 
 
@@ -553,13 +577,14 @@ def build_improvement_recommendation(user, hybrid_summary=None):
     candidates = []
     for row in summary["breakdown"]:
         discipline = row["discipline"]["key"]
-        current = row["submission"].reps if row["submission"] else None
+        current_submission = row.get("working_submission")
+        current = current_submission.reps if current_submission else None
         target = get_next_discipline_target(current, discipline)
         if not target:
             continue
         config = row["discipline"]
         if current is None:
-            text = f"Submit your first verified {config['short_label']} result to increase Hybrid completion."
+            text = f"Submit your first {config['short_label']} result to increase Hybrid completion."
             priority = -1
         elif config["higher_is_better"]:
             text = f"Go from {current} to {target['value']} {config['unit']} to reach {target['name']}."
@@ -580,7 +605,7 @@ def build_improvement_recommendation(user, hybrid_summary=None):
     if not candidates:
         return {
             "label": "Defend your Hybrid status",
-            "text": "You have cleared the current discipline tier targets. Keep improving any verified lane.",
+            "text": "You have cleared the current discipline tier targets. Keep improving any lane and keep proof ready.",
             "url": reverse("challenge"),
         }
     missing = [item for item in candidates if item["current"] is None]
@@ -857,7 +882,7 @@ def get_pr_share_message(profile, request):
 
 def build_submission_success(submission, request):
     discipline_config = get_discipline_config(submission.discipline)
-    leaderboard_url = reverse("leaderboard")
+    leaderboard_url = f"{reverse('leaderboard')}#full-leaderboard"
     register_params = urlencode({"name": submission.name, "email": submission.email}) if submission.email else urlencode({"name": submission.name})
     proof_params = urlencode({
         "discipline": submission.discipline,
@@ -1038,7 +1063,11 @@ def attach_test_session_submissions_to_user(request, user):
     if not ids:
         return 0
     session_key = f"session:{request.session.get('test_session_id')}" if request.session.get("test_session_id") else ""
-    updated = Submission.objects.filter(id__in=ids, user__isnull=True).update(user=user, email=user.email)
+    updated = Submission.objects.filter(id__in=ids, user__isnull=True).update(
+        user=user,
+        name=user_display_name(user),
+        email=user.email,
+    )
     if updated:
         entry_updates = ChallengeRoomEntry.objects.filter(submission_id__in=ids)
         if session_key:
@@ -1410,7 +1439,9 @@ def get_progress_summary(submissions):
 
 
 def build_performance_progress_series(user):
-    submissions = list(user.submission_set.filter(status=Submission.STATUS_VERIFIED).order_by("created_at", "id"))
+    submissions = list(
+        user.submission_set.exclude(status=Submission.STATUS_REJECTED).order_by("created_at", "id")
+    )
     best_by_discipline = {}
     series = {
         "hybrid": {
@@ -2472,7 +2503,8 @@ def test_result_share(request, token):
             "owner_name": owner,
             "test_progress": progress,
             "try_url": reverse("level_test"),
-            "leaderboard_url": reverse("leaderboard"),
+            "leaderboard_url": f"{reverse('leaderboard')}#full-leaderboard",
+            "tiers_url": f"{reverse('home')}#rank-tiers",
         },
     )
 
@@ -2825,7 +2857,7 @@ def dashboard(request):
     ensure_system_workout_templates()
     workouts = request.user.workouts.prefetch_related("exercises").order_by("-created_at")
     active_workout_session = request.user.workout_sessions.filter(status=WorkoutSession.STATUS_ACTIVE).select_related("workout").prefetch_related("exercise_sessions").first()
-    progress_summary = get_progress_summary(verified_submissions)
+    progress_summary = get_progress_summary(request.user.submission_set.exclude(status=Submission.STATUS_REJECTED))
     hybrid_summary = build_hybrid_breakdown(request.user)
     hybrid_rank_position = next(
         (row["position"] for row in build_hybrid_leaderboard_rows() if row["user"] and row["user"].id == request.user.id),
@@ -2947,10 +2979,12 @@ def athlete_profile(request, slug):
         (row["position"] for row in build_hybrid_leaderboard_rows() if row["user"] and row["user"].id == profile.user.id),
         None,
     )
+    profile_score = hybrid_summary["score"] or hybrid_summary["open_score"]
+    profile_score_label = "Earned Club Hybrid Score" if hybrid_summary["score"] else "Earned Club Open Score Preview"
     profile_description = (
-        f"{profile.display_name} has an Earned Club Hybrid Score of "
-        f"{hybrid_summary['score']}"
-        + (f" and is ranked #{hybrid_rank_position} on the Hybrid Leaderboard" if hybrid_rank_position else "")
+        f"{profile.display_name} has an {profile_score_label} of "
+        f"{profile_score}"
+        + (f" and is ranked #{hybrid_rank_position} on the Hybrid Leaderboard" if hybrid_rank_position and hybrid_summary["score"] else "")
         + "."
     )
     is_following = False
