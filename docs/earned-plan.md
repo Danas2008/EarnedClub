@@ -768,6 +768,7 @@ Note: the newest entry is authoritative for current product direction. Older ent
 - Claiming a profile after a session-based `/test/` journey now renames attached submissions to the account/profile display name, so leaderboard and profile identity follow the claimed account rather than the temporary `/test/` name.
 - Dashboard and public profile cards now use Open Score Preview data for best discipline, weakest discipline, completion, rank styling, breakdown, and progress when a user has not yet verified results. Official Hybrid Score remains verified-only, and proof remains the primary path from open preview to earned status.
 - Hybrid titles on dashboard/profile are shown as colored badge-like rank heroes instead of plain text labels.
+- Dashboard top hero now behaves more like an athlete command card: identity, score state, rank badge, discipline points, insights, and next move are grouped together. The old "View Hybrid Rank" top CTA was removed in favor of contextual actions such as "Make Score Official", "Complete Score", "Improve Weakest", or "Submit First Result".
 
 ### 2026-05-22 project memory protocol
 

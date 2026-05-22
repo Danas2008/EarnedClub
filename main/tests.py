@@ -1288,7 +1288,8 @@ class SubmissionFlowTests(TestCase):
         self.assertEqual(response.context["hybrid_summary"]["open_score"], 400)
         self.assertEqual(response.context["hybrid_summary"]["best_discipline"]["working_points"], 600)
         self.assertContains(response, "Open Score Preview")
-        self.assertContains(response, "Add Proof")
+        self.assertContains(response, "Make Score Official")
+        self.assertNotContains(response, "View Hybrid Rank")
         self.assertContains(response, "3 test result(s) are now saved to your profile")
 
     def test_level_test_requires_name_for_anonymous_submission(self):
