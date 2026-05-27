@@ -12,6 +12,7 @@
     <form class="submission-form" method="POST">
         {% csrf_token %}
         <input type="hidden" name="next" value="{{ next_url }}">
+        {% if challenge_room %}<input type="hidden" name="room" value="{{ challenge_room.token }}">{% endif %}
 
         {% if form.errors %}
             <div class="mini-card">

@@ -189,13 +189,17 @@ Active room focuses:
 
 Important behavior:
 
-- Room links preserve context through `/test/`, `/challenge/`, `/login/`, and `/register/` with `room=<token>`.
+- Room links preserve context through `/test/`, `/challenge/`, `/login/`, and `/register/` with explicit `room=<token>` links or hidden form fields.
+- Merely viewing a room should not silently attach later plain `/test/` or `/challenge/` submissions without a room token.
 - Guest `/test/` submissions can appear in a room as unclaimed/unverified.
 - Multiple `/test/` submissions from the same guest session are grouped as one room participant so adding another discipline builds that athlete's room result instead of adding a duplicate participant.
+- Guest submissions without a test session, account, or email are keyed by submission instead of name to avoid merging different same-name athletes.
 - Logged-in `/challenge/` submissions can attach directly to a room.
 - Registering after a room-based `/test/` journey attaches unowned session submissions to the new account where possible.
 - Claiming a profile converts session-based room entries to the user participant key so later logged-in submissions continue the same room participant.
 - Room ranking uses highest score for Hybrid Score, push-ups, and pull-ups; 5K uses fastest/lower time.
+- Public room leaderboards use the same open-board visibility rule as the main leaderboards: strong no-proof results above the open threshold stay hidden until proof exists.
+- Hybrid room rows display aggregate status and points for the averaged Hybrid result instead of borrowing the status/points from only one best discipline.
 
 ### Goal
 
@@ -478,7 +482,7 @@ Required for production:
 
 - `SECRET_KEY`
 - `DEBUG=False`
-- `SITE_URL=https://earnedclub.club`
+- `SITE_URL=https://www.earnedclub.club`
 - `ALLOWED_HOSTS=earnedclub.club,www.earnedclub.club,earnedclub.onrender.com`
 - `CSRF_TRUSTED_ORIGINS=https://earnedclub.club,https://www.earnedclub.club,https://earnedclub.onrender.com`
 - `DATABASE_URL=<Supabase Postgres connection string>`
@@ -613,7 +617,7 @@ Production is intended to run on Render with Supabase Postgres.
 Important deployment checks:
 
 - `DATABASE_URL` points to the Supabase Postgres connection string.
-- `SITE_URL` is the canonical public domain, usually `https://earnedclub.club`.
+- `SITE_URL` is the canonical public domain, currently `https://www.earnedclub.club`.
 - `ALLOWED_HOSTS` contains public and Render domains.
 - `CSRF_TRUSTED_ORIGINS` contains the full HTTPS origins.
 - Static files are collected and served through WhiteNoise.
@@ -622,8 +626,8 @@ Important deployment checks:
 
 SEO checks:
 
-- `https://earnedclub.club/sitemap.xml` should return HTTP 200 and XML.
-- `https://earnedclub.club/robots.txt` should reference the sitemap.
+- `https://www.earnedclub.club/sitemap.xml` should return HTTP 200 and XML.
+- `https://www.earnedclub.club/robots.txt` should reference the sitemap.
 - `SITE_URL` should not be set to the Render subdomain in production unless intentionally changing canonical URLs.
 
 ## Product Rules To Preserve
@@ -749,6 +753,23 @@ Usually touches:
 ## Change Log
 
 Note: the newest entry is authoritative for current product direction. Older entries are preserved as historical implementation notes and may describe behavior that was later superseded.
+
+### 2026-05-27 challenge room UX logic hardening
+
+- Room context now requires an explicit `room=<token>` value on `/test/`, `/challenge/`, `/login/`, and `/register/` requests or hidden form posts; visiting a room no longer silently attaches later plain submissions to that room.
+- `/test/` room submissions redirect back to `/test/?room=<token>` so the room CTA and discipline lock remain visible without relying on sticky session fallback.
+- Login and registration forms now preserve the room token with hidden fields when reached from a room link.
+- Challenge room participant keys now avoid merging guest submissions by name when there is no account, email, or test session.
+- Public challenge room leaderboards now hide strong no-proof results above the open-board proof threshold until proof exists, matching main leaderboard visibility.
+- Hybrid room rows now show aggregate Hybrid points and a combined review status such as Official, Pending review, or Unofficial instead of displaying one discipline's status as if it represented the whole Hybrid attempt.
+- Added regression coverage for sticky room leakage, proof-threshold room visibility, same-name guest separation, aggregate Hybrid room status, and room-preserved redirects.
+
+### 2026-05-27 Search Console sitemap canonical host update
+
+- Live production currently resolves `https://www.earnedclub.club/sitemap.xml` with HTTP 200 while `https://earnedclub.club/sitemap.xml` redirects to the `www` host.
+- Updated default and Render `SITE_URL` to `https://www.earnedclub.club` so sitemap `<loc>` entries, robots.txt, canonical links, and structured data use the final canonical host.
+- Updated README, project plan, and sitemap/robots regression expectations to use the `www` sitemap URL.
+- Search Console should submit `https://www.earnedclub.club/sitemap.xml`; the old `Nelze nacist` row dated 2026-05-06 may need a manual resubmit or deletion/re-add in Search Console after deployment.
 
 ### 2026-05-21 legal launch readiness update
 
@@ -962,7 +983,7 @@ Note: the newest entry is authoritative for current product direction. Older ent
 - `/sitemap.xml` now returns plain sitemap XML without an XSL stylesheet processing instruction.
 - `/sitemap.xsl` remains available as a human-readable stylesheet page, but it should not be submitted to Google Search Console as a sitemap.
 - `/sitemap.xsl` now sends `X-Robots-Tag: noindex`.
-- Google Search Console should be given only `https://earnedclub.club/sitemap.xml`.
+- Google Search Console should be given only `https://www.earnedclub.club/sitemap.xml` while `www` is the canonical production host.
 - Admin pages now include mobile cards so `/admin-menu/pages/` remains visible on small screens where tables are hidden.
 - Superseded by the hybrid positioning update: homepage is now centered on Hybrid Score and the Hybrid Leaderboard.
 - Homepage now includes hero, value strip, how-it-works, rank system, why-it-exists, feature preview, video/content placeholders, tools, and final CTA sections.

@@ -30,7 +30,7 @@ python manage.py migrate --noinput
 
 - `SECRET_KEY`
 - `DEBUG=False`
-- `SITE_URL=https://earnedclub.club`
+- `SITE_URL=https://www.earnedclub.club`
 - `ALLOWED_HOSTS=earnedclub.club,www.earnedclub.club,earnedclub.onrender.com`
 - `CSRF_TRUSTED_ORIGINS=https://earnedclub.club,https://www.earnedclub.club,https://earnedclub.onrender.com`
 - `DATABASE_URL=<Supabase Postgres connection string>`
@@ -59,13 +59,13 @@ python manage.py migrate --noinput
 
 ## Sitemap and Google Search Console
 
-- Public sitemap: `https://earnedclub.club/sitemap.xml`
-- Robots file: `https://earnedclub.club/robots.txt`
-- Human-readable sitemap styling: `https://earnedclub.club/sitemap.xsl`
+- Public sitemap: `https://www.earnedclub.club/sitemap.xml`
+- Robots file: `https://www.earnedclub.club/robots.txt`
+- Human-readable sitemap styling: `https://www.earnedclub.club/sitemap.xsl`
 
 If Search Console reports `nelze nacist` / Could not fetch, check:
 
 1. Render has deployed the latest `working-version` commit.
 2. `ALLOWED_HOSTS` includes `earnedclub.club` and `www.earnedclub.club`.
-3. `SITE_URL` is exactly `https://earnedclub.club`.
-4. `https://earnedclub.club/sitemap.xml` returns HTTP 200 with `application/xml`.
+3. `SITE_URL` is exactly `https://www.earnedclub.club`.
+4. `https://www.earnedclub.club/sitemap.xml` returns HTTP 200 with `application/xml`.

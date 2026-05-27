@@ -15,6 +15,6 @@ services:
       - key: CSRF_TRUSTED_ORIGINS
         value: https://earnedclub.club,https://www.earnedclub.club,https://earnedclub.onrender.com
       - key: SITE_URL
-        value: https://earnedclub.club
+        value: https://www.earnedclub.club
       - key: DATABASE_URL
         sync: false

@@ -253,7 +253,7 @@ def get_room_from_token(token):
 
 
 def get_room_from_request(request):
-    token = request.POST.get("room") or request.GET.get("room") or request.session.get("active_challenge_room")
+    token = request.POST.get("room") or request.GET.get("room")
     room = get_room_from_token(token)
     if room:
         request.session["active_challenge_room"] = room.token
@@ -293,8 +293,6 @@ def build_room_participant_key(request, submission):
         return f"session:{test_session_id}"
     if submission.email:
         return f"email:{submission.email.lower()}"
-    if submission.name:
-        return f"name:{submission.name.strip().lower()}"
     return f"submission:{submission.pk}"
 
 
@@ -1057,6 +1055,8 @@ def build_room_leaderboard(room):
             continue
         if not is_active_discipline(submission.discipline):
             continue
+        if not is_submission_visible_on_open_board(submission):
+            continue
         identity = entry.participant_key or (f"user:{submission.user_id}" if submission.user_id else f"guest:{get_submission_identity(submission)}")
         group = grouped.setdefault(
             identity,
@@ -1072,6 +1072,7 @@ def build_room_leaderboard(room):
     rows = []
     for group in grouped.values():
         submissions = group["submissions"]
+        best_submissions = []
         if room.is_hybrid:
             best_by_discipline = {}
             for submission in submissions:
@@ -1089,6 +1090,15 @@ def build_room_leaderboard(room):
                 f"{submission.discipline_config['short_label']} {submission.display_score}"
                 for submission in sorted(best_submissions, key=lambda item: ACTIVE_DISCIPLINE_KEYS.index(item.normalized_discipline))
             )
+            if all(submission.status == Submission.STATUS_VERIFIED for submission in best_submissions):
+                status = "Official"
+                status_class = Submission.STATUS_VERIFIED
+            elif any(submission.status == Submission.STATUS_PENDING for submission in best_submissions):
+                status = "Pending review"
+                status_class = Submission.STATUS_PENDING
+            else:
+                status = "Unofficial"
+                status_class = Submission.STATUS_UNVERIFIED
             sort_value = -score
         else:
             config = get_discipline_config(room.focus)
@@ -1099,6 +1109,8 @@ def build_room_leaderboard(room):
             score = best_submission.reps
             result_display = best_submission.display_score
             discipline_summary = f"{best_submission.discipline_config['short_label']} {best_submission.display_score}"
+            status = best_submission.public_status_label
+            status_class = best_submission.status
             sort_value = -score if config["higher_is_better"] else score
         rows.append(
             {
@@ -1112,8 +1124,9 @@ def build_room_leaderboard(room):
                 "result_display": result_display,
                 "result_count": len(best_submissions) if room.is_hybrid else 1,
                 "discipline_summary": discipline_summary,
-                "points": best_submission.hybrid_points,
-                "status": best_submission.public_status_label,
+                "points": score if room.is_hybrid else best_submission.hybrid_points,
+                "status": status,
+                "status_class": status_class,
                 "sort_value": sort_value,
                 "is_winner": False,
             }
@@ -2266,7 +2279,7 @@ def level_test(request):
 
         if request.POST.get("website"):
             messages.success(request, "You are in. Your result is on the open leaderboard.")
-            return redirect("level_test")
+            return redirect(room_link("level_test", room) if room else "level_test")
 
         if not score_raw:
             messages.error(request, "Enter your result before continuing.")
@@ -2292,12 +2305,12 @@ def level_test(request):
             attach_submission_to_room(room, active_submission, build_room_participant_key(request, active_submission))
             request.session["last_test_submission_id"] = active_submission.id
             messages.info(request, "You are already in. Your recent result is on the open leaderboard.")
-            return redirect("level_test")
+            return redirect(room_link("level_test", room) if room else "level_test")
 
         blocker = find_submission_blocker(request, name, email, score_value, discipline)
         if blocker == "silent":
             messages.success(request, "You are in. Your result is on the open leaderboard.")
-            return redirect("level_test")
+            return redirect(room_link("level_test", room) if room else "level_test")
         if blocker:
             messages.error(request, blocker)
             return render(request, "test_landing.html", context)
@@ -2330,7 +2343,7 @@ def level_test(request):
             messages.success(request, "Your Open Score is live. Add proof to make it official.")
         if room:
             messages.info(request, "Your result is now inside the challenge room.")
-        return redirect("level_test")
+        return redirect(room_link("level_test", room) if room else "level_test")
 
     return render(
         request,
@@ -2346,14 +2359,14 @@ def test_submission_proof(request, submission_id):
     can_access = submission.id in session_submission_ids or (request.user.is_authenticated and submission.user_id == request.user.id)
     if not can_access:
         messages.error(request, "Open your own test result before adding proof.")
-        return redirect("level_test")
+        return redirect(room_link("level_test", room) if room else "level_test")
 
     if submission.status != Submission.STATUS_UNVERIFIED:
         messages.info(request, "Proof is already attached or this result is already in review.")
         if room:
             return redirect("challenge_room", token=room.token)
         request.session["last_test_submission_id"] = submission.id
-        return redirect("level_test")
+        return redirect(room_link("level_test", room) if room else "level_test")
 
     if request.method == "POST":
         proof_link = (request.POST.get("proof_link") or "").strip()
@@ -2384,7 +2397,7 @@ def test_submission_proof(request, submission_id):
         if room:
             return redirect("challenge_room", token=room.token)
         request.session["last_test_submission_id"] = submission.id
-        return redirect("level_test")
+        return redirect(room_link("level_test", room) if room else "level_test")
 
     return render(request, "test_proof.html", {"submission": submission, "challenge_room": room})
 
@@ -2657,6 +2670,7 @@ def login_view(request):
     if request.user.is_authenticated:
         return redirect("dashboard")
 
+    room = get_room_from_request(request)
     form = AuthenticationForm(request, data=request.POST or None)
     if request.method == "POST" and form.is_valid():
         user = form.get_user()
@@ -2665,11 +2679,10 @@ def login_view(request):
         messages.success(request, "Welcome back.")
         if attached_count:
             messages.success(request, f"{attached_count} test result(s) are now saved to your profile.")
-        room = get_room_from_request(request)
         next_url = request.GET.get("next") or (room_url(room) if room else "dashboard")
         return redirect(next_url)
 
-    return render(request, "login.html", {"form": form})
+    return render(request, "login.html", {"form": form, "challenge_room": room})
 
 
 def logout_view(request):

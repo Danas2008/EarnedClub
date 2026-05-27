@@ -62,7 +62,7 @@
                         <div class="submission-meta">{{ row.result_count }} result{% if row.result_count != 1 %}s{% endif %}: {{ row.discipline_summary }}</div>
                     </div>
                     <div class="score-row-score">
-                        <span class="status-pill {{ row.best_submission.status }}">{{ row.best_submission.public_status_label }}</span>
+                        <span class="status-pill {{ row.status_class }}">{{ row.status }}</span>
                     </div>
                 </div>
             {% endfor %}

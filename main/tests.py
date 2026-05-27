@@ -1506,7 +1506,7 @@ class SubmissionFlowTests(TestCase):
         self.assertContains(response, "Preview 300")
         self.assertNotContains(response, "What to improve next")
         self.assertContains(response, 'type="application/ld+json"', html=False)
-        self.assertContains(response, "https://earnedclub.club/athlete/public/", html=False)
+        self.assertContains(response, "https://www.earnedclub.club/athlete/public/", html=False)
 
     def test_athlete_profile_shows_unverified_claimed_result_without_official_points(self):
         user = User.objects.create_user(username="preview-only", password="StrongPass12345")
@@ -1631,6 +1631,19 @@ class SubmissionFlowTests(TestCase):
 
         self.assertRedirects(response, reverse("challenge_room", args=[room.token]), fetch_redirect_response=False)
 
+    def test_viewing_room_does_not_attach_later_plain_test_submission(self):
+        room = ChallengeRoom.objects.create(title="Sticky Room", focus=ChallengeRoom.FOCUS_PUSHUPS)
+
+        self.client.get(reverse("challenge_room", args=[room.token]))
+        self.client.post(
+            reverse("level_test"),
+            {"name": "Plain Guest", "score": "24"},
+            follow=True,
+        )
+
+        submission = Submission.objects.get(name="Plain Guest")
+        self.assertFalse(ChallengeRoomEntry.objects.filter(room=room, submission=submission).exists())
+
     def test_discipline_specific_room_only_allows_that_discipline_in_test(self):
         room = ChallengeRoom.objects.create(title="Pull Room", focus=ChallengeRoom.FOCUS_PULLUPS)
 
@@ -1652,7 +1665,7 @@ class SubmissionFlowTests(TestCase):
         )
 
         submission = Submission.objects.get(name="Room Guest")
-        self.assertRedirects(response, reverse("level_test"))
+        self.assertRedirects(response, f"{reverse('level_test')}?room={room.token}")
         self.assertEqual(submission.discipline, Submission.DISCIPLINE_PUSHUPS)
         self.assertTrue(ChallengeRoomEntry.objects.filter(room=room, submission=submission).exists())
         self.assertContains(response, "Room Guest")
@@ -1686,6 +1699,35 @@ class SubmissionFlowTests(TestCase):
         self.assertContains(room_response, "2 results")
         self.assertContains(room_response, "Push-ups 30 reps")
         self.assertContains(room_response, "Pull-ups 8 reps")
+
+    def test_room_hides_strong_no_proof_results_until_proof_exists(self):
+        room = ChallengeRoom.objects.create(title="Proof Threshold Room", focus=ChallengeRoom.FOCUS_HYBRID)
+
+        self.client.post(
+            f"{reverse('level_test')}?room={room.token}",
+            {"name": "Needs Proof", "discipline": Submission.DISCIPLINE_PUSHUPS, "score": "70"},
+            follow=True,
+        )
+        response = self.client.get(reverse("challenge_room", args=[room.token]))
+
+        self.assertEqual(response.context["leaderboard_rows"], [])
+        self.assertNotContains(response, "Needs Proof")
+
+    def test_guest_room_entries_with_same_name_stay_separate_without_session_or_email(self):
+        room = ChallengeRoom.objects.create(title="Same Name Room", focus=ChallengeRoom.FOCUS_HYBRID)
+        self.client.post(
+            f"{reverse('challenge')}?room={room.token}",
+            {"name": "Alex", "discipline": Submission.DISCIPLINE_PULLUPS, "score": "4"},
+        )
+        self.client.post(
+            f"{reverse('challenge')}?room={room.token}",
+            {"name": "Alex", "discipline": Submission.DISCIPLINE_PUSHUPS, "score": "20"},
+        )
+
+        response = self.client.get(reverse("challenge_room", args=[room.token]))
+
+        self.assertEqual(len(response.context["leaderboard_rows"]), 2)
+        self.assertEqual(ChallengeRoomEntry.objects.filter(room=room).count(), 2)
 
     def test_claimed_room_session_entries_merge_with_later_logged_in_results(self):
         room = ChallengeRoom.objects.create(title="Claim Merge Room", focus=ChallengeRoom.FOCUS_HYBRID)
@@ -1762,8 +1804,8 @@ class SubmissionFlowTests(TestCase):
         push_room = ChallengeRoom.objects.create(title="Push Room", focus=ChallengeRoom.FOCUS_PUSHUPS)
         five_room = ChallengeRoom.objects.create(title="Fast Room", focus=ChallengeRoom.FOCUS_5K)
         low = Submission.objects.create(name="Low Hybrid", reps=20, discipline=Submission.DISCIPLINE_PUSHUPS, status=Submission.STATUS_UNVERIFIED)
-        high = Submission.objects.create(name="High Hybrid", reps=70, discipline=Submission.DISCIPLINE_PUSHUPS, status=Submission.STATUS_UNVERIFIED)
-        fast = Submission.objects.create(name="Fast Runner", reps=20 * 60, discipline=Submission.DISCIPLINE_5K, status=Submission.STATUS_UNVERIFIED)
+        high = Submission.objects.create(name="High Hybrid", reps=70, discipline=Submission.DISCIPLINE_PUSHUPS, status=Submission.STATUS_VERIFIED)
+        fast = Submission.objects.create(name="Fast Runner", reps=20 * 60, discipline=Submission.DISCIPLINE_5K, status=Submission.STATUS_VERIFIED)
         slow = Submission.objects.create(name="Slow Runner", reps=30 * 60, discipline=Submission.DISCIPLINE_5K, status=Submission.STATUS_UNVERIFIED)
         for submission in (low, high):
             ChallengeRoomEntry.objects.create(room=hybrid_room, submission=submission)
@@ -1780,6 +1822,31 @@ class SubmissionFlowTests(TestCase):
         self.assertEqual(push_response.context["winner"]["display_name"], "High Hybrid")
         self.assertEqual(five_response.context["winner"]["display_name"], "Fast Runner")
         self.assertContains(five_response, "&#9819;", html=False)
+
+    def test_hybrid_room_uses_aggregate_status_and_points(self):
+        room = ChallengeRoom.objects.create(title="Mixed Status Room", focus=ChallengeRoom.FOCUS_HYBRID)
+        push = Submission.objects.create(
+            name="Mixed Athlete",
+            reps=40,
+            discipline=Submission.DISCIPLINE_PUSHUPS,
+            status=Submission.STATUS_VERIFIED,
+        )
+        pull = Submission.objects.create(
+            name="Mixed Athlete",
+            reps=8,
+            discipline=Submission.DISCIPLINE_PULLUPS,
+            status=Submission.STATUS_PENDING,
+            video_link="https://example.com/proof",
+        )
+        for submission in (push, pull):
+            ChallengeRoomEntry.objects.create(room=room, submission=submission, participant_key="guest:mixed")
+
+        response = self.client.get(reverse("challenge_room", args=[room.token]))
+        row = response.context["leaderboard_rows"][0]
+
+        self.assertEqual(row["status"], "Pending review")
+        self.assertEqual(row["points"], row["score"])
+        self.assertContains(response, "Pending review")
 
     def test_guest_room_result_attaches_to_profile_when_claimed(self):
         room = ChallengeRoom.objects.create(title="Claim Room", focus=ChallengeRoom.FOCUS_PUSHUPS)
@@ -2139,14 +2206,14 @@ class SubmissionFlowTests(TestCase):
         self.assertIn("application/xml", response["Content-Type"])
         self.assertNotContains(response, "<?xml-stylesheet", html=False)
         self.assertContains(response, "<urlset", html=False)
-        self.assertIn("https://earnedclub.club/rank/", locs)
-        self.assertIn("https://earnedclub.club/leaderboard/", locs)
-        self.assertIn("https://earnedclub.club/challenge/", locs)
-        self.assertIn("https://earnedclub.club/comparison/", locs)
-        self.assertIn("https://earnedclub.club/test/", locs)
-        self.assertIn("https://earnedclub.club/privacy/", locs)
-        self.assertIn("https://earnedclub.club/terms/", locs)
-        self.assertIn("https://earnedclub.club/verification-rules/", locs)
+        self.assertIn("https://www.earnedclub.club/rank/", locs)
+        self.assertIn("https://www.earnedclub.club/leaderboard/", locs)
+        self.assertIn("https://www.earnedclub.club/challenge/", locs)
+        self.assertIn("https://www.earnedclub.club/comparison/", locs)
+        self.assertIn("https://www.earnedclub.club/test/", locs)
+        self.assertIn("https://www.earnedclub.club/privacy/", locs)
+        self.assertIn("https://www.earnedclub.club/terms/", locs)
+        self.assertIn("https://www.earnedclub.club/verification-rules/", locs)
 
     def test_legal_pages_load_with_required_content(self):
         page_expectations = [
@@ -2187,7 +2254,7 @@ class SubmissionFlowTests(TestCase):
         response = self.client.get(reverse("sitemap_xml"))
         namespace = {"s": "http://www.sitemaps.org/schemas/sitemap/0.9"}
         root = ElementTree.fromstring(response.content)
-        profile_url = f"https://earnedclub.club{reverse('athlete_profile', args=[profile.slug])}"
+        profile_url = f"https://www.earnedclub.club{reverse('athlete_profile', args=[profile.slug])}"
         profile_nodes = [
             node
             for node in root.findall("s:url", namespace)
@@ -2208,8 +2275,8 @@ class SubmissionFlowTests(TestCase):
         root = ElementTree.fromstring(response.content)
         locs = [node.text for node in root.findall("s:url/s:loc", namespace)]
 
-        self.assertIn(f"https://earnedclub.club{reverse('workout_detail', args=[public_workout.slug])}", locs)
-        self.assertNotIn(f"https://earnedclub.club{reverse('workout_detail', args=[private_workout.slug])}", locs)
+        self.assertIn(f"https://www.earnedclub.club{reverse('workout_detail', args=[public_workout.slug])}", locs)
+        self.assertNotIn(f"https://www.earnedclub.club{reverse('workout_detail', args=[private_workout.slug])}", locs)
 
     def test_sitemap_xsl_renders_browser_stylesheet(self):
         response = self.client.get(reverse("sitemap_xsl"))
@@ -2226,7 +2293,7 @@ class SubmissionFlowTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "User-agent: *")
         self.assertContains(response, "Disallow: /admin/")
-        self.assertContains(response, "Sitemap: https://earnedclub.club/sitemap.xml")
+        self.assertContains(response, "Sitemap: https://www.earnedclub.club/sitemap.xml")
 
     def test_staff_can_approve_submission_in_app(self):
         admin = User.objects.create_user(username="staff", password="StrongPass12345", is_staff=True)

@@ -34,7 +34,7 @@ CSRF_TRUSTED_ORIGINS = get_list_env(
     "CSRF_TRUSTED_ORIGINS",
     "https://earnedclub.club,https://www.earnedclub.club,https://earnedclub.onrender.com",
 )
-SITE_URL = os.getenv("SITE_URL", "https://earnedclub.club").rstrip("/")
+SITE_URL = os.getenv("SITE_URL", "https://www.earnedclub.club").rstrip("/")
 
 
 INSTALLED_APPS = [
