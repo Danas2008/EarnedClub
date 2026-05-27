@@ -98,7 +98,7 @@ class SubmissionFlowTests(TestCase):
         self.assertRedirects(response, reverse("challenge"))
         submission = Submission.objects.get(name="No Proof")
         self.assertEqual(submission.status, Submission.STATUS_UNVERIFIED)
-        self.assertContains(response, "You are now on the open leaderboard. Add proof to make it official.")
+        self.assertContains(response, "You are now on the open leaderboard. Submit for Official Review to earn official status.")
         self.assertContains(response, "Open Leaderboard")
         self.assertContains(response, "Claim Your Athlete Profile")
 
@@ -129,7 +129,7 @@ class SubmissionFlowTests(TestCase):
         self.assertEqual(submission.reps, 24)
         self.assertEqual(submission.video_link, "")
         self.assertTrue(submission.has_proof)
-        self.assertContains(response, "Your result is pending review. If approved, your official rank will update.")
+        self.assertContains(response, "Official Review started. If approved, your official rank will update.")
 
     def test_challenge_submission_shows_success_message(self):
         Submission.objects.create(
@@ -149,7 +149,7 @@ class SubmissionFlowTests(TestCase):
             follow=True,
         )
 
-        self.assertContains(response, "Your result is pending review. If approved, your official rank will update.")
+        self.assertContains(response, "Official Review started. If approved, your official rank will update.")
 
     def test_leaderboard_shows_all_submissions_with_verification_status(self):
         Submission.objects.create(
@@ -677,7 +677,7 @@ class SubmissionFlowTests(TestCase):
         )
         submission = Submission.objects.get(email="notify@example.com")
 
-        self.assertContains(response, "Your result is pending review. If approved, your official rank will update.")
+        self.assertContains(response, "Official Review started. If approved, your official rank will update.")
         self.assertTrue(
             VerificationEvent.objects.filter(
                 submission=submission,
@@ -710,7 +710,7 @@ class SubmissionFlowTests(TestCase):
         submission = Submission.objects.get(email="copy@example.com")
         self.assertEqual(submission.video_link, "")
         self.assertEqual(submission.status, Submission.STATUS_UNVERIFIED)
-        self.assertContains(response, "You are now on the open leaderboard. Add proof to make it official.")
+        self.assertContains(response, "You are now on the open leaderboard. Submit for Official Review to earn official status.")
 
     def test_honeypot_submission_is_silently_ignored(self):
         response = self.client.post(
@@ -1081,7 +1081,7 @@ class SubmissionFlowTests(TestCase):
         self.assertContains(response, "Add Pull-ups")
         self.assertContains(response, "Add 5K")
         self.assertContains(response, "Hybrid Score Preview")
-        self.assertContains(response, "Make Your Score Official")
+        self.assertContains(response, "Earn Official Status")
         self.assertContains(response, "Claim Your Athlete Profile")
         self.assertContains(response, "Challenge a Friend")
         self.assertContains(response, "See Yourself On The Leaderboard")
@@ -1110,11 +1110,11 @@ class SubmissionFlowTests(TestCase):
         )
 
         submission.refresh_from_db()
-        self.assertContains(get_response, "This adds proof to your existing Push-ups result")
+        self.assertContains(get_response, "Earn official athlete status.")
         self.assertEqual(Submission.objects.filter(name="Proof Session").count(), 1)
         self.assertEqual(submission.status, Submission.STATUS_PENDING)
         self.assertEqual(submission.video_link, "https://example.com/proof")
-        self.assertContains(post_response, "Proof added. This result is now waiting for review.")
+        self.assertContains(post_response, "Official Review started. Your result is now waiting for verification.")
         self.assertContains(post_response, "Pending")
 
     def test_test_session_official_lists_completed_disciplines_and_updates_existing_submission(self):
@@ -1137,13 +1137,13 @@ class SubmissionFlowTests(TestCase):
 
         pushup_submission.refresh_from_db()
         self.assertContains(get_response, "Completed test disciplines")
-        self.assertContains(get_response, "Choose one: paste a proof link or upload a proof file.")
+        self.assertContains(get_response, "Submit Push-ups for official review")
         self.assertContains(get_response, "Push-ups")
         self.assertContains(get_response, "Pull-ups")
         self.assertEqual(Submission.objects.filter(name="Session Proof", discipline=Submission.DISCIPLINE_PUSHUPS).count(), 1)
         self.assertEqual(pushup_submission.status, Submission.STATUS_PENDING)
         self.assertEqual(pushup_submission.video_link, "https://example.com/session-proof")
-        self.assertContains(post_response, "Proof added for Push-ups")
+        self.assertContains(post_response, "Official Review started for Push-ups")
 
     def test_level_test_two_disciplines_average_hybrid_preview(self):
         self.client.post(
@@ -1194,7 +1194,7 @@ class SubmissionFlowTests(TestCase):
         self.assertEqual(submission.status, Submission.STATUS_UNVERIFIED)
         self.assertFalse(submission.has_proof)
         self.assertContains(response, "Your Open Score is saved")
-        self.assertContains(response, "proof needed for open/official eligibility")
+        self.assertContains(response, "official review needed")
         self.assertContains(response, reverse("test_session_official"), html=False)
 
     def test_level_test_share_result_page_shows_breakdown_and_try_cta(self):
@@ -1222,7 +1222,7 @@ class SubmissionFlowTests(TestCase):
         response = self.client.get(reverse("test_submission_proof", args=[submission.id]), follow=True)
 
         self.assertRedirects(response, reverse("level_test"))
-        self.assertContains(response, "Open your own test result before adding proof.")
+        self.assertContains(response, "Open your own test result before starting Official Review.")
 
     def test_level_test_preserves_identity_and_continues_next_discipline(self):
         self.client.post(
@@ -1288,7 +1288,7 @@ class SubmissionFlowTests(TestCase):
         self.assertEqual(response.context["hybrid_summary"]["open_score"], 400)
         self.assertEqual(response.context["hybrid_summary"]["best_discipline"]["working_points"], 600)
         self.assertContains(response, "Open Score Preview")
-        self.assertContains(response, "Make Score Official")
+        self.assertContains(response, "Earn Official Status")
         self.assertNotContains(response, "View Hybrid Rank")
         self.assertContains(response, "3 test result(s) are now saved to your profile")
 
@@ -1349,7 +1349,7 @@ class SubmissionFlowTests(TestCase):
         )
 
         self.assertContains(response, "Your result is now on the open leaderboard")
-        self.assertContains(response, "Make Your Score Official")
+        self.assertContains(response, "Earn Official Status")
         self.assertContains(response, "Claim Your Athlete Profile")
         self.assertContains(response, "Challenge a Friend")
         submission = Submission.objects.get(name="No Email Athlete")
@@ -1366,7 +1366,7 @@ class SubmissionFlowTests(TestCase):
             },
         )
 
-        self.assertContains(response, "need proof before it can appear on the leaderboard")
+        self.assertContains(response, "need Official Review before it can appear on the leaderboard")
         self.assertFalse(Submission.objects.filter(name="Strong Open").exists())
 
     def test_level_test_running_inputs_are_mobile_time_text(self):
@@ -1528,7 +1528,7 @@ class SubmissionFlowTests(TestCase):
 
         self.assertContains(response, "44 reps")
         self.assertContains(response, "Unverified preview")
-        self.assertContains(response, "Not official yet. Add proof to make this count toward Hybrid Score.")
+        self.assertContains(response, "Open Score only. Official Review makes this count toward Hybrid Score.")
         self.assertContains(response, "Preview 510")
         self.assertContains(response, "Hybrid Score")
         self.assertContains(response, '<div class="profile-pr-number">510</div>', html=False)

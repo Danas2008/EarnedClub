@@ -258,7 +258,7 @@
                     <span>{% if hybrid_summary.score %}Verified title{% else %}Open title preview{% endif %}</span>
                     <strong>{% if hybrid_summary.score %}{{ hybrid_summary.rank.name }}{% else %}{{ hybrid_summary.open_rank.name }}{% endif %}</strong>
                 </div>
-                <p class="muted">{% if hybrid_summary.score and hybrid_rank_position %}Hybrid Rank #{{ hybrid_rank_position }}{% elif not hybrid_summary.score %}Not official until verified.{% endif %}</p>
+                <p class="muted">{% if hybrid_summary.score and hybrid_rank_position %}Hybrid Rank #{{ hybrid_rank_position }}{% elif not hybrid_summary.score %}Open athlete. Official status is earned through review.{% endif %}</p>
                 {% if hybrid_summary.open_score and hybrid_summary.score %}
                     <p class="muted">Open Score Preview: {{ hybrid_summary.open_score }}</p>
                 {% endif %}
@@ -288,7 +288,7 @@
                                     Preview: {{ item.preview_submission.display_score }} - {{ item.preview_submission.public_status_label }} - {{ item.preview_points }} pts if verified
                                 </div>
                             {% elif item.preview_submission and not item.submission %}
-                                <div class="submission-meta">Not official yet. Add proof to make this count toward Hybrid Score.</div>
+                                <div class="submission-meta">Open Score only. Official Review makes this count toward Hybrid Score.</div>
                             {% endif %}
                         </div>
                         <div style="text-align: right;">
@@ -313,7 +313,7 @@
 <section class="grid-2 profile-lower-section">
     <div class="card-dark">
         <h2>Hybrid Score Progress</h2>
-        <p class="muted">Open and verified performances show the athlete's progress. Proof turns previews into official status.</p>
+        <p class="muted">Open and verified performances show the athlete's progress. Official Review turns previews into earned status.</p>
         <div class="progress-chart progress-chart-large">
             <svg id="progress-chart" class="chart-area" role="img" aria-label="Athlete Hybrid Score progress chart"></svg>
         </div>

@@ -315,7 +315,7 @@ def needs_proof_before_open_leaderboard(score, discipline):
 
 
 def open_leaderboard_proof_message():
-    return "This result is strong enough to need proof before it can appear on the leaderboard."
+    return "This result is strong enough to need Official Review before it can appear on the leaderboard."
 
 
 def is_submission_visible_on_open_board(submission):
@@ -471,7 +471,7 @@ def build_hybrid_breakdown(user):
             status_label = "Missing"
             rank_label = "No result yet"
         if latest_unverified and latest_unverified.status == Submission.STATUS_UNVERIFIED:
-            action_label = "Add proof"
+            action_label = "Earn official status"
             action_url = f"{reverse('dashboard')}#submissions"
         elif latest_unverified and latest_unverified.status == Submission.STATUS_PENDING:
             action_label = "In review"
@@ -1701,7 +1701,7 @@ def profile_completion_items(user):
 def build_onboarding_checklist(user):
     return [
         {"label": "Run the Hybrid Score check", "done": user.submission_set.exists(), "url": reverse("level_test")},
-        {"label": "Submit proof", "done": user.submission_set.filter(status__in=[Submission.STATUS_PENDING, Submission.STATUS_VERIFIED]).exists(), "url": reverse("challenge")},
+        {"label": "Start Official Review", "done": user.submission_set.filter(status__in=[Submission.STATUS_PENDING, Submission.STATUS_VERIFIED]).exists(), "url": reverse("challenge")},
         {"label": "Create a workout", "done": user.workouts.exists(), "url": reverse("workouts")},
         {"label": "Set a goal", "done": user.goals.exists(), "url": reverse("dashboard")},
         {"label": "Share your profile", "done": bool(user.profile.personal_best_reps), "url": reverse("athlete_profile", args=[user.profile.slug])},
@@ -1712,7 +1712,7 @@ def build_next_action(user):
     if not user.submission_set.exists():
         return {"label": "Submit a performance", "url": reverse("challenge"), "text": "Choose a discipline and start your Hybrid Score."}
     if user.submission_set.filter(status=Submission.STATUS_UNVERIFIED).exists():
-        return {"label": "Add proof", "url": reverse("dashboard"), "text": "Add proof so your performance can be reviewed."}
+        return {"label": "Earn official status", "url": reverse("dashboard"), "text": "Submit proof so your performance can enter Official Review."}
     if not user.workouts.exists():
         return {"label": "Create workout", "url": reverse("workouts"), "text": "Build a training plan for your next verified result."}
     if not user.goals.exists():
@@ -1878,8 +1878,8 @@ def build_dashboard_next_action(user, hybrid_summary):
     unverified = user.submission_set.filter(status=Submission.STATUS_UNVERIFIED).order_by("-created_at").first()
     if unverified:
         return {
-            "label": f"Add proof to {unverified.discipline_label}",
-            "text": f"Proof makes your {unverified.display_score} result count toward official status.",
+            "label": f"Earn official {unverified.discipline_label} status",
+            "text": f"Official Review can turn your {unverified.display_score} Open Score into earned status.",
             "url": reverse("dashboard"),
         }
     missing = next((row for row in hybrid_summary["breakdown"] if not row["submission"]), None)
@@ -2335,7 +2335,7 @@ def level_test(request):
             remember_test_submission(request, active_submission)
             attach_submission_to_room(room, active_submission, build_room_participant_key(request, active_submission))
             request.session["last_test_submission_id"] = active_submission.id
-            messages.info(request, "You are already in. Your recent result is on the open leaderboard.")
+            messages.info(request, "You are already in. Your recent Open Score is on the leaderboard.")
             return redirect(room_link("level_test", room) if room else "level_test")
 
         blocker = find_submission_blocker(request, name, email, score_value, discipline)
@@ -2363,15 +2363,15 @@ def level_test(request):
             "Earned Club submission received",
             (
                 f"Your Earned Club result for {submission.discipline_label} {submission.display_score} is now on the open leaderboard. "
-                "Add proof to make it official."
+                "Submit for Official Review to earn official status."
             ),
             request=request,
         )
         request.session["last_test_submission_id"] = submission.id
         if needs_proof_before_open_leaderboard(score_value, discipline):
-            messages.success(request, "Your Open Score is saved. Add proof to make it visible on the open leaderboard and eligible for official review.")
+            messages.success(request, "Your Open Score is saved. Submit for Official Review to make it visible on the open leaderboard and eligible for earned status.")
         else:
-            messages.success(request, "Your Open Score is live. Add proof to make it official.")
+            messages.success(request, "Your Open Score is live. Submit for Official Review to earn official athlete status.")
         if room:
             messages.info(request, "Your result is now inside the challenge room.")
         return redirect(room_link("level_test", room) if room else "level_test")
@@ -2389,11 +2389,11 @@ def test_submission_proof(request, submission_id):
     submission = get_object_or_404(Submission.objects.select_related("user", "user__profile"), pk=submission_id)
     can_access = submission.id in session_submission_ids or (request.user.is_authenticated and submission.user_id == request.user.id)
     if not can_access:
-        messages.error(request, "Open your own test result before adding proof.")
+        messages.error(request, "Open your own test result before starting Official Review.")
         return redirect(room_link("level_test", room) if room else "level_test")
 
     if submission.status != Submission.STATUS_UNVERIFIED:
-        messages.info(request, "Proof is already attached or this result is already in review.")
+        messages.info(request, "This result is already in Official Review or has already been reviewed.")
         if room:
             return redirect("challenge_room", token=room.token)
         request.session["last_test_submission_id"] = submission.id
@@ -2403,7 +2403,7 @@ def test_submission_proof(request, submission_id):
         proof_link = (request.POST.get("proof_link") or "").strip()
         video_file = request.FILES.get("video_file")
         if not proof_link and not video_file:
-            messages.error(request, "Add a proof link or upload a proof video file.")
+            messages.error(request, "Add one proof link or upload one proof file to start Official Review.")
             return render(request, "test_proof.html", {"submission": submission, "challenge_room": room})
 
         submission.video_link = proof_link
@@ -2424,7 +2424,7 @@ def test_submission_proof(request, submission_id):
         )
         remember_test_submission(request, submission)
         attach_submission_to_room(room, submission, build_room_participant_key(request, submission))
-        messages.success(request, "Proof added. This result is now waiting for review.")
+        messages.success(request, "Official Review started. Your result is now waiting for verification.")
         if room:
             return redirect("challenge_room", token=room.token)
         request.session["last_test_submission_id"] = submission.id
@@ -2437,7 +2437,7 @@ def test_session_official(request):
     room = get_room_from_request(request)
     submissions = get_test_journey_submissions(request)
     if not submissions:
-        messages.error(request, "Complete a test result before adding proof.")
+        messages.error(request, "Complete a test result before starting Official Review.")
         return redirect(room_link("level_test", room) if room else "level_test")
     progress = build_test_progress(request, room=room)
     proof_rows = []
@@ -2462,13 +2462,13 @@ def test_session_official(request):
             messages.error(request, "Choose one of your completed test results.")
             return redirect(room_link("test_session_official", room) if room else "test_session_official")
         if submission.status != Submission.STATUS_UNVERIFIED:
-            messages.info(request, f"{submission.discipline_label} already has proof or is already in review.")
+            messages.info(request, f"{submission.discipline_label} is already in Official Review or has already been reviewed.")
             return redirect(room_link("test_session_official", room) if room else "test_session_official")
 
         proof_link = (request.POST.get("proof_link") or "").strip()
         video_file = request.FILES.get("video_file")
         if not proof_link and not video_file:
-            messages.error(request, "Add a proof link or upload a proof file.")
+            messages.error(request, "Add one proof link or upload one proof file to start Official Review.")
             return render(request, "test_session_official.html", {"proof_rows": proof_rows, "test_progress": progress, "challenge_room": room})
 
         submission.video_link = proof_link
@@ -2489,7 +2489,7 @@ def test_session_official(request):
         )
         remember_test_submission(request, submission)
         attach_submission_to_room(room, submission, build_room_participant_key(request, submission))
-        messages.success(request, f"Proof added for {submission.discipline_label}. This result is now waiting for review.")
+        messages.success(request, f"Official Review started for {submission.discipline_label}.")
         return redirect(room_link("test_session_official", room) if room else "test_session_official")
 
     return render(
@@ -3410,7 +3410,7 @@ def challenge(request):
                 )
                 messages.success(
                     request,
-                    "Your result is pending review. If approved, your official rank will update.",
+                    "Official Review started. If approved, your official rank will update.",
                 )
                 messages.info(request, "Next: open your dashboard, watch review status, and build the next discipline.")
                 attach_submission_to_room(room, active_submission, build_room_participant_key(request, active_submission))
@@ -3421,7 +3421,7 @@ def challenge(request):
 
             messages.error(
                 request,
-                "You already have an active submission. Add proof to your current entry or wait until it is reviewed before submitting again.",
+                "You already have an active submission. Start Official Review for your current entry or wait until it is reviewed before submitting again.",
             )
             context["form_data"] = request.POST
             context["form_score"] = score_raw
@@ -3472,7 +3472,7 @@ def challenge(request):
                 + (
                     f"It is waiting for verification and would currently rank #{estimated_position} if approved."
                     if submission.has_proof else
-                    "Upload proof from your profile dashboard to move it into review."
+                    "Open your profile dashboard to submit for Official Review."
                 )
             ),
             request=request,
@@ -3481,12 +3481,12 @@ def challenge(request):
         messages.success(
             request,
             (
-                "Your result is pending review. If approved, your official rank will update."
+                "Official Review started. If approved, your official rank will update."
                 if submission.has_proof else
-                "You are now on the open leaderboard. Add proof to make it official."
+                "You are now on the open leaderboard. Submit for Official Review to earn official status."
             ),
         )
-        messages.info(request, "Next: open the leaderboard, share your result, or add proof for official status.")
+        messages.info(request, "Next: open the leaderboard, share your result, or start Official Review.")
         attach_submission_to_room(room, submission, build_room_participant_key(request, submission))
         request.session["last_submission_id"] = submission.id
         if room:
@@ -3505,7 +3505,7 @@ def add_submission_proof(request, submission_id):
     proof_link = (request.POST.get("proof_link") or "").strip()
 
     if submission.status != Submission.STATUS_UNVERIFIED:
-        messages.error(request, "Proof can only be added to unverified submissions.")
+        messages.error(request, "Official Review can only be started for unverified submissions.")
         return redirect("dashboard")
 
     if pending_submission_queryset().filter(user=request.user).exclude(pk=submission.pk).exists():
@@ -3513,7 +3513,7 @@ def add_submission_proof(request, submission_id):
         return redirect("dashboard")
 
     if not video_file and not proof_link:
-        messages.error(request, "Add a proof link or upload a proof video file.")
+        messages.error(request, "Add one proof link or upload one proof file to start Official Review.")
         return redirect("dashboard")
 
     submission.video_link = proof_link
@@ -3529,10 +3529,10 @@ def add_submission_proof(request, submission_id):
         VerificationEvent.ACTION_PROOF_ADDED,
         "Proof was added from the dashboard.",
         "Earned Club proof received",
-        f"Your proof for {submission.discipline_label} {submission.display_score} was added. The submission is now waiting for review.",
+        f"Official Review started for {submission.discipline_label} {submission.display_score}. The submission is now waiting for verification.",
         request=request,
     )
-    messages.success(request, "Proof added. Your submission is back in pending review.")
+    messages.success(request, "Official Review started. Your submission is now pending verification.")
     return redirect("dashboard")
 
 

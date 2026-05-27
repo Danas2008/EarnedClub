@@ -30,7 +30,8 @@ Current primary CTA language:
 
 - Homepage primary CTA: "Submit Your Score", pointing to `/test/`.
 - Calculator CTA: "Estimate Hybrid Score".
-- Official submission CTA: "Submit Official Performance" or "Submit Your Score".
+- Official status CTA: "Earn Official Status" or "Submit For Official Review".
+- Submission CTA: "Submit Your Score".
 - QR, TikTok, Instagram, sticker, and short-link traffic should point to `/test/` unless there is a specific campaign reason not to.
 
 ## Tech Stack
@@ -124,6 +125,7 @@ Important behavior:
 - New submissions with proof become `pending` unless explicitly verified.
 - Verified submissions set `verified=True`.
 - Pending submissions without proof are forced back to `unverified`.
+- User-facing proof flows should feel like the identity transition from Open Score to Official Review to Official Athlete, not like a plain upload utility.
 - Saving a submission refreshes affected profile stats, Hybrid Score context, and official ranks.
 - `proof_url` returns a Supabase signed URL, local file URL, or plain proof link depending on storage/source.
 - Rep-based disciplines rank higher values above lower values.
@@ -641,6 +643,7 @@ SEO checks:
 - Do not treat unverified submissions as official rank.
 - Do not award official profile status from pending or rejected submissions.
 - Do not count unverified or pending submissions toward official Hybrid Score.
+- Keep the user-facing identity transition clear: Open Score is visible momentum, Official Review is the earned-status gate, and Official Athlete/Official Score comes only after verification.
 - Do not apply push-up rank tiers blindly to pull-ups or running disciplines.
 - Do not allow time-based running submissions below configured world-record benchmarks.
 - Do require proof for elite-level running and pull-up submissions.
@@ -776,6 +779,15 @@ Note: the newest entry is authoritative for current product direction. Older ent
 - Updated default and Render `SITE_URL` to `https://www.earnedclub.club` so sitemap `<loc>` entries, robots.txt, canonical links, and structured data use the final canonical host.
 - Updated README, project plan, and sitemap/robots regression expectations to use the `www` sitemap URL.
 - Search Console should submit `https://www.earnedclub.club/sitemap.xml`; the old `Nelze nacist` row dated 2026-05-06 may need a manual resubmit or deletion/re-add in Search Console after deployment.
+
+### 2026-05-27 Official status UX update
+
+- Reframed proof actions as an identity transition: Open Score -> Official Review -> Official Athlete.
+- Reworked `/test/submissions/<id>/proof/` into an official-status page with a three-step path, result summary, and "Submit For Official Review" CTA.
+- Reworked `/test/official/` copy and layout to make completed test disciplines feel like candidates for Official Review rather than rows needing an upload.
+- Updated `/test/`, `/challenge/`, dashboard, public profile, homepage, and calculator language to prefer "Earn Official Status" and "Official Review" over generic "Add proof" or "upload proof" language.
+- Dashboard submission history now presents unverified results as Open Score only, pending results as Official Review pending, and verified results as official athlete status earned.
+- Public profiles now explain that Open Score previews become official through review, while official Hybrid Score remains verified-only.
 
 ### 2026-05-22 sticker/TikTok campaign retention flow
 

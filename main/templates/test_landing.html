@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 
 {% block title %}Performance Test{% endblock %}
-{% block meta_description %}Choose your strongest discipline, post your result to the open leaderboard, and add proof to make it official.{% endblock %}
+{% block meta_description %}Choose your strongest discipline, post your result to the open leaderboard, and start Official Review to earn official status.{% endblock %}
 
 {% block content %}
 <style>
@@ -423,7 +423,7 @@
                             <span class="kicker">Open Score</span>
                             <div class="preview-score">{{ test_progress.open_score }}</div>
                             <p class="muted">
-                                Your Open Score is live. Add proof to make it official. Official Hybrid Score uses verified results only.
+                                Your Open Score starts the story. Official Review turns it into earned athlete status.
                             </p>
                         </div>
                     </div>
@@ -451,7 +451,7 @@
                                         <div class="submission-name">{{ row.discipline.short_label }}</div>
                                         <div class="submission-meta">
                                             {% if row.done %}
-                                                Done - {{ row.submission.display_score }} - {{ row.submission.hybrid_points }} pts{% if row.needs_proof %} - proof needed for open/official eligibility{% endif %}
+                                                Done - {{ row.submission.display_score }} - {{ row.submission.hybrid_points }} pts{% if row.needs_proof %} - official review needed{% endif %}
                                             {% else %}
                                                 Next step for a fuller Hybrid Score
                                             {% endif %}
@@ -464,7 +464,7 @@
                     </div>
                     <div class="hero-actions">
                         <a class="btn-main" href="{{ test_submission_success.register_url }}">Claim Your Athlete Profile</a>
-                        <a class="btn-secondary" href="{{ test_submission_success.proof_url }}">Make Your Score Official</a>
+                        <a class="btn-secondary" href="{{ test_submission_success.proof_url }}">Earn Official Status</a>
                         <button class="btn-secondary" type="button" data-share-text="{{ test_submission_success.share_text }}">Challenge a Friend</button>
                         <a class="btn-secondary" href="{{ test_submission_success.leaderboard_url }}">See Yourself On The Leaderboard</a>
                         {% if challenge_room %}<a class="btn-secondary" href="{% url 'challenge_room' challenge_room.token %}">Back To Challenge Room</a>{% endif %}

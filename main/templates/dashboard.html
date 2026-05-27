@@ -425,12 +425,12 @@
         <div class="dashboard-next-action">
             <div>
                 <span class="kicker">Next move</span>
-                <strong>{% if hybrid_summary.open_score and not hybrid_summary.score %}Make this score official{% elif hybrid_summary.score %}{{ improvement_recommendation.label }}{% else %}Start your Hybrid Score{% endif %}</strong>
-                <p class="muted">{% if hybrid_summary.open_score and not hybrid_summary.score %}Proof turns the open preview into earned status and gives the account a real official score.{% elif hybrid_summary.score %}{{ improvement_recommendation.text }}{% else %}Submit one discipline now. Add the other lanes when you are ready.{% endif %}</p>
+                <strong>{% if hybrid_summary.open_score and not hybrid_summary.score %}Earn official athlete status{% elif hybrid_summary.score %}{{ improvement_recommendation.label }}{% else %}Start your Hybrid Score{% endif %}</strong>
+                <p class="muted">{% if hybrid_summary.open_score and not hybrid_summary.score %}Your Open Score is claimed. Official Review turns it into trusted rank, badges, and official Hybrid Score.{% elif hybrid_summary.score %}{{ improvement_recommendation.text }}{% else %}Submit one discipline now. Add the other lanes when you are ready.{% endif %}</p>
             </div>
             <div class="dashboard-status-actions">
                 {% if hybrid_summary.open_score and not hybrid_summary.score %}
-                    <a class="btn-main" href="#hybrid-breakdown">Make Score Official</a>
+                    <a class="btn-main" href="#submissions">Earn Official Status</a>
                     {% if hybrid_summary.open_count < hybrid_summary.max_disciplines %}
                         <a class="btn-secondary" href="{% url 'challenge' %}#submit-form-top">Add Result</a>
                     {% else %}
@@ -463,7 +463,7 @@
         </div>
         <div>
             <p class="muted">Official score uses verified performances. Earned status, not claimed stats.</p>
-            <p class="muted">{% if hybrid_summary.score %}Discipline titles stay yours. Adding disciplines builds completion.{% else %}Your dashboard works with Open Scores now. Add proof to turn this into earned status.{% endif %}</p>
+            <p class="muted">{% if hybrid_summary.score %}Discipline titles stay yours. Adding disciplines builds completion.{% else %}Your dashboard works with Open Scores now. Submit proof for Official Review to earn trusted athlete status.{% endif %}</p>
         </div>
         <div class="dashboard-discipline-strip">
             {% for item in hybrid_summary.breakdown %}
@@ -799,22 +799,22 @@
 </section>
 
 <section class="card-dark" id="submissions">
-        <h2>Submissions</h2>
+        <h2>Official Status</h2>
     {% for submission in history_submissions %}
         <div class="athlete-row">
             <span class="status-pill {{ submission.status }}">{{ submission.public_status_label }}</span>
             <div class="row-title">
                 <div class="submission-name">{{ submission.discipline_label }} - {{ submission.display_score }}</div>
-                <div class="submission-meta">{{ submission.rank_name }}{% if submission.status == "verified" %} - {{ submission.hybrid_points }} pts{% endif %}{% if submission.has_proof %} - Proof attached{% else %} - Proof missing{% endif %}</div>
+                <div class="submission-meta">{{ submission.rank_name }}{% if submission.status == "verified" %} - {{ submission.hybrid_points }} pts - Official athlete status earned{% elif submission.status == "pending" %} - Official Review pending{% else %} - Open Score only{% endif %}</div>
                 {% if submission.status == "unverified" %}
                     <details class="score-details" style="margin-top: 10px;">
-                        <summary>Add proof</summary>
+                        <summary>Earn Official Status</summary>
                         <form class="submission-form" method="POST" action="{% url 'add_submission_proof' submission.id %}" enctype="multipart/form-data" style="margin-top: 12px;">
                             {% csrf_token %}
                             <input class="input" type="url" name="proof_link" placeholder="{% if submission.is_time_based %}Race or Strava result link{% else %}Proof link{% endif %}">
-                            <div class="hint">Choose one: paste a proof link or upload a proof file.</div>
+                            <div class="hint">Submit one clear proof source to start Official Review.</div>
                             <input class="input" type="file" name="video_file" accept="video/*,image/*">
-                            <button class="btn-main" type="submit">Submit Proof</button>
+                            <button class="btn-main" type="submit">Submit For Official Review</button>
                         </form>
                     </details>
                 {% endif %}

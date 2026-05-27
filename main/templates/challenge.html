@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 
 {% block title %}Submit Performance - Earned Club{% endblock %}
-{% block meta_description %}Submit your best performance to Earned Club, add proof, and earn a verified public leaderboard rank.{% endblock %}
+{% block meta_description %}Submit your best performance to Earned Club, start Official Review, and earn a verified public leaderboard rank.{% endblock %}
 
 {% block content %}
 <section class="hero-card" style="margin-bottom: 24px;">
@@ -13,7 +13,7 @@
                 Get ranked. Prove it.
             </p>
             <p>
-                {% if challenge_room %}Submitting into {{ challenge_room.display_title }}. The room link stays attached to this result.{% else %}Choose your leaderboard, submit your best performance, and earn verified rank. Proof is optional for most results, but proof makes it official.{% endif %}
+                {% if challenge_room %}Submitting into {{ challenge_room.display_title }}. The room link stays attached to this result.{% else %}Choose your leaderboard, submit your best performance, and earn verified rank. Proof is optional for most results, but Official Review is what makes status earned.{% endif %}
             </p>
             <div class="button-row">
                 <a class="btn-main" href="#submit-form-top">Submit Official Result</a>
@@ -41,7 +41,7 @@
                     <span class="status-pill {{ submission_success.submission.status }}">{{ submission_success.submission.public_status_label }}</span>
                     <h2 style="margin-top: 14px;">
                         {% if submission_success.is_official_pending %}
-                            Proof received. You are in review.
+                            Official Review started.
                         {% else %}
                             Your result is now on the open leaderboard.
                         {% endif %}
@@ -49,9 +49,9 @@
                     <p class="muted">
                         {{ submission_success.submission.discipline_label }} - {{ submission_success.submission.display_score }}.
                         {% if submission_success.is_official_pending %}
-                            If approved, this result becomes official and updates your verified rank.
+                            If approved, this result becomes official and updates your verified rank, badges, and athlete status.
                         {% else %}
-                            Your result is live on the open leaderboard. Claim your athlete profile to save it and make it official, or challenge someone to beat it.
+                            Your result is live on the open leaderboard. Claim your athlete profile, then submit for Official Review to earn trusted status.
                         {% endif %}
                     </p>
                     <div class="stat-grid" style="margin-top: 14px;">
@@ -63,7 +63,7 @@
                         <div class="stat-card">
                             <span class="kicker">Status</span>
                             <span class="stat-value" style="font-size: 1.25rem;">{{ submission_success.submission.public_status_label }}</span>
-                            <div class="muted">Proof makes it official.</div>
+                            <div class="muted">Review makes it official.</div>
                         </div>
                         <div class="stat-card">
                             <span class="kicker">Points</span>
@@ -75,12 +75,12 @@
                         {% if submission_success.is_official_pending %}
                             <a class="btn-main" href="{{ submission_success.leaderboard_url }}">Open Leaderboard</a>
                         {% else %}
-                            <a class="btn-main" href="{{ submission_success.proof_url }}">Make Your Score Official</a>
+                            <a class="btn-main" href="{{ submission_success.proof_url }}">Earn Official Status</a>
                         {% endif %}
                         {% if submission_success.profile_url %}
                             <a class="btn-secondary" href="{{ submission_success.profile_url }}">View Profile</a>
                             {% if submission_success.is_official_pending %}
-                                <a class="btn-secondary" href="{{ submission_success.proof_url }}">Add Proof</a>
+                                <a class="btn-secondary" href="{{ submission_success.proof_url }}">Official Review</a>
                             {% endif %}
                         {% else %}
                             <a class="btn-secondary" href="{{ submission_success.register_url }}">Claim Your Athlete Profile</a>
@@ -108,7 +108,7 @@
                         <span class="status-pill {{ active_submission.status }}">{{ active_submission.public_status_label }}</span>
                         <p class="muted" style="margin: 12px 0 0;">
                             {% if active_submission.status == "unverified" %}
-                                You already have an unverified {{ active_submission.discipline_label }} submission without proof. Open your dashboard and add proof.
+                                You already have an Open Score for {{ active_submission.discipline_label }}. Open your dashboard and submit it for Official Review.
                             {% else %}
                                 You already have a {{ active_submission.discipline_label }} submission waiting for verification. Please wait until it is reviewed before submitting again.
                             {% endif %}
@@ -229,8 +229,8 @@
                     <div class="step-item">
                         <span class="step-number">3</span>
                         <div>
-                            <strong>Add proof to get verified</strong>
-                            <div class="muted">Proof moves your result into review.</div>
+                            <strong>Start Official Review</strong>
+                            <div class="muted">Proof moves your result into earned-status review.</div>
                         </div>
                     </div>
                     <div class="step-item">

@@ -341,7 +341,7 @@
             resultValue.textContent = score;
             resultRank.textContent = rank.name;
             resultRank.className = `tag-pill rank-pill rank-${rank.intensity}`;
-            resultDetail.textContent = `${rank.name} from ${scores.length} discipline sliders. Verified submissions make it official.`;
+            resultDetail.textContent = `${rank.name} from ${scores.length} discipline sliders. Official Review turns verified submissions into earned status.`;
             return;
         }
         const points = scorePoints(mode, values[mode]);
