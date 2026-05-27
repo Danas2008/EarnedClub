@@ -239,9 +239,45 @@
         line-height: 1.15;
     }
 
+    .next-discipline-cta {
+        position: relative;
+        overflow: hidden;
+        border-color: rgba(247, 183, 51, .26);
+        animation: softNudge 2.8s ease-in-out infinite;
+    }
+
+    .next-discipline-cta::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        transform: translateX(-120%);
+        background: linear-gradient(90deg, transparent, rgba(247, 183, 51, .16), transparent);
+        animation: ctaSweep 3.4s ease-in-out infinite;
+        pointer-events: none;
+    }
+
     @keyframes testStep {
         from { opacity: 0; transform: translateY(10px); }
         to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes softNudge {
+        0%, 76%, 100% { transform: translateY(0); }
+        82% { transform: translateY(-2px); }
+        88% { transform: translateY(0); }
+        94% { transform: translateY(-1px); }
+    }
+
+    @keyframes ctaSweep {
+        0%, 64% { transform: translateX(-120%); }
+        100% { transform: translateX(120%); }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .next-discipline-cta,
+        .next-discipline-cta::after {
+            animation: none;
+        }
     }
 
     .hero-actions form {
@@ -281,9 +317,9 @@
             <div class="test-progress" aria-hidden="true"><span data-progress></span></div>
 
             <div class="test-step{% if not test_submission_success %} is-active{% endif %}" data-step="0">
-                <div class="eyebrow">Step 1 / 5</div>
+                <div class="eyebrow">What's your Hybrid Score?</div>
                 <div>
-                    <h1>{% if challenge_room and not challenge_room.is_hybrid %}{{ challenge_room.focus_label }} challenge result{% else %}What is your strongest discipline?{% endif %}</h1>
+                    <h1>{% if challenge_room and not challenge_room.is_hybrid %}{{ challenge_room.focus_label }} challenge result{% else %}Choose your first discipline.{% endif %}</h1>
                     <p class="muted">{% if challenge_room %}You are joining {{ challenge_room.display_title }}. The room context stays attached to this result.{% else %}Pick the one you want posted to the leaderboard first.{% endif %}</p>
                 </div>
                 <div class="test-options">
@@ -299,10 +335,11 @@
             </div>
 
             <div class="test-step" data-step="1">
-                <div class="eyebrow">Step 2 / 5</div>
+                <div class="eyebrow">Step 2 / 4</div>
                 <div>
                     <h1 data-result-title>Your best result?</h1>
                     <p class="muted" data-result-help>Enter max clean reps.</p>
+                    <p class="muted">Real leaderboard edge: completing Push-ups, Pull-ups, and 5K gives you a fuller Hybrid Score than athletes with only one result.</p>
                     {% if has_saved_test_identity %}
                         <p class="muted">Continuing as {% if test_identity.name %}{{ test_identity.name }}{% else %}{{ request.user.profile.display_name }}{% endif %}. We will reuse your saved details for this result.</p>
                     {% endif %}
@@ -316,7 +353,7 @@
             </div>
 
             <div class="test-step" data-step="2">
-                <div class="eyebrow">Step 3 / 5</div>
+                <div class="eyebrow">Step 3 / 4</div>
                 <h1>What should we call you?</h1>
                 <p class="muted">{% if request.user.is_authenticated %}We will use your profile name unless you enter a different one.{% else %}Required so your leaderboard entry has a real name attached.{% endif %}</p>
                 <input id="test-name" class="input test-input" type="text" placeholder="Daniel" value="{{ test_identity.name }}" {% if not request.user.is_authenticated %}required{% endif %}>
@@ -328,19 +365,7 @@
             </div>
 
             <div class="test-step" data-step="3">
-                <div class="eyebrow">Step 4 / 5</div>
-                <h1>How old are you?</h1>
-                <p class="muted">Optional. You can skip this and keep moving.</p>
-                <input id="test-age" class="input test-input" type="number" min="13" max="100" inputmode="numeric" placeholder="18" value="{{ test_identity.age }}">
-                <div class="button-row">
-                    <button class="btn-main" type="button" data-next>Continue</button>
-                    <button class="btn-secondary" type="button" data-skip-age>Skip Age</button>
-                    <button class="btn-secondary" type="button" data-back>Back</button>
-                </div>
-            </div>
-
-            <div class="test-step" data-step="4">
-                <div class="eyebrow">Step 5 / 5</div>
+                <div class="eyebrow">Step 4 / 4</div>
                 <h1>Where should we send your result?</h1>
                 <p class="muted">Email is optional. Your result still posts to the open leaderboard after the final step.</p>
                 <input id="test-email" class="input test-input" type="email" placeholder="you@example.com" value="{{ test_identity.email }}">
@@ -351,7 +376,7 @@
                 </div>
             </div>
 
-            <div class="test-step{% if test_submission_success %} is-active{% endif %}" data-step="5">
+            <div class="test-step{% if test_submission_success %} is-active{% endif %}" data-step="4">
                 {% if test_submission_success %}
                     <div class="eyebrow">{% if test_progress.is_full_hybrid %}Full Hybrid Score completed{% else %}You're in!{% endif %}</div>
                     <div class="preview-card">
@@ -399,7 +424,6 @@
                             <div class="preview-score">{{ test_progress.open_score }}</div>
                             <p class="muted">
                                 Your Open Score is live. Add proof to make it official. Official Hybrid Score uses verified results only.
-                                {% if test_submission_success.is_founding_entry %}Founding athlete: this is one of the first 100 Earned Club entries.{% endif %}
                             </p>
                         </div>
                     </div>
@@ -433,7 +457,7 @@
                                             {% endif %}
                                         </div>
                                     </div>
-                                    {% if not row.done %}<a class="btn-secondary" href="{{ row.url }}">{{ row.cta_label }}</a>{% else %}<span class="status-pill {{ row.submission.status }}">{{ row.submission.public_status_label }}</span>{% endif %}
+                                    {% if not row.done %}<a class="btn-secondary next-discipline-cta" href="{{ row.url }}">{{ row.cta_label }}</a>{% else %}<span class="status-pill {{ row.submission.status }}">{{ row.submission.public_status_label }}</span>{% endif %}
                                 </div>
                             {% endfor %}
                         </div>
@@ -461,7 +485,7 @@
     <input type="hidden" name="discipline" id="submit-discipline">
     <input type="hidden" name="score" id="submit-score">
     <input type="hidden" name="name" id="submit-name">
-    <input type="hidden" name="age" id="submit-age">
+    <input type="hidden" name="age" id="submit-age" value="">
     <input type="hidden" name="email" id="submit-email">
     {% if challenge_room %}<input type="hidden" name="room" value="{{ challenge_room.token }}">{% endif %}
 </form>
@@ -477,7 +501,8 @@
     const progress = document.querySelector("[data-progress]");
     const requiresName = {% if request.user.is_authenticated %}false{% else %}true{% endif %};
     const hasSavedIdentity = {% if has_saved_test_identity %}true{% else %}false{% endif %};
-    const initialStep = {% if test_submission_success %}5{% else %}0{% endif %};
+    const finalStep = 4;
+    const initialStep = {% if test_submission_success %}finalStep{% else %}0{% endif %};
     const disciplineLabels = {
         pushups: { label: "Push-ups", unit: "reps", placeholder: "42", help: "Enter max clean reps.", hint: "Higher reps rank higher." },
         pullups: { label: "Pull-ups", unit: "reps", placeholder: "12", help: "Enter max clean reps.", hint: "Higher reps rank higher." },
@@ -492,7 +517,7 @@
     function showStep(index) {
         active = index;
         steps.forEach((step) => step.classList.toggle("is-active", parseInt(step.dataset.step, 10) === index));
-        progress.style.width = `${Math.min(100, (index / 5) * 100)}%`;
+        progress.style.width = `${Math.min(100, (index / finalStep) * 100)}%`;
         if (index === 1) syncResultInput();
     }
 
@@ -580,7 +605,6 @@
         if (!result) return;
         if (!nameIsValid()) return;
         const name = document.getElementById("test-name").value.trim();
-        const age = document.getElementById("test-age").value.trim();
         const email = document.getElementById("test-email").value.trim();
 
         const params = new URLSearchParams();
@@ -591,7 +615,7 @@
         document.getElementById("submit-discipline").value = result.discipline;
         document.getElementById("submit-score").value = result.rawResult;
         document.getElementById("submit-name").value = name;
-        document.getElementById("submit-age").value = age;
+        document.getElementById("submit-age").value = "";
         document.getElementById("submit-email").value = email;
         document.getElementById("submit-performance-form").submit();
     }
@@ -605,13 +629,9 @@
             }
         }
         if (active === 2 && !nameIsValid()) return;
-        showStep(Math.min(4, active + 1));
+        showStep(Math.min(3, active + 1));
     }));
     document.querySelectorAll("[data-back]").forEach((button) => button.addEventListener("click", () => showStep(Math.max(0, active - 1))));
-    document.querySelector("[data-skip-age]")?.addEventListener("click", () => {
-        document.getElementById("test-age").value = "";
-        showStep(4);
-    });
     document.querySelector("[data-reveal]")?.addEventListener("click", reveal);
     document.querySelector("[data-skip-email]")?.addEventListener("click", () => {
         document.getElementById("test-email").value = "";
@@ -634,7 +654,7 @@
         field.addEventListener("keydown", (event) => {
             if (event.key !== "Enter") return;
             event.preventDefault();
-            if (active >= 4) reveal();
+            if (active >= 3) reveal();
             else if (active === 1 && resultValueOrNull() && hasSavedIdentity) reveal();
             else if (active === 2 && !nameIsValid()) return;
             else if (active !== 1 || resultValueOrNull()) showStep(active + 1);
@@ -644,6 +664,6 @@
         if (disciplineLabels[selectedDiscipline()].unit !== "time") return;
         event.target.value = event.target.value.replace(/^(\d+)\.(\d+)$/, "$1:$2");
     });
-    showStep({% if test_submission_success %}5{% elif active_discipline_key != "pushups" %}1{% else %}0{% endif %});
+    showStep({% if test_submission_success %}finalStep{% elif active_discipline_key != "pushups" %}1{% else %}0{% endif %});
 </script>
 {% endblock %}

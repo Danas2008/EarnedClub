@@ -4,6 +4,12 @@ This document is the shared project map for Earned Club. Use it at the start of 
 
 Keep this file current. Any meaningful product, route, model, scoring, verification, dashboard/profile, homepage, onboarding, deployment, or email-system change should update this plan in the same working session before the change is considered finished.
 
+## Project Memory Protocol
+
+Future agent sessions should read this file before making code, design, documentation, deployment, or test changes. The repository root `AGENTS.md` repeats that rule so Codex-style tools have a short local instruction file to discover automatically.
+
+When a meaningful change affects product behavior, routes, models, scoring, verification, dashboard/profile, homepage, onboarding, deployment, email, admin workflows, SEO, or tests, update this plan in the same working session. If no plan update is needed for a task, state that explicitly in the final response.
+
 ## Product Summary
 
 Earned Club is a Django fitness web app built around one core promise: athletes earn public status by proving real performance.
@@ -342,7 +348,7 @@ Important distinction:
 
 1. Lands on home page.
 2. Uses the primary "Submit Your Score" CTA into the fast `/test/` funnel.
-3. Chooses strongest discipline, enters result, name/age, optionally skips email, and cannot continue past the result step without a valid score/time.
+3. Chooses strongest discipline, enters result, enters a leaderboard name, optionally skips email, and cannot continue past the result step without a valid score/time.
 4. Finishes `/test/`, which posts the result to the open leaderboard immediately as unverified.
 5. Lands on the final "You're in!" result screen, with make-it-official proof, profile creation, native share/challenge, and leaderboard CTAs.
 6. Can register/login and connect activity to a profile.
@@ -444,7 +450,7 @@ Main templates:
 
 - `base.html`: shared layout.
 - `home.html`: first public page centered on Hybrid Score, proof, rank tiers, and the primary "Submit Your Score" CTA.
-- `test_landing.html`: fast onboarding funnel: choose strongest discipline, enter result, enter name/age, optionally skip email, then show an unverified preview card.
+- `test_landing.html`: fast onboarding funnel: "What's your Hybrid Score?", choose first discipline, enter result, enter name, optionally skip email, then show an unverified preview card. The age field is intentionally parked for a later version; the backend/session field still exists, but the launch UI does not ask for age.
 - `test_proof.html`: proof upload/link page for a session-known `/test/` submission; updates the existing result and sends it to review.
 - `test_session_official.html`: lists completed `/test/` session disciplines and allows adding proof to each existing result.
 - `test_result_share.html`: social-friendly public result summary for challenging friends to beat a test-session Hybrid Score preview.
@@ -771,6 +777,26 @@ Note: the newest entry is authoritative for current product direction. Older ent
 - Updated README, project plan, and sitemap/robots regression expectations to use the `www` sitemap URL.
 - Search Console should submit `https://www.earnedclub.club/sitemap.xml`; the old `Nelze nacist` row dated 2026-05-06 may need a manual resubmit or deletion/re-add in Search Console after deployment.
 
+### 2026-05-22 sticker/TikTok campaign retention flow
+
+- Reworked `/test/` into a four-step campaign funnel: "What's your Hybrid Score?", choose first discipline, enter the result, enter leaderboard name, optionally enter/skip email, then post the result.
+- Parked the visible age step for launch while leaving the existing backend/session age field in place so age can return later without a schema change.
+- Added real result-step guidance that completing Push-ups, Pull-ups, and 5K creates a fuller Hybrid Score than a one-discipline entry, avoiding unsupported top-10 promises.
+- Post-result `/test/` completion rows now give missing disciplines a subtle attention nudge so athletes are encouraged to add Pull-ups and 5K before leaving.
+- `/test/official/` now makes the proof choice explicit: paste a link or upload a file. Its completed-discipline rows use a mobile-safe layout so status labels do not slide off screen.
+- Shared test-result pages now remove the duplicate "Beat This Score" CTA, keep "Try It Yourself" and "View Hybrid Leaderboard", add "See The Tiers", and place CTAs at the bottom of the preview card with a mobile-first score layout.
+- Founding athlete language is now limited to the public profile badge/card. Leaderboard, challenge success, and `/test/` result surfaces no longer repeat the founding label.
+- Claiming a profile after a session-based `/test/` journey now renames attached submissions to the account/profile display name, so leaderboard and profile identity follow the claimed account rather than the temporary `/test/` name.
+- Dashboard and public profile cards now use Open Score Preview data for best discipline, weakest discipline, completion, rank styling, breakdown, and progress when a user has not yet verified results. Official Hybrid Score remains verified-only, and proof remains the primary path from open preview to earned status.
+- Hybrid titles on dashboard/profile are shown as colored badge-like rank heroes instead of plain text labels.
+- Dashboard top hero now behaves more like an athlete command card: identity, score state, rank badge, discipline points, insights, and next move are grouped together. The old "View Hybrid Rank" top CTA was removed in favor of contextual actions such as "Make Score Official", "Complete Score", "Improve Weakest", or "Submit First Result".
+
+### 2026-05-22 project memory protocol
+
+- Added root `AGENTS.md` instructions requiring future agent sessions to read `docs/earned-plan.md` before making changes.
+- Made the project plan maintenance rule explicit inside this document: meaningful product, route, model, scoring, verification, dashboard/profile, homepage, onboarding, deployment, email, admin, SEO, or test changes should update this plan in the same working session.
+- Future final responses should call out when no plan update was needed.
+
 ### 2026-05-21 legal launch readiness update
 
 - Reworked `/privacy/` into a production-ready startup-level privacy policy for accounts, athlete profiles, submitted performances, proof uploads, public leaderboard/profile data, cookies/session data, technical/server data, deletion requests, and under-13 age guidance.
@@ -826,7 +852,7 @@ Note: the newest entry is authoritative for current product direction. Older ent
 - Hybrid Leaderboard now behaves as an open leaderboard by including verified, pending, and unverified athletes instead of only verified official rankings.
 - Leaderboard rows now keep neutral black/grey bodies; score intensity appears only through a small left-side fill meter.
 - Hybrid Leaderboard rows now use the same table structure as discipline leaderboards: discipline, athlete, score, rank, status, and position.
-- Hybrid Leaderboard status labels use Official or Unofficial; Founding athlete appears under the status label.
+- Superseded by the 2026-05-22 campaign retention update: Hybrid Leaderboard status labels use Official or Unofficial; Founding athlete no longer appears on leaderboard rows and is limited to the public profile badge/card.
 - Leaderboard row bodies should stay neutral black/grey; rank intensity is shown as a small left-side vertical fill meter that grows upward by score tier.
 - Hybrid Leaderboard uses the same mode controls as discipline leaderboards: Open Board, Verified Only, This Week, This Month, Pending, and Unverified.
 - Admin review now defaults the status filter to All.
@@ -844,7 +870,7 @@ Note: the newest entry is authoritative for current product direction. Older ent
 - Homepage first section desktop layout keeps the Hybrid Score preview attached to the main hero copy instead of drifting into a detached right-side block.
 - The homepage score card now presents an example official athlete rating and links down to rank tiers instead of duplicating the submission CTA.
 - Header logo was replaced with the new Earned Club wordmark image at `main/static/Earned_Club_wthBG.png`; duplicate navbar brand copy is hidden.
-- `/test/` is now a fast onboarding-style funnel: choose strongest discipline, enter reps/time, enter name and age, optionally skip email, then see an unverified athlete preview.
+- Superseded by the 2026-05-22 campaign retention update: `/test/` is now a fast onboarding-style funnel without the visible age step.
 - `/test/` preview now makes "Submit Your Score" the primary conversion action into `/challenge/`, with profile creation secondary.
 - `/test/` final result is mandatory rather than an optional preview; submitting it posts the score to the open leaderboard directly from `/test/`.
 - `/test/` Step 1 headline is "What is your strongest discipline?" while keeping push-ups, pull-ups, 5K, and 10K as choices.

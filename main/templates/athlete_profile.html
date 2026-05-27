@@ -3,7 +3,7 @@
 {% block title %}{{ profile.display_name }} - Earned Club Athlete{% endblock %}
 {% block meta_description %}{{ profile_description }} View Hybrid Score, verified discipline breakdown, current rank, and public progress tracking on Earned Club.{% endblock %}
 {% block og_type %}profile{% endblock %}
-{% block og_title %}{{ profile.display_name }} - Hybrid Score {{ hybrid_summary.score }}{% endblock %}
+{% block og_title %}{{ profile.display_name }} - Hybrid Score {% if hybrid_summary.score %}{{ hybrid_summary.score }}{% else %}{{ hybrid_summary.open_score }}{% endif %}{% endblock %}
 {% block og_description %}{{ profile_description }}{% endblock %}
 {% block og_image %}{% if profile_og_image %}{{ profile_og_image }}{% else %}{{ og_image_url }}{% endif %}{% endblock %}
 {% block twitter_title %}{{ profile.display_name }} - Earned Club Athlete{% endblock %}
@@ -66,6 +66,12 @@
             rgba(255, 255, 255, 0.04);
         border: 1px solid rgba(255, 255, 255, 0.09);
     }
+
+    .profile-status-card[data-intensity="beginner"] { border-color: rgba(148, 163, 184, .22); }
+    .profile-status-card[data-intensity="intermediate"] { border-color: rgba(59, 130, 246, .28); background: linear-gradient(135deg, rgba(59, 130, 246, .12), rgba(255, 255, 255, 0.04)); }
+    .profile-status-card[data-intensity="advanced"] { border-color: rgba(247, 183, 51, .32); }
+    .profile-status-card[data-intensity="elite"] { border-color: rgba(252, 74, 26, .34); background: linear-gradient(135deg, rgba(252, 74, 26, .13), rgba(255, 255, 255, 0.04)); }
+    .profile-status-card[data-intensity="legend"] { border-color: rgba(30, 157, 116, .36); background: linear-gradient(135deg, rgba(30, 157, 116, .14), rgba(255, 255, 255, 0.04)); }
 
     .profile-pr-number {
         font-family: "Archivo", sans-serif;
@@ -244,17 +250,15 @@
             </div>
         </div>
 
-        <aside class="profile-status-card">
+        <aside class="profile-status-card" data-intensity="{% if hybrid_summary.score %}{{ hybrid_summary.rank.intensity }}{% else %}{{ hybrid_summary.open_rank.intensity }}{% endif %}">
             <div>
                 <span class="kicker">{% if hybrid_summary.score %}Official Hybrid Score{% else %}Open Score Preview{% endif %}</span>
                 <div class="profile-pr-number">{% if hybrid_summary.score %}{{ hybrid_summary.score }}{% else %}{{ hybrid_summary.open_score }}{% endif %}</div>
-                <p class="muted">
-                    {% if hybrid_summary.score %}
-                        {{ hybrid_summary.rank.name }}{% if hybrid_rank_position %} - Hybrid Rank #{{ hybrid_rank_position }}{% endif %}
-                    {% else %}
-                        {{ hybrid_summary.open_rank.name }} - not official until verified
-                    {% endif %}
-                </p>
+                <div class="rank-hero-badge rank-{% if hybrid_summary.score %}{{ hybrid_summary.rank.intensity }}{% else %}{{ hybrid_summary.open_rank.intensity }}{% endif %}">
+                    <span>{% if hybrid_summary.score %}Verified title{% else %}Open title preview{% endif %}</span>
+                    <strong>{% if hybrid_summary.score %}{{ hybrid_summary.rank.name }}{% else %}{{ hybrid_summary.open_rank.name }}{% endif %}</strong>
+                </div>
+                <p class="muted">{% if hybrid_summary.score and hybrid_rank_position %}Hybrid Rank #{{ hybrid_rank_position }}{% elif not hybrid_summary.score %}Not official until verified.{% endif %}</p>
                 {% if hybrid_summary.open_score and hybrid_summary.score %}
                     <p class="muted">Open Score Preview: {{ hybrid_summary.open_score }}</p>
                 {% endif %}
@@ -262,11 +266,11 @@
             <div class="profile-status-grid">
                 <div class="profile-mini-stat">
                     <span class="kicker">Completion</span>
-                    <div class="submission-name">{{ hybrid_summary.completion_percent }}%</div>
+                    <div class="submission-name">{% if hybrid_summary.score %}{{ hybrid_summary.completion_percent }}{% else %}{{ hybrid_summary.open_completion_percent }}{% endif %}%</div>
                 </div>
                 <div class="profile-mini-stat">
-                    <span class="kicker">Verified</span>
-                    <div class="submission-name">{{ hybrid_summary.verified_count }}/{{ hybrid_summary.max_disciplines }}</div>
+                    <span class="kicker">{% if hybrid_summary.score %}Verified{% else %}Completed{% endif %}</span>
+                    <div class="submission-name">{% if hybrid_summary.score %}{{ hybrid_summary.verified_count }}{% else %}{{ hybrid_summary.open_count }}{% endif %}/{{ hybrid_summary.max_disciplines }}</div>
                 </div>
             </div>
             <div class="hybrid-breakdown">
@@ -288,7 +292,7 @@
                             {% endif %}
                         </div>
                         <div style="text-align: right;">
-                            <strong>{{ item.points }} pts</strong>
+                            <strong>{{ item.working_points }} pts</strong>
                             {% if item.preview_submission %}
                                 <div class="submission-meta">Preview {{ item.preview_points }}</div>
                             {% endif %}
@@ -309,7 +313,7 @@
 <section class="grid-2 profile-lower-section">
     <div class="card-dark">
         <h2>Hybrid Score Progress</h2>
-        <p class="muted">Verified performances build the public athlete rating over time.</p>
+        <p class="muted">Open and verified performances show the athlete's progress. Proof turns previews into official status.</p>
         <div class="progress-chart progress-chart-large">
             <svg id="progress-chart" class="chart-area" role="img" aria-label="Athlete Hybrid Score progress chart"></svg>
         </div>

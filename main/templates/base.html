@@ -605,6 +605,33 @@
             background: linear-gradient(135deg, var(--tier-bg, rgba(255, 255, 255, 0.06)), rgba(255, 255, 255, 0.035));
         }
 
+        .rank-hero-badge {
+            display: inline-grid;
+            gap: 3px;
+            padding: 10px 12px;
+            border-radius: var(--radius-md);
+            border: 1px solid var(--tier-border, rgba(255, 255, 255, 0.10));
+            background:
+                linear-gradient(135deg, var(--tier-bg, rgba(255, 255, 255, 0.06)), rgba(255, 255, 255, 0.035)),
+                rgba(8, 11, 15, 0.24);
+            color: var(--tier-color, var(--text));
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 12px 30px rgba(0, 0, 0, 0.16);
+        }
+
+        .rank-hero-badge strong {
+            font-family: "Archivo", sans-serif;
+            font-size: clamp(1rem, 4vw, 1.35rem);
+            line-height: 1.05;
+        }
+
+        .rank-hero-badge span {
+            color: var(--muted);
+            font-size: .78rem;
+            font-weight: 800;
+            letter-spacing: .08em;
+            text-transform: uppercase;
+        }
+
         .trust-strip,
         .mode-tabs,
         .step-list,
