@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 
-{% block title %}Performance Test{% endblock %}
-{% block meta_description %}Choose your strongest discipline, post your result to the open leaderboard, and start Official Review to earn official status.{% endblock %}
+{% block title %}Hybrid Score Test{% endblock %}
+{% block meta_description %}Vyber disciplínu, zadej výsledek a zjisti svůj tier, body a rank mezi skutečnými atlety.{% endblock %}
 
 {% block content %}
 <style>
@@ -264,7 +264,7 @@
         pointer-events: none;
     }
 
-    /* Tier badge — used in dopamine preview and success rank display */
+    /* Tier badge */
     .tier-badge {
         display: inline-grid;
         gap: 5px;
@@ -381,113 +381,113 @@
         <div class="test-inner">
             <div class="test-progress" aria-hidden="true"><span data-progress></span></div>
 
-            {# Step 0: Intro #}
+            {# Krok 0: Úvod #}
             <div class="test-step{% if not test_submission_success %} is-active{% endif %}" data-step="0">
                 <div class="eyebrow">Earned Club</div>
                 <div>
-                    <h1>Prove what you're made of.</h1>
-                    <p class="muted">Earned Club is a performance leaderboard for hybrid athletes — push-ups, pull-ups, and 5K run. Enter your result, get your Hybrid Score, and see where you rank against real verified athletes.</p>
+                    <h1>Dokaž, co v tobě je.</h1>
+                    <p class="muted">Earned Club je výkonnostní žebříček pro hybridní atlety — kliky, shyby a 5K běh. Zadej výsledek, získej Hybrid Skóre a zjisti, kde stojíš mezi skutečnými ověřenými atlety.</p>
                 </div>
-                <button class="btn-main" type="button" data-next>Start the Test</button>
+                <button class="btn-main" type="button" data-next>Spustit test</button>
             </div>
 
-            {# Step 1: Discipline selection #}
+            {# Krok 1: Výběr disciplíny #}
             <div class="test-step" data-step="1">
-                <div class="eyebrow">{% if challenge_room and not challenge_room.is_hybrid %}{{ challenge_room.focus_label }} challenge{% else %}Choose your discipline{% endif %}</div>
+                <div class="eyebrow">{% if challenge_room and not challenge_room.is_hybrid %}{{ challenge_room.focus_label }} výzva{% else %}Vyber disciplínu{% endif %}</div>
                 <div>
-                    <h1>{% if challenge_room and not challenge_room.is_hybrid %}{{ challenge_room.focus_label }} challenge result{% else %}Which discipline are you strongest in?{% endif %}</h1>
-                    <p class="muted">{% if challenge_room %}You are joining {{ challenge_room.display_title }}. The room context stays attached to this result.{% else %}Pick the one you want posted to the leaderboard first. You can add more disciplines after.{% endif %}</p>
+                    <h1>{% if challenge_room and not challenge_room.is_hybrid %}Výsledek výzvy {{ challenge_room.focus_label }}{% else %}Ve které disciplíně jsi nejsilnější?{% endif %}</h1>
+                    <p class="muted">{% if challenge_room %}Přidáváš se do {{ challenge_room.display_title }}. Kontext místnosti bude připojen k tomuto výsledku.{% else %}Vyber tu, kterou chceš přidat na žebříček jako první. Ostatní disciplíny můžeš přidat později.{% endif %}</p>
                 </div>
                 <div class="test-options">
                     {% for discipline in discipline_cards %}
                         <label class="discipline-choice">
                             <input type="radio" name="discipline_choice" value="{{ discipline.key }}" {% if discipline.key == active_discipline_key %}checked{% endif %}>
                             <span class="discipline-mark">{% if discipline.key == "pushups" %}PU{% elif discipline.key == "pullups" %}PL{% else %}5K{% endif %}</span>
-                            <span><strong>{{ discipline.short_label }}</strong><span class="submission-meta">{% if discipline.score_type == "time" %}Race or Strava time{% else %}Max clean reps{% endif %}</span></span>
+                            <span><strong>{{ discipline.short_label }}</strong><span class="submission-meta">{% if discipline.score_type == "time" %}Závodní čas nebo Strava{% else %}Max čistých opakování{% endif %}</span></span>
                         </label>
                     {% endfor %}
                 </div>
-                <button class="btn-main" type="button" data-next>Continue</button>
+                <button class="btn-main" type="button" data-next>Pokračovat</button>
             </div>
 
-            {# Step 2: Enter result #}
+            {# Krok 2: Zadání výsledku #}
             <div class="test-step" data-step="2">
-                <div class="eyebrow">Step 1 / 3</div>
+                <div class="eyebrow">Krok 1 / 3</div>
                 <div>
-                    <h1 data-result-title>Your best result?</h1>
-                    <p class="muted" data-result-help>Enter max clean reps.</p>
+                    <h1 data-result-title>Tvůj nejlepší výsledek?</h1>
+                    <p class="muted" data-result-help>Zadej max čistých opakování.</p>
                     {% if has_saved_test_identity %}
-                        <p class="muted">Continuing as {% if test_identity.name %}{{ test_identity.name }}{% else %}{{ request.user.profile.display_name }}{% endif %}.</p>
+                        <p class="muted">Pokračuješ jako {% if test_identity.name %}{{ test_identity.name }}{% else %}{{ request.user.profile.display_name }}{% endif %}.</p>
                     {% endif %}
                 </div>
                 <input id="test-result" class="input test-input" type="number" min="1" inputmode="numeric" placeholder="42">
-                <div class="hint" data-result-hint>Higher reps rank higher.</div>
+                <div class="hint" data-result-hint>Více opakování = vyšší rank.</div>
                 <div class="button-row">
-                    <button class="btn-main" type="button" data-next>Show My Score</button>
-                    <button class="btn-secondary" type="button" data-back>Back</button>
+                    <button class="btn-main" type="button" data-next>Zobrazit mé skóre</button>
+                    <button class="btn-secondary" type="button" data-back>Zpět</button>
                 </div>
             </div>
 
-            {# Step 3: Dopamine preview (client-side computed) #}
+            {# Krok 3: Náhled skóre (dopamine, client-side) #}
             <div class="test-step" data-step="3">
-                <div class="eyebrow">Your Score Preview</div>
-                <h1 data-preview-headline>Here's where you stand.</h1>
+                <div class="eyebrow">Náhled tvého skóre</div>
+                <h1 data-preview-headline>Tady stojíš.</h1>
                 <div class="preview-card">
                     <div>
                         <span class="kicker" data-preview-discipline>—</span>
                         <div class="preview-score-sm" data-preview-pts>—</div>
-                        <span class="submission-meta">discipline points (open)</span>
+                        <span class="submission-meta">body za disciplínu (open)</span>
                     </div>
                     <div>
                         <div class="tier-badge" data-preview-tier-badge data-tier="beginner">
-                            <span class="tier-badge-label">Your Tier</span>
+                            <span class="tier-badge-label">Tvůj tier</span>
                             <span class="tier-badge-name" data-preview-tier>—</span>
                         </div>
                         <span class="submission-meta" style="margin-top: 8px; display: block;" data-preview-result>—</span>
                     </div>
                 </div>
-                <p class="muted">Open score — visible on the leaderboard. Official Review earns you verified athlete status.</p>
+                <p class="muted">Open skóre — viditelné na žebříčku. Oficiální ověření ti přinese status ověřeného atleta.</p>
                 <div class="button-row">
-                    <button class="btn-main" type="button" data-next>Claim This Result</button>
-                    <button class="btn-secondary" type="button" data-back>Back</button>
+                    <button class="btn-main" type="button" data-next>Přijmout výsledek</button>
+                    <button class="btn-secondary" type="button" data-back>Zpět</button>
                 </div>
             </div>
 
-            {# Step 4: Name #}
+            {# Krok 4: Jméno #}
             <div class="test-step" data-step="4">
-                <div class="eyebrow">Step 2 / 3</div>
-                <h1>What should we call you?</h1>
-                <p class="muted">{% if request.user.is_authenticated %}We will use your profile name unless you enter a different one.{% else %}Required so your leaderboard entry has a real name attached.{% endif %}</p>
+                <div class="eyebrow">Krok 2 / 3</div>
+                <h1>Jak tě máme zavolat?</h1>
+                <p class="muted">{% if request.user.is_authenticated %}Použijeme jméno z profilu, pokud nezadáš jiné.{% else %}Povinné — aby měl tvůj výsledek na žebříčku jméno.{% endif %}</p>
                 <input id="test-name" class="input test-input" type="text" placeholder="Daniel" value="{{ test_identity.name }}" {% if not request.user.is_authenticated %}required{% endif %}>
-                <div class="hint" data-name-hint>{% if request.user.is_authenticated %}Logged-in results use your profile identity.{% else %}Name is required before your result can post.{% endif %}</div>
+                <div class="hint" data-name-hint>{% if request.user.is_authenticated %}Přihlášení atleti používají identitu profilu.{% else %}Jméno je povinné před odesláním výsledku.{% endif %}</div>
                 <div class="button-row">
-                    <button class="btn-main" type="button" data-next>Continue</button>
-                    <button class="btn-secondary" type="button" data-back>Back</button>
+                    <button class="btn-main" type="button" data-next>Pokračovat</button>
+                    <button class="btn-secondary" type="button" data-back>Zpět</button>
                 </div>
             </div>
 
-            {# Step 5: Email #}
+            {# Krok 5: E-mail #}
             <div class="test-step" data-step="5">
-                <div class="eyebrow">Step 3 / 3</div>
-                <h1>Where should we send your result?</h1>
-                <p class="muted">Optional — your result still posts to the leaderboard either way.</p>
-                <input id="test-email" class="input test-input" type="email" placeholder="you@example.com" value="{{ test_identity.email }}">
+                <div class="eyebrow">Krok 3 / 3</div>
+                <h1>Kam poslat tvůj výsledek?</h1>
+                <p class="muted">Volitelné — výsledek se na žebříček odešle tak jako tak.</p>
+                <input id="test-email" class="input test-input" type="email" placeholder="ty@example.com" value="{{ test_identity.email }}">
                 <div class="button-row">
-                    <button class="btn-main" type="button" data-reveal>Claim This Result</button>
-                    <button class="btn-secondary" type="button" data-skip-email>Skip &amp; Post</button>
-                    <button class="btn-secondary" type="button" data-back>Back</button>
+                    <button class="btn-main" type="button" data-reveal>Přijmout výsledek</button>
+                    <button class="btn-secondary" type="button" data-skip-email>Přeskočit &amp; odeslat</button>
+                    <button class="btn-secondary" type="button" data-back>Zpět</button>
                 </div>
             </div>
 
-            {# Step 6: Success #}
+            {# Krok 6: Úspěch #}
             <div class="test-step{% if test_submission_success %} is-active{% endif %}" data-step="6">
                 {% if test_submission_success %}
-                    <div class="eyebrow">{% if test_progress.is_full_hybrid %}Full Hybrid Score completed{% else %}You're in!{% endif %}</div>
+                    <div class="eyebrow">{% if test_progress.is_full_hybrid %}Kompletní Hybrid Skóre dokončeno{% else %}Jsi tam!{% endif %}</div>
                     <div class="preview-card">
                         <div>
                             <div class="preview-top">
                                 <div>
-                                    <span class="kicker">Your Open Score is live</span>
+                                    <span class="kicker">Tvé Open Skóre je živé</span>
                                     <h1>{{ test_submission_success.submission.name }}</h1>
                                 </div>
                                 <span class="status-pill {{ test_submission_success.submission.status }}">{{ test_submission_success.submission.public_status_label }}</span>
@@ -505,44 +505,44 @@
                             {% else %}
                                 <div class="preview-grid">
                                     <div class="preview-stat">
-                                        <span class="kicker">Discipline</span>
+                                        <span class="kicker">Disciplína</span>
                                         <div class="submission-name">{{ test_submission_success.submission.discipline_label }}</div>
                                     </div>
                                     <div class="preview-stat">
-                                        <span class="kicker">Result</span>
+                                        <span class="kicker">Výsledek</span>
                                         <div class="submission-name">{{ test_submission_success.submission.display_score }}</div>
                                     </div>
                                     <div class="preview-stat">
-                                        <span class="kicker">Discipline points</span>
+                                        <span class="kicker">Body za disciplínu</span>
                                         <div class="submission-name">{{ test_submission_success.display_points }} pts</div>
                                     </div>
                                 </div>
                             {% endif %}
                         </div>
                         <div>
-                            <span class="kicker">Open Score</span>
+                            <span class="kicker">Open Skóre</span>
                             <div class="preview-score">{{ test_progress.open_score }}</div>
                             <p class="muted">
-                                Your Open Score starts the story. Official Review turns it into earned athlete status.
+                                Open Skóre zahájí tvůj příběh. Oficiální ověření ho změní v earned status atleta.
                             </p>
                         </div>
                     </div>
                     <div class="test-next-panel">
                         <div>
                             <span class="kicker">{{ test_progress.hybrid_state }}</span>
-                            <h2>{{ test_progress.completed_count }}/{{ test_progress.max_disciplines }} disciplines completed</h2>
+                            <h2>{{ test_progress.completed_count }}/{{ test_progress.max_disciplines }} disciplín dokončeno</h2>
                             <p class="muted">
                                 {% if test_progress.is_full_hybrid %}
-                                    This is your current Hybrid Score preview. Claim your profile to save all results together.
+                                    Toto je náhled tvého aktuálního Hybrid Skóre. Získej profil a ulož všechny výsledky dohromady.
                                 {% else %}
-                                    One result puts you on the leaderboard. More disciplines build your Hybrid Score. Claim your profile to save all results together.
+                                    Jeden výsledek tě dostane na žebříček. Více disciplín buduje tvoje Hybrid Skóre. Získej profil pro uložení všech výsledků.
                                 {% endif %}
                             </p>
                             <div class="stat-grid">
-                                <div class="stat-card"><span class="kicker">Hybrid Score Preview</span><span class="stat-value">{{ test_progress.open_score }}</span></div>
+                                <div class="stat-card"><span class="kicker">Náhled Hybrid Skóre</span><span class="stat-value">{{ test_progress.open_score }}</span></div>
                                 {% with rn=test_progress.rank.name %}
                                 <div class="tier-badge" data-tier="{% if 'Legend' in rn %}earned-legend{% elif 'Elite' in rn %}elite{% elif 'Advanced' in rn %}advanced{% elif 'Intermediate' in rn %}intermediate{% else %}beginner{% endif %}">
-                                    <span class="tier-badge-label">Your Rank</span>
+                                    <span class="tier-badge-label">Tvůj rank</span>
                                     <span class="tier-badge-name">{{ rn }}</span>
                                 </div>
                                 {% endwith %}
@@ -556,9 +556,9 @@
                                         <div class="submission-name">{{ row.discipline.short_label }}</div>
                                         <div class="submission-meta">
                                             {% if row.done %}
-                                                Done - {{ row.submission.display_score }} - {{ row.submission.hybrid_points }} pts{% if row.needs_proof %} - official review needed{% endif %}
+                                                Hotovo — {{ row.submission.display_score }} — {{ row.submission.hybrid_points }} pts{% if row.needs_proof %} — nutné ověření{% endif %}
                                             {% else %}
-                                                Next step for a fuller Hybrid Score
+                                                Další krok pro úplné Hybrid Skóre
                                             {% endif %}
                                         </div>
                                     </div>
@@ -568,16 +568,16 @@
                         </div>
                     </div>
                     <div class="hero-actions">
-                        <a class="btn-main" href="{{ test_submission_success.register_url }}">Claim Your Athlete Profile</a>
-                        <a class="btn-secondary" href="{{ test_submission_success.proof_url }}">Earn Official Status</a>
-                        <button class="btn-secondary" type="button" data-share-text="{{ test_submission_success.share_text }}">Challenge a Friend</button>
-                        <a class="btn-secondary" href="{{ test_submission_success.leaderboard_url }}">See Yourself On The Leaderboard</a>
-                        {% if challenge_room %}<a class="btn-secondary" href="{% url 'challenge_room' challenge_room.token %}">Back To Challenge Room</a>{% endif %}
+                        <a class="btn-main" href="{{ test_submission_success.register_url }}">Získej svůj atletický profil</a>
+                        <a class="btn-secondary" href="{{ test_submission_success.proof_url }}">Získej oficiální status</a>
+                        <button class="btn-secondary" type="button" data-share-text="{{ test_submission_success.share_text }}">Vyzvěte přítele</button>
+                        <a class="btn-secondary" href="{{ test_submission_success.leaderboard_url }}">Zobraz se na žebříčku</a>
+                        {% if challenge_room %}<a class="btn-secondary" href="{% url 'challenge_room' challenge_room.token %}">Zpět do challenge room</a>{% endif %}
                     </div>
                 {% else %}
-                    <div class="eyebrow">Result required</div>
-                    <h1>Write in your result to continue.</h1>
-                    <p class="muted">Your result posts to the open leaderboard when you finish the test.</p>
+                    <div class="eyebrow">Chybí výsledek</div>
+                    <h1>Zadej svůj výsledek pro pokračování.</h1>
+                    <p class="muted">Výsledek se odešle na žebříček po dokončení testu.</p>
                 {% endif %}
             </div>
         </div>
@@ -608,16 +608,16 @@
     const hasSavedIdentity = {% if has_saved_test_identity %}true{% else %}false{% endif %};
     const finalStep = 6;
     const disciplineLabels = {
-        pushups: { label: "Push-ups", unit: "reps", placeholder: "42", help: "Enter max clean reps.", hint: "Higher reps rank higher." },
-        pullups: { label: "Pull-ups", unit: "reps", placeholder: "12", help: "Enter max clean reps.", hint: "Higher reps rank higher." },
-        run_5k: { label: "5K", unit: "time", placeholder: "21:34", help: "Use MM:SS, e.g. 21:34.", hint: "Use MM:SS or HH:MM:SS. Lower time ranks higher." },
+        pushups: { label: "Kliky", unit: "reps", resultTitle: "Tvůj nejlepší výsledek v klikách?", help: "Zadej max čistých opakování.", hint: "Více opakování = vyšší rank.", placeholder: "42" },
+        pullups: { label: "Shyby", unit: "reps", resultTitle: "Tvůj nejlepší výsledek ve shybech?", help: "Zadej max čistých opakování.", hint: "Více opakování = vyšší rank.", placeholder: "12" },
+        run_5k: { label: "5K běh", unit: "time", resultTitle: "Tvůj nejlepší čas na 5K?", help: "Formát MM:SS, např. 21:34.", hint: "Formát MM:SS nebo HH:MM:SS. Nižší čas = vyšší rank.", placeholder: "21:34" },
     };
     const previewHeadlines = {
-        "Earned Legend": "Lethal. That's Earned Legend territory.",
-        "Elite": "Elite level. Most people never get here.",
-        "Advanced": "Advanced — you're ahead of the majority.",
-        "Intermediate": "Solid. You have a real score to build on.",
-        "Beginner": "On the board. Now you have a number to beat.",
+        "Earned Legend": "Brutální. To je Earned Legend territory.",
+        "Elite": "Elite úroveň. Většina lidí sem nikdy nedosáhne.",
+        "Advanced": "Pokročilý — jsi napřed před většinou.",
+        "Intermediate": "Solidní. Máš reálné skóre, na které lze navázat.",
+        "Beginner": "Na palubě. Teď máš číslo, které musíš překonat.",
     };
     let active = 0;
 
@@ -635,7 +635,7 @@
     function syncResultInput() {
         const config = disciplineLabels[selectedDiscipline()];
         const input = document.getElementById("test-result");
-        document.querySelector("[data-result-title]").textContent = `Your best ${config.label} result?`;
+        document.querySelector("[data-result-title]").textContent = config.resultTitle;
         document.querySelector("[data-result-help]").textContent = config.help;
         document.querySelector("[data-result-hint]").textContent = config.hint;
         input.value = "";
@@ -695,7 +695,7 @@
         const value = config.unit === "time" ? parseTime(rawResult) : Number(rawResult);
         if (!value || value <= 0) {
             showStep(2);
-            document.querySelector("[data-result-hint]").textContent = config.unit === "time" ? "Enter a valid time like 21:34. Tip: 21.34 becomes 21:34." : "Enter a whole number above zero.";
+            document.querySelector("[data-result-hint]").textContent = config.unit === "time" ? "Zadej platný čas, např. 21:34. Tip: 21.34 se převede na 21:34." : "Zadej celé číslo větší než nula.";
             return null;
         }
         return { discipline, rawResult };
@@ -706,7 +706,7 @@
         const hint = document.querySelector("[data-name-hint]");
         if (!requiresName || input.value.trim()) return true;
         showStep(4);
-        hint.textContent = "Enter your name before posting your result.";
+        hint.textContent = "Zadej jméno před odesláním výsledku.";
         input.focus();
         return false;
     }
@@ -718,14 +718,14 @@
         const value = config.unit === "time" ? parseTime(rawResult) : Number(rawResult);
         const tier = tierFor(discipline, value);
         const pts = pointsFor(discipline, value);
-        const formatted = config.unit === "time" ? formatTime(value) : `${value} reps`;
+        const formatted = config.unit === "time" ? formatTime(value) : `${value} opakování`;
         const tierKey = tier.toLowerCase().replaceAll(" ", "-");
         document.querySelector("[data-preview-pts]").textContent = pts;
         document.querySelector("[data-preview-tier]").textContent = tier;
         document.querySelector("[data-preview-tier-badge]").setAttribute("data-tier", tierKey);
         document.querySelector("[data-preview-discipline]").textContent = config.label;
         document.querySelector("[data-preview-result]").textContent = formatted;
-        document.querySelector("[data-preview-headline]").textContent = previewHeadlines[tier] || "Here's where you stand.";
+        document.querySelector("[data-preview-headline]").textContent = previewHeadlines[tier] || "Tady stojíš.";
     }
 
     function reveal() {
@@ -770,7 +770,7 @@
             if (navigator.share) await navigator.share({ text });
             else {
                 await navigator.clipboard.writeText(text);
-                shareButton.textContent = "Copied";
+                shareButton.textContent = "Zkopírováno";
                 setTimeout(() => shareButton.textContent = originalLabel, 1200);
             }
         });

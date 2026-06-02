@@ -2265,7 +2265,7 @@ def home(request):
     return render(request, "home.html", context)
 
 
-def level_test(request):
+def _level_test(request, view_name, template):
     ensure_test_session(request)
     room = get_room_from_request(request)
     verified_submissions = get_official_verified_submissions()
@@ -2284,7 +2284,7 @@ def level_test(request):
         "test_progress": existing_progress,
         "has_saved_test_identity": request.user.is_authenticated or bool(test_identity["name"]),
         "challenge_room": room,
-        "test_form_action": room_link("level_test", room),
+        "test_form_action": room_link(view_name, room),
     }
     success_submission_id = request.session.pop("last_test_submission_id", None) if request.method == "GET" else None
     if success_submission_id:
@@ -2310,25 +2310,25 @@ def level_test(request):
 
         if request.POST.get("website"):
             messages.success(request, "You are in. Your result is on the open leaderboard.")
-            return redirect(room_link("level_test", room) if room else "level_test")
+            return redirect(room_link(view_name, room) if room else view_name)
 
         if not score_raw:
             messages.error(request, "Enter your result before continuing.")
-            return render(request, "test_landing.html", context)
+            return render(request, template, context)
         if not request.user.is_authenticated and not name:
             messages.error(request, "Enter your name before posting your result.")
-            return render(request, "test_landing.html", context)
+            return render(request, template, context)
 
         try:
             score_value = parse_submission_score(score_raw, discipline)
         except ValueError as exc:
             messages.error(request, str(exc) if selected_discipline["score_type"] == "time" else "Enter a whole number above zero.")
-            return render(request, "test_landing.html", context)
+            return render(request, template, context)
 
         score_error = validate_submission_score(score_value, discipline)
         if score_error:
             messages.error(request, score_error)
-            return render(request, "test_landing.html", context)
+            return render(request, template, context)
         active_filter = blocking_submission_queryset(discipline)
         active_submission = active_filter.filter(email__iexact=email).first() if email else active_filter.filter(name__iexact=name).first()
         if active_submission:
@@ -2336,15 +2336,15 @@ def level_test(request):
             attach_submission_to_room(room, active_submission, build_room_participant_key(request, active_submission))
             request.session["last_test_submission_id"] = active_submission.id
             messages.info(request, "You are already in. Your recent Open Score is on the leaderboard.")
-            return redirect(room_link("level_test", room) if room else "level_test")
+            return redirect(room_link(view_name, room) if room else view_name)
 
         blocker = find_submission_blocker(request, name, email, score_value, discipline)
         if blocker == "silent":
             messages.success(request, "You are in. Your result is on the open leaderboard.")
-            return redirect(room_link("level_test", room) if room else "level_test")
+            return redirect(room_link(view_name, room) if room else view_name)
         if blocker:
             messages.error(request, blocker)
-            return render(request, "test_landing.html", context)
+            return render(request, template, context)
 
         submission = Submission.objects.create(
             user=request.user if request.user.is_authenticated else None,
@@ -2374,13 +2374,17 @@ def level_test(request):
             messages.success(request, "Your Open Score is live. Submit for Official Review to earn official athlete status.")
         if room:
             messages.info(request, "Your result is now inside the challenge room.")
-        return redirect(room_link("level_test", room) if room else "level_test")
+        return redirect(room_link(view_name, room) if room else view_name)
 
-    return render(
-        request,
-        "test_landing.html",
-        context,
-    )
+    return render(request, template, context)
+
+
+def level_test(request):
+    return _level_test(request, "level_test", "test_landing.html")
+
+
+def level_test_cz(request):
+    return _level_test(request, "level_test_cz", "test_landing_cz.html")
 
 
 def test_submission_proof(request, submission_id):

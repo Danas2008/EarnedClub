@@ -6,6 +6,7 @@ urlpatterns = [
     path("", views.home, name="home"),
     path("rank/", views.rank, name="rank"),
     path("test/", views.level_test, name="level_test"),
+    path("test-cz/", views.level_test_cz, name="level_test_cz"),
     path("test/official/", views.test_session_official, name="test_session_official"),
     path("test/result/<path:token>/", views.test_result_share, name="test_result_share"),
     path("test/submissions/<int:submission_id>/proof/", views.test_submission_proof, name="test_submission_proof"),
