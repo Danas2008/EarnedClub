@@ -349,6 +349,135 @@
         margin: 0;
     }
 
+    /* ── NFC / QR příjezdová zkušenost ─────────────────── */
+    .nfc-intro {
+        padding-top: 8px;
+    }
+
+    .nfc-signal {
+        position: relative;
+        width: 68px;
+        height: 68px;
+        display: grid;
+        place-items: center;
+        margin-bottom: 14px;
+    }
+
+    .nfc-dot {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background: var(--accent);
+        box-shadow: 0 0 18px rgba(247, 183, 51, 0.9), 0 0 36px rgba(247, 183, 51, 0.4);
+        z-index: 1;
+        animation: nfcDotPulse 2s ease-in-out infinite;
+    }
+
+    @keyframes nfcDotPulse {
+        0%, 100% { box-shadow: 0 0 18px rgba(247, 183, 51, 0.9), 0 0 36px rgba(247, 183, 51, 0.4); }
+        50% { box-shadow: 0 0 28px rgba(247, 183, 51, 1), 0 0 56px rgba(247, 183, 51, 0.6); }
+    }
+
+    .nfc-ring {
+        position: absolute;
+        inset: 0;
+        border-radius: 50%;
+        border: 1.5px solid rgba(247, 183, 51, 0.6);
+        animation: nfcRingExpand 2.4s ease-out infinite;
+    }
+
+    .nfc-ring--2 { animation-delay: 0.8s; }
+    .nfc-ring--3 { animation-delay: 1.6s; }
+
+    @keyframes nfcRingExpand {
+        0% { transform: scale(0.3); opacity: 0.9; }
+        100% { transform: scale(3.2); opacity: 0; }
+    }
+
+    .nfc-scan-line {
+        position: absolute;
+        inset: 0;
+        overflow: hidden;
+        border-radius: var(--radius-md);
+        pointer-events: none;
+        z-index: 0;
+    }
+
+    .nfc-scan-line::after {
+        content: "";
+        position: absolute;
+        left: 0;
+        right: 0;
+        height: 2px;
+        background: linear-gradient(90deg, transparent, rgba(247, 183, 51, 0.6), transparent);
+        animation: nfcScan 1.8s ease-in-out 1 forwards;
+        top: -2px;
+    }
+
+    @keyframes nfcScan {
+        0% { top: 0%; opacity: 1; }
+        100% { top: 100%; opacity: 0; }
+    }
+
+    .nfc-intro .eyebrow {
+        animation: nfcReveal 0.5s ease 0.35s both;
+    }
+
+    .nfc-headline {
+        animation: nfcReveal 0.6s ease 0.55s both;
+        font-size: clamp(3.2rem, 14vw, 5.6rem) !important;
+        letter-spacing: -0.03em;
+    }
+
+    .nfc-body {
+        animation: nfcReveal 0.6s ease 0.75s both;
+        max-width: 540px;
+    }
+
+    .nfc-meta {
+        display: flex;
+        gap: 18px;
+        flex-wrap: wrap;
+        animation: nfcReveal 0.5s ease 0.88s both;
+    }
+
+    .nfc-meta-item {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+    }
+
+    .nfc-meta-item strong {
+        font-size: clamp(1.5rem, 6vw, 2.2rem);
+        font-family: "Archivo", sans-serif;
+        font-weight: 900;
+        color: var(--accent);
+        line-height: 1;
+    }
+
+    .nfc-meta-item span {
+        font-size: 0.74rem;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        opacity: 0.55;
+        font-weight: 700;
+    }
+
+    .nfc-cta {
+        animation: nfcReveal 0.5s ease 1.05s both;
+    }
+
+    @keyframes nfcReveal {
+        from { opacity: 0; transform: translateY(16px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .nfc-ring, .nfc-dot, .nfc-scan-line::after,
+        .nfc-intro .eyebrow, .nfc-headline, .nfc-body,
+        .nfc-meta, .nfc-cta { animation: none; }
+    }
+
     @media (min-width: 760px) {
         .test-options {
             grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -381,14 +510,24 @@
         <div class="test-inner">
             <div class="test-progress" aria-hidden="true"><span data-progress></span></div>
 
-            {# Krok 0: Úvod #}
-            <div class="test-step{% if not test_submission_success %} is-active{% endif %}" data-step="0">
-                <div class="eyebrow">Earned Club</div>
-                <div>
-                    <h1>Dokaž, co v tobě je.</h1>
-                    <p class="muted">Earned Club je výkonnostní žebříček pro hybridní atlety — kliky, shyby a 5K běh. Zadej výsledek, získej Hybrid Skóre a zjisti, kde stojíš mezi skutečnými ověřenými atlety.</p>
+            {# Krok 0: NFC / QR filmový příjezd #}
+            <div class="test-step nfc-intro{% if not test_submission_success %} is-active{% endif %}" data-step="0">
+                <div class="nfc-scan-line" aria-hidden="true"></div>
+                <div class="nfc-signal" aria-hidden="true">
+                    <span class="nfc-ring nfc-ring--1"></span>
+                    <span class="nfc-ring nfc-ring--2"></span>
+                    <span class="nfc-ring nfc-ring--3"></span>
+                    <span class="nfc-dot"></span>
                 </div>
-                <button class="btn-main" type="button" data-next>Spustit test</button>
+                <div class="eyebrow">Signál nalezen · Earned Club</div>
+                <h1 class="nfc-headline">Našel jsi to.</h1>
+                <p class="muted nfc-body">Většina lidí prošla dál. Ty ne. Toto je výkonnostní žebříček pro hybridní atlety — kliky, shyby a 5K. Jeden test. Jedno reálné skóre. Zjisti, kde stojíš mezi ověřenými atlety.</p>
+                <div class="nfc-meta">
+                    <div class="nfc-meta-item"><strong>3</strong><span>disciplíny</span></div>
+                    <div class="nfc-meta-item"><strong>1</strong><span>hybrid skóre</span></div>
+                    <div class="nfc-meta-item"><strong>veřejný</strong><span>žebříček</span></div>
+                </div>
+                <button class="btn-main nfc-cta" type="button" data-next>Přijmout výzvu</button>
             </div>
 
             {# Krok 1: Výběr disciplíny #}
@@ -520,11 +659,15 @@
                             {% endif %}
                         </div>
                         <div>
-                            <span class="kicker">Open Skóre</span>
+                            <span class="kicker">{% if test_submission_success.is_hidden_until_proof %}Odhadované skóre{% elif test_progress.is_single_discipline %}Náhled skóre{% else %}Open Skóre{% endif %}</span>
                             <div class="preview-score">{{ test_progress.open_score }}</div>
-                            <p class="muted">
-                                Open Skóre zahájí tvůj příběh. Oficiální ověření ho změní v earned status atleta.
-                            </p>
+                            {% if test_submission_success.is_hidden_until_proof %}
+                                <p class="muted">Tvé skóre je silné — před zobrazením na veřejném žebříčku vyžaduje důkaz. Přidej video nebo odkaz níže.</p>
+                            {% elif test_progress.is_single_discipline %}
+                                <p class="muted">Toto je náhled jedné disciplíny, ne plné Hybrid Skóre. Přidej kliky a shyby pro odemčení kompletního Hybrid Skóre.</p>
+                            {% else %}
+                                <p class="muted">Open Skóre zahájí tvůj příběh. Oficiální ověření ho změní v earned status atleta.</p>
+                            {% endif %}
                         </div>
                     </div>
                     <div class="test-next-panel">

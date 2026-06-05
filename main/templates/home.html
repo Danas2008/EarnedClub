@@ -67,13 +67,16 @@
         margin: 0 auto;
     }
 
-    .home-hero-copy { max-width: 660px; }
+    .home-hero-copy {
+        min-width: 0;
+        max-width: 660px;
+    }
 
     .home-hero h1 {
-        max-width: 700px;
         font-size: clamp(3rem, 9vw, 4.55rem);
         line-height: 0.92;
         margin-bottom: 16px;
+        overflow-wrap: break-word;
         text-shadow: 0 14px 42px rgba(0, 0, 0, 0.28);
     }
 
@@ -118,7 +121,6 @@
     .score-rank-card {
         position: relative;
         overflow: hidden;
-        contain: layout paint;
         display: grid;
         gap: 10px;
         max-width: 380px;
@@ -135,6 +137,7 @@
             inset 0 1px 0 rgba(255, 255, 255, 0.09);
     }
 
+    .score-rank-card .btn-main,
     .score-rank-card .btn-secondary { width: 100%; }
 
     .score-rank-card::before {
@@ -234,6 +237,55 @@
         border-radius: var(--radius-md);
         background: rgba(30, 157, 116, 0.08);
         border: 1px solid rgba(30, 157, 116, 0.22);
+    }
+
+    .rank-meter-pip {
+        position: absolute;
+        top: 50%;
+        transform: translate(-50%, -50%);
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        background: #fff;
+        border: 2.5px solid rgba(8, 11, 15, 0.85);
+        box-shadow: 0 0 10px rgba(247, 183, 51, 0.7), 0 0 0 3px rgba(247, 183, 51, 0.18);
+        z-index: 2;
+    }
+
+    .score-rank-disciplines {
+        display: grid;
+        gap: 5px;
+    }
+
+    .score-rank-disc-row {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        padding: 7px 10px;
+        border-radius: var(--radius-md);
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid rgba(255, 255, 255, 0.07);
+        font-size: 0.83rem;
+    }
+
+    .score-rank-disc-mark {
+        flex: 0 0 26px;
+        height: 26px;
+        display: grid;
+        place-items: center;
+        border-radius: 50%;
+        background: linear-gradient(145deg, #f7b733, #fff0bd);
+        color: #111;
+        font-family: "Archivo", sans-serif;
+        font-weight: 900;
+        font-size: 0.65rem;
+    }
+
+    .score-rank-disc-pts {
+        margin-left: auto;
+        font-weight: 700;
+        color: var(--accent);
+        font-size: 0.78rem;
     }
 
     /* ── Hero scroll cue ─────────────────────────────────── */
@@ -807,7 +859,6 @@
         }
 
         .score-rank-number { font-size: 5.8rem; }
-        .score-rank-result p { display: none; }
     }
 
     /* ── Mobile (max 719px) ──────────────────────────────── */
@@ -861,13 +912,14 @@
         .score-rank-result h2 { font-size: 1.25rem; }
         .score-rank-result p { display: none; }
 
-        .rank-meter,
-        .score-rank-proof { padding: 10px; }
+        .rank-meter { padding: 10px; }
 
-        .rank-meter-labels,
-        .score-rank-proof .submission-meta { font-size: 0.74rem; }
+        .rank-meter-labels { font-size: 0.74rem; }
 
-        .score-rank-card .btn-secondary { min-height: 44px; }
+        .score-rank-disciplines { gap: 4px; }
+        .score-rank-disc-row { font-size: 0.78rem; padding: 6px 8px; }
+
+        .score-rank-card .btn-main { min-height: 44px; }
 
         .hero-scroll-cue {
             padding: 9px 11px;
@@ -913,24 +965,24 @@
                     <div>
                         <span class="status-pill verified">Elite Hybrid Athlete</span>
                         <h2>Proof turns performance into rank.</h2>
-                        <p class="muted" style="margin-bottom: 0;">Push-ups, pull-ups, and 5K combine into one public athlete rating.</p>
                     </div>
                 </div>
                 <div class="rank-meter" aria-label="Sample rank tier meter">
-                    <div class="rank-meter-track"></div>
+                    <div class="rank-meter-track">
+                        <span class="rank-meter-pip" style="left: 72%"></span>
+                    </div>
                     <div class="rank-meter-labels">
                         <span>Beginner</span>
                         <span>Advanced</span>
                         <span>Legend</span>
                     </div>
                 </div>
-                <div class="score-rank-proof">
-                    <div>
-                        <strong>Official scores require proof</strong>
-                        <div class="submission-meta">Only verified performances count toward official Hybrid Score.</div>
-                    </div>
+                <div class="score-rank-disciplines">
+                    <div class="score-rank-disc-row"><span class="score-rank-disc-mark">PU</span><span>Push-ups</span><span class="score-rank-disc-pts">820 pts</span></div>
+                    <div class="score-rank-disc-row"><span class="score-rank-disc-mark">PL</span><span>Pull-ups</span><span class="score-rank-disc-pts">680 pts</span></div>
+                    <div class="score-rank-disc-row"><span class="score-rank-disc-mark">5K</span><span>5K run</span><span class="score-rank-disc-pts">740 pts</span></div>
                 </div>
-                <a class="btn-secondary" href="#rank-tiers">View rank tiers &darr;</a>
+                <a class="btn-main" href="{% url 'level_test' %}">Start the Test &rarr;</a>
             </aside>
 
             <a class="hero-scroll-cue" href="#rank-tiers" aria-label="Scroll to rank tiers">
