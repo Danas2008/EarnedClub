@@ -1,133 +1,990 @@
 {% extends "base.html" %}
 
-{% block title %}Find Your Hybrid Score{% endblock %}
+{% block title %}Find your Hybrid Score — Earned Club{% endblock %}
 {% block meta_description %}Estimate your Earned Club Hybrid Score across push-ups, pull-ups, and 5K, then submit proof for official leaderboard status.{% endblock %}
 
 {% block content %}
 <style>
+    /* ── Page layout ──────────────────────────────────────── */
     .rank-page { display: grid; gap: 16px; }
-    .rank-stage {
-        display: grid;
-        gap: 14px;
-        padding: clamp(16px, 4vw, 28px);
-        border: 1px solid rgba(255,255,255,.1);
-        border-radius: var(--radius-lg);
-        background:
-            linear-gradient(145deg, rgba(247,183,51,.13), rgba(30,157,116,.08)),
-            var(--panel);
-        box-shadow: var(--shadow);
+    .rank-page > * { margin-bottom: 0; }
+
+    /* ── Section accent bar (shared with home) ───────────── */
+    .section-accent-bar {
+        display: block;
+        width: 30px;
+        height: 3px;
+        border-radius: 999px;
+        background: linear-gradient(90deg, var(--accent), var(--accent-2));
+        margin-bottom: 14px;
     }
-    .rank-hero { display: grid; gap: 18px; align-items: center; }
-    .rank-copy h1 { font-size: clamp(2.55rem, 12vw, 4.4rem); line-height: .94; margin-bottom: 10px; }
-    .rank-form { display: grid; gap: 12px; }
+
+    /* ── Hero card ───────────────────────────────────────── */
+    .rank-hero-card {
+        position: relative;
+        overflow: hidden;
+        padding: clamp(22px, 4vw, 40px);
+        background:
+            radial-gradient(ellipse at 12% 50%, rgba(247,183,51,0.07), transparent 50%),
+            linear-gradient(145deg, rgba(247,183,51,0.09), transparent 34%),
+            linear-gradient(180deg, rgba(255,255,255,0.045), rgba(255,255,255,0.018)),
+            var(--panel);
+        border-color: rgba(255,255,255,0.11);
+    }
+
+    .rank-hero-card::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: radial-gradient(circle at 90% 10%, rgba(247,183,51,0.14), transparent 34%);
+        pointer-events: none;
+    }
+
+    .rank-hero-card::after {
+        content: "";
+        position: absolute;
+        inset: auto 20px 0;
+        height: 1px;
+        background: linear-gradient(90deg, transparent, rgba(247,183,51,0.65), transparent);
+        pointer-events: none;
+    }
+
+    /* Dot-grid texture */
+    .rank-hero-card-pattern {
+        position: absolute;
+        inset: 0;
+        background-image: radial-gradient(circle, rgba(255,255,255,0.04) 1px, transparent 1px);
+        background-size: 28px 28px;
+        pointer-events: none;
+    }
+
+    .rank-hero-grid {
+        position: relative;
+        z-index: 1;
+        display: grid;
+        gap: 24px;
+        align-items: center;
+        max-width: 1040px;
+        margin: 0 auto;
+    }
+
+    .rank-hero-copy h1 {
+        font-size: clamp(2.6rem, 9vw, 4.4rem);
+        line-height: 0.92;
+        margin-bottom: 14px;
+    }
+
+    .rank-hero-copy h1 em {
+        font-style: normal;
+        color: var(--accent);
+    }
+
+    .rank-hero-lead {
+        max-width: 520px;
+        font-size: clamp(1rem, 3vw, 1.22rem);
+        line-height: 1.58;
+        color: var(--muted);
+        margin-bottom: 0;
+    }
+
+    /* Stat chips row */
+    .rank-stat-row {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        margin-top: 20px;
+    }
+
+    .rank-stat-chip {
+        display: inline-flex;
+        align-items: baseline;
+        gap: 6px;
+        padding: 8px 14px;
+        border-radius: var(--radius-sm);
+        border: 1px solid rgba(255,255,255,0.09);
+        background: rgba(255,255,255,0.05);
+        font-size: 0.88rem;
+        color: var(--muted);
+    }
+
+    .rank-stat-chip strong {
+        font-family: "Archivo", sans-serif;
+        font-size: 1.3rem;
+        font-weight: 900;
+        color: var(--accent);
+        line-height: 1;
+    }
+
+    /* Hero CTA row (when no input) */
+    .rank-hero-actions {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        margin-top: 20px;
+    }
+
+    /* ── Result card (when calculated) ──────────────────── */
     .rank-result-card {
+        position: relative;
+        overflow: hidden;
         display: grid;
         gap: 12px;
-        padding: 16px;
+        padding: 20px;
         border-radius: var(--radius-lg);
-        border: 1px solid rgba(247,183,51,.24);
-        background: rgba(8,11,15,.44);
+        border: 1px solid rgba(247,183,51,0.22);
+        background:
+            linear-gradient(150deg, rgba(247,183,51,0.16), rgba(252,74,26,0.06) 40%, rgba(255,255,255,0.04)),
+            rgba(8,11,15,0.4);
+        box-shadow:
+            0 24px 56px rgba(0,0,0,0.3),
+            inset 0 1px 0 rgba(255,255,255,0.08);
+        max-width: 400px;
+        width: 100%;
+        justify-self: center;
     }
+
+    .rank-result-card::before {
+        content: "";
+        position: absolute;
+        inset: -60px -100px auto auto;
+        width: 200px;
+        height: 200px;
+        border-radius: 50%;
+        background: radial-gradient(circle, rgba(247,183,51,0.2), transparent 70%);
+        pointer-events: none;
+    }
+
+    .rank-result-card > * { position: relative; z-index: 1; }
+
+    /* ── Preview card (when no input) ───────────────────── */
+    .rank-preview-card {
+        display: grid;
+        gap: 12px;
+        padding: 20px;
+        border-radius: var(--radius-lg);
+        border: 1px solid rgba(255,255,255,0.1);
+        background:
+            linear-gradient(150deg, rgba(247,183,51,0.1), rgba(255,255,255,0.04)),
+            rgba(255,255,255,0.03);
+        max-width: 400px;
+        width: 100%;
+        justify-self: center;
+    }
+
+    /* ── Score number ────────────────────────────────────── */
     .rank-score-number {
         font-family: "Archivo", sans-serif;
-        font-size: clamp(4rem, 20vw, 7rem);
-        line-height: .8;
+        font-size: clamp(4.5rem, 20vw, 7rem);
+        line-height: 0.78;
         color: var(--accent);
         font-weight: 900;
+        letter-spacing: -0.04em;
+        text-shadow:
+            0 0 60px rgba(247,183,51,0.4),
+            0 14px 32px rgba(247,183,51,0.12);
     }
-    .rank-breakdown { display: grid; gap: 8px; }
-    .rank-breakdown-row {
-        display: grid;
-        grid-template-columns: minmax(0, 1fr) auto;
-        gap: 10px;
+
+    .rank-score-example {
+        font-family: "Archivo", sans-serif;
+        font-size: clamp(4rem, 18vw, 6rem);
+        line-height: 0.78;
+        font-weight: 900;
+        letter-spacing: -0.04em;
+        color: rgba(247,183,51,0.3);
+    }
+
+    /* ── Hybrid rank badge ───────────────────────────────── */
+    .hybrid-rank-badge {
+        display: inline-flex;
         align-items: center;
-        padding: 11px 12px;
-        border-radius: var(--radius-md);
-        border: 1px solid rgba(255,255,255,.08);
-        background: rgba(255,255,255,.04);
+        padding: 7px 12px;
+        border-radius: var(--radius-sm);
+        font-family: "Archivo", sans-serif;
+        font-size: 0.9rem;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        border: 1px solid;
+        width: fit-content;
     }
-    .rank-actions { display: grid; gap: 10px; }
-    .rank-actions .btn-main,
-    .rank-actions .btn-secondary { width: 100%; min-height: 48px; }
-    @media (min-width: 820px) {
-        .rank-hero { grid-template-columns: minmax(0, .95fr) minmax(340px, .85fr); }
-        .rank-form .grid-4 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-        .rank-actions { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+
+    .hybrid-rank-badge.rank-beginner     { color: #94a3b8; border-color: rgba(148,163,184,0.35); background: rgba(148,163,184,0.1); }
+    .hybrid-rank-badge.rank-intermediate  { color: #6ba0f5; border-color: rgba(59,130,246,0.35); background: rgba(59,130,246,0.1); }
+    .hybrid-rank-badge.rank-advanced     { color: #ffd77b; border-color: rgba(247,183,51,0.4); background: rgba(247,183,51,0.12); }
+    .hybrid-rank-badge.rank-elite        { color: #ff8a6e; border-color: rgba(252,74,26,0.4); background: rgba(252,74,26,0.12); }
+    .hybrid-rank-badge.rank-legend       { color: #5ee6b0; border-color: rgba(30,157,116,0.4); background: rgba(30,157,116,0.12); }
+
+    /* ── Tier meter bar (in result card) ────────────────── */
+    .tier-meter-wrap {
+        display: grid;
+        gap: 8px;
+    }
+
+    .tier-meter-track {
+        position: relative;
+        height: 10px;
+        border-radius: 999px;
+        background: rgba(255,255,255,0.07);
+        overflow: hidden;
+    }
+
+    .tier-meter-fill {
+        position: absolute;
+        inset: 0 auto 0 0;
+        border-radius: inherit;
+        background: linear-gradient(90deg, #94a3b8 0%, #3b82f6 25%, #f7b733 55%, #fc4a1a 80%, #1e9d74 100%);
+        transition: width 0.6s ease;
+    }
+
+    .tier-meter-labels {
+        display: flex;
+        justify-content: space-between;
+        color: var(--muted);
+        font-size: 0.73rem;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+    }
+
+    .tier-meter-ticks {
+        display: flex;
+        justify-content: space-between;
+        color: var(--muted);
+        font-size: 0.7rem;
+        font-weight: 700;
+        padding: 0 1px;
+    }
+
+    /* Completion strip */
+    .completion-strip {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 10px;
+        border-radius: var(--radius-sm);
+        background: rgba(255,255,255,0.05);
+        border: 1px solid rgba(255,255,255,0.08);
+        font-size: 0.84rem;
+        color: var(--muted);
+    }
+
+    .completion-dots {
+        display: flex;
+        gap: 4px;
+    }
+
+    .completion-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: rgba(255,255,255,0.15);
+    }
+
+    .completion-dot.filled {
+        background: var(--accent);
+        box-shadow: 0 0 6px rgba(247,183,51,0.5);
+    }
+
+    /* ── Calculator form ─────────────────────────────────── */
+    .calc-inputs {
+        display: grid;
+        gap: 14px;
+        margin-bottom: 16px;
+    }
+
+    .calc-input-group {
+        display: grid;
+        gap: 6px;
+    }
+
+    .calc-input-group .field-label {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        font-size: 0.95rem;
+        font-weight: 700;
+        color: var(--muted);
+        margin-bottom: 0;
+    }
+
+    .calc-input-group .field-label .calc-icon {
+        font-size: 1.1rem;
+        line-height: 1;
+    }
+
+    .calc-input-hint {
+        font-size: 0.82rem;
+        color: rgba(245,247,251,0.45);
+        line-height: 1.3;
+        padding-left: 2px;
+    }
+
+    .calc-submit-row {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+
+    .calc-submit-row .btn-main {
+        flex: 1 1 200px;
+        min-height: 50px;
+        font-size: 1.02rem;
+        box-shadow: 0 12px 28px rgba(247,183,51,0.2);
+    }
+
+    .calc-submit-row .btn-secondary {
+        min-height: 50px;
+        padding: 10px 20px;
+    }
+
+    /* ── Breakdown section ───────────────────────────────── */
+    .breakdown-grid {
+        display: grid;
+        gap: 10px;
+    }
+
+    .breakdown-card {
+        padding: 16px;
+        border: 1px solid rgba(255,255,255,0.08);
+        border-radius: var(--radius-md);
+        background: rgba(255,255,255,0.04);
+        display: grid;
+        gap: 10px;
+        transition: border-color 0.2s ease;
+    }
+
+    .breakdown-card.has-score {
+        border-color: rgba(247,183,51,0.15);
+    }
+
+    .breakdown-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
+    }
+
+    .breakdown-label {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+
+    .breakdown-discipline-name {
+        font-family: "Archivo", sans-serif;
+        font-weight: 800;
+        font-size: 1rem;
+        display: flex;
+        align-items: center;
+        gap: 7px;
+    }
+
+    .breakdown-points {
+        font-family: "Archivo", sans-serif;
+        font-size: 1.25rem;
+        font-weight: 900;
+        color: var(--accent);
+        white-space: nowrap;
+    }
+
+    /* Points bar */
+    .points-bar-track {
+        height: 8px;
+        border-radius: 999px;
+        background: rgba(255,255,255,0.07);
+        overflow: hidden;
+    }
+
+    .points-bar-fill {
+        height: 100%;
+        border-radius: inherit;
+        background: linear-gradient(90deg, var(--accent), #ffd77b);
+        transition: width 0.5s ease;
+        min-width: 4px;
+    }
+
+    .points-bar-fill.empty { background: rgba(255,255,255,0.1); min-width: 0; }
+
+    .breakdown-meta {
+        font-size: 0.88rem;
+        color: var(--muted);
+    }
+
+    /* ── CTA action row ──────────────────────────────────── */
+    .rank-cta-row {
+        display: grid;
+        gap: 10px;
+    }
+
+    .rank-cta-row .btn-main,
+    .rank-cta-row .btn-secondary { width: 100%; min-height: 48px; }
+
+    /* ── How it works (3 steps) ──────────────────────────── */
+    .how-hybrid-grid {
+        display: grid;
+        gap: 12px;
+        align-items: start;
+        margin-bottom: 16px;
+    }
+
+    .how-hybrid-step {
+        padding: 16px;
+        border: 1px solid rgba(255,255,255,0.08);
+        border-radius: var(--radius-md);
+        background: rgba(255,255,255,0.04);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .how-hybrid-step::before {
+        content: "";
+        position: absolute;
+        inset: 0 auto 0 0;
+        width: 3px;
+        background: linear-gradient(180deg, var(--accent), transparent);
+        border-radius: var(--radius-md) 0 0 var(--radius-md);
+    }
+
+    .how-step-num {
+        font-family: "Archivo", sans-serif;
+        font-size: 2.2rem;
+        font-weight: 900;
+        color: rgba(247,183,51,0.16);
+        letter-spacing: -0.04em;
+        line-height: 1;
+        margin-bottom: 6px;
+    }
+
+    .how-hybrid-step strong {
+        display: block;
+        font-family: "Archivo", sans-serif;
+        font-size: 1rem;
+        margin-bottom: 4px;
+        color: var(--text);
+    }
+
+    .how-hybrid-step p {
+        margin: 0;
+        font-size: 0.9rem;
+        color: var(--muted);
+    }
+
+    .how-hybrid-note {
+        padding: 14px 16px;
+        border-radius: var(--radius-md);
+        border-left: 3px solid rgba(247,183,51,0.5);
+        background: rgba(247,183,51,0.06);
+        font-size: 0.93rem;
+        color: var(--muted);
+    }
+
+    .how-hybrid-note strong {
+        color: #ffd77b;
+    }
+
+    /* ── Points reference cards ──────────────────────────── */
+    .point-ref-grid {
+        display: grid;
+        gap: 12px;
+    }
+
+    .point-ref-card {
+        padding: 16px;
+        border: 1px solid rgba(255,255,255,0.08);
+        border-radius: var(--radius-md);
+        background: rgba(255,255,255,0.04);
+        display: grid;
+        gap: 8px;
+    }
+
+    .point-ref-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding-bottom: 8px;
+        border-bottom: 1px solid rgba(255,255,255,0.07);
+        margin-bottom: 2px;
+    }
+
+    .point-ref-header strong {
+        font-family: "Archivo", sans-serif;
+        font-size: 1rem;
+        font-weight: 800;
+        display: flex;
+        align-items: center;
+        gap: 7px;
+    }
+
+    .point-ref-row {
+        display: grid;
+        grid-template-columns: 80px 1fr 48px;
+        gap: 8px;
+        align-items: center;
+        font-size: 0.88rem;
+    }
+
+    .point-ref-row span:first-child {
+        color: var(--muted);
+        font-weight: 600;
+        font-size: 0.85rem;
+    }
+
+    .point-bar-mini {
+        height: 5px;
+        border-radius: 999px;
+        background: rgba(255,255,255,0.07);
+        overflow: hidden;
+    }
+
+    .point-bar-mini-fill {
+        height: 100%;
+        border-radius: inherit;
+        background: linear-gradient(90deg, #3b82f6 0%, var(--accent) 60%, #1e9d74 100%);
+    }
+
+    .point-ref-pts {
+        text-align: right;
+        font-family: "Archivo", sans-serif;
+        font-weight: 800;
+        font-size: 0.88rem;
+        color: var(--text);
+    }
+
+    /* ── Hybrid rank tiers grid ──────────────────────────── */
+    .hybrid-tier-grid {
+        display: grid;
+        gap: 10px;
+    }
+
+    .hybrid-tier-card {
+        position: relative;
+        padding: 16px 14px 14px 18px;
+        border: 1px solid rgba(255,255,255,0.08);
+        border-radius: var(--radius-md);
+        background: rgba(255,255,255,0.04);
+        overflow: hidden;
+        display: grid;
+        gap: 5px;
+        transition: transform 0.2s ease, border-color 0.2s ease;
+    }
+
+    /* Left color stripe */
+    .hybrid-tier-card::before {
+        content: "";
+        position: absolute;
+        inset: 0 auto 0 0;
+        width: 4px;
+        border-radius: var(--radius-md) 0 0 var(--radius-md);
+        background: var(--tier-color, var(--accent));
+    }
+
+    .hybrid-tier-card:hover {
+        transform: translateY(-2px);
+        border-color: color-mix(in srgb, var(--tier-color, var(--accent)) 35%, transparent);
+    }
+
+    .hybrid-tier-card.rank-beginner    { --tier-color:#94a3b8; border-color:rgba(148,163,184,.2); background:linear-gradient(135deg,rgba(148,163,184,.07),rgba(255,255,255,.03)); }
+    .hybrid-tier-card.rank-intermediate{ --tier-color:#3b82f6; border-color:rgba(59,130,246,.2);  background:linear-gradient(135deg,rgba(59,130,246,.08),rgba(255,255,255,.03)); }
+    .hybrid-tier-card.rank-advanced    { --tier-color:#f7b733; border-color:rgba(247,183,51,.28); background:linear-gradient(135deg,rgba(247,183,51,.12),rgba(255,255,255,.03)); }
+    .hybrid-tier-card.rank-elite       { --tier-color:#fc4a1a; border-color:rgba(252,74,26,.26);  background:linear-gradient(135deg,rgba(252,74,26,.1),rgba(255,255,255,.03)); }
+    .hybrid-tier-card.rank-legend      { --tier-color:#1e9d74; border-color:rgba(30,157,116,.3);  background:linear-gradient(135deg,rgba(30,157,116,.12),rgba(247,183,51,.05)); }
+
+    .hybrid-tier-name {
+        font-family: "Archivo", sans-serif;
+        font-size: 1rem;
+        font-weight: 800;
+        color: var(--text);
+    }
+
+    .hybrid-tier-range {
+        font-family: "Archivo", sans-serif;
+        font-size: 1.3rem;
+        font-weight: 900;
+        color: var(--tier-color, var(--accent));
+        letter-spacing: -0.03em;
+    }
+
+    .hybrid-tier-desc {
+        font-size: 0.84rem;
+        color: var(--muted);
+        margin-top: 2px;
+        line-height: 1.4;
+    }
+
+    /* ── Final CTA ───────────────────────────────────────── */
+    .rank-final-cta {
+        position: relative;
+        overflow: hidden;
+        text-align: center;
+        padding: clamp(28px, 5vw, 48px) 24px;
+        background:
+            radial-gradient(ellipse at 50% -10%, rgba(247,183,51,0.14), transparent 58%),
+            var(--panel);
+        border-color: rgba(247,183,51,0.2);
+    }
+
+    .rank-final-cta::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background-image: radial-gradient(circle, rgba(255,255,255,0.03) 1px, transparent 1px);
+        background-size: 24px 24px;
+        pointer-events: none;
+    }
+
+    .rank-final-cta > * { position: relative; z-index: 1; }
+
+    .rank-final-cta h2 {
+        font-size: clamp(2rem, 8vw, 3.4rem);
+        line-height: 0.94;
+        margin-bottom: 10px;
+    }
+
+    .rank-final-cta h2 em { font-style: normal; color: var(--accent); }
+
+    .rank-final-cta-row {
+        display: grid;
+        gap: 10px;
+        max-width: 440px;
+        margin: 18px auto 0;
+    }
+
+    /* ── Responsive ──────────────────────────────────────── */
+    @media (min-width: 720px) {
+        .rank-page { gap: 20px; }
+
+        .rank-hero-grid {
+            grid-template-columns: minmax(0, 1fr) minmax(310px, 380px);
+            min-height: min(480px, calc(100svh - 160px));
+            align-items: center;
+            gap: 28px;
+        }
+
+        .rank-result-card,
+        .rank-preview-card { justify-self: start; }
+
+        .calc-inputs {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+
+        .how-hybrid-grid {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+
+        .point-ref-grid {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+
+        .hybrid-tier-grid {
+            grid-template-columns: repeat(5, minmax(0, 1fr));
+        }
+
+        .breakdown-grid {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+
+        .rank-cta-row {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+
+        .rank-final-cta-row {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .rank-stat-chip { font-size: 0.9rem; }
+    }
+
+    @media (min-width: 1100px) {
+        .rank-hero-grid {
+            grid-template-columns: minmax(0, 580px) 370px;
+            gap: 36px;
+        }
+    }
+
+    @media (max-width: 719px) {
+        .rank-page { gap: 12px; }
+
+        .rank-hero-card { padding: 18px 14px; }
+
+        .rank-result-card,
+        .rank-preview-card {
+            max-width: none;
+        }
+
+        .rank-score-number { font-size: clamp(4rem, 22vw, 5.5rem); }
+        .rank-score-example { font-size: clamp(3.5rem, 20vw, 5rem); }
+
+        .calc-submit-row { flex-direction: column; }
+        .calc-submit-row .btn-main { flex: none; }
+
+        .hybrid-tier-card {
+            grid-template-columns: 1fr auto;
+            grid-template-rows: auto auto;
+        }
+
+        .hybrid-tier-name { grid-column: 1; grid-row: 1; }
+        .hybrid-tier-range { grid-column: 2; grid-row: 1; align-self: center; }
+        .hybrid-tier-desc { grid-column: 1 / -1; grid-row: 2; }
     }
 </style>
 
 <div class="rank-page">
-    <section class="rank-stage" aria-labelledby="rank-title">
-        <div class="rank-hero">
-            <div class="rank-copy">
+
+    <!-- ═══════════════════ HERO ═══════════════════ -->
+    <section class="hero-card rank-hero-card">
+        <div class="rank-hero-card-pattern" aria-hidden="true"></div>
+        <div class="rank-hero-grid">
+            <div class="rank-hero-copy">
                 <div class="eyebrow">Hybrid Score Calculator</div>
-                <h1 id="rank-title">Find your Hybrid Score.</h1>
-                <p class="muted">Enter any discipline you know. Specialist ranks stay independent, and each verified discipline increases your Hybrid completion.</p>
-                <div class="rank-actions" style="margin-top: 16px;">
-                    <a class="btn-main" href="#rank-inputs">Enter Performances</a>
-                    <a class="btn-secondary" href="{% url 'register' %}">Claim Your Athlete Profile</a>
-                    <a class="btn-secondary" href="{% url 'home' %}#rank-tiers">Hybrid Rankings</a>
+                <h1>Find where you <em>stand.</em></h1>
+                <p class="rank-hero-lead">
+                    Enter any combination of push-ups, pull-ups, and 5K. Your Hybrid Score is the average across all disciplines — only verified proof makes it official.
+                </p>
+                <div class="rank-stat-row">
+                    <div class="rank-stat-chip"><strong>3</strong> disciplines</div>
+                    <div class="rank-stat-chip"><strong>0–1000</strong> pts each</div>
+                    <div class="rank-stat-chip"><strong>5</strong> rank tiers</div>
                 </div>
+                {% if not has_rank_input %}
+                <div class="rank-hero-actions">
+                    <a class="btn-main" href="#rank-inputs">Enter Performances</a>
+                    <a class="btn-secondary" href="{% url 'register' %}">Claim Your Profile</a>
+                </div>
+                {% endif %}
             </div>
+
             {% if has_rank_input %}
-            <aside class="rank-result-card">
+            <!-- Live result card -->
+            <aside class="rank-result-card" aria-label="Estimated Hybrid Score result">
                 <span class="kicker">Estimated Hybrid Score</span>
                 <div class="rank-score-number">{{ hybrid_estimate.score }}</div>
-                <h2>{{ hybrid_estimate.rank.name }}</h2>
-                <p class="muted">{{ hybrid_estimate.verified_count }}/{{ hybrid_estimate.max_disciplines }} disciplines entered. Official score requires verified proof.</p>
-                <a class="btn-main" href="{{ submit_url }}">Submit Official Result</a>
+                <div class="hybrid-rank-badge rank-{{ hybrid_estimate.rank.intensity }}">{{ hybrid_estimate.rank.name }}</div>
+                <div class="tier-meter-wrap">
+                    <div class="tier-meter-track" aria-label="Score position">
+                        <div class="tier-meter-fill" style="width: {% widthratio hybrid_estimate.score 1000 100 %}%;"></div>
+                    </div>
+                    <div class="tier-meter-ticks">
+                        <span>0</span><span>350</span><span>550</span><span>750</span><span>900+</span>
+                    </div>
+                </div>
+                <div class="completion-strip">
+                    <div class="completion-dots" aria-hidden="true">
+                        {% for row in hybrid_estimate.breakdown %}
+                            <div class="completion-dot{% if row.points %} filled{% endif %}"></div>
+                        {% endfor %}
+                    </div>
+                    <span>{{ hybrid_estimate.verified_count }}/{{ hybrid_estimate.max_disciplines }} disciplines entered</span>
+                </div>
+                <p class="muted" style="margin:0; font-size:.88rem;">Official score requires verified proof. Add missing disciplines to raise your score.</p>
+                <a class="btn-main" href="{{ submit_url }}" style="box-shadow: 0 10px 24px rgba(247,183,51,0.22);">Submit Official Result</a>
             </aside>
+            {% else %}
+            <!-- Example preview card when no input -->
+            <div class="rank-preview-card" aria-label="Example hybrid score preview">
+                <span class="kicker" style="color: rgba(245,247,251,0.45); font-size:.78rem;">Example result</span>
+                <div class="rank-score-example">742</div>
+                <div class="hybrid-rank-badge rank-elite" style="opacity:.7;">Elite Hybrid Athlete</div>
+                <div class="tier-meter-wrap">
+                    <div class="tier-meter-track">
+                        <div class="tier-meter-fill" style="width:74%; opacity:.5;"></div>
+                    </div>
+                    <div class="tier-meter-ticks" style="opacity:.5;">
+                        <span>0</span><span>350</span><span>550</span><span>750</span><span>900+</span>
+                    </div>
+                </div>
+                <p class="muted" style="margin:0; font-size:.86rem;">Enter your performances below to calculate your real score.</p>
+            </div>
             {% endif %}
         </div>
     </section>
 
-    <section id="rank-inputs" class="card-dark">
-        <div class="section-spread">
-            <div>
-                <h2>Enter performances</h2>
-                <p class="muted">Use reps for strength and MM:SS or HH:MM:SS for running.</p>
+    <!-- ═══════════════════ CALCULATOR FORM ═══════════════════ -->
+    <section id="rank-inputs" class="card-dark" style="scroll-margin-top: 96px;">
+        <span class="section-accent-bar" aria-hidden="true"></span>
+        <h2 style="margin-bottom: 6px;">Enter Performances</h2>
+        <p class="muted" style="margin-bottom: 18px;">Reps for strength. MM:SS for running. Leave blank to skip a discipline.</p>
+        <form method="GET" action="{% url 'rank' %}">
+            <div class="calc-inputs">
+                <div class="calc-input-group">
+                    <label class="field-label" for="rank-pushups">
+                        <span class="calc-icon" aria-hidden="true">💪</span> Push-ups
+                    </label>
+                    <input id="rank-pushups" class="input" type="number" min="1" step="1"
+                           name="pushups" value="{{ raw_scores.pushups }}" placeholder="42" inputmode="numeric">
+                    <div class="calc-input-hint">Max clean reps in a single set</div>
+                </div>
+                <div class="calc-input-group">
+                    <label class="field-label" for="rank-pullups">
+                        <span class="calc-icon" aria-hidden="true">🏋️</span> Pull-ups
+                    </label>
+                    <input id="rank-pullups" class="input" type="number" min="1" step="1"
+                           name="pullups" value="{{ raw_scores.pullups }}" placeholder="12" inputmode="numeric">
+                    <div class="calc-input-hint">Full dead-hang reps</div>
+                </div>
+                <div class="calc-input-group">
+                    <label class="field-label" for="rank-5k">
+                        <span class="calc-icon" aria-hidden="true">🏃</span> 5K run
+                    </label>
+                    <input id="rank-5k" class="input" type="text"
+                           name="run_5k" value="{{ raw_scores.run_5k }}" placeholder="21:34" inputmode="text">
+                    <div class="calc-input-hint">Format: MM:SS or HH:MM:SS</div>
+                </div>
             </div>
-        </div>
-        <form class="rank-form" method="GET" action="{% url 'rank' %}">
-            <div class="grid-4">
-                <div>
-                    <label class="field-label" for="rank-pushups">Push-ups</label>
-                    <input id="rank-pushups" class="input" type="number" min="1" step="1" name="pushups" value="{{ raw_scores.pushups }}" placeholder="42" inputmode="numeric">
-                </div>
-                <div>
-                    <label class="field-label" for="rank-pullups">Pull-ups</label>
-                    <input id="rank-pullups" class="input" type="number" min="1" step="1" name="pullups" value="{{ raw_scores.pullups }}" placeholder="12" inputmode="numeric">
-                </div>
-                <div>
-                    <label class="field-label" for="rank-5k">5K</label>
-                    <input id="rank-5k" class="input" type="text" name="run_5k" value="{{ raw_scores.run_5k }}" placeholder="21:34" inputmode="text">
-                </div>
+            <div class="calc-submit-row">
+                <button class="btn-main" type="submit">Calculate Hybrid Score</button>
+                {% if has_rank_input %}
+                <a class="btn-secondary" href="{% url 'rank' %}">Clear</a>
+                {% endif %}
             </div>
-            <button class="btn-main" type="submit">Calculate Hybrid Score</button>
         </form>
     </section>
 
-    {% if has_rank_input %}<section class="card-dark">
-        <h2>Discipline breakdown</h2>
-        <div class="rank-breakdown">
+    <!-- ═══════════════════ BREAKDOWN (conditional) ═══════════════════ -->
+    {% if has_rank_input %}
+    <section class="card-dark">
+        <span class="section-accent-bar" aria-hidden="true"></span>
+        <h2 style="margin-bottom: 16px;">Discipline breakdown</h2>
+        <div class="breakdown-grid">
             {% for row in hybrid_estimate.breakdown %}
-                <div class="rank-breakdown-row">
-                    <div>
-                        <div class="submission-name">{{ row.discipline.short_label }}</div>
-                        <div class="submission-meta">
-                            {% if row.error %}{{ row.error }}{% elif row.tier %}{{ row.display_score }} - {{ row.tier.name }}{% else %}Not entered{% endif %}
+            <div class="breakdown-card{% if row.points %} has-score{% endif %}">
+                <div class="breakdown-header">
+                    <div class="breakdown-label">
+                        <div class="breakdown-discipline-name">
+                            <span aria-hidden="true">{% if row.discipline.key == "pushups" %}💪{% elif row.discipline.key == "pullups" %}🏋️{% elif row.discipline.key == "run_5k" %}🏃{% elif row.discipline.key == "run_10k" %}🏃‍♂️{% else %}🎯{% endif %}</span>
+                            {{ row.discipline.short_label }}
                         </div>
+                        {% if row.tier %}<span class="status-pill verified" style="font-size:.74rem; padding: 4px 8px;">{{ row.tier.name }}</span>{% endif %}
                     </div>
-                    <strong>{{ row.points }} pts</strong>
+                    <div class="breakdown-points">{{ row.points }} pts</div>
                 </div>
+                <div class="points-bar-track">
+                    {% if row.points %}
+                    <div class="points-bar-fill" style="width: {% widthratio row.points 1000 100 %}%;"></div>
+                    {% else %}
+                    <div class="points-bar-fill empty" style="width:0;"></div>
+                    {% endif %}
+                </div>
+                <div class="breakdown-meta">
+                    {% if row.error %}
+                        <span style="color: #ffb8a8;">{{ row.error }}</span>
+                    {% elif row.display_score and row.display_score != "-" %}
+                        {{ row.display_score }}
+                    {% else %}
+                        Not entered — add this discipline to raise your Hybrid Score
+                    {% endif %}
+                </div>
+            </div>
             {% endfor %}
         </div>
     </section>
 
-    <section class="rank-actions">
+    <section class="rank-cta-row">
         <a class="btn-main" href="{{ submit_url }}">Submit Official Result</a>
+        <a class="btn-secondary" href="{% url 'leaderboard' %}">View Leaderboard</a>
         <a class="btn-secondary" href="{% url 'register' %}">Claim Your Athlete Profile</a>
-        <a class="btn-secondary" href="{% url 'home' %}#rank-tiers">View Rank Tiers</a>
-    </section>{% endif %}
+    </section>
+    {% endif %}
+
+    <!-- ═══════════════════ HOW HYBRID SCORE WORKS ═══════════════════ -->
+    <section class="card-dark">
+        <span class="section-accent-bar" aria-hidden="true"></span>
+        <h2 style="margin-bottom: 18px;">How Hybrid Score works</h2>
+        <div class="how-hybrid-grid">
+            <div class="how-hybrid-step">
+                <div class="how-step-num">01</div>
+                <strong>Enter any discipline</strong>
+                <p>Submit push-ups, pull-ups, or 5K. You can do one or all three — more disciplines means a stronger profile.</p>
+            </div>
+            <div class="how-hybrid-step">
+                <div class="how-step-num">02</div>
+                <strong>Earn 0–1000 points</strong>
+                <p>Each discipline converts your performance to a point score on a curve. A stronger result = more points.</p>
+            </div>
+            <div class="how-hybrid-step">
+                <div class="how-step-num">03</div>
+                <strong>Score is averaged</strong>
+                <p>Your Hybrid Score is the average across all disciplines you entered. This rewards breadth, not just one strong event.</p>
+            </div>
+        </div>
+        <div class="how-hybrid-note">
+            <strong>Proof makes it official.</strong> This calculator shows an estimate. Only submissions with verified proof (video or race result) earn official leaderboard status and count toward your real Hybrid Score.
+        </div>
+    </section>
+
+    <!-- ═══════════════════ POINTS REFERENCE ═══════════════════ -->
+    <section class="card-dark">
+        <span class="section-accent-bar" aria-hidden="true"></span>
+        <h2 style="margin-bottom: 8px;">Points reference</h2>
+        <p class="muted" style="margin-bottom: 18px;">What performance earns what points per discipline.</p>
+        <div class="point-ref-grid">
+            {% for key, data in discipline_point_tiers.items %}
+            <div class="point-ref-card">
+                <div class="point-ref-header">
+                    <strong>
+                        <span aria-hidden="true">{% if data.discipline.key == "pushups" %}💪{% elif data.discipline.key == "pullups" %}🏋️{% elif data.discipline.key == "run_5k" %}🏃{% elif data.discipline.key == "run_10k" %}🏃‍♂️{% else %}🎯{% endif %}</span>
+                        {{ data.discipline.short_label }}
+                    </strong>
+                    <span class="muted" style="font-size:.8rem; font-weight:700;">0 – 1000 pts</span>
+                </div>
+                {% for tier in data.tiers %}
+                <div class="point-ref-row">
+                    <span>{{ tier.display }}</span>
+                    <div class="point-bar-mini">
+                        <div class="point-bar-mini-fill" style="width: {{ tier.width_percent }}%;"></div>
+                    </div>
+                    <span class="point-ref-pts">{{ tier.points }}</span>
+                </div>
+                {% endfor %}
+            </div>
+            {% endfor %}
+        </div>
+    </section>
+
+    <!-- ═══════════════════ HYBRID RANK TIERS ═══════════════════ -->
+    <section class="card-dark">
+        <span class="section-accent-bar" aria-hidden="true"></span>
+        <h2 style="margin-bottom: 8px;">Hybrid rank tiers</h2>
+        <p class="muted" style="margin-bottom: 16px;">Where your Hybrid Score places you in the athlete hierarchy.</p>
+        <div class="hybrid-tier-grid">
+            <div class="hybrid-tier-card rank-beginner">
+                <div class="hybrid-tier-name">Beginner Hybrid</div>
+                <div class="hybrid-tier-range">0–349</div>
+                <div class="hybrid-tier-desc">Building the first verified pieces of a hybrid profile.</div>
+            </div>
+            <div class="hybrid-tier-card rank-intermediate">
+                <div class="hybrid-tier-name">Intermediate Hybrid</div>
+                <div class="hybrid-tier-range">350–549</div>
+                <div class="hybrid-tier-desc">A balanced athlete base is starting to show.</div>
+            </div>
+            <div class="hybrid-tier-card rank-advanced">
+                <div class="hybrid-tier-name">Advanced Hybrid</div>
+                <div class="hybrid-tier-range">550–749</div>
+                <div class="hybrid-tier-desc">Strong verified capability across more than one lane.</div>
+            </div>
+            <div class="hybrid-tier-card rank-elite">
+                <div class="hybrid-tier-name">Elite Hybrid</div>
+                <div class="hybrid-tier-range">750–899</div>
+                <div class="hybrid-tier-desc">High-level verified performance with real hybrid range.</div>
+            </div>
+            <div class="hybrid-tier-card rank-legend">
+                <div class="hybrid-tier-name">Earned Legend</div>
+                <div class="hybrid-tier-range">900+</div>
+                <div class="hybrid-tier-desc">Rare overall athletic status across the Earned Club board.</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ═══════════════════ FINAL CTA ═══════════════════ -->
+    <section class="hero-card rank-final-cta">
+        <h2>Ready to make it <em>official?</em></h2>
+        <p class="muted">Submit your score with proof and earn a verified rank on the public leaderboard.</p>
+        <div class="rank-final-cta-row">
+            <a class="btn-main" href="{% url 'test_session_official' %}" style="min-height:50px;">Submit Official Result</a>
+            <a class="btn-secondary" href="{% url 'leaderboard' %}#full-leaderboard" style="min-height:50px;">View Leaderboard</a>
+        </div>
+    </section>
+
 </div>
 {% endblock %}

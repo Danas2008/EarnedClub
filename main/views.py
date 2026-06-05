@@ -510,11 +510,17 @@ def build_hybrid_breakdown(user):
     best_row = max(working_rows or verified_rows, key=lambda row: row["working_points"] or row["points"], default=None)
     weakest_row = min(working_rows or verified_rows, key=lambda row: row["working_points"] or row["points"], default=None)
     missing_row = next((row for row in rows if not row["working_points"]), None)
+    _display_score = hybrid_score or open_score
+    _display_rank = get_hybrid_rank(_display_score)
     return {
         "score": hybrid_score,
         "open_score": open_score,
         "rank": get_hybrid_rank(hybrid_score),
         "open_rank": get_hybrid_rank(open_score),
+        # display_rank = best rank the user has earned (verified first, then open)
+        # Use this for showing rank identity — never "Beginner" just because nothing is verified yet
+        "display_rank": _display_rank,
+        "display_intensity": _display_rank["intensity"],
         "breakdown": rows,
         "best_discipline": best_row,
         "weakest_discipline": weakest_row or missing_row,
@@ -715,7 +721,7 @@ def build_hybrid_leaderboard_rows(query="", mode_key="all"):
                 best_by_discipline[submission.normalized_discipline] = submission
         best_submissions = list(best_by_discipline.values())
         points = [submission.hybrid_points for submission in best_submissions]
-        if not points:
+        if len(best_submissions) < 2:
             continue
         score = round(sum(points) / len(points))
         verified_count = sum(1 for submission in best_submissions if submission.status == Submission.STATUS_VERIFIED)
@@ -902,6 +908,7 @@ def build_submission_success(submission, request):
     return {
         "submission": submission,
         "is_official_pending": submission.has_proof,
+        "is_hidden_until_proof": not is_submission_visible_on_open_board(submission),
         "leaderboard_url": leaderboard_url,
         "profile_url": profile_url,
         "register_url": f"{reverse('register')}?{register_params}" if register_params else reverse("register"),
@@ -999,6 +1006,7 @@ def build_test_progress(request, latest_submission=None, room=None):
     completed_count = len(completed)
     max_disciplines = len(allowed_keys)
     is_complete = completed_count >= max_disciplines and max_disciplines > 0
+    is_single_discipline = completed_count == 1
     return {
         "rows": rows,
         "completed_submissions": [completed[key] for key in allowed_keys if key in completed],
@@ -1009,6 +1017,7 @@ def build_test_progress(request, latest_submission=None, room=None):
         "rank": get_hybrid_rank(open_score),
         "is_complete": is_complete,
         "is_full_hybrid": is_complete and max_disciplines == len(ACTIVE_DISCIPLINE_KEYS),
+        "is_single_discipline": is_single_discipline,
         "next_rows": [row for row in rows if not row["done"]],
     }
 
@@ -1097,6 +1106,20 @@ def build_room_leaderboard(room):
             },
         )
         group["submissions"].append(submission)
+
+    # Merge guest groups into their registered counterpart when the same user_id appears in multiple groups.
+    user_id_to_key = {}
+    merged_grouped = {}
+    for key, group in grouped.items():
+        user_id = group["user"].id if group["user"] else None
+        if user_id and user_id in user_id_to_key:
+            canonical_key = user_id_to_key[user_id]
+            merged_grouped[canonical_key]["submissions"].extend(group["submissions"])
+        else:
+            if user_id:
+                user_id_to_key[user_id] = key
+            merged_grouped[key] = group
+    grouped = merged_grouped
 
     rows = []
     for group in grouped.values():
@@ -1691,7 +1714,7 @@ def profile_completion_items(user):
         {"label": "Add profile photo", "done": bool(profile.profile_image_url), "url": reverse("dashboard")},
         {"label": "Add country", "done": bool(profile.country), "url": reverse("dashboard")},
         {"label": "Add bio", "done": bool(profile.bio), "url": reverse("dashboard")},
-        {"label": "Get first verified performance", "done": user.submission_set.filter(status=Submission.STATUS_VERIFIED).exists(), "url": reverse("challenge")},
+        {"label": "Get first verified performance", "done": user.submission_set.filter(status=Submission.STATUS_VERIFIED).exists(), "url": reverse("test_session_official")},
         {"label": "Publish one workout", "done": user.workouts.filter(is_public=True).exists(), "url": reverse("workouts")},
     ]
     completed = sum(1 for item in items if item["done"])
@@ -1701,7 +1724,7 @@ def profile_completion_items(user):
 def build_onboarding_checklist(user):
     return [
         {"label": "Run the Hybrid Score check", "done": user.submission_set.exists(), "url": reverse("level_test")},
-        {"label": "Start Official Review", "done": user.submission_set.filter(status__in=[Submission.STATUS_PENDING, Submission.STATUS_VERIFIED]).exists(), "url": reverse("challenge")},
+        {"label": "Start Official Review", "done": user.submission_set.filter(status__in=[Submission.STATUS_PENDING, Submission.STATUS_VERIFIED]).exists(), "url": reverse("test_session_official")},
         {"label": "Create a workout", "done": user.workouts.exists(), "url": reverse("workouts")},
         {"label": "Set a goal", "done": user.goals.exists(), "url": reverse("dashboard")},
         {"label": "Share your profile", "done": bool(user.profile.personal_best_reps), "url": reverse("athlete_profile", args=[user.profile.slug])},
@@ -2329,6 +2352,25 @@ def _level_test(request, view_name, template):
         if score_error:
             messages.error(request, score_error)
             return render(request, template, context)
+
+        # Check for any existing UNVERIFIED submission (no time gate) before the timed blocking queryset.
+        existing_unverified_qs = Submission.objects.filter(status=Submission.STATUS_UNVERIFIED, discipline=normalize_discipline(discipline))
+        if request.user.is_authenticated:
+            existing_unverified = existing_unverified_qs.filter(user=request.user).first()
+        elif email:
+            existing_unverified = existing_unverified_qs.filter(email__iexact=email).first()
+        else:
+            existing_unverified = existing_unverified_qs.filter(name__iexact=name).first()
+        if existing_unverified:
+            remember_test_submission(request, existing_unverified)
+            attach_submission_to_room(room, existing_unverified, build_room_participant_key(request, existing_unverified))
+            request.session["last_test_submission_id"] = existing_unverified.id
+            messages.info(request, "You already have an open result for this discipline. Add proof below to earn official status.")
+            official_url = reverse("test_session_official")
+            if room:
+                official_url = f"{official_url}?{room_query(room)}"
+            return redirect(official_url)
+
         active_filter = blocking_submission_queryset(discipline)
         active_submission = active_filter.filter(email__iexact=email).first() if email else active_filter.filter(name__iexact=name).first()
         if active_submission:
@@ -2440,6 +2482,16 @@ def test_submission_proof(request, submission_id):
 def test_session_official(request):
     room = get_room_from_request(request)
     submissions = get_test_journey_submissions(request)
+    if not submissions and request.user.is_authenticated:
+        # Session expired or different device — reconstruct from DB and rebuild session
+        db_submissions = list(
+            request.user.submission_set.filter(
+                status__in=[Submission.STATUS_UNVERIFIED, Submission.STATUS_PENDING]
+            ).order_by("-created_at")
+        )
+        for sub in db_submissions:
+            remember_test_submission(request, sub)
+        submissions = get_test_journey_submissions(request)
     if not submissions:
         messages.error(request, "Complete a test result before starting Official Review.")
         return redirect(room_link("level_test", room) if room else "level_test")
@@ -2568,7 +2620,7 @@ def rank(request):
         "completion_percent": round((len(points) / len(ACTIVE_DISCIPLINE_KEYS)) * 100),
         "breakdown": hybrid_breakdown,
     }
-    submit_url = f"{reverse('challenge')}?{first_submit_params}#submit-form-top" if first_submit_params else f"{reverse('challenge')}#submit-form-top"
+    submit_url = f"{reverse('level_test')}?{first_submit_params}" if first_submit_params else reverse("test_session_official")
 
     return render(
         request,
@@ -2577,6 +2629,7 @@ def rank(request):
             "hybrid_estimate": hybrid_estimate,
             "submit_url": submit_url,
             "rank_tiers": RANK_TIERS,
+            "hybrid_ranks": HYBRID_RANKS,
             "discipline_cards": active_discipline_configs(),
             "discipline_point_tiers": build_discipline_point_tiers(),
             "has_rank_input": any(raw_scores.values()),
@@ -3376,31 +3429,18 @@ def challenge(request):
 
         if active_submission:
             if active_submission.status == Submission.STATUS_UNVERIFIED and (video_file or proof_link):
-                active_submission.name = name
-                active_submission.email = email
-                active_submission.discipline = discipline
-                active_submission.reps = score_value
+                # Only update proof fields + status — never overwrite the existing score.
                 active_submission.video_link = proof_link
+                update_fields = ["video_link", "status", "verified"]
                 if video_file:
                     stored_video = store_submission_video(active_submission, video_file)
                     active_submission.video_storage_path = stored_video["storage_path"]
                     active_submission.video_file = stored_video["local_file"] or ""
+                    update_fields += ["video_storage_path", "video_file"]
                 active_submission.status = Submission.STATUS_PENDING
                 active_submission.verified = False
-                active_submission.save(
-                    update_fields=[
-                        "name",
-                        "email",
-                        "discipline",
-                        "reps",
-                        "video_link",
-                        "video_storage_path",
-                        "video_file",
-                        "status",
-                        "verified",
-                    ]
-                )
-                estimated_position = estimate_verified_position(score_value, discipline)
+                active_submission.save(update_fields=update_fields)
+                estimated_position = estimate_verified_position(active_submission.reps, active_submission.discipline)
                 safe_post_submission_side_effects(
                     active_submission,
                     VerificationEvent.ACTION_PROOF_ADDED,
@@ -3418,15 +3458,22 @@ def challenge(request):
                 )
                 messages.info(request, "Next: open your dashboard, watch review status, and build the next discipline.")
                 attach_submission_to_room(room, active_submission, build_room_participant_key(request, active_submission))
+                remember_test_submission(request, active_submission)
                 request.session["last_submission_id"] = active_submission.id
                 if room:
                     return redirect("challenge_room", token=room.token)
                 return redirect("challenge")
 
-            messages.error(
-                request,
-                "You already have an active submission. Start Official Review for your current entry or wait until it is reviewed before submitting again.",
-            )
+            if active_submission.status == Submission.STATUS_PENDING:
+                messages.info(
+                    request,
+                    "Your submission is currently in Official Review. Check your dashboard for the review status.",
+                )
+            else:
+                messages.error(
+                    request,
+                    "You already have an active submission for this discipline. Add proof to it to start Official Review, or wait until it is reviewed before submitting again.",
+                )
             context["form_data"] = request.POST
             context["form_score"] = score_raw
             context["active_submission"] = active_submission
@@ -3492,6 +3539,7 @@ def challenge(request):
         )
         messages.info(request, "Next: open the leaderboard, share your result, or start Official Review.")
         attach_submission_to_room(room, submission, build_room_participant_key(request, submission))
+        remember_test_submission(request, submission)
         request.session["last_submission_id"] = submission.id
         if room:
             messages.info(request, "Your result is now inside the challenge room.")

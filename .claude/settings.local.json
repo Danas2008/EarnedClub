@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mkdir -p \"C:\\\\Users\\\\daniel.havlicek.s\\\\.claude\\\\projects\\\\c--Users-daniel-havlicek-s-Desktop-EarnedClub-EarnedClub\\\\memory\")",
+      "Bash(python manage.py check)",
+      "Bash(python manage.py test main.tests.RankPageTests -v 2)",
+      "Bash(python manage.py test main -k rank_page -v 2)",
+      "Bash(python manage.py test main --verbosity=2)",
+      "Bash(python manage.py test main.tests.SubmissionFlowTests.test_anonymous_unverified_submission_can_be_completed_with_proof main.tests.SubmissionFlowTests.test_duplicate_pending_submission_is_blocked_for_email main.tests.SubmissionFlowTests.test_duplicate_pending_submission_is_blocked_for_user main.tests.SubmissionFlowTests.test_level_test_is_fast_single_discipline_funnel main.tests.SubmissionFlowTests.test_rank_page_shows_tier_and_official_submit_cta --verbosity=2)",
+      "Bash(python manage.py test main.tests.SubmissionFlowTests.test_level_test_is_fast_single_discipline_funnel --verbosity=2)",
+      "Bash(git stash *)",
+      "Bash(python manage.py test main.tests.SubmissionFlowTests.test_level_test_is_fast_single_discipline_funnel main.tests.SubmissionFlowTests.test_rank_page_shows_tier_and_official_submit_cta --verbosity=1)"
+    ],
+    "additionalDirectories": [
+      "C:\\Users\\daniel.havlicek.s\\.claude\\projects\\c--Users-daniel-havlicek-s-Desktop-EarnedClub-EarnedClub\\memory"
+    ]
+  }
+}

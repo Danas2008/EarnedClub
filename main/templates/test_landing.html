@@ -520,11 +520,15 @@
                             {% endif %}
                         </div>
                         <div>
-                            <span class="kicker">Open Score</span>
+                            <span class="kicker">{% if test_submission_success.is_hidden_until_proof %}Estimated score{% elif test_progress.is_single_discipline %}Score Preview{% else %}Open Score{% endif %}</span>
                             <div class="preview-score">{{ test_progress.open_score }}</div>
-                            <p class="muted">
-                                Your Open Score starts the story. Official Review turns it into earned athlete status.
-                            </p>
+                            {% if test_submission_success.is_hidden_until_proof %}
+                                <p class="muted">Your score is strong — it needs proof before it appears on the public leaderboard. Add your video or link below.</p>
+                            {% elif test_progress.is_single_discipline %}
+                                <p class="muted">This is a single-discipline preview, not a full Hybrid Score. Add push-ups and pull-ups to unlock your complete Hybrid Score.</p>
+                            {% else %}
+                                <p class="muted">Your Open Score starts the story. Official Review turns it into earned athlete status.</p>
+                            {% endif %}
                         </div>
                     </div>
                     <div class="test-next-panel">

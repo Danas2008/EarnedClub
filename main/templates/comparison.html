@@ -66,7 +66,7 @@
             {% endif %}
             <div class="row-title">
                 <div class="submission-name">{{ row.profile.display_name }}</div>
-                <div class="submission-meta">{{ row.hybrid_summary.rank.name }} - {{ row.hybrid_summary.verified_count }}/{{ row.hybrid_summary.max_disciplines }} verified</div>
+                <div class="submission-meta">{{ row.hybrid_summary.display_rank.name }}{% if not row.hybrid_summary.score %} (Open){% endif %} - {{ row.hybrid_summary.verified_count }}/{{ row.hybrid_summary.max_disciplines }} verified</div>
             </div>
             <span class="tag-pill">Hybrid {{ row.hybrid_summary.score }}</span>
             <span class="btn-secondary hide-mobile" style="min-height: 36px; padding: 7px 11px;">Profile</span>

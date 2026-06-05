@@ -5,17 +5,26 @@
 
 {% block content %}
 <style>
+    /* ── Layout ─────────────────────────────────────────── */
     .home-page {
         display: grid;
-        gap: 18px;
+        gap: 16px;
     }
 
+    /* Fix: card-dark/hero-card both carry margin-bottom which doubles
+       the gap inside a CSS grid. Zero it out here. */
+    .home-page > * {
+        margin-bottom: 0;
+    }
+
+    /* ── Hero ────────────────────────────────────────────── */
     .home-hero {
         position: relative;
         overflow: hidden;
-        padding: clamp(18px, 4vw, 30px);
+        padding: clamp(20px, 4vw, 36px);
         background:
-            linear-gradient(145deg, rgba(247, 183, 51, 0.1), transparent 34%),
+            radial-gradient(ellipse at 14% 52%, rgba(247, 183, 51, 0.07), transparent 50%),
+            linear-gradient(145deg, rgba(247, 183, 51, 0.09), transparent 34%),
             linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.018)),
             var(--panel);
         border-color: rgba(255, 255, 255, 0.11);
@@ -25,17 +34,26 @@
         content: "";
         position: absolute;
         inset: 0;
-        background: radial-gradient(circle at 88% 10%, rgba(247, 183, 51, 0.12), transparent 32%);
-        opacity: 0.75;
+        background: radial-gradient(circle at 88% 10%, rgba(247, 183, 51, 0.15), transparent 34%);
         pointer-events: none;
     }
 
+    /* Bottom gold rule */
     .home-hero::after {
         content: "";
         position: absolute;
-        inset: auto 18px 0;
+        inset: auto 20px 0;
         height: 1px;
-        background: linear-gradient(90deg, transparent, rgba(247, 183, 51, 0.65), transparent);
+        background: linear-gradient(90deg, transparent, rgba(247, 183, 51, 0.7), transparent);
+        pointer-events: none;
+    }
+
+    /* Subtle dot-grid texture */
+    .home-hero-pattern {
+        position: absolute;
+        inset: 0;
+        background-image: radial-gradient(circle, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
+        background-size: 28px 28px;
         pointer-events: none;
     }
 
@@ -43,27 +61,31 @@
         position: relative;
         z-index: 1;
         display: grid;
-        gap: 20px;
+        gap: 22px;
         align-items: center;
         max-width: 1040px;
         margin: 0 auto;
     }
 
-    .home-hero-copy {
-        max-width: 660px;
-    }
+    .home-hero-copy { max-width: 660px; }
 
     .home-hero h1 {
         max-width: 700px;
         font-size: clamp(3rem, 9vw, 4.55rem);
-        line-height: 0.94;
-        margin-bottom: 14px;
+        line-height: 0.92;
+        margin-bottom: 16px;
         text-shadow: 0 14px 42px rgba(0, 0, 0, 0.28);
     }
 
+    .home-hero h1 em {
+        font-style: normal;
+        color: var(--accent);
+    }
+
     .home-lead {
-        max-width: 560px;
-        font-size: clamp(1.08rem, 4vw, 1.35rem);
+        max-width: 540px;
+        font-size: clamp(1.05rem, 3.5vw, 1.3rem);
+        line-height: 1.58;
     }
 
     .home-cta-row,
@@ -71,7 +93,7 @@
         display: grid;
         grid-template-columns: 1fr;
         gap: 10px;
-        margin-top: 18px;
+        margin-top: 20px;
     }
 
     .home-cta-row .btn-main,
@@ -80,10 +102,11 @@
     .final-cta-row .btn-secondary {
         width: 100%;
         min-height: 52px;
+        font-size: 1.02rem;
     }
 
     .home-cta-row .btn-main {
-        box-shadow: 0 12px 26px rgba(247, 183, 51, 0.16);
+        box-shadow: 0 12px 32px rgba(247, 183, 51, 0.22);
     }
 
     .home-cta-row .btn-secondary {
@@ -91,6 +114,7 @@
         border-color: rgba(255, 255, 255, 0.13);
     }
 
+    /* ── Score rank card ─────────────────────────────────── */
     .score-rank-card {
         position: relative;
         overflow: hidden;
@@ -100,39 +124,34 @@
         max-width: 380px;
         width: 100%;
         justify-self: center;
-        padding: 16px;
-        border: 1px solid rgba(255, 255, 255, 0.1);
+        padding: 18px;
+        border: 1px solid rgba(247, 183, 51, 0.2);
         border-radius: var(--radius-lg);
         background:
-            linear-gradient(150deg, rgba(247, 183, 51, 0.15), rgba(252, 74, 26, 0.06) 34%, rgba(255, 255, 255, 0.04)),
+            linear-gradient(150deg, rgba(247, 183, 51, 0.17), rgba(252, 74, 26, 0.06) 34%, rgba(255, 255, 255, 0.04)),
             rgba(255, 255, 255, 0.04);
         box-shadow:
-            0 18px 44px rgba(0, 0, 0, 0.28),
-            inset 0 1px 0 rgba(255, 255, 255, 0.08);
+            0 24px 56px rgba(0, 0, 0, 0.32),
+            inset 0 1px 0 rgba(255, 255, 255, 0.09);
     }
 
-    .score-rank-card .btn-secondary {
-        width: 100%;
-    }
+    .score-rank-card .btn-secondary { width: 100%; }
 
     .score-rank-card::before {
         content: "";
         position: absolute;
-        inset: -80px -120px auto auto;
-        width: 230px;
-        height: 230px;
+        inset: -70px -110px auto auto;
+        width: 220px;
+        height: 220px;
         border-radius: 50%;
-        background: rgba(247, 183, 51, 0.16);
+        background: radial-gradient(circle, rgba(247, 183, 51, 0.22), transparent 70%);
         pointer-events: none;
     }
 
     .score-rank-top,
     .score-rank-result,
     .score-rank-proof,
-    .rank-meter {
-        position: relative;
-        z-index: 1;
-    }
+    .rank-meter { position: relative; z-index: 1; }
 
     .score-rank-top,
     .score-rank-proof {
@@ -144,11 +163,14 @@
 
     .score-rank-number {
         font-family: "Archivo", sans-serif;
-        font-size: clamp(4.5rem, 18vw, 6.4rem);
+        font-size: clamp(4.5rem, 18vw, 6.8rem);
         line-height: 0.76;
         font-weight: 900;
+        letter-spacing: -0.04em;
         color: var(--accent);
-        text-shadow: 0 14px 32px rgba(247, 183, 51, 0.18);
+        text-shadow:
+            0 0 60px rgba(247, 183, 51, 0.4),
+            0 14px 32px rgba(247, 183, 51, 0.12);
     }
 
     .score-rank-result {
@@ -160,8 +182,8 @@
 
     .score-rank-result h2 {
         margin-bottom: 6px;
-        font-size: clamp(1.35rem, 5vw, 1.8rem);
-        line-height: 1;
+        font-size: clamp(1.25rem, 4.5vw, 1.65rem);
+        line-height: 1.05;
     }
 
     .rank-meter {
@@ -169,24 +191,31 @@
         gap: 8px;
         padding: 12px;
         border-radius: var(--radius-md);
-        background: rgba(8, 11, 15, 0.34);
+        background: rgba(8, 11, 15, 0.38);
         border: 1px solid rgba(255, 255, 255, 0.08);
     }
 
     .rank-meter-track {
         position: relative;
-        height: 9px;
+        height: 10px;
         overflow: hidden;
         border-radius: 999px;
-        background: rgba(255, 255, 255, 0.08);
+        background: rgba(255, 255, 255, 0.07);
     }
 
+    /* Full-spectrum tier gradient fill */
     .rank-meter-track::before {
         content: "";
         position: absolute;
-        inset: 0 36% 0 0;
+        inset: 0;
+        width: 100%;
         border-radius: inherit;
-        background: linear-gradient(90deg, var(--accent), var(--accent-2));
+        background: linear-gradient(90deg,
+            #94a3b8 0%,
+            #3b82f6 25%,
+            #f7b733 55%,
+            #fc4a1a 80%,
+            #1e9d74 100%);
     }
 
     .rank-meter-labels {
@@ -194,8 +223,10 @@
         justify-content: space-between;
         gap: 8px;
         color: var(--muted);
-        font-size: 0.82rem;
+        font-size: 0.76rem;
         font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
     }
 
     .score-rank-proof {
@@ -205,6 +236,7 @@
         border: 1px solid rgba(30, 157, 116, 0.22);
     }
 
+    /* ── Hero scroll cue ─────────────────────────────────── */
     .hero-scroll-cue {
         position: relative;
         z-index: 1;
@@ -214,61 +246,153 @@
         justify-content: space-between;
         gap: 12px;
         width: 100%;
-        padding: 12px 14px;
+        padding: 12px 16px;
         border-radius: var(--radius-md);
         background:
-            linear-gradient(90deg, rgba(247, 183, 51, 0.08), rgba(255, 255, 255, 0.03)),
+            linear-gradient(90deg, rgba(247, 183, 51, 0.07), rgba(255, 255, 255, 0.025)),
             rgba(8, 11, 15, 0.36);
-        border: 1px solid rgba(255, 255, 255, 0.1);
+        border: 1px solid rgba(255, 255, 255, 0.09);
         color: var(--muted);
         font-weight: 800;
+        font-size: 0.95rem;
         transition: transform 0.2s ease, border-color 0.2s ease, background 0.2s ease;
     }
 
     .hero-scroll-cue:hover {
         color: var(--text);
         transform: translateY(-1px);
-        border-color: rgba(247, 183, 51, 0.28);
-        background: rgba(255, 255, 255, 0.055);
+        border-color: rgba(247, 183, 51, 0.3);
+        background: rgba(255, 255, 255, 0.04);
     }
 
     .scroll-dot {
         display: grid;
         place-items: center;
-        width: 34px;
-        height: 34px;
+        width: 36px;
+        height: 36px;
         flex: 0 0 auto;
         border-radius: 50%;
         color: #111111;
         background: linear-gradient(135deg, var(--accent), #ffd77b);
-        font-family: "Archivo", sans-serif;
-        box-shadow: 0 8px 24px rgba(247, 183, 51, 0.22);
+        font-weight: 900;
+        font-size: 1rem;
+        box-shadow: 0 8px 24px rgba(247, 183, 51, 0.28);
         animation: scrollNudge 1.6s ease-in-out infinite;
     }
 
     @keyframes scrollNudge {
-        0%,
-        100% {
-            transform: translateY(0);
-        }
-        50% {
-            transform: translateY(4px);
-        }
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(5px); }
     }
 
-    .flow-label {
-        display: inline-flex;
-        width: fit-content;
-        padding: 6px 9px;
-        border-radius: var(--radius-sm);
-        background: rgba(247, 183, 51, 0.13);
-        color: #ffd77b;
-        font-size: 0.82rem;
-        font-weight: 900;
-        text-transform: uppercase;
-        letter-spacing: 0.08em;
+    /* ── Section accent bar ──────────────────────────────── */
+    .section-accent-bar {
+        display: block;
+        width: 30px;
+        height: 3px;
+        border-radius: 999px;
+        background: linear-gradient(90deg, var(--accent), var(--accent-2));
+        margin-bottom: 14px;
     }
 
+    .home-section-head {
+        max-width: 780px;
+        margin-bottom: 20px;
+    }
+
+    .home-section-head h2 { margin-bottom: 8px; }
+
+    /* ── Rank progress bar (above tier cards) ────────────── */
+    .rank-progress-bar {
+        display: flex;
+        gap: 3px;
+        height: 5px;
+        border-radius: 999px;
+        overflow: hidden;
+        margin-bottom: 14px;
+    }
+
+    .rank-progress-bar span {
+        flex: 1;
+        border-radius: 999px;
+    }
+
+    /* ── Rank tier cards ─────────────────────────────────── */
+    .home-rank-grid { display: grid; gap: 10px; }
+
+    .home-rank-card {
+        position: relative;
+        display: grid;
+        gap: 5px;
+        padding: 16px 14px 14px 18px;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: var(--radius-md);
+        background: rgba(255, 255, 255, 0.04);
+        transition: transform 0.22s ease, border-color 0.22s ease, background 0.22s ease;
+        overflow: hidden;
+    }
+
+    /* Left color bar */
+    .home-rank-card::before {
+        content: "";
+        position: absolute;
+        inset: 0 auto 0 0;
+        width: 4px;
+        border-radius: var(--radius-md) 0 0 var(--radius-md);
+        background: var(--tier-color, var(--accent));
+    }
+
+    .home-rank-card:hover {
+        transform: translateY(-2px);
+        border-color: color-mix(in srgb, var(--tier-color, var(--accent)) 40%, transparent);
+        background: color-mix(in srgb, var(--tier-color, var(--accent)) 8%, rgba(255,255,255,0.03));
+    }
+
+    .home-rank-card.rank-beginner {
+        border-color: rgba(148, 163, 184, 0.2);
+        background: linear-gradient(135deg, rgba(148, 163, 184, 0.08), rgba(255, 255, 255, 0.03));
+    }
+
+    .home-rank-card.rank-intermediate {
+        border-color: rgba(59, 130, 246, 0.2);
+        background: linear-gradient(135deg, rgba(59, 130, 246, 0.08), rgba(255, 255, 255, 0.03));
+    }
+
+    .home-rank-card.rank-advanced {
+        border-color: rgba(247, 183, 51, 0.28);
+        background: linear-gradient(135deg, rgba(247, 183, 51, 0.12), rgba(255, 255, 255, 0.03));
+    }
+
+    .home-rank-card.rank-elite {
+        border-color: rgba(252, 74, 26, 0.26);
+        background: linear-gradient(135deg, rgba(252, 74, 26, 0.1), rgba(255, 255, 255, 0.03));
+    }
+
+    .home-rank-card.rank-legend {
+        border-color: rgba(30, 157, 116, 0.3);
+        background: linear-gradient(135deg, rgba(30, 157, 116, 0.12), rgba(247, 183, 51, 0.05));
+    }
+
+    .rank-card-name {
+        font-family: "Archivo", sans-serif;
+        font-size: 0.98rem;
+        font-weight: 800;
+        color: var(--text);
+    }
+
+    .rank-card-range {
+        font-size: 0.85rem;
+        color: var(--muted);
+        font-weight: 700;
+    }
+
+    .rank-beginner { --tier-color: #94a3b8; }
+    .rank-intermediate { --tier-color: #3b82f6; }
+    .rank-advanced { --tier-color: #f7b733; }
+    .rank-elite { --tier-color: #fc4a1a; }
+    .rank-legend { --tier-color: #1e9d74; }
+
+    /* ── "How it works" step cards ───────────────────────── */
     .home-value-strip,
     .home-feature-grid,
     .home-tools-grid,
@@ -279,10 +403,76 @@
         gap: 12px;
     }
 
+    .how-step {
+        position: relative;
+        display: grid;
+        gap: 8px;
+        padding: 18px 16px 16px;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: var(--radius-md);
+        background: rgba(255, 255, 255, 0.04);
+        overflow: hidden;
+        transition: transform 0.22s ease, border-color 0.22s ease, background 0.22s ease;
+    }
+
+    .how-step::before {
+        content: "";
+        position: absolute;
+        inset: 0 auto 0 0;
+        width: 3px;
+        border-radius: var(--radius-md) 0 0 var(--radius-md);
+        background: linear-gradient(180deg, var(--accent), rgba(247, 183, 51, 0.2));
+    }
+
+    .how-step:hover {
+        transform: translateY(-2px);
+        border-color: rgba(247, 183, 51, 0.28);
+        background: rgba(255, 255, 255, 0.06);
+    }
+
+    .step-num {
+        font-family: "Archivo", sans-serif;
+        font-size: 3rem;
+        font-weight: 900;
+        line-height: 1;
+        color: rgba(247, 183, 51, 0.14);
+        letter-spacing: -0.05em;
+        position: absolute;
+        top: 10px;
+        right: 14px;
+        pointer-events: none;
+        user-select: none;
+    }
+
+    .flow-label {
+        display: inline-flex;
+        width: fit-content;
+        padding: 4px 8px;
+        border-radius: var(--radius-sm);
+        background: rgba(247, 183, 51, 0.13);
+        color: #ffd77b;
+        font-size: 0.74rem;
+        font-weight: 900;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+    }
+
+    .how-step strong {
+        display: block;
+        font-family: "Archivo", sans-serif;
+        font-size: 1.02rem;
+        color: var(--text);
+    }
+
+    .how-step p.muted {
+        margin: 0;
+        font-size: 0.92rem;
+    }
+
+    /* ── General feature / value cards ──────────────────── */
     .home-value-item,
     .home-feature-card,
     .home-tool-card,
-    .home-rank-card,
     .proof-card,
     .video-preview-card {
         border: 1px solid rgba(255, 255, 255, 0.08);
@@ -294,88 +484,78 @@
     .home-value-item,
     .home-feature-card,
     .home-tool-card,
-    .home-rank-card,
     .proof-card {
-        padding: 14px;
+        padding: 16px;
     }
 
     .home-value-item:hover,
     .home-feature-card:hover,
     .home-tool-card:hover,
-    .home-rank-card:hover,
     .proof-card:hover,
     .video-preview-card:hover {
         transform: translateY(-2px);
         border-color: rgba(247, 183, 51, 0.28);
-        background: rgba(255, 255, 255, 0.06);
+        background: rgba(255, 255, 255, 0.065);
     }
 
     .home-value-item strong,
     .home-feature-card strong,
     .home-tool-card strong,
-    .home-rank-card strong,
     .proof-card strong {
         display: block;
         margin-bottom: 6px;
         font-family: "Archivo", sans-serif;
-        font-size: 1.05rem;
+        font-size: 1.02rem;
     }
 
-    .home-section-head {
-        max-width: 780px;
-        margin-bottom: 18px;
-    }
-
-    .home-rank-card {
+    /* ── Discipline cards ────────────────────────────────── */
+    .discipline-card {
         display: grid;
         gap: 6px;
+        padding: 18px 16px;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: var(--radius-md);
+        background: rgba(255, 255, 255, 0.04);
+        color: inherit;
+        transition: transform 0.22s ease, border-color 0.22s ease, background 0.22s ease;
     }
 
-    .home-rank-card.rank-beginner {
-        border-color: rgba(148, 163, 184, 0.24);
-        background: linear-gradient(135deg, rgba(148, 163, 184, 0.1), rgba(255, 255, 255, 0.035));
+    .discipline-card:hover {
+        transform: translateY(-2px);
+        border-color: rgba(247, 183, 51, 0.3);
+        background: rgba(255, 255, 255, 0.065);
+        color: var(--text);
     }
 
-    .home-rank-card.rank-intermediate {
-        border-color: rgba(59, 130, 246, 0.24);
-        background: linear-gradient(135deg, rgba(59, 130, 246, 0.12), rgba(255, 255, 255, 0.035));
+    .discipline-icon {
+        font-size: 1.6rem;
+        line-height: 1;
+        display: block;
+        margin-bottom: 6px;
     }
 
-    .home-rank-card.rank-advanced {
-        border-color: rgba(247, 183, 51, 0.32);
-        background: linear-gradient(135deg, rgba(247, 183, 51, 0.16), rgba(255, 255, 255, 0.035));
+    .discipline-card strong {
+        display: block;
+        font-family: "Archivo", sans-serif;
+        font-size: 1.02rem;
     }
 
-    .home-rank-card.rank-elite {
-        border-color: rgba(252, 74, 26, 0.3);
-        background: linear-gradient(135deg, rgba(252, 74, 26, 0.14), rgba(255, 255, 255, 0.035));
+    .discipline-card .muted { font-size: 0.88rem; }
+
+    /* ── Feature icons ───────────────────────────────────── */
+    .feature-icon {
+        display: block;
+        font-size: 1.5rem;
+        line-height: 1;
+        margin-bottom: 10px;
     }
 
-    .home-rank-card.rank-legend {
-        border-color: rgba(30, 157, 116, 0.34);
-        background: linear-gradient(135deg, rgba(30, 157, 116, 0.16), rgba(247, 183, 51, 0.08));
-    }
-
-    .home-rank-card::before {
-        content: "";
-        width: 34px;
-        height: 4px;
-        border-radius: 999px;
-        background: var(--tier-color, var(--accent));
-    }
-
-    .rank-beginner { --tier-color: #94a3b8; }
-    .rank-intermediate { --tier-color: #3b82f6; }
-    .rank-advanced { --tier-color: #f7b733; }
-    .rank-elite { --tier-color: #fc4a1a; }
-    .rank-legend { --tier-color: #1e9d74; }
-
-    .home-rank-card span {
-        color: var(--muted);
-    }
-
+    /* ── Proof status cards ──────────────────────────────── */
     .proof-card {
-        min-height: 142px;
+        min-height: 130px;
+        display: grid;
+        gap: 8px;
+        align-content: start;
     }
 
     .proof-card.is-official {
@@ -383,27 +563,32 @@
         background: rgba(30, 157, 116, 0.08);
     }
 
+    .proof-card.is-official:hover {
+        border-color: rgba(30, 157, 116, 0.45);
+        background: rgba(30, 157, 116, 0.12);
+    }
+
+    /* ── Video cards ─────────────────────────────────────── */
     .video-preview-card {
         display: block;
         overflow: hidden;
         color: inherit;
     }
 
-    .video-thumb {
+    .home-video-grid .video-thumb {
         position: relative;
-        min-height: 190px;
-        background:
-            linear-gradient(135deg, rgba(8, 11, 15, 0.08), rgba(8, 11, 15, 0.62)),
-            var(--video-image);
+        min-height: 200px;
+        aspect-ratio: unset;
+        background-color: rgba(8, 11, 15, 0.6);
         background-size: cover;
         background-position: center;
     }
 
-    .video-thumb::after {
+    .home-video-grid .video-thumb::after {
         content: "";
         position: absolute;
         inset: 0;
-        background: linear-gradient(180deg, transparent 20%, rgba(8, 11, 15, 0.82));
+        background: linear-gradient(180deg, rgba(8,11,15,0.08) 0%, rgba(8,11,15,0.78) 100%);
     }
 
     .play-button {
@@ -413,15 +598,25 @@
         left: 50%;
         display: grid;
         place-items: center;
-        width: 58px;
-        height: 58px;
+        width: 60px;
+        height: 60px;
         transform: translate(-50%, -50%);
         border-radius: 50%;
         background: rgba(247, 183, 51, 0.96);
         color: #111111;
-        font-family: "Archivo", sans-serif;
+        font-size: 1.25rem;
         font-weight: 900;
-        box-shadow: 0 14px 36px rgba(0, 0, 0, 0.34);
+        box-shadow:
+            0 0 0 8px rgba(247, 183, 51, 0.14),
+            0 14px 36px rgba(0, 0, 0, 0.38);
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .video-preview-card:hover .play-button {
+        transform: translate(-50%, -50%) scale(1.1);
+        box-shadow:
+            0 0 0 14px rgba(247, 183, 51, 0.16),
+            0 18px 44px rgba(0, 0, 0, 0.44);
     }
 
     .video-label {
@@ -429,60 +624,101 @@
         z-index: 2;
         left: 12px;
         bottom: 12px;
-        padding: 6px 9px;
+        padding: 5px 9px;
         border-radius: var(--radius-sm);
         background: rgba(8, 11, 15, 0.72);
         border: 1px solid rgba(255, 255, 255, 0.12);
         color: var(--muted);
-        font-size: 0.84rem;
+        font-size: 0.78rem;
         font-weight: 800;
         text-transform: uppercase;
-        letter-spacing: 0.06em;
+        letter-spacing: 0.07em;
     }
 
     .video-body {
-        padding: 14px;
+        padding: 14px 16px;
     }
 
+    .video-body h3 {
+        font-size: 1.02rem;
+        margin-bottom: 4px;
+    }
+
+    /* ── Tool cards ──────────────────────────────────────── */
     .tool-arrow {
         display: inline-flex;
-        margin-top: 8px;
+        align-items: center;
+        gap: 6px;
+        margin-top: 10px;
         color: var(--accent);
         font-weight: 900;
+        font-size: 0.93rem;
+        transition: gap 0.18s ease;
     }
 
+    .home-tool-card:hover .tool-arrow { gap: 10px; }
+
+    /* ── Enduro ad ───────────────────────────────────────── */
     .enduro-mini-ad {
         background:
-            linear-gradient(135deg, rgba(33, 150, 83, 0.18), rgba(7, 61, 39, 0.24)),
+            linear-gradient(135deg, rgba(33, 150, 83, 0.16), rgba(7, 61, 39, 0.22)),
             rgba(255, 255, 255, 0.04);
-        border-color: rgba(91, 214, 139, 0.24);
+        border-color: rgba(91, 214, 139, 0.22);
     }
 
     .enduro-mini-ad strong,
-    .enduro-mini-ad .tool-arrow {
-        color: #a8f0bf;
-    }
+    .enduro-mini-ad .tool-arrow { color: #a8f0bf; }
 
-    .final-cta {
+    /* ── Final CTA ───────────────────────────────────────── */
+    .final-cta-section {
+        position: relative;
+        overflow: hidden;
+        padding: clamp(32px, 6vw, 56px) 28px;
         text-align: center;
-        padding: 24px 18px;
+        background:
+            radial-gradient(ellipse at 50% -10%, rgba(247, 183, 51, 0.16), transparent 58%),
+            radial-gradient(ellipse at 20% 110%, rgba(252, 74, 26, 0.1), transparent 50%),
+            var(--panel);
+        border-color: rgba(247, 183, 51, 0.22);
     }
 
-    .final-cta h2 {
-        font-size: clamp(2.2rem, 11vw, 4rem);
-        line-height: 0.95;
-        margin-bottom: 10px;
+    /* Dot pattern */
+    .final-cta-section::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background-image: radial-gradient(circle, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+        background-size: 24px 24px;
+        pointer-events: none;
+    }
+
+    .final-cta-content {
+        position: relative;
+        z-index: 1;
+    }
+
+    .final-cta-section h2 {
+        font-size: clamp(2.4rem, 10vw, 4.4rem);
+        line-height: 0.92;
+        margin-bottom: 12px;
+        letter-spacing: -0.04em;
+    }
+
+    .final-cta-section h2 em {
+        font-style: normal;
+        color: var(--accent);
     }
 
     .final-cta-row {
-        max-width: 560px;
-        margin: 18px auto 0;
+        max-width: 520px;
+        margin: 20px auto 0;
     }
 
+    /* ── Reveal animations ───────────────────────────────── */
     .home-reveal.is-reveal-ready {
         opacity: 0;
-        transform: translateY(22px);
-        transition: opacity 0.68s ease, transform 0.68s ease;
+        transform: translateY(20px);
+        transition: opacity 0.62s ease, transform 0.62s ease;
         transition-delay: var(--reveal-delay, 0ms);
     }
 
@@ -493,32 +729,18 @@
 
     .home-hero-copy,
     .score-rank-card {
-        animation: heroLift 0.58s ease both;
+        animation: heroLift 0.56s ease both;
     }
 
-    .score-rank-card {
-        animation-delay: 0.08s;
-    }
+    .score-rank-card { animation-delay: 0.1s; }
 
     @keyframes heroLift {
-        from {
-            opacity: 0;
-            transform: translateY(16px);
-        }
-        to {
-            opacity: 1;
-            transform: translateY(0);
-        }
+        from { opacity: 0; transform: translateY(18px); }
+        to   { opacity: 1; transform: translateY(0); }
     }
 
     @media (prefers-reduced-motion: reduce) {
         .home-reveal.is-reveal-ready,
-        .home-value-item,
-        .home-feature-card,
-        .home-tool-card,
-        .home-rank-card,
-        .proof-card,
-        .video-preview-card,
         .home-hero-copy,
         .score-rank-card,
         .scroll-dot {
@@ -529,24 +751,16 @@
         }
     }
 
+    /* ── 720 px + ────────────────────────────────────────── */
     @media (min-width: 720px) {
-        .home-page {
-            gap: 22px;
-        }
-
-        .home-hero {
-            padding: 28px;
-        }
+        .home-page { gap: 20px; }
+        .home-hero { padding: 32px 28px; }
 
         .home-hero-grid {
-            grid-template-columns: minmax(0, 1fr) minmax(320px, 370px);
+            grid-template-columns: minmax(0, 1fr) minmax(300px, 358px);
             min-height: min(520px, calc(100svh - 150px));
-            justify-content: start;
-            gap: 20px;
-        }
-
-        .home-hero h1 {
-            max-width: 620px;
+            align-items: center;
+            gap: 24px;
         }
 
         .home-cta-row,
@@ -563,10 +777,7 @@
             grid-template-columns: repeat(4, minmax(0, 1fr));
         }
 
-        .home-feature-grid {
-            grid-template-columns: repeat(3, minmax(0, 1fr));
-        }
-
+        .home-feature-grid,
         .home-tools-grid,
         .home-video-grid {
             grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -576,140 +787,110 @@
             grid-template-columns: repeat(5, minmax(0, 1fr));
         }
 
-        .score-rank-card {
-            justify-self: start;
-        }
+        .score-rank-card { justify-self: start; }
     }
 
+    /* ── 1100 px + ───────────────────────────────────────── */
     @media (min-width: 1100px) {
-        .home-hero {
-            padding: 34px 30px;
-        }
+        .home-hero { padding: 40px 32px; }
 
         .home-hero-grid {
-            grid-template-columns: minmax(0, 620px) 360px;
-            gap: 26px;
+            grid-template-columns: minmax(0, 620px) 350px;
+            gap: 32px;
         }
 
-        .home-hero h1 {
-            font-size: 4.15rem;
-        }
+        .home-hero h1 { font-size: 4.2rem; }
 
         .score-rank-result {
             grid-template-columns: auto minmax(0, 1fr);
             align-items: end;
         }
 
-        .score-rank-number {
-            font-size: 5.65rem;
-        }
-
-        .score-rank-result p {
-            display: none;
-        }
+        .score-rank-number { font-size: 5.8rem; }
+        .score-rank-result p { display: none; }
     }
 
+    /* ── Mobile (max 719px) ──────────────────────────────── */
     @media (max-width: 719px) {
-        .home-page {
-            gap: 14px;
-        }
+        .home-page { gap: 12px; }
 
         .home-hero {
             margin-left: -4px;
             margin-right: -4px;
-            padding: 16px 14px;
+            padding: 18px 14px;
         }
 
-        .home-hero-grid {
-            gap: 14px;
-        }
+        .home-hero-grid { gap: 16px; }
 
         .home-hero h1 {
-            max-width: 9ch;
-            font-size: clamp(2.65rem, 13vw, 3.45rem);
+            font-size: clamp(2.6rem, 13vw, 3.5rem);
             margin-bottom: 12px;
         }
 
         .home-lead {
-            font-size: 1.02rem;
-            line-height: 1.38;
-            margin-bottom: 8px;
+            font-size: 1rem;
+            line-height: 1.48;
         }
 
         .home-cta-row {
-            grid-template-columns: 1fr;
             gap: 8px;
-            margin-top: 12px;
+            margin-top: 14px;
         }
 
         .home-cta-row .btn-main,
         .home-cta-row .btn-secondary {
-            min-height: 46px;
-            padding-left: 10px;
-            padding-right: 10px;
+            min-height: 48px;
             font-size: 1rem;
         }
 
         .score-rank-card {
             max-width: none;
-            gap: 10px;
-            padding: 12px;
-            margin-top: 2px;
+            padding: 14px;
         }
 
         .score-rank-result {
             grid-template-columns: auto minmax(0, 1fr);
             gap: 10px;
-            padding: 4px 0 4px;
             align-items: end;
         }
 
         .score-rank-number {
-            margin-top: 2px;
-            font-size: clamp(4.25rem, 22vw, 5.8rem);
+            font-size: clamp(4.2rem, 22vw, 5.6rem);
         }
 
-        .score-rank-result h2 {
-            font-size: 1.32rem;
-        }
-
-        .score-rank-result p {
-            display: none;
-        }
+        .score-rank-result h2 { font-size: 1.25rem; }
+        .score-rank-result p { display: none; }
 
         .rank-meter,
-        .score-rank-proof {
-            padding: 10px;
-        }
+        .score-rank-proof { padding: 10px; }
 
         .rank-meter-labels,
-        .score-rank-proof .submission-meta {
-            font-size: 0.78rem;
-            line-height: 1.25;
-        }
+        .score-rank-proof .submission-meta { font-size: 0.74rem; }
 
-        .score-rank-card .btn-secondary {
-            min-height: 44px;
-        }
+        .score-rank-card .btn-secondary { min-height: 44px; }
 
         .hero-scroll-cue {
             padding: 9px 11px;
-            font-size: 0.88rem;
+            font-size: 0.85rem;
         }
 
-        .scroll-dot {
-            width: 30px;
-            height: 30px;
-        }
+        .scroll-dot { width: 32px; height: 32px; }
+
+        .step-num { font-size: 2.2rem; }
+
+        .final-cta-section { padding: 28px 16px; }
     }
 </style>
 
 <div class="home-page">
+
+    <!-- ═══════════════════ HERO ═══════════════════ -->
     <section class="hero-card home-hero home-reveal">
+        <div class="home-hero-pattern" aria-hidden="true"></div>
         <div class="home-hero-grid">
             <div class="home-hero-copy">
                 <div class="eyebrow">Earned Club</div>
-                <h1>The fitness leaderboard for hybrid athletes.</h1>
+                <h1>The fitness leaderboard for <em>hybrid</em> athletes.</h1>
                 <p class="home-lead muted">
                     Submit your best performance, prove it, and build a verified Hybrid Score across strength and running.
                 </p>
@@ -738,7 +919,7 @@
                 <div class="rank-meter" aria-label="Sample rank tier meter">
                     <div class="rank-meter-track"></div>
                     <div class="rank-meter-labels">
-                        <span>Beginner Hybrid</span>
+                        <span>Beginner</span>
                         <span>Advanced</span>
                         <span>Legend</span>
                     </div>
@@ -749,7 +930,7 @@
                         <div class="submission-meta">Only verified performances count toward official Hybrid Score.</div>
                     </div>
                 </div>
-                <a class="btn-secondary" href="{% url 'home' %}#rank-tiers">View rank tiers</a>
+                <a class="btn-secondary" href="#rank-tiers">View rank tiers &darr;</a>
             </aside>
 
             <a class="hero-scroll-cue" href="#rank-tiers" aria-label="Scroll to rank tiers">
@@ -759,6 +940,7 @@
         </div>
     </section>
 
+    <!-- ═══════════════════ RECENT ACTIVITY ═══════════════════ -->
     {% if recent_activity %}
     <section class="card-dark home-reveal">
         <div class="section-spread">
@@ -783,45 +965,75 @@
     </section>
     {% endif %}
 
+    <!-- ═══════════════════ RANK TIERS ═══════════════════ -->
     <section id="rank-tiers" class="card-dark home-reveal" style="scroll-margin-top: 96px;">
         <div class="section-spread">
             <div class="home-section-head" style="margin-bottom: 0;">
-            <h2>Discipline ranks</h2>
-            <p class="muted">Each challenge has its own status. Hybrid Score is the bigger layer above them.</p>
+                <span class="section-accent-bar" aria-hidden="true"></span>
+                <h2>Discipline ranks</h2>
+                <p class="muted">Each challenge has its own tier. Hybrid Score is the composite layer above them.</p>
             </div>
-            <a class="btn-secondary" href="{% url 'challenge' %}#submit-form-top">Submit Official Result</a>
+            <a class="btn-secondary" href="{% url 'test_session_official' %}">Submit Official Result</a>
+        </div>
+        <div class="rank-progress-bar" aria-hidden="true">
+            <span style="background:#94a3b8;"></span>
+            <span style="background:#3b82f6;"></span>
+            <span style="background:#f7b733;"></span>
+            <span style="background:#fc4a1a;"></span>
+            <span style="background:#1e9d74;"></span>
         </div>
         <div class="home-rank-grid">
-            <div class="home-rank-card rank-beginner home-reveal"><strong>Beginner Hybrid</strong><span>0-349 score</span></div>
-            <div class="home-rank-card rank-intermediate home-reveal"><strong>Intermediate Hybrid</strong><span>350-549 score</span></div>
-            <div class="home-rank-card rank-advanced home-reveal"><strong>Advanced Hybrid</strong><span>550-749 score</span></div>
-            <div class="home-rank-card rank-elite home-reveal"><strong>Elite Hybrid</strong><span>750-899 score</span></div>
-            <div class="home-rank-card rank-legend home-reveal"><strong>Earned Legend</strong><span>900+ score</span></div>
+            <div class="home-rank-card rank-beginner home-reveal">
+                <div class="rank-card-name">Beginner Hybrid</div>
+                <div class="rank-card-range">0 – 349</div>
+            </div>
+            <div class="home-rank-card rank-intermediate home-reveal">
+                <div class="rank-card-name">Intermediate Hybrid</div>
+                <div class="rank-card-range">350 – 549</div>
+            </div>
+            <div class="home-rank-card rank-advanced home-reveal">
+                <div class="rank-card-name">Advanced Hybrid</div>
+                <div class="rank-card-range">550 – 749</div>
+            </div>
+            <div class="home-rank-card rank-elite home-reveal">
+                <div class="rank-card-name">Elite Hybrid</div>
+                <div class="rank-card-range">750 – 899</div>
+            </div>
+            <div class="home-rank-card rank-legend home-reveal">
+                <div class="rank-card-name">Earned Legend</div>
+                <div class="rank-card-range">900+</div>
+            </div>
         </div>
     </section>
 
+    <!-- ═══════════════════ HOW IT WORKS ═══════════════════ -->
     <section class="card-dark home-reveal">
         <div class="home-section-head">
+            <span class="section-accent-bar" aria-hidden="true"></span>
             <h2>How it works</h2>
             <p class="muted">Simple enough for your first visit. Serious enough for public status.</p>
         </div>
         <div class="home-value-strip how-flow">
-            <div class="home-value-item home-reveal">
+            <div class="how-step home-reveal">
+                <span class="step-num" aria-hidden="true">01</span>
                 <span class="flow-label">Choose</span>
                 <strong>Pick a discipline</strong>
                 <p class="muted">Push-ups, pull-ups, or 5K.</p>
             </div>
-            <div class="home-value-item home-reveal">
+            <div class="how-step home-reveal">
+                <span class="step-num" aria-hidden="true">02</span>
                 <span class="flow-label">Submit</span>
                 <strong>Enter your result</strong>
                 <p class="muted">Add reps or a verified race time.</p>
             </div>
-            <div class="home-value-item home-reveal">
+            <div class="how-step home-reveal">
+                <span class="step-num" aria-hidden="true">03</span>
                 <span class="flow-label">Prove</span>
                 <strong>Make it official</strong>
                 <p class="muted">Video for reps. Race or Strava proof for runs.</p>
             </div>
-            <div class="home-value-item home-reveal">
+            <div class="how-step home-reveal">
+                <span class="step-num" aria-hidden="true">04</span>
                 <span class="flow-label">Rank</span>
                 <strong>Earn status</strong>
                 <p class="muted">Approved results become public rank.</p>
@@ -829,10 +1041,12 @@
         </div>
     </section>
 
+    <!-- ═══════════════════ HYBRID SCORE ═══════════════════ -->
     <section id="hybrid-score" class="card-dark home-reveal">
         <div class="home-section-head">
+            <span class="section-accent-bar" aria-hidden="true"></span>
             <h2>Hybrid Score</h2>
-            <p class="muted">Your Overall Athlete Rating is built from verified discipline points. Adding more disciplines builds completion and makes your athlete profile stronger.</p>
+            <p class="muted">Your overall athlete rating is built from verified discipline points. More disciplines make your profile stronger.</p>
         </div>
         {% if hybrid_top_five %}
             <div class="compact-board">
@@ -847,7 +1061,7 @@
                         {% endif %}
                         <div class="score-row-main">
                             <div class="submission-name">{% if row.profile %}<a href="{% url 'athlete_profile' row.profile.slug %}">{{ row.profile.display_name }}</a>{% else %}{{ row.display_name }}{% endif %}</div>
-                            <div class="submission-meta">{{ row.hybrid_rank.name }} - {{ row.verified_count }}/4 verified</div>
+                            <div class="submission-meta">{{ row.hybrid_rank.name }} &mdash; {{ row.verified_count }}/4 verified</div>
                         </div>
                         <div class="score-row-score">
                             <span class="position-pill">#{{ row.position }}</span>
@@ -861,23 +1075,28 @@
         {% endif %}
     </section>
 
+    <!-- ═══════════════════ DISCIPLINE LEADERBOARDS ═══════════════════ -->
     <section class="card-dark home-reveal">
         <div class="home-section-head">
+            <span class="section-accent-bar" aria-hidden="true"></span>
             <h2>Choose your leaderboard.</h2>
-            <p class="muted">Starting with push-ups, pull-ups, and 5K. Proof makes official rank real.</p>
+            <p class="muted">Push-ups, pull-ups, and 5K. Proof makes official rank real.</p>
         </div>
         <div class="home-feature-grid">
             {% for discipline in discipline_cards %}
-                <a class="home-feature-card home-reveal" href="{% url 'leaderboard_discipline' discipline.key %}">
+                <a class="discipline-card home-reveal" href="{% url 'leaderboard_discipline' discipline.key %}">
+                    <span class="discipline-icon" aria-hidden="true">{% if discipline.key == "pushups" %}💪{% elif discipline.key == "pullups" %}🏋️{% elif discipline.key == "run_5k" %}🏃{% elif discipline.key == "run_10k" %}🏃‍♂️{% else %}🎯{% endif %}</span>
                     <strong>{{ discipline.title }}</strong>
-                    <p class="muted">{% if discipline.score_type == "time" %}Lower time ranks higher.{% else %}Higher score ranks higher.{% endif %}</p>
+                    <span class="muted">{% if discipline.score_type == "time" %}Lower time ranks higher.{% else %}Higher score ranks higher.{% endif %}</span>
                 </a>
             {% endfor %}
         </div>
     </section>
 
+    <!-- ═══════════════════ WHY / HOW RANKS ═══════════════════ -->
     <section class="grid-2 home-reveal">
         <div class="card-dark">
+            <span class="section-accent-bar" aria-hidden="true"></span>
             <h2>Why it exists</h2>
             <p>
                 Most fitness apps let users track workouts. Earned Club is about proving real performance.
@@ -886,82 +1105,108 @@
                 Status is not claimed. It is earned through balanced performance, proof links or video, and public verification.
             </p>
             <div class="button-row">
-                <a class="btn-main" href="{% url 'challenge' %}#submit-form-top">Prove Your Score</a>
+                <a class="btn-main" href="{% url 'level_test' %}">Prove Your Score</a>
             </div>
         </div>
 
         <div class="card-dark">
+            <span class="section-accent-bar" aria-hidden="true"></span>
             <h2>How ranks are earned</h2>
             <div class="proof-grid">
                 <div class="proof-card home-reveal">
                     <span class="status-pill unverified">Visible</span>
-                    <strong style="margin-top: 12px;">Unverified score</strong>
+                    <strong style="margin-top: 8px;">Unverified score</strong>
                     <p class="muted">Your result can appear, but it is not official yet.</p>
                 </div>
                 <div class="proof-card home-reveal">
                     <span class="status-pill pending">Review</span>
-                    <strong style="margin-top: 12px;">Uploaded proof</strong>
+                    <strong style="margin-top: 8px;">Uploaded proof</strong>
                     <p class="muted">A clean video moves the result into verification.</p>
                 </div>
                 <div class="proof-card is-official home-reveal">
                     <span class="status-pill verified">Official</span>
-                    <strong style="margin-top: 12px;">Verified status</strong>
+                    <strong style="margin-top: 8px;">Verified status</strong>
                     <p class="muted">Approved scores earn official public rank.</p>
                 </div>
             </div>
         </div>
     </section>
 
+    <!-- ═══════════════════ WHAT YOU GET ═══════════════════ -->
     <section class="card-dark home-reveal">
         <div class="home-section-head">
+            <span class="section-accent-bar" aria-hidden="true"></span>
             <h2>What you get</h2>
-                <p class="muted">A competitive layer for people who want performance to mean something.</p>
+            <p class="muted">A competitive layer for people who want performance to mean something.</p>
         </div>
         <div class="home-feature-grid">
-            <div class="home-feature-card home-reveal"><strong>Leaderboards</strong><p class="muted">Compare real strength and running performances in public.</p></div>
-            <div class="home-feature-card home-reveal"><strong>Athlete profiles</strong><p class="muted">Turn verified results into a public record.</p></div>
-            <div class="home-feature-card home-reveal"><strong>Workout tracking</strong><p class="muted">Build sessions around your next rank jump.</p></div>
-            <div class="home-feature-card home-reveal"><strong>Progress tracking</strong><p class="muted">See your best result and history improve.</p></div>
-            <div class="home-feature-card home-reveal"><strong>Comparisons</strong><p class="muted">Match your rank against another athlete.</p></div>
-            <div class="home-feature-card home-reveal"><strong>Verification</strong><p class="muted">Proof review keeps status trustworthy.</p></div>
+            <div class="home-feature-card home-reveal">
+                <span class="feature-icon" aria-hidden="true">🏆</span>
+                <strong>Leaderboards</strong>
+                <p class="muted">Compare real strength and running performances in public.</p>
+            </div>
+            <div class="home-feature-card home-reveal">
+                <span class="feature-icon" aria-hidden="true">🧑</span>
+                <strong>Athlete profiles</strong>
+                <p class="muted">Turn verified results into a public record.</p>
+            </div>
+            <div class="home-feature-card home-reveal">
+                <span class="feature-icon" aria-hidden="true">🏋️</span>
+                <strong>Workout tracking</strong>
+                <p class="muted">Build sessions around your next rank jump.</p>
+            </div>
+            <div class="home-feature-card home-reveal">
+                <span class="feature-icon" aria-hidden="true">📈</span>
+                <strong>Progress tracking</strong>
+                <p class="muted">See your best result and history improve.</p>
+            </div>
+            <div class="home-feature-card home-reveal">
+                <span class="feature-icon" aria-hidden="true">⚖️</span>
+                <strong>Comparisons</strong>
+                <p class="muted">Match your rank against another athlete.</p>
+            </div>
+            <div class="home-feature-card home-reveal">
+                <span class="feature-icon" aria-hidden="true">✅</span>
+                <strong>Verification</strong>
+                <p class="muted">Proof review keeps status trustworthy.</p>
+            </div>
         </div>
     </section>
 
+    <!-- ═══════════════════ CHALLENGE CONTENT ═══════════════════ -->
     <section class="card-dark home-reveal">
         <div class="section-spread">
             <div class="home-section-head" style="margin-bottom: 0;">
+                <span class="section-accent-bar" aria-hidden="true"></span>
                 <h2>Challenge content</h2>
-                <p class="muted">Proof examples, challenge clips, and training motivation will live here.</p>
+                <p class="muted">Proof examples, challenge clips, and training motivation.</p>
             </div>
         </div>
         <div class="home-video-grid">
-            <!-- Replace this card with a real YouTube embed when the first challenge video is ready. -->
             <a class="video-preview-card home-reveal" href="https://www.youtube.com/watch?v=mgmVOuLgFB0" target="_blank" rel="noopener noreferrer">
-                <div class="video-thumb" style="--video-image: url('https://img.youtube.com/vi/mgmVOuLgFB0/hqdefault.jpg');">
-                    <span class="play-button">▶</span>
-                    <span class="video-label">YouTube video</span>
+                <div class="video-thumb" style="background-image: linear-gradient(rgba(8,11,15,0.18),rgba(8,11,15,0.5)), url('https://img.youtube.com/vi/mgmVOuLgFB0/hqdefault.jpg');">
+                    <span class="play-button" aria-hidden="true">&#9654;</span>
+                    <span class="video-label">YouTube</span>
                 </div>
                 <div class="video-body">
                     <h3>Discipline</h3>
                     <p class="muted">Current motivation video. Challenge breakdown coming soon.</p>
                 </div>
             </a>
-            <!-- Replace this card with a proof-example YouTube embed later. -->
             <a class="video-preview-card home-reveal" href="https://www.youtube.com/watch?v=wnHW6o8WMas" target="_blank" rel="noopener noreferrer">
-                <div class="video-thumb" style="--video-image: url('https://img.youtube.com/vi/wnHW6o8WMas/hqdefault.jpg');">
-                    <span class="play-button">▶</span>
-                    <span class="video-label">YouTube video</span>
+                <div class="video-thumb" style="background-image: linear-gradient(rgba(8,11,15,0.18),rgba(8,11,15,0.5)), url('https://img.youtube.com/vi/wnHW6o8WMas/hqdefault.jpg');">
+                    <span class="play-button" aria-hidden="true">&#9654;</span>
+                    <span class="video-label">YouTube</span>
                 </div>
                 <div class="video-body">
                     <h3>No Comfort Zone</h3>
                     <p class="muted">Training mindset now. Official proof guide coming soon.</p>
                 </div>
             </a>
-            <!-- Future YouTube video coming soon: add iframe or linked thumbnail here. -->
             <div class="video-preview-card home-reveal">
-                <div class="video-thumb" style="--video-image: linear-gradient(135deg, rgba(247,183,51,.18), rgba(252,74,26,.12));">
-                    <span class="play-button">▶</span>
-                    <span class="video-label">YouTube video coming soon</span>
+                <div class="video-thumb" style="background: linear-gradient(135deg, rgba(247,183,51,0.18), rgba(252,74,26,0.12));">
+                    <span class="play-button" aria-hidden="true">&#9654;</span>
+                    <span class="video-label">Coming soon</span>
                 </div>
                 <div class="video-body">
                     <h3>Official test guide</h3>
@@ -971,32 +1216,33 @@
         </div>
     </section>
 
+    <!-- ═══════════════════ PERFORMANCE TOOLS ═══════════════════ -->
     <section class="card-dark home-reveal">
         <div class="home-section-head">
+            <span class="section-accent-bar" aria-hidden="true"></span>
             <h2>Performance tools</h2>
             <p class="muted">Use the right tool for the next step: rank, training context, or comparison.</p>
         </div>
         <div class="home-tools-grid">
-            <!-- Rank link is handled by the existing /rank/ route. -->
             <a class="home-tool-card home-reveal" href="{% url 'rank' %}">
                 <strong>Calculate your level</strong>
                 <p class="muted">Check a discipline tier or calculate your estimated Hybrid Score.</p>
-                <span class="tool-arrow">Open rank check</span>
+                <span class="tool-arrow">Open rank check &rarr;</span>
             </a>
-            <!-- Calculator link is handled by the existing calculators route. -->
             <a class="home-tool-card home-reveal" href="{% url 'calculators' %}">
                 <strong>Open Performance Tools</strong>
                 <p class="muted">Use calculators for targets, progress, and training context.</p>
-                <span class="tool-arrow">Open calculators</span>
+                <span class="tool-arrow">Open calculators &rarr;</span>
             </a>
             <a class="home-tool-card home-reveal" href="{% url 'leaderboard' %}#full-leaderboard">
                 <strong>Compare your stats</strong>
                 <p class="muted">Check the board and see the standard before you submit.</p>
-                <span class="tool-arrow">View leaderboard</span>
+                <span class="tool-arrow">View leaderboard &rarr;</span>
             </a>
         </div>
     </section>
 
+    <!-- ═══════════════════ ENDURO AD ═══════════════════ -->
     <section class="card-dark enduro-mini-ad home-reveal">
         <div class="section-spread">
             <div>
@@ -1008,14 +1254,18 @@
         </div>
     </section>
 
-    <section class="hero-card final-cta home-reveal">
-        <h2>Can you prove it?</h2>
-        <p class="muted">Take the test, start Official Review, and earn verified status.</p>
-        <div class="final-cta-row">
-            <a class="btn-main" href="{% url 'challenge' %}#submit-form-top">Submit Official Result</a>
-            <a class="btn-secondary" href="{% url 'leaderboard' %}#full-leaderboard">View Leaderboard</a>
+    <!-- ═══════════════════ FINAL CTA ═══════════════════ -->
+    <section class="hero-card final-cta-section home-reveal">
+        <div class="final-cta-content">
+            <h2>Can you <em>prove</em> it?</h2>
+            <p class="muted">Take the test, start Official Review, and earn verified status.</p>
+            <div class="final-cta-row">
+                <a class="btn-main" href="{% url 'test_session_official' %}">Submit Official Result</a>
+                <a class="btn-secondary" href="{% url 'leaderboard' %}#full-leaderboard">View Leaderboard</a>
+            </div>
         </div>
     </section>
+
 </div>
 
 <script>
@@ -1035,7 +1285,7 @@
                 entry.target.classList.add("is-visible");
                 observer.unobserve(entry.target);
             });
-        }, { threshold: 0.1, rootMargin: "0px 0px -50px 0px" });
+        }, { threshold: 0.08, rootMargin: "0px 0px -40px 0px" });
 
         revealItems.forEach((item) => observer.observe(item));
     })();

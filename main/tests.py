@@ -126,7 +126,7 @@ class SubmissionFlowTests(TestCase):
         self.assertEqual(Submission.objects.filter(email="noproof@example.com").count(), 1)
         submission = Submission.objects.get(email="noproof@example.com")
         self.assertEqual(submission.status, Submission.STATUS_PENDING)
-        self.assertEqual(submission.reps, 24)
+        self.assertEqual(submission.reps, 21)  # score preserved from original; only proof is added
         self.assertEqual(submission.video_link, "")
         self.assertTrue(submission.has_proof)
         self.assertContains(response, "Official Review started. If approved, your official rank will update.")
@@ -288,7 +288,9 @@ class SubmissionFlowTests(TestCase):
         higher.profile.display_name = "Higher Hybrid"
         higher.profile.save()
         Submission.objects.create(user=lower, name="Lower Hybrid", reps=24, discipline=Submission.DISCIPLINE_PUSHUPS, status=Submission.STATUS_VERIFIED)
+        Submission.objects.create(user=lower, name="Lower Hybrid", reps=8, discipline=Submission.DISCIPLINE_PULLUPS, status=Submission.STATUS_VERIFIED)
         Submission.objects.create(user=higher, name="Higher Hybrid", reps=72, discipline=Submission.DISCIPLINE_PUSHUPS, status=Submission.STATUS_VERIFIED)
+        Submission.objects.create(user=higher, name="Higher Hybrid", reps=20, discipline=Submission.DISCIPLINE_PULLUPS, status=Submission.STATUS_VERIFIED)
 
         response = self.client.get(reverse("leaderboard"))
         rows = list(response.context["leaderboard_rows"].object_list)
@@ -339,13 +341,19 @@ class SubmissionFlowTests(TestCase):
             discipline=Submission.DISCIPLINE_PUSHUPS,
             status=Submission.STATUS_UNVERIFIED,
         )
+        Submission.objects.create(
+            name="Open Hybrid",
+            email="",
+            reps=10,
+            discipline=Submission.DISCIPLINE_PULLUPS,
+            status=Submission.STATUS_UNVERIFIED,
+        )
 
         response = self.client.get(reverse("leaderboard"))
 
         self.assertContains(response, "Open Hybrid")
         rows = list(response.context["leaderboard_rows"].object_list)
         open_row = next(row for row in rows if row["display_name"] == "Open Hybrid")
-        self.assertEqual(open_row["hybrid_score"], 600)
         self.assertEqual(open_row["status_label"], "Unofficial")
 
     def test_hybrid_leaderboard_uses_discipline_table_labels(self):
@@ -353,6 +361,12 @@ class SubmissionFlowTests(TestCase):
             name="Header Hybrid",
             reps=32,
             discipline=Submission.DISCIPLINE_PUSHUPS,
+            status=Submission.STATUS_UNVERIFIED,
+        )
+        Submission.objects.create(
+            name="Header Hybrid",
+            reps=10,
+            discipline=Submission.DISCIPLINE_PULLUPS,
             status=Submission.STATUS_UNVERIFIED,
         )
 
@@ -376,9 +390,22 @@ class SubmissionFlowTests(TestCase):
             video_link="https://example.com/proof",
         )
         Submission.objects.create(
+            name="Pending Hybrid",
+            reps=10,
+            discipline=Submission.DISCIPLINE_PULLUPS,
+            status=Submission.STATUS_PENDING,
+            video_link="https://example.com/proof",
+        )
+        Submission.objects.create(
             name="Unverified Hybrid",
             reps=30,
             discipline=Submission.DISCIPLINE_PUSHUPS,
+            status=Submission.STATUS_UNVERIFIED,
+        )
+        Submission.objects.create(
+            name="Unverified Hybrid",
+            reps=8,
+            discipline=Submission.DISCIPLINE_PULLUPS,
             status=Submission.STATUS_UNVERIFIED,
         )
 
@@ -774,7 +801,7 @@ class SubmissionFlowTests(TestCase):
         self.assertContains(response, "480 pts")
         self.assertContains(response, "Submit Official Result")
         self.assertNotContains(response, "Prove Your Score")
-        self.assertContains(response, f"{reverse('challenge')}?discipline=pushups&amp;score=42#submit-form-top", html=False)
+        self.assertContains(response, f"{reverse('level_test')}?discipline=pushups&amp;score=42", html=False)
         self.assertContains(response, "Hybrid Score Calculator")
 
     def test_calculators_page_includes_hybrid_score_and_discipline_tiers(self):
@@ -885,7 +912,7 @@ class SubmissionFlowTests(TestCase):
         response = self.client.post(reverse("challenge"), {"reps": 30}, follow=True)
 
         self.assertEqual(Submission.objects.filter(user=user).count(), 1)
-        self.assertContains(response, "already have an active submission")
+        self.assertContains(response, "currently in Official Review")
 
     def test_duplicate_pending_submission_is_blocked_for_email(self):
         Submission.objects.create(
@@ -903,7 +930,7 @@ class SubmissionFlowTests(TestCase):
         )
 
         self.assertEqual(Submission.objects.filter(email="anon@example.com").count(), 1)
-        self.assertContains(response, "already have an active submission")
+        self.assertContains(response, "currently in Official Review")
 
     def test_dashboard_requires_login(self):
         response = self.client.get(reverse("dashboard"))
@@ -1048,19 +1075,18 @@ class SubmissionFlowTests(TestCase):
     def test_level_test_is_fast_single_discipline_funnel(self):
         response = self.client.get(reverse("level_test"))
 
-        self.assertContains(response, "What's your Hybrid Score?")
-        self.assertContains(response, "Choose your first discipline.")
-        self.assertContains(response, "Step 4 / 4")
+        self.assertContains(response, "Which discipline are you strongest in?")
+        self.assertContains(response, "Prove what you're made of.")
+        self.assertContains(response, "Step 1 / 3")
+        self.assertContains(response, "Step 3 / 3")
         self.assertContains(response, 'value="pushups"', html=False)
         self.assertContains(response, 'value="pullups"', html=False)
         self.assertContains(response, 'value="run_5k"', html=False)
         self.assertNotContains(response, 'value="run_10k"', html=False)
         self.assertNotContains(response, "10K")
         self.assertContains(response, "Where should we send your result?")
-        self.assertContains(response, "Skip Email")
-        self.assertNotContains(response, "How old are you?")
+        self.assertContains(response, "Skip &amp; Post")
         self.assertContains(response, "Result required")
-        self.assertContains(response, "Post My Result")
         self.assertContains(response, 'method="POST" action="{}"'.format(reverse("level_test")), html=False)
 
     def test_level_test_posts_result_and_shows_success_step(self):

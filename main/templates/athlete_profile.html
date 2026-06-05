@@ -236,7 +236,7 @@
                 </div>
             {% endif %}
             <div class="profile-actions">
-                <a class="btn-main" href="{% url 'challenge' %}#submit-form-top">Submit Your Score</a>
+                <a class="btn-main" href="{% url 'level_test' %}">Submit Your Score</a>
                 <a class="btn-secondary" href="{% url 'home' %}#rank-tiers">Rank Tiers</a>
                 {% if request.user.is_authenticated and request.user != profile.user %}
                     <a class="btn-secondary" href="{% url 'comparison' request.user.profile.slug profile.slug %}">1v1 Compare</a>
@@ -250,13 +250,13 @@
             </div>
         </div>
 
-        <aside class="profile-status-card" data-intensity="{% if hybrid_summary.score %}{{ hybrid_summary.rank.intensity }}{% else %}{{ hybrid_summary.open_rank.intensity }}{% endif %}">
+        <aside class="profile-status-card" data-intensity="{{ hybrid_summary.display_intensity }}">
             <div>
                 <span class="kicker">{% if hybrid_summary.score %}Official Hybrid Score{% else %}Open Score Preview{% endif %}</span>
                 <div class="profile-pr-number">{% if hybrid_summary.score %}{{ hybrid_summary.score }}{% else %}{{ hybrid_summary.open_score }}{% endif %}</div>
-                <div class="rank-hero-badge rank-{% if hybrid_summary.score %}{{ hybrid_summary.rank.intensity }}{% else %}{{ hybrid_summary.open_rank.intensity }}{% endif %}">
+                <div class="rank-hero-badge rank-{{ hybrid_summary.display_intensity }}">
                     <span>{% if hybrid_summary.score %}Verified title{% else %}Open title preview{% endif %}</span>
-                    <strong>{% if hybrid_summary.score %}{{ hybrid_summary.rank.name }}{% else %}{{ hybrid_summary.open_rank.name }}{% endif %}</strong>
+                    <strong>{{ hybrid_summary.display_rank.name }}</strong>
                 </div>
                 <p class="muted">{% if hybrid_summary.score and hybrid_rank_position %}Hybrid Rank #{{ hybrid_rank_position }}{% elif not hybrid_summary.score %}Open athlete. Official status is earned through review.{% endif %}</p>
                 {% if hybrid_summary.open_score and hybrid_summary.score %}

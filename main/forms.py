@@ -16,7 +16,7 @@ class FlexibleUsernameCreationForm(forms.Form):
             raise forms.ValidationError("Username is required.")
         if any(ord(character) < 32 for character in username):
             raise forms.ValidationError("Username cannot contain hidden control characters.")
-        if User.objects.filter(username=username).exists():
+        if User.objects.filter(username__iexact=username).exists():
             raise forms.ValidationError("This username is already taken.")
         return username
 
