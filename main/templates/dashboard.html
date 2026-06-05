@@ -1009,7 +1009,7 @@
             {% elif hybrid_summary.score %}
                 <a class="btn-main" href="{{ improvement_recommendation.url }}">Improve Weakest Discipline</a>
             {% else %}
-                <a class="btn-main" href="{% url 'level_test' %}">Start Your Score</a>
+                <a class="btn-main" href="{% url 'challenge' %}">Start Your Score</a>
             {% endif %}
             <p class="muted" style="margin:0; font-size:.84rem; line-height:1.4;">{% if hybrid_summary.open_score and not hybrid_summary.score %}Submit proof to make your rank official.{% elif hybrid_summary.score %}{{ improvement_recommendation.text }}{% else %}Submit one discipline to begin ranking.{% endif %}</p>
         </div>
@@ -1043,7 +1043,7 @@
 
     <!-- Quick actions -->
     <div class="dash-action-strip">
-        <a class="btn-main dash-submit-btn" href="{% url 'level_test' %}">Submit Result</a>
+        <a class="btn-main dash-submit-btn" href="{% url 'challenge' %}">Submit Result</a>
         <a class="btn-secondary" href="{% url 'workouts' %}">Workouts</a>
         <a class="btn-secondary" href="{% url 'athlete_profile' profile.slug %}">Profile</a>
         <button class="btn-secondary" type="button" data-share-text="{{ profile_share_message }}">Share</button>
@@ -1403,7 +1403,8 @@
                         </div>
                         <div>
                             <label class="kicker" style="display:block; margin-bottom:5px;">Upload file</label>
-                            <input class="input proof-file-input" type="file" name="video_file" accept="video/*,image/*" style="width:100%; box-sizing:border-box;">
+                            <div class="file-pick-row"><button type="button" class="btn-secondary file-pick-trigger">Choose file</button><span class="file-pick-name">No file chosen</span></div>
+                            <input class="proof-file-input" type="file" name="video_file" accept="video/*,image/*" style="display:none;" aria-label="Upload file">
                             <p class="hint" style="margin:5px 0 0;">Video or photo — one proof source is enough.</p>
                         </div>
                         <button class="btn-main" type="submit" style="min-height:44px; width:100%;">Submit For Official Review</button>

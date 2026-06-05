@@ -108,7 +108,7 @@
             <h1>{{ active_discipline.title }}</h1>
             <p class="muted">The fitness leaderboard for real performance. Official ranks require proof. Unverified results are shown, but not official.</p>
             <div class="button-row">
-                <a class="btn-main" href="{% url 'level_test' %}?discipline={{ active_discipline.key }}">Submit Performance</a>
+                <a class="btn-main" href="{% if request.user.is_authenticated %}{% url 'challenge' %}?discipline={{ active_discipline.key }}{% else %}{% url 'level_test' %}?discipline={{ active_discipline.key }}{% endif %}">Submit Performance</a>
                 {% if not request.user.is_authenticated %}
                     <a class="btn-secondary" href="{% url 'register' %}">Claim Your Athlete Profile</a>
                 {% endif %}

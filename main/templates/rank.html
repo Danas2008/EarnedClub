@@ -232,7 +232,14 @@
         position: absolute;
         inset: 0 auto 0 0;
         border-radius: inherit;
-        background: linear-gradient(90deg, #94a3b8 0%, #3b82f6 25%, #f7b733 55%, #fc4a1a 80%, #1e9d74 100%);
+        background: linear-gradient(
+            90deg,
+            #5a7a90 0%,
+            #2d6db4 35%,
+            #e09818 55%,
+            #e82e0c 75%,
+            #00e07a 100%
+        );
         transition: width 0.6s ease;
     }
 
@@ -541,7 +548,7 @@
     .point-bar-mini-fill {
         height: 100%;
         border-radius: inherit;
-        background: linear-gradient(90deg, #3b82f6 0%, var(--accent) 60%, #1e9d74 100%);
+        background: linear-gradient(90deg, #2d6db4 0%, #e09818 55%, #00e07a 100%);
     }
 
     .point-ref-pts {
@@ -948,31 +955,13 @@
         <h2 style="margin-bottom: 8px;">Hybrid rank tiers</h2>
         <p class="muted" style="margin-bottom: 16px;">Where your Hybrid Score places you in the athlete hierarchy.</p>
         <div class="hybrid-tier-grid">
-            <div class="hybrid-tier-card rank-beginner">
-                <div class="hybrid-tier-name">Beginner Hybrid</div>
-                <div class="hybrid-tier-range">0–349</div>
-                <div class="hybrid-tier-desc">Building the first verified pieces of a hybrid profile.</div>
+            {% for rank in hybrid_ranks %}
+            <div class="hybrid-tier-card rank-{{ rank.intensity }}">
+                <div class="hybrid-tier-name">{{ rank.name }}</div>
+                <div class="hybrid-tier-range">{{ rank.range_label }}</div>
+                <div class="hybrid-tier-desc">{{ rank.description }}</div>
             </div>
-            <div class="hybrid-tier-card rank-intermediate">
-                <div class="hybrid-tier-name">Intermediate Hybrid</div>
-                <div class="hybrid-tier-range">350–549</div>
-                <div class="hybrid-tier-desc">A balanced athlete base is starting to show.</div>
-            </div>
-            <div class="hybrid-tier-card rank-advanced">
-                <div class="hybrid-tier-name">Advanced Hybrid</div>
-                <div class="hybrid-tier-range">550–749</div>
-                <div class="hybrid-tier-desc">Strong verified capability across more than one lane.</div>
-            </div>
-            <div class="hybrid-tier-card rank-elite">
-                <div class="hybrid-tier-name">Elite Hybrid</div>
-                <div class="hybrid-tier-range">750–899</div>
-                <div class="hybrid-tier-desc">High-level verified performance with real hybrid range.</div>
-            </div>
-            <div class="hybrid-tier-card rank-legend">
-                <div class="hybrid-tier-name">Earned Legend</div>
-                <div class="hybrid-tier-range">900+</div>
-                <div class="hybrid-tier-desc">Rare overall athletic status across the Earned Club board.</div>
-            </div>
+            {% endfor %}
         </div>
     </section>
 

@@ -349,49 +349,98 @@
         margin: 0;
     }
 
-    /* ── NFC / QR příjezdová zkušenost ─────────────────── */
-    .nfc-intro {
-        padding-top: 8px;
+    .conversion-strip {
+        display: grid;
+        grid-template-columns: auto 1fr;
+        gap: 10px 14px;
+        align-items: start;
+        padding: 14px 16px;
+        border-radius: var(--radius-md);
+        background: linear-gradient(135deg, rgba(247, 183, 51, .1), rgba(30, 157, 116, .07));
+        border: 1px solid rgba(247, 183, 51, .26);
     }
 
-    .nfc-signal {
-        position: relative;
-        width: 68px;
-        height: 68px;
-        display: grid;
-        place-items: center;
+    .conversion-strip-label {
+        padding-top: 2px;
+        font-size: 0.7rem;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: var(--accent);
+        white-space: nowrap;
+    }
+
+    /* ── NFC arrival experience ─────────────────────────── */
+    .nfc-intro { padding-top: 8px; }
+
+    .nfc-badge-wrap {
+        display: flex;
+        align-items: center;
+        gap: 10px;
         margin-bottom: 14px;
     }
 
-    .nfc-dot {
-        width: 12px;
-        height: 12px;
-        border-radius: 50%;
+    .nfc-type-text {
+        font-family: "Archivo", sans-serif;
+        font-weight: 900;
+        font-size: clamp(1.6rem, 6vw, 2.4rem);
+        color: var(--accent);
+        overflow: hidden;
+        white-space: nowrap;
+        width: 0;
+        border-right: 3px solid var(--accent);
+        animation: nfcTypeIn 0.5s steps(3, end) 0.15s forwards, nfcCursorFade 0.4s step-end 0.8s forwards;
+    }
+
+    @keyframes nfcTypeIn {
+        0%   { width: 0; }
+        100% { width: 3.4ch; }
+    }
+
+    @keyframes nfcCursorFade {
+        to { border-color: transparent; }
+    }
+
+    .nfc-tap-icon {
+        font-size: 1.6rem;
+        opacity: 0;
+        animation: nfcReveal 0.4s ease 0.7s both;
+    }
+
+    .nfc-signal-bars {
+        display: flex;
+        gap: 3px;
+        align-items: flex-end;
+        height: 20px;
+        opacity: 0;
+        animation: nfcReveal 0.3s ease 1.1s both;
+    }
+
+    .nfc-signal-bar {
+        width: 4px;
+        border-radius: 2px;
         background: var(--accent);
-        box-shadow: 0 0 18px rgba(247, 183, 51, 0.9), 0 0 36px rgba(247, 183, 51, 0.4);
-        z-index: 1;
-        animation: nfcDotPulse 2s ease-in-out infinite;
+        animation: nfcBarPulse 1.6s ease-in-out infinite;
     }
 
-    @keyframes nfcDotPulse {
-        0%, 100% { box-shadow: 0 0 18px rgba(247, 183, 51, 0.9), 0 0 36px rgba(247, 183, 51, 0.4); }
-        50% { box-shadow: 0 0 28px rgba(247, 183, 51, 1), 0 0 56px rgba(247, 183, 51, 0.6); }
+    .nfc-signal-bar:nth-child(1) { height: 7px;  animation-delay: 0s; }
+    .nfc-signal-bar:nth-child(2) { height: 12px; animation-delay: 0.2s; }
+    .nfc-signal-bar:nth-child(3) { height: 17px; animation-delay: 0.4s; }
+    .nfc-signal-bar:nth-child(4) { height: 12px; animation-delay: 0.6s; }
+
+    @keyframes nfcBarPulse {
+        0%, 100% { opacity: 0.25; }
+        50% { opacity: 1; }
     }
 
-    .nfc-ring {
-        position: absolute;
-        inset: 0;
-        border-radius: 50%;
-        border: 1.5px solid rgba(247, 183, 51, 0.6);
-        animation: nfcRingExpand 2.4s ease-out infinite;
+    /* Subtle aura pulse on arrival */
+    .test-shell::before {
+        animation: nfcAuraPulse 3.2s ease-in-out infinite;
     }
 
-    .nfc-ring--2 { animation-delay: 0.8s; }
-    .nfc-ring--3 { animation-delay: 1.6s; }
-
-    @keyframes nfcRingExpand {
-        0% { transform: scale(0.3); opacity: 0.9; }
-        100% { transform: scale(3.2); opacity: 0; }
+    @keyframes nfcAuraPulse {
+        0%, 100% { opacity: 0.7; transform: scale(1); }
+        50% { opacity: 1; transform: scale(1.08); }
     }
 
     .nfc-scan-line {
@@ -406,8 +455,7 @@
     .nfc-scan-line::after {
         content: "";
         position: absolute;
-        left: 0;
-        right: 0;
+        left: 0; right: 0;
         height: 2px;
         background: linear-gradient(90deg, transparent, rgba(247, 183, 51, 0.6), transparent);
         animation: nfcScan 1.8s ease-in-out 1 forwards;
@@ -415,13 +463,11 @@
     }
 
     @keyframes nfcScan {
-        0% { top: 0%; opacity: 1; }
+        0%   { top: 0%;   opacity: 1; }
         100% { top: 100%; opacity: 0; }
     }
 
-    .nfc-intro .eyebrow {
-        animation: nfcReveal 0.5s ease 0.35s both;
-    }
+    .nfc-intro .eyebrow { animation: nfcReveal 0.5s ease 0.35s both; }
 
     .nfc-headline {
         animation: nfcReveal 0.6s ease 0.55s both;
@@ -436,7 +482,7 @@
 
     .nfc-meta {
         display: flex;
-        gap: 18px;
+        gap: 22px;
         flex-wrap: wrap;
         animation: nfcReveal 0.5s ease 0.88s both;
     }
@@ -448,7 +494,7 @@
     }
 
     .nfc-meta-item strong {
-        font-size: clamp(1.5rem, 6vw, 2.2rem);
+        font-size: clamp(1.6rem, 6vw, 2.4rem);
         font-family: "Archivo", sans-serif;
         font-weight: 900;
         color: var(--accent);
@@ -456,26 +502,26 @@
     }
 
     .nfc-meta-item span {
-        font-size: 0.74rem;
+        font-size: 0.73rem;
         text-transform: uppercase;
-        letter-spacing: 0.06em;
-        opacity: 0.55;
+        letter-spacing: 0.07em;
+        opacity: 0.5;
         font-weight: 700;
     }
 
-    .nfc-cta {
-        animation: nfcReveal 0.5s ease 1.05s both;
-    }
+    .nfc-cta { animation: nfcReveal 0.5s ease 1.05s both; }
 
     @keyframes nfcReveal {
         from { opacity: 0; transform: translateY(16px); }
-        to { opacity: 1; transform: translateY(0); }
+        to   { opacity: 1; transform: translateY(0); }
     }
 
     @media (prefers-reduced-motion: reduce) {
-        .nfc-ring, .nfc-dot, .nfc-scan-line::after,
+        .nfc-type-text, .nfc-tap-icon, .nfc-scan-line::after,
         .nfc-intro .eyebrow, .nfc-headline, .nfc-body,
         .nfc-meta, .nfc-cta { animation: none; }
+        .nfc-type-text { width: 3.4ch; border-color: transparent; }
+        .nfc-tap-icon { opacity: 1; }
     }
 
     @media (min-width: 760px) {
@@ -510,32 +556,35 @@
         <div class="test-inner">
             <div class="test-progress" aria-hidden="true"><span data-progress></span></div>
 
-            {# Krok 0: NFC / QR filmový příjezd #}
+            {# Krok 0: NFC příjezd #}
             <div class="test-step nfc-intro{% if not test_submission_success %} is-active{% endif %}" data-step="0">
                 <div class="nfc-scan-line" aria-hidden="true"></div>
-                <div class="nfc-signal" aria-hidden="true">
-                    <span class="nfc-ring nfc-ring--1"></span>
-                    <span class="nfc-ring nfc-ring--2"></span>
-                    <span class="nfc-ring nfc-ring--3"></span>
-                    <span class="nfc-dot"></span>
+                <div class="nfc-badge-wrap" aria-hidden="true">
+                    <span class="nfc-type-text">NFC</span>
+                    <div class="nfc-signal-bars">
+                        <span class="nfc-signal-bar"></span>
+                        <span class="nfc-signal-bar"></span>
+                        <span class="nfc-signal-bar"></span>
+                        <span class="nfc-signal-bar"></span>
+                    </div>
                 </div>
-                <div class="eyebrow">Signál nalezen · Earned Club</div>
-                <h1 class="nfc-headline">Našel jsi to.</h1>
-                <p class="muted nfc-body">Většina lidí prošla dál. Ty ne. Toto je výkonnostní žebříček pro hybridní atlety — kliky, shyby a 5K. Jeden test. Jedno reálné skóre. Zjisti, kde stojíš mezi ověřenými atlety.</p>
+                <div class="eyebrow">Klepnutí detekováno · Earned Club</div>
+                <h1 class="nfc-headline">Vítej!</h1>
+                <p class="muted nfc-body">Earned Club je výkonnostní žebříček pro hybridní atlety — kliky, shyby a 5K. Zadej svůj výsledek, získej Hybrid Skóre a zjisti, kde stojíš mezi skutečnými ověřenými atlety.</p>
                 <div class="nfc-meta">
                     <div class="nfc-meta-item"><strong>3</strong><span>disciplíny</span></div>
                     <div class="nfc-meta-item"><strong>1</strong><span>hybrid skóre</span></div>
                     <div class="nfc-meta-item"><strong>veřejný</strong><span>žebříček</span></div>
                 </div>
-                <button class="btn-main nfc-cta" type="button" data-next>Přijmout výzvu</button>
+                <button class="btn-main nfc-cta" type="button" data-next>Spustit test</button>
             </div>
 
             {# Krok 1: Výběr disciplíny #}
             <div class="test-step" data-step="1">
-                <div class="eyebrow">{% if challenge_room and not challenge_room.is_hybrid %}{{ challenge_room.focus_label }} výzva{% else %}Vyber disciplínu{% endif %}</div>
+                <div class="eyebrow">{% if challenge_room and not challenge_room.is_hybrid %}{{ challenge_room.focus_label }} výzva{% else %}Kde záříš nejvíc?{% endif %}</div>
                 <div>
-                    <h1>{% if challenge_room and not challenge_room.is_hybrid %}Výsledek výzvy {{ challenge_room.focus_label }}{% else %}Ve které disciplíně jsi nejsilnější?{% endif %}</h1>
-                    <p class="muted">{% if challenge_room %}Přidáváš se do {{ challenge_room.display_title }}. Kontext místnosti bude připojen k tomuto výsledku.{% else %}Vyber tu, kterou chceš přidat na žebříček jako první. Ostatní disciplíny můžeš přidat později.{% endif %}</p>
+                    <h1>{% if challenge_room and not challenge_room.is_hybrid %}Výsledek výzvy {{ challenge_room.focus_label }}{% else %}Vyber svou nejsilnější disciplínu.{% endif %}</h1>
+                    <p class="muted">{% if challenge_room %}Přidáváš se do {{ challenge_room.display_title }}. Kontext místnosti bude připojen k tomuto výsledku.{% else %}Začni tou, kde jsi nejlepší. Ostatní přidáš kdykoli pak.{% endif %}</p>
                 </div>
                 <div class="test-options">
                     {% for discipline in discipline_cards %}
@@ -553,7 +602,7 @@
             <div class="test-step" data-step="2">
                 <div class="eyebrow">Krok 1 / 3</div>
                 <div>
-                    <h1 data-result-title>Tvůj nejlepší výsledek?</h1>
+                    <h1 data-result-title>Kolik jich dáš?</h1>
                     <p class="muted" data-result-help>Zadej max čistých opakování.</p>
                     {% if has_saved_test_identity %}
                         <p class="muted">Pokračuješ jako {% if test_identity.name %}{{ test_identity.name }}{% else %}{{ request.user.profile.display_name }}{% endif %}.</p>
@@ -569,13 +618,13 @@
 
             {# Krok 3: Náhled skóre (dopamine, client-side) #}
             <div class="test-step" data-step="3">
-                <div class="eyebrow">Náhled tvého skóre</div>
+                <div class="eyebrow">Tvoje skóre</div>
                 <h1 data-preview-headline>Tady stojíš.</h1>
                 <div class="preview-card">
                     <div>
                         <span class="kicker" data-preview-discipline>—</span>
                         <div class="preview-score-sm" data-preview-pts>—</div>
-                        <span class="submission-meta">body za disciplínu (open)</span>
+                        <span class="submission-meta">bodů za disciplínu (neoficiální)</span>
                     </div>
                     <div>
                         <div class="tier-badge" data-preview-tier-badge data-tier="beginner">
@@ -585,9 +634,9 @@
                         <span class="submission-meta" style="margin-top: 8px; display: block;" data-preview-result>—</span>
                     </div>
                 </div>
-                <p class="muted">Open skóre — viditelné na žebříčku. Oficiální ověření ti přinese status ověřeného atleta.</p>
+                <p class="muted">Tohle je tvůj náhled — zatím jen pro tebe. Dalším krokem ho zveřejníš na žebříčku.</p>
                 <div class="button-row">
-                    <button class="btn-main" type="button" data-next>Přijmout výsledek</button>
+                    <button class="btn-main" type="button" data-next>Chci toto skóre →</button>
                     <button class="btn-secondary" type="button" data-back>Zpět</button>
                 </div>
             </div>
@@ -595,8 +644,8 @@
             {# Krok 4: Jméno #}
             <div class="test-step" data-step="4">
                 <div class="eyebrow">Krok 2 / 3</div>
-                <h1>Jak tě máme zavolat?</h1>
-                <p class="muted">{% if request.user.is_authenticated %}Použijeme jméno z profilu, pokud nezadáš jiné.{% else %}Povinné — aby měl tvůj výsledek na žebříčku jméno.{% endif %}</p>
+                <h1>Jak ti máme říkat?</h1>
+                <p class="muted">{% if request.user.is_authenticated %}Použijeme jméno z profilu, pokud nezadáš jiné.{% else %}Pod tímto jménem tě uvidí ostatní na žebříčku.{% endif %}</p>
                 <input id="test-name" class="input test-input" type="text" placeholder="Daniel" value="{{ test_identity.name }}" {% if not request.user.is_authenticated %}required{% endif %}>
                 <div class="hint" data-name-hint>{% if request.user.is_authenticated %}Přihlášení atleti používají identitu profilu.{% else %}Jméno je povinné před odesláním výsledku.{% endif %}</div>
                 <div class="button-row">
@@ -608,11 +657,11 @@
             {# Krok 5: E-mail #}
             <div class="test-step" data-step="5">
                 <div class="eyebrow">Krok 3 / 3</div>
-                <h1>Kam poslat tvůj výsledek?</h1>
-                <p class="muted">Volitelné — výsledek se na žebříček odešle tak jako tak.</p>
+                <h1>Chceš výsledek i na mail?</h1>
+                <p class="muted">Volitelné — skóre se na žebříček odešle tak jako tak.</p>
                 <input id="test-email" class="input test-input" type="email" placeholder="ty@example.com" value="{{ test_identity.email }}">
                 <div class="button-row">
-                    <button class="btn-main" type="button" data-reveal>Přijmout výsledek</button>
+                    <button class="btn-main" type="button" data-reveal>Odeslat na žebříček</button>
                     <button class="btn-secondary" type="button" data-skip-email>Přeskočit &amp; odeslat</button>
                     <button class="btn-secondary" type="button" data-back>Zpět</button>
                 </div>
@@ -621,7 +670,7 @@
             {# Krok 6: Úspěch #}
             <div class="test-step{% if test_submission_success %} is-active{% endif %}" data-step="6">
                 {% if test_submission_success %}
-                    <div class="eyebrow">{% if test_progress.is_full_hybrid %}Kompletní Hybrid Skóre dokončeno{% else %}Jsi tam!{% endif %}</div>
+                    <div class="eyebrow">{% if test_progress.is_full_hybrid %}Hybrid Skóre živé{% else %}Jsi tam!{% endif %}</div>
                     <div class="preview-card">
                         <div>
                             <div class="preview-top">
@@ -652,7 +701,7 @@
                                         <div class="submission-name">{{ test_submission_success.submission.display_score }}</div>
                                     </div>
                                     <div class="preview-stat">
-                                        <span class="kicker">Body za disciplínu</span>
+                                        <span class="kicker">Bodů za disciplínu</span>
                                         <div class="submission-name">{{ test_submission_success.display_points }} pts</div>
                                     </div>
                                 </div>
@@ -665,55 +714,71 @@
                                 <p class="muted">Tvé skóre je silné — před zobrazením na veřejném žebříčku vyžaduje důkaz. Přidej video nebo odkaz níže.</p>
                             {% elif test_progress.is_single_discipline %}
                                 <p class="muted">Toto je náhled jedné disciplíny, ne plné Hybrid Skóre. Přidej kliky a shyby pro odemčení kompletního Hybrid Skóre.</p>
+                            {% elif test_submission_success.score_dropped %}
+                                <p class="muted">Hybrid Skóre je průměr bodů ze všech disciplín — přidáním disciplíny s nižším výsledkem průměr klesne. Tak je to navrženo: záleží na konzistentní síle napříč všemi třemi disciplínami.</p>
                             {% else %}
                                 <p class="muted">Open Skóre zahájí tvůj příběh. Oficiální ověření ho změní v earned status atleta.</p>
                             {% endif %}
+                            {% with rn=test_progress.rank.name %}
+                            <div class="tier-badge" style="margin-top: 12px;" data-tier="{% if 'Legend' in rn %}earned-legend{% elif 'Elite' in rn %}elite{% elif 'Advanced' in rn %}advanced{% elif 'Intermediate' in rn %}intermediate{% else %}beginner{% endif %}">
+                                <span class="tier-badge-label">Tvůj tier</span>
+                                <span class="tier-badge-name">{{ rn }}</span>
+                            </div>
+                            {% endwith %}
                         </div>
                     </div>
                     <div class="test-next-panel">
                         <div>
-                            <span class="kicker">{{ test_progress.hybrid_state }}</span>
-                            <h2>{{ test_progress.completed_count }}/{{ test_progress.max_disciplines }} disciplín dokončeno</h2>
-                            <p class="muted">
-                                {% if test_progress.is_full_hybrid %}
-                                    Toto je náhled tvého aktuálního Hybrid Skóre. Získej profil a ulož všechny výsledky dohromady.
-                                {% else %}
-                                    Jeden výsledek tě dostane na žebříček. Více disciplín buduje tvoje Hybrid Skóre. Získej profil pro uložení všech výsledků.
-                                {% endif %}
-                            </p>
-                            <div class="stat-grid">
-                                <div class="stat-card"><span class="kicker">Náhled Hybrid Skóre</span><span class="stat-value">{{ test_progress.open_score }}</span></div>
-                                {% with rn=test_progress.rank.name %}
-                                <div class="tier-badge" data-tier="{% if 'Legend' in rn %}earned-legend{% elif 'Elite' in rn %}elite{% elif 'Advanced' in rn %}advanced{% elif 'Intermediate' in rn %}intermediate{% else %}beginner{% endif %}">
-                                    <span class="tier-badge-label">Tvůj rank</span>
-                                    <span class="tier-badge-name">{{ rn }}</span>
-                                </div>
-                                {% endwith %}
-                            </div>
+                            {% if test_progress.is_full_hybrid %}
+                                <h2>Teď to dokaž.</h2>
+                                <p class="muted">Tvoje Open Skóre je živé, ale neověřené. Přidej video nebo odkaz na závod a náš tým tvůj rank oficializuje.</p>
+                            {% else %}
+                                <span class="kicker">{{ test_progress.completed_count }}/{{ test_progress.max_disciplines }} hotovo</span>
+                                <h2>Přidej víc.</h2>
+                                <p class="muted">Každá další disciplína posiluje tvoje Hybrid Skóre a rank.</p>
+                            {% endif %}
                         </div>
                         <div class="test-checklist">
                             {% for row in test_progress.rows %}
                                 <div class="test-check-row{% if row.done %} is-done{% endif %}">
                                     <span class="test-check-mark">{% if row.done %}OK{% else %}+{% endif %}</span>
                                     <div>
-                                        <div class="submission-name">{{ row.discipline.short_label }}</div>
-                                        <div class="submission-meta">
-                                            {% if row.done %}
-                                                Hotovo — {{ row.submission.display_score }} — {{ row.submission.hybrid_points }} pts{% if row.needs_proof %} — nutné ověření{% endif %}
-                                            {% else %}
-                                                Další krok pro úplné Hybrid Skóre
-                                            {% endif %}
-                                        </div>
+                                        <div class="submission-name">{{ row.discipline.short_label }}{% if row.done %} · {{ row.submission.display_score }}{% endif %}</div>
+                                        <div class="submission-meta">{% if row.done %}{{ row.submission.hybrid_points }} pts{% if row.needs_proof %} · nutný důkaz{% endif %}{% else %}Přidej pro silnější Hybrid Skóre{% endif %}</div>
                                     </div>
                                     {% if not row.done %}<a class="btn-secondary next-discipline-cta" href="{{ row.url }}">{{ row.cta_label }}</a>{% else %}<span class="status-pill {{ row.submission.status }}">{{ row.submission.public_status_label }}</span>{% endif %}
                                 </div>
                             {% endfor %}
                         </div>
+                        {% if test_progress.is_full_hybrid %}
+                        <div class="conversion-strip">
+                            <span class="conversion-strip-label">Open → Oficiální</span>
+                            <p class="muted" style="margin:0;font-size:.86rem;line-height:1.4;">Důkaz změní tvoje Open Skóre v oficiální rank, který nikdo nezpochybní.</p>
+                        </div>
+                        {% endif %}
                     </div>
+                    {% if test_claim_token and not request.user.is_authenticated %}
+                    <div class="claim-save-card">
+                        <div>
+                            <span class="kicker">Tvůj záchranný odkaz</span>
+                            <p class="muted" style="margin:4px 0 0;">Ještě nemáš profil? Ulož si tento odkaz — kdykoli ho navštívíš, své výsledky získáš zpět.</p>
+                        </div>
+                        <div class="claim-save-row">
+                            <span class="claim-save-url">{{ request.scheme }}://{{ request.get_host }}{% url 'claim_token' test_claim_token %}</span>
+                            <button type="button" class="btn-secondary" style="flex-shrink:0;" data-copy-text="{{ request.scheme }}://{{ request.get_host }}{% url 'claim_token' test_claim_token %}">Kopírovat</button>
+                        </div>
+                    </div>
+                    {% endif %}
                     <div class="hero-actions">
-                        <a class="btn-main" href="{{ test_submission_success.register_url }}">Získej svůj atletický profil</a>
+                        {% if test_submission_success.profile_url %}
+                            <a class="btn-main" href="{{ test_submission_success.profile_url }}">Zobrazit profil</a>
+                        {% elif request.user.is_authenticated %}
+                            <a class="btn-main" href="{% url 'dashboard' %}">Zobrazit dashboard</a>
+                        {% else %}
+                            <a class="btn-main" href="{{ test_submission_success.register_url }}">Získej svůj atletický profil</a>
+                        {% endif %}
                         <a class="btn-secondary" href="{{ test_submission_success.proof_url }}">Získej oficiální status</a>
-                        <button class="btn-secondary" type="button" data-share-text="{{ test_submission_success.share_text }}">Vyzvěte přítele</button>
+                        <button class="btn-secondary" type="button" data-share-text="{{ test_submission_success.share_text }}">Vyzvi přítele</button>
                         <a class="btn-secondary" href="{{ test_submission_success.leaderboard_url }}">Zobraz se na žebříčku</a>
                         {% if challenge_room %}<a class="btn-secondary" href="{% url 'challenge_room' challenge_room.token %}">Zpět do challenge room</a>{% endif %}
                     </div>

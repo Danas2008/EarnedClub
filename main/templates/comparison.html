@@ -18,7 +18,7 @@
                 <select id="left-profile" class="select" name="left" required>
                     <option value="">Choose athlete</option>
                     {% for row in profiles %}
-                        <option value="{{ row.profile.slug }}">{{ row.profile.display_name }} - Hybrid {{ row.hybrid_summary.score }}</option>
+                        <option value="{{ row.profile.slug }}">{{ row.profile.display_name }} - Hybrid {{ row.hybrid_summary.score|default:row.hybrid_summary.open_score }}</option>
                     {% endfor %}
                 </select>
             </div>
@@ -27,7 +27,7 @@
                 <select id="right-profile" class="select" name="right" required>
                     <option value="">Choose athlete</option>
                     {% for row in profiles %}
-                        <option value="{{ row.profile.slug }}">{{ row.profile.display_name }} - Hybrid {{ row.hybrid_summary.score }}</option>
+                        <option value="{{ row.profile.slug }}">{{ row.profile.display_name }} - Hybrid {{ row.hybrid_summary.score|default:row.hybrid_summary.open_score }}</option>
                     {% endfor %}
                 </select>
             </div>
@@ -68,7 +68,7 @@
                 <div class="submission-name">{{ row.profile.display_name }}</div>
                 <div class="submission-meta">{{ row.hybrid_summary.display_rank.name }}{% if not row.hybrid_summary.score %} (Open){% endif %} - {{ row.hybrid_summary.verified_count }}/{{ row.hybrid_summary.max_disciplines }} verified</div>
             </div>
-            <span class="tag-pill">Hybrid {{ row.hybrid_summary.score }}</span>
+            <span class="tag-pill">Hybrid {{ row.hybrid_summary.score|default:row.hybrid_summary.open_score }}</span>
             <span class="btn-secondary hide-mobile" style="min-height: 36px; padding: 7px 11px;">Profile</span>
         </a>
     {% empty %}
@@ -92,8 +92,8 @@
             {% if left_profile.profile_image_url %}<img class="avatar avatar-lg" src="{{ left_profile.profile_image_url }}" alt="{{ left_profile.display_name }} profile picture">{% else %}<span class="avatar avatar-lg">{{ left_profile.display_name|first|upper }}</span>{% endif %}
             <div class="eyebrow">Hybrid Athlete</div>
             <h1>{{ left_profile.display_name }}</h1>
-            <span class="stat-value">{{ left_summary.score }}</span>
-            <p class="muted">{{ left_summary.rank.name }} - {% if left_rank %}Hybrid Rank #{{ left_rank }}{% else %}Unranked{% endif %}</p>
+            <span class="stat-value">{{ left_score }}</span>
+            <p class="muted">{{ left_summary.display_rank.name }}{% if not left_summary.score %} (Open){% endif %} - {% if left_rank %}Hybrid Rank #{{ left_rank }}{% else %}Unranked{% endif %}</p>
             <p class="muted">{{ left_summary.verified_count }}/{{ left_summary.max_disciplines }} verified disciplines</p>
             <a class="btn-secondary" href="{% url 'athlete_profile' left_profile.slug %}">Profile</a>
         </div>
@@ -102,8 +102,8 @@
             {% if right_profile.profile_image_url %}<img class="avatar avatar-lg" src="{{ right_profile.profile_image_url }}" alt="{{ right_profile.display_name }} profile picture">{% else %}<span class="avatar avatar-lg">{{ right_profile.display_name|first|upper }}</span>{% endif %}
             <div class="eyebrow">Hybrid Athlete</div>
             <h1>{{ right_profile.display_name }}</h1>
-            <span class="stat-value">{{ right_summary.score }}</span>
-            <p class="muted">{{ right_summary.rank.name }} - {% if right_rank %}Hybrid Rank #{{ right_rank }}{% else %}Unranked{% endif %}</p>
+            <span class="stat-value">{{ right_score }}</span>
+            <p class="muted">{{ right_summary.display_rank.name }}{% if not right_summary.score %} (Open){% endif %} - {% if right_rank %}Hybrid Rank #{{ right_rank }}{% else %}Unranked{% endif %}</p>
             <p class="muted">{{ right_summary.verified_count }}/{{ right_summary.max_disciplines }} verified disciplines</p>
             <a class="btn-secondary" href="{% url 'athlete_profile' right_profile.slug %}">Profile</a>
         </div>
@@ -184,8 +184,8 @@
                     <div class="submission-meta">{{ row.leader_label }} by {{ row.margin }} pts</div>
                 </div>
                 <div class="score-row-score">
-                    <span class="tag-pill">{{ left_profile.display_name }}: {{ row.left.points }}</span>
-                    <span class="tag-pill">{{ right_profile.display_name }}: {{ row.right.points }}</span>
+                    <span class="tag-pill">{{ left_profile.display_name }}: {{ row.left_pts }}</span>
+                    <span class="tag-pill">{{ right_profile.display_name }}: {{ row.right_pts }}</span>
                 </div>
             </div>
         {% endfor %}

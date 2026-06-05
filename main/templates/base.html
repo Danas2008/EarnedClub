@@ -1071,6 +1071,54 @@
             font-size: 1.1rem;
         }
 
+        /* Claim save card */
+        .claim-save-card {
+            display: grid;
+            gap: 10px;
+            padding: 14px 16px;
+            border-radius: var(--radius-md);
+            border: 1px solid rgba(30, 157, 116, .35);
+            background: rgba(30, 157, 116, .07);
+        }
+
+        .claim-save-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 9px 12px;
+            border-radius: var(--radius-md);
+            background: rgba(0, 0, 0, .28);
+            border: 1px solid rgba(255, 255, 255, .08);
+        }
+
+        .claim-save-url {
+            flex: 1;
+            min-width: 0;
+            font-family: monospace;
+            font-size: 0.8rem;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            opacity: 0.75;
+        }
+
+        /* Custom file picker — replaces browser-locale "Soubor nevybrán" */
+        .file-pick-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 4px;
+        }
+
+        .file-pick-name {
+            font-size: 0.88rem;
+            opacity: 0.5;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            max-width: 260px;
+        }
+
         .submission-name {
             font-size: 1.08rem;
             font-weight: 700;
@@ -1868,7 +1916,7 @@
                     <div class="container-fluid px-0">
                         <a class="navbar-brand" href="/">
                             <img
-                                src="{% static 'Earned_Club_wthBG.png' %}"
+                                src="{% static 'logo.png' %}"
                                 class="brand-logo"
                                 alt="Earned Club Logo"
                             >
@@ -1991,7 +2039,7 @@
     </div>
 
     {% if request.resolver_match.url_name == "home" %}
-        <a class="floating-cta" href="{% url 'level_test' %}" data-floating-cta>Submit Score</a>
+        <a class="floating-cta" href="{% if request.user.is_authenticated %}{% url 'challenge' %}{% else %}{% url 'level_test' %}{% endif %}" data-floating-cta>Submit Score</a>
     {% endif %}
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
@@ -2047,6 +2095,41 @@
         cookieAccept?.addEventListener("click", () => {
             localStorage.setItem(cookieConsentKey, "accepted");
             cookieBanner?.classList.remove("is-visible");
+        });
+
+        // Wire up claim-token copy buttons
+        document.querySelectorAll("[data-copy-text]").forEach((btn) => {
+            btn.addEventListener("click", async () => {
+                const text = btn.dataset.copyText;
+                try {
+                    await navigator.clipboard.writeText(text);
+                } catch {
+                    const ta = document.createElement("textarea");
+                    ta.value = text;
+                    ta.style.cssText = "position:fixed;opacity:0";
+                    document.body.appendChild(ta);
+                    ta.select();
+                    document.execCommand("copy");
+                    ta.remove();
+                }
+                const orig = btn.textContent;
+                btn.textContent = "Copied!";
+                setTimeout(() => btn.textContent = orig, 1600);
+            });
+        });
+
+        // Wire up every custom file picker on the page
+        document.querySelectorAll(".file-pick-trigger").forEach((trigger) => {
+            const row = trigger.closest(".file-pick-row");
+            const label = row?.querySelector(".file-pick-name");
+            const input = row?.nextElementSibling?.tagName === "INPUT"
+                ? row.nextElementSibling
+                : row?.parentElement?.querySelector("input[type='file']");
+            if (!input) return;
+            trigger.addEventListener("click", () => input.click());
+            input.addEventListener("change", () => {
+                if (label) label.textContent = input.files[0]?.name || "No file chosen";
+            });
         });
     </script>
 </body>

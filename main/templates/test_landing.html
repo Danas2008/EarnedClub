@@ -349,49 +349,58 @@
         margin: 0;
     }
 
-    /* ── NFC / QR arrival experience ───────────────────── */
-    .nfc-intro {
-        padding-top: 8px;
+    .conversion-strip {
+        display: grid;
+        grid-template-columns: auto 1fr;
+        gap: 10px 14px;
+        align-items: start;
+        padding: 14px 16px;
+        border-radius: var(--radius-md);
+        background: linear-gradient(135deg, rgba(247, 183, 51, .1), rgba(30, 157, 116, .07));
+        border: 1px solid rgba(247, 183, 51, .26);
     }
 
-    .nfc-signal {
+    .conversion-strip-label {
+        padding-top: 2px;
+        font-size: 0.7rem;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: var(--accent);
+        white-space: nowrap;
+    }
+
+    /* ── QR arrival experience ──────────────────────────── */
+    .nfc-intro { padding-top: 8px; }
+
+    .qr-frame {
         position: relative;
-        width: 68px;
-        height: 68px;
-        display: grid;
-        place-items: center;
+        width: 56px;
+        height: 56px;
         margin-bottom: 14px;
     }
 
-    .nfc-dot {
-        width: 12px;
-        height: 12px;
-        border-radius: 50%;
-        background: var(--accent);
-        box-shadow: 0 0 18px rgba(247, 183, 51, 0.9), 0 0 36px rgba(247, 183, 51, 0.4);
-        z-index: 1;
-        animation: nfcDotPulse 2s ease-in-out infinite;
-    }
-
-    @keyframes nfcDotPulse {
-        0%, 100% { box-shadow: 0 0 18px rgba(247, 183, 51, 0.9), 0 0 36px rgba(247, 183, 51, 0.4); }
-        50% { box-shadow: 0 0 28px rgba(247, 183, 51, 1), 0 0 56px rgba(247, 183, 51, 0.6); }
-    }
-
-    .nfc-ring {
+    .qr-corner {
         position: absolute;
-        inset: 0;
-        border-radius: 50%;
-        border: 1.5px solid rgba(247, 183, 51, 0.6);
-        animation: nfcRingExpand 2.4s ease-out infinite;
+        width: 16px;
+        height: 16px;
+        border-color: var(--accent);
+        border-style: solid;
     }
 
-    .nfc-ring--2 { animation-delay: 0.8s; }
-    .nfc-ring--3 { animation-delay: 1.6s; }
+    .qr-corner--tl { top: 0; left: 0;  border-width: 2.5px 0 0 2.5px; }
+    .qr-corner--tr { top: 0; right: 0; border-width: 2.5px 2.5px 0 0; }
+    .qr-corner--bl { bottom: 0; left: 0;  border-width: 0 0 2.5px 2.5px; }
+    .qr-corner--br { bottom: 0; right: 0; border-width: 0 2.5px 2.5px 0; }
 
-    @keyframes nfcRingExpand {
-        0% { transform: scale(0.3); opacity: 0.9; }
-        100% { transform: scale(3.2); opacity: 0; }
+    .qr-corner--tl { animation: qrCorner 0.35s ease 0.05s both; }
+    .qr-corner--tr { animation: qrCorner 0.35s ease 0.12s both; }
+    .qr-corner--bl { animation: qrCorner 0.35s ease 0.19s both; }
+    .qr-corner--br { animation: qrCorner 0.35s ease 0.26s both; }
+
+    @keyframes qrCorner {
+        from { opacity: 0; transform: scale(0.6); }
+        to   { opacity: 1; transform: scale(1); }
     }
 
     .nfc-scan-line {
@@ -406,8 +415,7 @@
     .nfc-scan-line::after {
         content: "";
         position: absolute;
-        left: 0;
-        right: 0;
+        left: 0; right: 0;
         height: 2px;
         background: linear-gradient(90deg, transparent, rgba(247, 183, 51, 0.6), transparent);
         animation: nfcScan 1.8s ease-in-out 1 forwards;
@@ -415,13 +423,11 @@
     }
 
     @keyframes nfcScan {
-        0% { top: 0%; opacity: 1; }
+        0%   { top: 0%;   opacity: 1; }
         100% { top: 100%; opacity: 0; }
     }
 
-    .nfc-intro .eyebrow {
-        animation: nfcReveal 0.5s ease 0.35s both;
-    }
+    .nfc-intro .eyebrow { animation: nfcReveal 0.5s ease 0.35s both; }
 
     .nfc-headline {
         animation: nfcReveal 0.6s ease 0.55s both;
@@ -436,7 +442,7 @@
 
     .nfc-meta {
         display: flex;
-        gap: 18px;
+        gap: 22px;
         flex-wrap: wrap;
         animation: nfcReveal 0.5s ease 0.88s both;
     }
@@ -448,7 +454,7 @@
     }
 
     .nfc-meta-item strong {
-        font-size: clamp(1.5rem, 6vw, 2.2rem);
+        font-size: clamp(1.6rem, 6vw, 2.4rem);
         font-family: "Archivo", sans-serif;
         font-weight: 900;
         color: var(--accent);
@@ -456,24 +462,22 @@
     }
 
     .nfc-meta-item span {
-        font-size: 0.74rem;
+        font-size: 0.73rem;
         text-transform: uppercase;
-        letter-spacing: 0.06em;
-        opacity: 0.55;
+        letter-spacing: 0.07em;
+        opacity: 0.5;
         font-weight: 700;
     }
 
-    .nfc-cta {
-        animation: nfcReveal 0.5s ease 1.05s both;
-    }
+    .nfc-cta { animation: nfcReveal 0.5s ease 1.05s both; }
 
     @keyframes nfcReveal {
         from { opacity: 0; transform: translateY(16px); }
-        to { opacity: 1; transform: translateY(0); }
+        to   { opacity: 1; transform: translateY(0); }
     }
 
     @media (prefers-reduced-motion: reduce) {
-        .nfc-ring, .nfc-dot, .nfc-scan-line::after,
+        .qr-corner, .nfc-scan-line::after,
         .nfc-intro .eyebrow, .nfc-headline, .nfc-body,
         .nfc-meta, .nfc-cta { animation: none; }
     }
@@ -510,32 +514,32 @@
         <div class="test-inner">
             <div class="test-progress" aria-hidden="true"><span data-progress></span></div>
 
-            {# Step 0: NFC / QR cinematic intro #}
+            {# Step 0: QR arrival #}
             <div class="test-step nfc-intro{% if not test_submission_success %} is-active{% endif %}" data-step="0">
                 <div class="nfc-scan-line" aria-hidden="true"></div>
-                <div class="nfc-signal" aria-hidden="true">
-                    <span class="nfc-ring nfc-ring--1"></span>
-                    <span class="nfc-ring nfc-ring--2"></span>
-                    <span class="nfc-ring nfc-ring--3"></span>
-                    <span class="nfc-dot"></span>
+                <div class="qr-frame" aria-hidden="true">
+                    <span class="qr-corner qr-corner--tl"></span>
+                    <span class="qr-corner qr-corner--tr"></span>
+                    <span class="qr-corner qr-corner--bl"></span>
+                    <span class="qr-corner qr-corner--br"></span>
                 </div>
-                <div class="eyebrow">Signal acquired · Earned Club</div>
-                <h1 class="nfc-headline">You found it.</h1>
-                <p class="muted nfc-body">Most people walk past. You didn't. This is a performance leaderboard for hybrid athletes — push-ups, pull-ups, and 5K. One test. One real score. See where you rank against verified athletes.</p>
+                <div class="eyebrow">QR scanned · Earned Club</div>
+                <h1 class="nfc-headline">You scanned it.</h1>
+                <p class="muted nfc-body">Most people scroll past. You stopped and scanned. This is a performance leaderboard for hybrid athletes — push-ups, pull-ups, and 5K. One test. One real score. Public rank.</p>
                 <div class="nfc-meta">
                     <div class="nfc-meta-item"><strong>3</strong><span>disciplines</span></div>
                     <div class="nfc-meta-item"><strong>1</strong><span>hybrid score</span></div>
                     <div class="nfc-meta-item"><strong>public</strong><span>leaderboard</span></div>
                 </div>
-                <button class="btn-main nfc-cta" type="button" data-next>Accept the Challenge</button>
+                <button class="btn-main nfc-cta" type="button" data-next>Take the Test</button>
             </div>
 
             {# Step 1: Discipline selection #}
             <div class="test-step" data-step="1">
-                <div class="eyebrow">{% if challenge_room and not challenge_room.is_hybrid %}{{ challenge_room.focus_label }} challenge{% else %}Choose your discipline{% endif %}</div>
+                <div class="eyebrow">{% if challenge_room and not challenge_room.is_hybrid %}{{ challenge_room.focus_label }} challenge{% else %}Where do you shine?{% endif %}</div>
                 <div>
-                    <h1>{% if challenge_room and not challenge_room.is_hybrid %}{{ challenge_room.focus_label }} challenge result{% else %}Which discipline are you strongest in?{% endif %}</h1>
-                    <p class="muted">{% if challenge_room %}You are joining {{ challenge_room.display_title }}. The room context stays attached to this result.{% else %}Pick the one you want posted to the leaderboard first. You can add more disciplines after.{% endif %}</p>
+                    <h1>{% if challenge_room and not challenge_room.is_hybrid %}{{ challenge_room.focus_label }} challenge result{% else %}Pick your strongest discipline.{% endif %}</h1>
+                    <p class="muted">{% if challenge_room %}You are joining {{ challenge_room.display_title }}. The room context stays attached to this result.{% else %}Start where you're best. You can stack more disciplines later.{% endif %}</p>
                 </div>
                 <div class="test-options">
                     {% for discipline in discipline_cards %}
@@ -553,7 +557,7 @@
             <div class="test-step" data-step="2">
                 <div class="eyebrow">Step 1 / 3</div>
                 <div>
-                    <h1 data-result-title>Your best result?</h1>
+                    <h1 data-result-title>How many can you do?</h1>
                     <p class="muted" data-result-help>Enter max clean reps.</p>
                     {% if has_saved_test_identity %}
                         <p class="muted">Continuing as {% if test_identity.name %}{{ test_identity.name }}{% else %}{{ request.user.profile.display_name }}{% endif %}.</p>
@@ -569,7 +573,7 @@
 
             {# Step 3: Dopamine preview (client-side computed) #}
             <div class="test-step" data-step="3">
-                <div class="eyebrow">Your Score Preview</div>
+                <div class="eyebrow">Your Score</div>
                 <h1 data-preview-headline>Here's where you stand.</h1>
                 <div class="preview-card">
                     <div>
@@ -585,9 +589,9 @@
                         <span class="submission-meta" style="margin-top: 8px; display: block;" data-preview-result>—</span>
                     </div>
                 </div>
-                <p class="muted">Open score — visible on the leaderboard. Official Review earns you verified athlete status.</p>
+                <p class="muted">This is a preview — just for you. Next step posts it to the public leaderboard.</p>
                 <div class="button-row">
-                    <button class="btn-main" type="button" data-next>Claim This Result</button>
+                    <button class="btn-main" type="button" data-next>I want this score →</button>
                     <button class="btn-secondary" type="button" data-back>Back</button>
                 </div>
             </div>
@@ -595,8 +599,8 @@
             {# Step 4: Name #}
             <div class="test-step" data-step="4">
                 <div class="eyebrow">Step 2 / 3</div>
-                <h1>What should we call you?</h1>
-                <p class="muted">{% if request.user.is_authenticated %}We will use your profile name unless you enter a different one.{% else %}Required so your leaderboard entry has a real name attached.{% endif %}</p>
+                <h1>What's your name?</h1>
+                <p class="muted">{% if request.user.is_authenticated %}We'll use your profile name unless you enter a different one.{% else %}This is how others will see you on the leaderboard.{% endif %}</p>
                 <input id="test-name" class="input test-input" type="text" placeholder="Daniel" value="{{ test_identity.name }}" {% if not request.user.is_authenticated %}required{% endif %}>
                 <div class="hint" data-name-hint>{% if request.user.is_authenticated %}Logged-in results use your profile identity.{% else %}Name is required before your result can post.{% endif %}</div>
                 <div class="button-row">
@@ -608,11 +612,11 @@
             {# Step 5: Email #}
             <div class="test-step" data-step="5">
                 <div class="eyebrow">Step 3 / 3</div>
-                <h1>Where should we send your result?</h1>
-                <p class="muted">Optional — your result still posts to the leaderboard either way.</p>
+                <h1>Want your result by email?</h1>
+                <p class="muted">Optional — your score posts to the leaderboard either way.</p>
                 <input id="test-email" class="input test-input" type="email" placeholder="you@example.com" value="{{ test_identity.email }}">
                 <div class="button-row">
-                    <button class="btn-main" type="button" data-reveal>Claim This Result</button>
+                    <button class="btn-main" type="button" data-reveal>Post to Leaderboard</button>
                     <button class="btn-secondary" type="button" data-skip-email>Skip &amp; Post</button>
                     <button class="btn-secondary" type="button" data-back>Back</button>
                 </div>
@@ -621,7 +625,7 @@
             {# Step 6: Success #}
             <div class="test-step{% if test_submission_success %} is-active{% endif %}" data-step="6">
                 {% if test_submission_success %}
-                    <div class="eyebrow">{% if test_progress.is_full_hybrid %}Full Hybrid Score completed{% else %}You're in!{% endif %}</div>
+                    <div class="eyebrow">{% if test_progress.is_full_hybrid %}Hybrid Score live{% else %}You're in!{% endif %}</div>
                     <div class="preview-card">
                         <div>
                             <div class="preview-top">
@@ -665,56 +669,72 @@
                                 <p class="muted">Your score is strong — it needs proof before it appears on the public leaderboard. Add your video or link below.</p>
                             {% elif test_progress.is_single_discipline %}
                                 <p class="muted">This is a single-discipline preview, not a full Hybrid Score. Add push-ups and pull-ups to unlock your complete Hybrid Score.</p>
+                            {% elif test_submission_success.score_dropped %}
+                                <p class="muted">Your Hybrid Score is the average of all discipline points — adding a lower-scoring discipline brings the average down. That's how it's designed: consistent strength across all three disciplines is what counts.</p>
                             {% else %}
                                 <p class="muted">Your Open Score starts the story. Official Review turns it into earned athlete status.</p>
                             {% endif %}
+                            {% with rn=test_progress.rank.name %}
+                            <div class="tier-badge" style="margin-top: 12px;" data-tier="{% if 'Legend' in rn %}earned-legend{% elif 'Elite' in rn %}elite{% elif 'Advanced' in rn %}advanced{% elif 'Intermediate' in rn %}intermediate{% else %}beginner{% endif %}">
+                                <span class="tier-badge-label">Your Tier</span>
+                                <span class="tier-badge-name">{{ rn }}</span>
+                            </div>
+                            {% endwith %}
                         </div>
                     </div>
                     <div class="test-next-panel">
                         <div>
-                            <span class="kicker">{{ test_progress.hybrid_state }}</span>
-                            <h2>{{ test_progress.completed_count }}/{{ test_progress.max_disciplines }} disciplines completed</h2>
-                            <p class="muted">
-                                {% if test_progress.is_full_hybrid %}
-                                    This is your current Hybrid Score preview. Claim your profile to save all results together.
-                                {% else %}
-                                    One result puts you on the leaderboard. More disciplines build your Hybrid Score. Claim your profile to save all results together.
-                                {% endif %}
-                            </p>
-                            <div class="stat-grid">
-                                <div class="stat-card"><span class="kicker">Hybrid Score Preview</span><span class="stat-value">{{ test_progress.open_score }}</span></div>
-                                {% with rn=test_progress.rank.name %}
-                                <div class="tier-badge" data-tier="{% if 'Legend' in rn %}earned-legend{% elif 'Elite' in rn %}elite{% elif 'Advanced' in rn %}advanced{% elif 'Intermediate' in rn %}intermediate{% else %}beginner{% endif %}">
-                                    <span class="tier-badge-label">Your Rank</span>
-                                    <span class="tier-badge-name">{{ rn }}</span>
-                                </div>
-                                {% endwith %}
-                            </div>
+                            {% if test_progress.is_full_hybrid %}
+                                <h2>Now prove it.</h2>
+                                <p class="muted">Your Open Score is live but unverified. Submit a video clip or race link and our team will make your rank official.</p>
+                            {% else %}
+                                <span class="kicker">{{ test_progress.completed_count }}/{{ test_progress.max_disciplines }} done</span>
+                                <h2>Keep building.</h2>
+                                <p class="muted">Each additional discipline strengthens your Hybrid Score and your rank.</p>
+                            {% endif %}
                         </div>
                         <div class="test-checklist">
                             {% for row in test_progress.rows %}
                                 <div class="test-check-row{% if row.done %} is-done{% endif %}">
                                     <span class="test-check-mark">{% if row.done %}OK{% else %}+{% endif %}</span>
                                     <div>
-                                        <div class="submission-name">{{ row.discipline.short_label }}</div>
-                                        <div class="submission-meta">
-                                            {% if row.done %}
-                                                Done - {{ row.submission.display_score }} - {{ row.submission.hybrid_points }} pts{% if row.needs_proof %} - official review needed{% endif %}
-                                            {% else %}
-                                                Next step for a fuller Hybrid Score
-                                            {% endif %}
-                                        </div>
+                                        <div class="submission-name">{{ row.discipline.short_label }}{% if row.done %} · {{ row.submission.display_score }}{% endif %}</div>
+                                        <div class="submission-meta">{% if row.done %}{{ row.submission.hybrid_points }} pts{% if row.needs_proof %} · proof needed{% endif %}{% else %}Add for a fuller Hybrid Score{% endif %}</div>
                                     </div>
                                     {% if not row.done %}<a class="btn-secondary next-discipline-cta" href="{{ row.url }}">{{ row.cta_label }}</a>{% else %}<span class="status-pill {{ row.submission.status }}">{{ row.submission.public_status_label }}</span>{% endif %}
                                 </div>
                             {% endfor %}
                         </div>
+                        {% if test_progress.is_full_hybrid %}
+                        <div class="conversion-strip">
+                            <span class="conversion-strip-label">Open → Official</span>
+                            <p class="muted" style="margin:0;font-size:.86rem;line-height:1.4;">Proof turns your Open Score into an official rank that no one can dispute.</p>
+                        </div>
+                        {% endif %}
                     </div>
+                    {% if test_claim_token and not request.user.is_authenticated %}
+                    <div class="claim-save-card">
+                        <div>
+                            <span class="kicker">Your save link</span>
+                            <p class="muted" style="margin:4px 0 0;">No profile yet? Bookmark this link — visit it any time to claim all your results.</p>
+                        </div>
+                        <div class="claim-save-row">
+                            <span class="claim-save-url">{{ request.scheme }}://{{ request.get_host }}{% url 'claim_token' test_claim_token %}</span>
+                            <button type="button" class="btn-secondary" style="flex-shrink:0;" data-copy-text="{{ request.scheme }}://{{ request.get_host }}{% url 'claim_token' test_claim_token %}">Copy</button>
+                        </div>
+                    </div>
+                    {% endif %}
                     <div class="hero-actions">
-                        <a class="btn-main" href="{{ test_submission_success.register_url }}">Claim Your Athlete Profile</a>
+                        {% if test_submission_success.profile_url %}
+                            <a class="btn-main" href="{{ test_submission_success.profile_url }}">View Profile</a>
+                        {% elif request.user.is_authenticated %}
+                            <a class="btn-main" href="{% url 'dashboard' %}">View Dashboard</a>
+                        {% else %}
+                            <a class="btn-main" href="{{ test_submission_success.register_url }}">Claim Your Athlete Profile</a>
+                        {% endif %}
                         <a class="btn-secondary" href="{{ test_submission_success.proof_url }}">Earn Official Status</a>
                         <button class="btn-secondary" type="button" data-share-text="{{ test_submission_success.share_text }}">Challenge a Friend</button>
-                        <a class="btn-secondary" href="{{ test_submission_success.leaderboard_url }}">See Yourself On The Leaderboard</a>
+                        <a class="btn-secondary" href="{{ test_submission_success.leaderboard_url }}">See Leaderboard</a>
                         {% if challenge_room %}<a class="btn-secondary" href="{% url 'challenge_room' challenge_room.token %}">Back To Challenge Room</a>{% endif %}
                     </div>
                 {% else %}
@@ -751,9 +771,9 @@
     const hasSavedIdentity = {% if has_saved_test_identity %}true{% else %}false{% endif %};
     const finalStep = 6;
     const disciplineLabels = {
-        pushups: { label: "Push-ups", unit: "reps", placeholder: "42", help: "Enter max clean reps.", hint: "Higher reps rank higher." },
-        pullups: { label: "Pull-ups", unit: "reps", placeholder: "12", help: "Enter max clean reps.", hint: "Higher reps rank higher." },
-        run_5k: { label: "5K", unit: "time", placeholder: "21:34", help: "Use MM:SS, e.g. 21:34.", hint: "Use MM:SS or HH:MM:SS. Lower time ranks higher." },
+        pushups: { label: "Push-ups", unit: "reps", placeholder: "42", help: "Enter max clean reps.", hint: "Higher reps rank higher.", resultTitle: "How many push-ups can you do?" },
+        pullups: { label: "Pull-ups", unit: "reps", placeholder: "12", help: "Enter max clean reps.", hint: "Higher reps rank higher.", resultTitle: "How many pull-ups can you do?" },
+        run_5k: { label: "5K", unit: "time", placeholder: "21:34", help: "Use MM:SS, e.g. 21:34.", hint: "Use MM:SS or HH:MM:SS. Lower time ranks higher.", resultTitle: "What's your best 5K time?" },
     };
     const previewHeadlines = {
         "Earned Legend": "Lethal. That's Earned Legend territory.",
@@ -778,7 +798,7 @@
     function syncResultInput() {
         const config = disciplineLabels[selectedDiscipline()];
         const input = document.getElementById("test-result");
-        document.querySelector("[data-result-title]").textContent = `Your best ${config.label} result?`;
+        document.querySelector("[data-result-title]").textContent = config.resultTitle;
         document.querySelector("[data-result-help]").textContent = config.help;
         document.querySelector("[data-result-hint]").textContent = config.hint;
         input.value = "";

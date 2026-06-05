@@ -34,6 +34,8 @@ CSRF_TRUSTED_ORIGINS = get_list_env(
     "CSRF_TRUSTED_ORIGINS",
     "https://earnedclub.club,https://www.earnedclub.club,https://earnedclub.onrender.com",
 )
+if DEBUG:
+    CSRF_TRUSTED_ORIGINS += ["http://127.0.0.1:8000", "http://localhost:8000"]
 SITE_URL = os.getenv("SITE_URL", "https://www.earnedclub.club").rstrip("/")
 
 

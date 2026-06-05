@@ -53,7 +53,7 @@
     .tier-bar {
         height: 8px;
         border-radius: 999px;
-        background: linear-gradient(90deg, var(--accent), var(--accent-2));
+        background: linear-gradient(90deg, #2d6db4 0%, #e09818 55%, #00e07a 100%);
         width: var(--bar-width);
     }
     @media (min-width: 820px) {
@@ -68,7 +68,7 @@
             <h1>Calculators.</h1>
             <p class="muted">Simple numbers for Hybrid Score, balanced performance, and training context.</p>
         </div>
-        <a class="btn-main" href="{% url 'level_test' %}">Submit Performance</a>
+        <a class="btn-main" href="{% if request.user.is_authenticated %}{% url 'challenge' %}{% else %}{% url 'level_test' %}{% endif %}">Submit Performance</a>
     </div>
 </section>
 

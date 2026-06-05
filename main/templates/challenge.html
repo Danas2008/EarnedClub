@@ -1,354 +1,403 @@
 {% extends "base.html" %}
 
 {% block title %}Submit Performance - Earned Club{% endblock %}
-{% block meta_description %}Submit your best performance to Earned Club, start Official Review, and earn a verified public leaderboard rank.{% endblock %}
+{% block meta_description %}Submit your best push-ups, pull-ups, or 5K time. Get ranked. Earn verified athlete status.{% endblock %}
 
 {% block content %}
-<section class="hero-card" style="margin-bottom: 24px;">
-    <div class="content-split">
-        <div class="stack">
-            <div class="eyebrow">Submit Your Result</div>
-            <h1>Submit your performance.</h1>
-            <p class="muted">
-                Get ranked. Prove it.
-            </p>
-            <p>
-                {% if challenge_room %}Submitting into {{ challenge_room.display_title }}. The room link stays attached to this result.{% else %}Choose your leaderboard, submit your best performance, and earn verified rank. Proof is optional for most results, but Official Review is what makes status earned.{% endif %}
-            </p>
-            <div class="button-row">
-                <a class="btn-main" href="#submit-form-top">Submit Official Result</a>
-                <a class="btn-secondary" href="/leaderboard/#full-leaderboard">See Current Rankings</a>
+<style>
+    .challenge-funnel {
+        display: grid;
+        gap: 16px;
+        max-width: 920px;
+        margin: 0 auto;
+    }
+
+    .challenge-shell {
+        position: relative;
+        overflow: hidden;
+        display: grid;
+        align-content: start;
+        padding: clamp(18px, 5vw, 34px);
+        background:
+            linear-gradient(145deg, rgba(247, 183, 51, .14), rgba(30, 157, 116, .07)),
+            var(--panel);
+    }
+
+    .challenge-shell::before {
+        content: "";
+        position: absolute;
+        inset: -60px -100px auto auto;
+        width: 220px;
+        height: 220px;
+        border-radius: 50%;
+        background: radial-gradient(circle, rgba(247, 183, 51, .2), transparent 70%);
+        pointer-events: none;
+    }
+
+    .challenge-inner {
+        position: relative;
+        z-index: 1;
+        display: grid;
+        gap: 22px;
+        max-width: 680px;
+    }
+
+    .challenge-discipline-grid {
+        display: grid;
+        gap: 10px;
+    }
+
+    .challenge-form {
+        display: grid;
+        gap: 18px;
+    }
+
+    .challenge-score-input {
+        font-family: "Archivo", sans-serif;
+        font-size: clamp(1.4rem, 7vw, 2.1rem);
+        font-weight: 900;
+        min-height: 62px;
+        max-width: 440px;
+    }
+
+    .challenge-proof-box {
+        display: grid;
+        gap: 12px;
+        padding: 16px;
+        border-radius: var(--radius-md);
+        border: 1px solid rgba(255, 255, 255, .08);
+        background: rgba(255, 255, 255, .03);
+    }
+
+    .challenge-proof-heading {
+        font-size: 0.76rem;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        opacity: 0.55;
+    }
+
+    .challenge-active-sub {
+        padding: 14px 16px;
+        border-radius: var(--radius-md);
+        border: 1px solid rgba(247, 183, 51, .28);
+        background: rgba(247, 183, 51, .07);
+    }
+
+    .challenge-success-card {
+        padding: 24px;
+        border-radius: var(--radius-lg);
+        border: 1px solid rgba(247, 183, 51, .32);
+        background:
+            linear-gradient(145deg, rgba(247, 183, 51, .12), rgba(30, 157, 116, .08)),
+            rgba(8, 11, 15, .42);
+        box-shadow: 0 18px 48px rgba(0, 0, 0, .28);
+        display: grid;
+        gap: 18px;
+    }
+
+    .challenge-submit-btn {
+        min-height: 54px;
+        font-size: 1.05rem;
+    }
+
+    .file-pick-row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 6px;
+    }
+
+    .file-pick-name {
+        font-size: 0.88rem;
+        opacity: 0.55;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        max-width: 260px;
+    }
+
+    @media (min-width: 600px) {
+        .challenge-discipline-grid {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+    }
+</style>
+
+<div class="challenge-funnel">
+
+    {% if submission_success %}
+    <section class="hero-card challenge-success-card">
+        <div class="preview-top">
+            <div>
+                <div class="eyebrow">{% if submission_success.is_official_pending %}In Official Review{% else %}You're on the board{% endif %}</div>
+                <h1 style="font-size: clamp(1.8rem, 7vw, 2.8rem); margin-top: 4px;">{% if submission_success.is_official_pending %}Official Review started.{% else %}Your score is live.{% endif %}</h1>
             </div>
-            <div class="trust-strip">
-                <div class="trust-item">
-                    <strong>{{ verified_count }}</strong>
-                    <span class="muted">verified scores</span>
-                </div>
-                <div class="trust-item">
-                    <strong>60+</strong>
-                    <span class="muted">Elite benchmark</span>
-                </div>
-                <div class="trust-item">
-                    <strong>Manual</strong>
-                    <span class="muted">proof review</span>
-                </div>
+            <span class="status-pill {{ submission_success.submission.status }}">{{ submission_success.submission.public_status_label }}</span>
+        </div>
+        <div class="preview-grid">
+            <div class="preview-stat">
+                <span class="kicker">Discipline</span>
+                <div class="submission-name">{{ submission_success.submission.discipline_label }}</div>
+            </div>
+            <div class="preview-stat">
+                <span class="kicker">Result</span>
+                <div class="submission-name">{{ submission_success.submission.display_score }}</div>
+            </div>
+            <div class="preview-stat">
+                <span class="kicker">Points</span>
+                <div class="submission-name">{{ submission_success.display_points }} pts</div>
+            </div>
+            <div class="preview-stat">
+                <span class="kicker">Rank</span>
+                <div class="submission-name">{{ submission_success.submission.rank_name }}</div>
             </div>
         </div>
-
-        <div class="stack" id="submit-form-top">
-            {% if submission_success %}
-                <div class="submit-panel" style="border-color: rgba(247, 183, 51, 0.34); background: linear-gradient(145deg, rgba(247, 183, 51, 0.12), rgba(30, 157, 116, 0.08)), rgba(255,255,255,0.04);">
-                    <span class="status-pill {{ submission_success.submission.status }}">{{ submission_success.submission.public_status_label }}</span>
-                    <h2 style="margin-top: 14px;">
-                        {% if submission_success.is_official_pending %}
-                            Official Review started.
-                        {% else %}
-                            Your result is now on the open leaderboard.
-                        {% endif %}
-                    </h2>
-                    <p class="muted">
-                        {{ submission_success.submission.discipline_label }} - {{ submission_success.submission.display_score }}.
-                        {% if submission_success.is_official_pending %}
-                            If approved, this result becomes official and updates your verified rank, badges, and athlete status.
-                        {% else %}
-                            Your result is live on the open leaderboard. Claim your athlete profile, then submit for Official Review to earn trusted status.
-                        {% endif %}
-                    </p>
-                    <div class="stat-grid" style="margin-top: 14px;">
-                        <div class="stat-card">
-                            <span class="kicker">Result</span>
-                            <span class="stat-value">{{ submission_success.submission.compact_score }}</span>
-                            <div class="muted">{{ submission_success.submission.rank_name }}</div>
-                        </div>
-                        <div class="stat-card">
-                            <span class="kicker">Status</span>
-                            <span class="stat-value" style="font-size: 1.25rem;">{{ submission_success.submission.public_status_label }}</span>
-                            <div class="muted">Review makes it official.</div>
-                        </div>
-                        <div class="stat-card">
-                            <span class="kicker">Points</span>
-                            <span class="stat-value">{{ submission_success.display_points }}</span>
-                            <div class="muted">Hybrid preview points</div>
-                        </div>
-                    </div>
-                    <div class="button-row">
-                        {% if submission_success.is_official_pending %}
-                            <a class="btn-main" href="{{ submission_success.leaderboard_url }}">Open Leaderboard</a>
-                        {% else %}
-                            <a class="btn-main" href="{{ submission_success.proof_url }}">Earn Official Status</a>
-                        {% endif %}
-                        {% if submission_success.profile_url %}
-                            <a class="btn-secondary" href="{{ submission_success.profile_url }}">View Profile</a>
-                            {% if submission_success.is_official_pending %}
-                                <a class="btn-secondary" href="{{ submission_success.proof_url }}">Official Review</a>
-                            {% endif %}
-                        {% else %}
-                            <a class="btn-secondary" href="{{ submission_success.register_url }}">Claim Your Athlete Profile</a>
-                        {% endif %}
-                        <button class="btn-secondary" type="button" data-share-text="{{ submission_success.share_text }}">Challenge a Friend</button>
-                        <a class="btn-secondary" href="{{ submission_success.leaderboard_url }}">Open Leaderboard</a>
-                    </div>
-                </div>
+        <p class="muted">
+            {% if submission_success.is_official_pending %}
+                If approved, this becomes your official rank, badge, and verified athlete status.
+            {% else %}
+                Your result is live on the open leaderboard. Submit proof to earn verified athlete status — the rank that holds.
             {% endif %}
-
-            <div class="submit-panel">
-                <h2>Submit Your Result</h2>
-                {% if request.user.is_authenticated %}
-                    <p class="muted">
-                        Submitting as {{ profile.display_name }}. Verified entries go live on your profile and the public leaderboard.
-                    </p>
-                {% else %}
-                    <p class="muted">
-                        Enter your result and name. Email is optional; feel the leaderboard first, then claim your athlete profile to save progress history and join challenges officially.
-                    </p>
-                {% endif %}
-
-                {% if active_submission %}
-                    <div class="mini-card">
-                        <span class="status-pill {{ active_submission.status }}">{{ active_submission.public_status_label }}</span>
-                        <p class="muted" style="margin: 12px 0 0;">
-                            {% if active_submission.status == "unverified" %}
-                                You already have an Open Score for {{ active_submission.discipline_label }}. Open your dashboard and submit it for Official Review.
-                            {% else %}
-                                You already have a {{ active_submission.discipline_label }} submission waiting for verification. Please wait until it is reviewed before submitting again.
-                            {% endif %}
-                        </p>
-                    </div>
-                {% else %}
-                    <form class="submission-form" method="POST" enctype="multipart/form-data">
-                        {% csrf_token %}
-                        <input class="sr-only" type="text" name="website" tabindex="-1" autocomplete="off" aria-hidden="true">
-                        {% if challenge_room %}<input type="hidden" name="room" value="{{ challenge_room.token }}">{% endif %}
-
-                        {% if not request.user.is_authenticated %}
-                            <div class="form-grid-2">
-                                <div>
-                                    <label class="field-label" for="name">Username</label>
-                                    <input
-                                        id="name"
-                                        class="input"
-                                        type="text"
-                                        name="name"
-                                        placeholder="How your name should appear"
-                                        value="{{ form_data.name|default:'' }}"
-                                        required
-                                    >
-                                </div>
-
-                                <div>
-                                    <label class="field-label" for="email">Email</label>
-                                    <input
-                                        id="email"
-                                        class="input"
-                                        type="email"
-                                        name="email"
-                                        placeholder="you@example.com"
-                                        value="{{ form_data.email|default:'' }}"
-                                    >
-                                </div>
-                            </div>
-                        {% endif %}
-
-                        <div>
-                            <label class="field-label" for="discipline">Choose your leaderboard</label>
-                            {% if discipline_locked %}<input type="hidden" name="discipline" value="{{ selected_discipline.key }}">{% endif %}
-                            <select id="discipline" class="select" name="discipline" {% if discipline_locked %}disabled{% endif %}>
-                                {% for discipline in discipline_cards %}
-                                    <option
-                                        value="{{ discipline.key }}"
-                                        data-input-label="{{ discipline.input_label }}"
-                                        data-placeholder="{{ discipline.placeholder }}"
-                                        data-score-type="{{ discipline.score_type }}"
-                                        data-proof-label="{{ discipline.proof_label }}"
-                                        {% if discipline.key == selected_discipline.key %} selected{% endif %}
-                                    >{{ discipline.label }}</option>
-                                {% endfor %}
-                            </select>
-                        </div>
-
-                        <div>
-                            <label class="field-label" for="score">{{ selected_discipline.input_label }}</label>
-                            <input
-                                id="score"
-                                class="input"
-                                type="text"
-                                name="score"
-                                inputmode="{% if selected_discipline.score_type == 'time' %}text{% else %}numeric{% endif %}"
-                                placeholder="{{ selected_discipline.placeholder }}"
-                                value="{{ form_score }}"
-                                required
-                            >
-                            <div class="hint" data-score-hint>{% if selected_discipline.score_type == "time" %}Use MM:SS or HH:MM:SS, like 21:34. Tip: 21.34 becomes 21:34.{% else %}Enter strict reps. Higher score ranks higher.{% endif %}</div>
-                        </div>
-
-                        <div data-proof-link {% if selected_discipline.score_type != "time" %}hidden{% endif %}>
-                            <label class="field-label" for="proof_link">{{ selected_discipline.proof_label }} <span class="muted">(optional unless elite)</span></label>
-                            <input
-                                id="proof_link"
-                                class="input"
-                                type="url"
-                                name="proof_link"
-                                placeholder="{% if selected_discipline.score_type == 'time' %}https://www.strava.com/activities/...{% else %}https://example.com/proof{% endif %}"
-                                value="{{ form_data.proof_link|default:'' }}"
-                            >
-                            <div class="hint">Use a race result, Strava activity, or another public proof link.</div>
-                        </div>
-
-                        {% if selected_discipline.score_type != "time" %}
-                        <div data-video-proof>
-                            <label class="field-label" for="video_file">Proof video <span class="muted">(optional unless elite)</span></label>
-                            <input id="video_file" class="input" type="file" name="video_file" accept="video/*">
-                            <div class="hint">Without proof, your result is visible but unverified. With proof, it can earn official rank after review.</div>
-                        </div>
-                        {% endif %}
-
-                        <button type="submit" class="btn-main">Submit Performance</button>
-                        <div class="result-note">
-                            Official ranks require proof. Unverified results are shown, but not official until you claim and verify them.
-                        </div>
-                    </form>
-                {% endif %}
-            </div>
-
-            {% if show_submit_help %}
-                <div class="step-list">
-                    <div class="step-item">
-                        <span class="step-number">1</span>
-                        <div>
-                            <strong>Record your performance</strong>
-                            <div class="muted">Strict reps or a clear run time.</div>
-                        </div>
-                    </div>
-                    <div class="step-item">
-                        <span class="step-number">2</span>
-                        <div>
-                            <strong>Submit your result</strong>
-                            <div class="muted">Discipline, result, name, email, and optional proof.</div>
-                        </div>
-                    </div>
-                    <div class="step-item">
-                        <span class="step-number">3</span>
-                        <div>
-                            <strong>Start Official Review</strong>
-                            <div class="muted">Proof moves your result into earned-status review.</div>
-                        </div>
-                    </div>
-                    <div class="step-item">
-                        <span class="step-number">!</span>
-                        <div>
-                            <strong>Earn your public rank</strong>
-                            <div class="muted">Verified athletes earn public status.</div>
-                        </div>
-                    </div>
-                </div>
+        </p>
+        {% if submission_success.score_dropped %}
+        <p class="muted">Your Hybrid Score is the average of all discipline points, so adding a lower-scoring discipline brings the average down. That's how the Hybrid Score is designed — it rewards consistent strength across all three disciplines.</p>
+        {% endif %}
+        <div class="hero-actions">
+            {% if submission_success.is_official_pending %}
+                <a class="btn-main" href="{{ submission_success.leaderboard_url }}">See Leaderboard</a>
+            {% else %}
+                <a class="btn-main" href="{{ submission_success.proof_url }}">Earn Official Status</a>
             {% endif %}
+            {% if submission_success.profile_url %}
+                <a class="btn-secondary" href="{{ submission_success.profile_url }}">View Profile</a>
+            {% elif request.user.is_authenticated %}
+                <a class="btn-secondary" href="{% url 'dashboard' %}">View Dashboard</a>
+            {% else %}
+                <a class="btn-secondary" href="{{ submission_success.register_url }}">Claim Your Athlete Profile</a>
+            {% endif %}
+            <button class="btn-secondary" type="button" data-share-text="{{ submission_success.share_text }}">Challenge a Friend</button>
+            <a class="btn-secondary" href="{{ submission_success.leaderboard_url }}">See Leaderboard</a>
         </div>
-    </div>
-</section>
-
-<section class="card-dark">
-    <div class="section-spread">
-        <div>
-            <h2>Current athletes to chase</h2>
-            <p class="muted">See the standard before you submit. A clean verified result can move you onto this {{ selected_discipline.short_label }} board.</p>
-        </div>
-        <a class="btn-secondary" href="/leaderboard/#full-leaderboard">Open Leaderboard</a>
-    </div>
-    {% if leaderboard_preview %}
-        <div class="compact-board">
-            {% for row in leaderboard_preview %}
-                <div class="score-row">
-                    {% if row.profile and row.profile.profile_image_url %}
-                        <img class="avatar" src="{{ row.profile.profile_image_url }}" alt="{{ row.profile.display_name }} profile picture">
-                    {% elif row.profile %}
-                        <span class="avatar">{{ row.profile.display_name|first|upper }}</span>
-                    {% else %}
-                        <span class="avatar">{{ row.submission.name|first|upper }}</span>
-                    {% endif %}
-                    <div class="score-row-main">
-                        <div class="submission-name">{{ row.submission.name }}</div>
-                        <div class="submission-meta">{{ row.submission.discipline_label }} - {{ row.submission.public_status_label }}</div>
-                    </div>
-                    <div class="score-row-score">
-                        <span class="position-pill">#{{ row.position }}</span>
-                        <div class="score">{{ row.submission.compact_score }}</div>
-                    </div>
-                </div>
-            {% endfor %}
-        </div>
-    {% else %}
-            <p class="muted">No scores yet. The first verified results will define this board.</p>
+    </section>
     {% endif %}
-</section>
 
-<section class="card-dark">
-    <div class="section-spread">
-        <div>
-            <h2>Why Verify</h2>
-            <p class="muted">Verified results are what count. Submitting and passing verification is the only way to claim a genuine leaderboard position.</p>
-        </div>
-        <a class="btn-secondary" href="/leaderboard/#full-leaderboard">See Leaderboard</a>
-    </div>
+    <section class="hero-card challenge-shell">
+        <div class="challenge-inner">
+            <div>
+                <div class="eyebrow">{% if challenge_room %}{{ challenge_room.display_title }}{% else %}Earned Club{% endif %}</div>
+                <h1>{% if request.user.is_authenticated %}Submit your result{% if profile %}, {{ profile.display_name }}{% endif %}.{% else %}Post your performance.{% endif %}</h1>
+                <p class="muted">
+                    {% if challenge_room %}Submitting into {{ challenge_room.display_title }}. The room context stays attached to this result.{% elif request.user.is_authenticated %}Choose your discipline, enter your score, and optionally add proof to start Official Review.{% else %}Enter your result and name. Email is optional — feel the leaderboard first.{% endif %}
+                </p>
+            </div>
 
-    <div class="grid-3">
-        <div class="feature-card">
-            <h3>Public Proof</h3>
-            <p class="muted">Your result becomes part of the system and your public record.</p>
+            {% if active_submission %}
+            <div class="challenge-active-sub">
+                <span class="status-pill {{ active_submission.status }}">{{ active_submission.public_status_label }}</span>
+                <p class="muted" style="margin: 10px 0 0;">
+                    {% if active_submission.status == "unverified" %}
+                        You already have an Open Score for {{ active_submission.discipline_label }}. Head to your dashboard to submit it for Official Review.
+                    {% else %}
+                        Your {{ active_submission.discipline_label }} submission is waiting for review. Come back after it's been verified.
+                    {% endif %}
+                </p>
+            </div>
+            {% else %}
+            <form class="challenge-form" method="POST" enctype="multipart/form-data">
+                {% csrf_token %}
+                <input class="sr-only" type="text" name="website" tabindex="-1" autocomplete="off" aria-hidden="true">
+                {% if challenge_room %}<input type="hidden" name="room" value="{{ challenge_room.token }}">{% endif %}
+
+                {# Hidden select drives form POST; visual cards sync to it via JS #}
+                {% if discipline_locked %}
+                    <input type="hidden" name="discipline" value="{{ selected_discipline.key }}">
+                {% endif %}
+                <select id="discipline" {% if not discipline_locked %}name="discipline"{% endif %} style="display:none;" {% if discipline_locked %}disabled{% endif %}>
+                    {% for discipline in discipline_cards %}
+                        <option value="{{ discipline.key }}"
+                            data-input-label="{{ discipline.input_label }}"
+                            data-placeholder="{{ discipline.placeholder }}"
+                            data-score-type="{{ discipline.score_type }}"
+                            data-proof-label="{{ discipline.proof_label }}"
+                            {% if discipline.key == selected_discipline.key %}selected{% endif %}
+                        >{{ discipline.label }}</option>
+                    {% endfor %}
+                </select>
+
+                <div>
+                    <div class="field-label" style="margin-bottom: 8px;">{% if discipline_locked %}{{ selected_discipline.label }}{% else %}Choose your leaderboard{% endif %}</div>
+                    <div class="challenge-discipline-grid">
+                        {% for d in discipline_cards %}
+                        <label class="discipline-choice"{% if discipline_locked and d.key != selected_discipline.key %} style="opacity:.35;pointer-events:none;"{% endif %}>
+                            <input type="radio" name="discipline_card" value="{{ d.key }}"
+                                {% if d.key == selected_discipline.key %}checked{% endif %}
+                                {% if discipline_locked %}disabled{% endif %}>
+                            <span><strong>{{ d.short_label }}</strong></span>
+                        </label>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                {% if not request.user.is_authenticated %}
+                <div style="display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));">
+                    <div>
+                        <label class="field-label" for="name">Your name</label>
+                        <input id="name" class="input" type="text" name="name"
+                            placeholder="How your name appears on the leaderboard"
+                            value="{{ form_data.name|default:'' }}" required>
+                    </div>
+                    <div>
+                        <label class="field-label" for="email">Email <span class="muted">(optional)</span></label>
+                        <input id="email" class="input" type="email" name="email"
+                            placeholder="you@example.com"
+                            value="{{ form_data.email|default:'' }}">
+                    </div>
+                </div>
+                {% endif %}
+
+                <div>
+                    <label class="field-label" for="score">Your result</label>
+                    <input id="score" class="input challenge-score-input" type="text" name="score"
+                        inputmode="{% if selected_discipline.score_type == 'time' %}text{% else %}numeric{% endif %}"
+                        placeholder="{{ selected_discipline.placeholder }}"
+                        value="{{ form_score }}"
+                        required>
+                    <div class="hint" data-score-hint>{% if selected_discipline.score_type == "time" %}Use MM:SS or HH:MM:SS, like 21:34. Tip: 21.34 becomes 21:34.{% else %}Enter strict reps. Higher ranks higher.{% endif %}</div>
+                </div>
+
+                <div class="challenge-proof-box">
+                    <span class="challenge-proof-heading">Proof <span style="opacity:.5;font-weight:500;text-transform:none;letter-spacing:0;">(optional for most — required for elite results)</span></span>
+
+                    <div data-proof-link {% if selected_discipline.score_type != "time" %}hidden{% endif %}>
+                        <label class="field-label" for="proof_link">Race result or Strava link</label>
+                        <input id="proof_link" class="input" type="url" name="proof_link"
+                            placeholder="https://www.strava.com/activities/..."
+                            value="{{ form_data.proof_link|default:'' }}">
+                        <div class="hint">Public race result, Strava activity, or any verifiable link.</div>
+                    </div>
+
+                    {% if selected_discipline.score_type != "time" %}
+                    <div data-video-proof>
+                        <label class="field-label">Proof video</label>
+                        <div class="file-pick-row">
+                            <button type="button" class="btn-secondary file-pick-trigger">Choose video</button>
+                            <span class="file-pick-name">No file chosen</span>
+                        </div>
+                        <input id="video_file" type="file" name="video_file" accept="video/*" style="display:none;" aria-label="Proof video">
+                        <div class="hint">Without proof, your result is visible but unverified. With proof, it earns official rank after review.</div>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <button type="submit" class="btn-main challenge-submit-btn">Submit Performance</button>
+            </form>
+            {% endif %}
         </div>
-        <div class="feature-card">
-            <h3>Early Status</h3>
-            <p class="muted">Early participants help define what high performance means here.</p>
+    </section>
+
+    <section class="card-dark">
+        <div class="section-spread">
+            <div>
+                <h2>{{ selected_discipline.short_label }} — athletes to chase</h2>
+                <p class="muted">A clean verified result can put you on this board.</p>
+            </div>
+            <a class="btn-secondary" href="{% url 'leaderboard' %}#full-leaderboard">Full Leaderboard</a>
         </div>
-        <div class="feature-card">
-            <h3>Future Perks</h3>
-            <p class="muted">Be among the first to access exclusive content and opportunities.</p>
-        </div>
-    </div>
-</section>
+        {% if leaderboard_preview %}
+            <div class="compact-board">
+                {% for row in leaderboard_preview %}
+                    <div class="score-row">
+                        {% if row.profile and row.profile.profile_image_url %}
+                            <img class="avatar" src="{{ row.profile.profile_image_url }}" alt="{{ row.profile.display_name }}">
+                        {% elif row.profile %}
+                            <span class="avatar">{{ row.profile.display_name|first|upper }}</span>
+                        {% else %}
+                            <span class="avatar">{{ row.submission.name|first|upper }}</span>
+                        {% endif %}
+                        <div class="score-row-main">
+                            <div class="submission-name">{{ row.submission.name }}</div>
+                            <div class="submission-meta">{{ row.submission.discipline_label }} · {{ row.submission.public_status_label }}</div>
+                        </div>
+                        <div class="score-row-score">
+                            <span class="position-pill">#{{ row.position }}</span>
+                            <div class="score">{{ row.submission.compact_score }}</div>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p class="muted">No scores yet. Be first.</p>
+        {% endif %}
+    </section>
+
+</div>
+
 <script>
     (() => {
-        const discipline = document.getElementById("discipline");
+        const select = document.getElementById("discipline");
         const score = document.getElementById("score");
-        const label = document.querySelector("label[for='score']");
         const videoProof = document.querySelector("[data-video-proof]");
         const proofLink = document.querySelector("[data-proof-link]");
         const scoreHint = document.querySelector("[data-score-hint]");
-        if (!discipline || !score || !label) return;
+        if (!select || !score) return;
 
-        function normalizeTimeInput() {
-            const option = discipline.selectedOptions[0];
-            if (option.dataset.scoreType !== "time") return;
-            const raw = score.value.trim();
-            const converted = raw.replace(/^(\d+)\.(\d+)$/, "$1:$2");
-            if (converted !== raw) score.value = converted;
-            const parts = converted.split(":");
-            const valid = parts.length >= 2 && parts.length <= 3 && parts.every((part) => /^\d+$/.test(part)) && Number(parts[parts.length - 1]) <= 59 && Number(parts[parts.length - 2]) <= 59;
-            if (scoreHint) scoreHint.textContent = valid || !converted ? "Use MM:SS or HH:MM:SS, like 21:34. Tip: 21.34 becomes 21:34." : "Enter a valid time like 21:34. Use numbers and a colon.";
+        function syncUI() {
+            const opt = select.selectedOptions[0];
+            if (!opt) return;
+            score.placeholder = opt.dataset.placeholder || "";
+            score.inputMode = opt.dataset.scoreType === "time" ? "text" : "numeric";
+            if (scoreHint) scoreHint.textContent = opt.dataset.scoreType === "time"
+                ? "Use MM:SS or HH:MM:SS, like 21:34. Tip: 21.34 becomes 21:34."
+                : "Enter strict reps. Higher score ranks higher.";
+            if (videoProof) videoProof.hidden = opt.dataset.scoreType === "time";
+            if (proofLink) proofLink.hidden = opt.dataset.scoreType !== "time";
         }
 
-        discipline.addEventListener("change", () => {
-            const option = discipline.selectedOptions[0];
-            label.textContent = option.dataset.inputLabel || "Performance";
-            score.placeholder = option.dataset.placeholder || "";
-            score.inputMode = option.dataset.scoreType === "time" ? "text" : "numeric";
-            if (scoreHint) scoreHint.textContent = option.dataset.scoreType === "time" ? "Use MM:SS or HH:MM:SS, like 21:34. Tip: 21.34 becomes 21:34." : "Enter strict reps. Higher score ranks higher.";
-            if (videoProof) videoProof.hidden = option.dataset.scoreType === "time";
-            if (proofLink) proofLink.hidden = option.dataset.scoreType !== "time";
-            const proofLabel = document.querySelector("label[for='proof_link']");
-            if (proofLabel) proofLabel.childNodes[0].textContent = option.dataset.proofLabel || "Proof link";
+        function normalizeTime() {
+            const opt = select.selectedOptions[0];
+            if (!opt || opt.dataset.scoreType !== "time") return;
+            const raw = score.value.trim();
+            const conv = raw.replace(/^(\d+)\.(\d+)$/, "$1:$2");
+            if (conv !== raw) score.value = conv;
+            const parts = conv.split(":");
+            const valid = parts.length >= 2 && parts.length <= 3
+                && parts.every((p) => /^\d+$/.test(p))
+                && Number(parts[parts.length - 1]) <= 59
+                && Number(parts[parts.length - 2]) <= 59;
+            if (scoreHint) scoreHint.textContent = valid || !conv
+                ? "Use MM:SS or HH:MM:SS, like 21:34. Tip: 21.34 becomes 21:34."
+                : "Enter a valid time like 21:34.";
+        }
+
+        document.querySelectorAll("input[name='discipline_card']").forEach((radio) => {
+            radio.addEventListener("change", () => {
+                const url = new URL(window.location.href);
+                url.searchParams.set("discipline", radio.value);
+                const nameEl = document.getElementById("name");
+                const emailEl = document.getElementById("email");
+                if (nameEl && nameEl.value) url.searchParams.set("name", nameEl.value);
+                else url.searchParams.delete("name");
+                if (emailEl && emailEl.value) url.searchParams.set("email", emailEl.value);
+                else url.searchParams.delete("email");
+                window.location.href = url.toString();
+            });
         });
-        score.addEventListener("input", normalizeTimeInput);
-        score.addEventListener("blur", normalizeTimeInput);
+
+        select.addEventListener("change", syncUI);
+        score.addEventListener("input", normalizeTime);
+        score.addEventListener("blur", normalizeTime);
     })();
-    for (const shareButton of document.querySelectorAll("[data-share-text]")) {
-        const originalLabel = shareButton.textContent;
-        shareButton.addEventListener("click", async () => {
-            const text = shareButton.dataset.shareText;
+
+    for (const btn of document.querySelectorAll("[data-share-text]")) {
+        const orig = btn.textContent;
+        btn.addEventListener("click", async () => {
+            const text = btn.dataset.shareText;
             if (navigator.share) await navigator.share({ text });
             else {
                 await navigator.clipboard.writeText(text);
-                shareButton.textContent = "Copied";
-                setTimeout(() => shareButton.textContent = originalLabel, 1200);
+                btn.textContent = "Copied";
+                setTimeout(() => btn.textContent = orig, 1200);
             }
         });
     }

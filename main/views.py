@@ -1,6 +1,7 @@
 import json
 import logging
 import random
+import secrets
 from datetime import timedelta
 from xml.etree.ElementTree import Element, SubElement, indent, register_namespace, tostring
 from xml.sax.saxutils import quoteattr
@@ -886,14 +887,16 @@ def get_pr_share_message(profile, request):
 
 def build_submission_success(submission, request):
     discipline_config = get_discipline_config(submission.discipline)
-    leaderboard_url = f"{reverse('leaderboard')}#full-leaderboard"
+    progress = build_test_progress(request, submission)
+    # Single-discipline: point to the discipline leaderboard where the user actually appears
+    if progress["completed_count"] == 1:
+        disc_key = normalize_discipline(submission.discipline)
+        leaderboard_url = f"{reverse('leaderboard_discipline', args=[disc_key])}#full-leaderboard"
+    else:
+        leaderboard_url = f"{reverse('leaderboard')}#full-leaderboard"
+    # Score dropped: user added a weak second discipline that brought the average down
+    score_dropped = progress["completed_count"] >= 2 and submission.hybrid_points < progress["open_score"]
     register_params = urlencode({"name": submission.name, "email": submission.email}) if submission.email else urlencode({"name": submission.name})
-    proof_params = urlencode({
-        "discipline": submission.discipline,
-        "score": submission.display_score if discipline_config["score_type"] == "time" else submission.reps,
-        "name": submission.name,
-        "email": submission.email,
-    })
     profile_url = reverse("athlete_profile", args=[submission.user.profile.slug]) if submission.user_id else ""
     session_submission_ids = request.session.get("test_submission_ids", [])
     if submission.id in session_submission_ids:
@@ -903,8 +906,11 @@ def build_submission_success(submission, request):
             proof_url = f"{proof_url}?{room_query(room)}"
     elif submission.user_id:
         proof_url = reverse("dashboard")
+    elif submission.claim_token:
+        # Session expired or different device — use claim token so they can still add proof
+        proof_url = f"{reverse('test_session_official')}?claim={submission.claim_token}"
     else:
-        proof_url = f"{reverse('challenge')}?{proof_params}#submit-form-top"
+        proof_url = reverse("level_test")
     return {
         "submission": submission,
         "is_official_pending": submission.has_proof,
@@ -915,9 +921,10 @@ def build_submission_success(submission, request):
         "proof_url": proof_url,
         "display_points": submission.hybrid_points,
         "is_founding_entry": is_founding_submission(submission),
+        "score_dropped": score_dropped,
         "share_url": request.build_absolute_uri(build_test_result_url(request)),
         "share_text": (
-            f"I scored {build_test_progress(request, submission)['open_score']} Hybrid Score Preview on Earned Club. "
+            f"I scored {progress['open_score']} Hybrid Score Preview on Earned Club. "
             f"Can you beat it? {request.build_absolute_uri(build_test_result_url(request))}"
         ),
     }
@@ -955,6 +962,15 @@ def remember_test_submission(request, submission):
     ids = [item for item in request.session.get("test_submission_ids", []) if item != submission.id]
     ids.append(submission.id)
     request.session["test_submission_ids"] = ids[-12:]
+
+
+def get_or_create_claim_token(request):
+    token = request.session.get("test_claim_token")
+    if not token:
+        token = secrets.token_urlsafe(24)
+        request.session["test_claim_token"] = token
+        request.session.modified = True
+    return token
     request.session.modified = True
 
 
@@ -980,7 +996,7 @@ def best_submissions_by_active_discipline(submissions, allowed_keys=None):
     return completed
 
 
-def build_test_progress(request, latest_submission=None, room=None):
+def build_test_progress(request, latest_submission=None, room=None, test_url_name="level_test"):
     submissions = get_test_journey_submissions(request)
     if latest_submission and latest_submission not in submissions:
         submissions.append(latest_submission)
@@ -998,7 +1014,7 @@ def build_test_progress(request, latest_submission=None, room=None):
                 "done": bool(submission),
                 "needs_proof": needs_proof,
                 "cta_label": f"Add {config['short_label']}",
-                "url": f"{reverse('level_test')}?{urlencode({key: value for key, value in {'discipline': config['key'], 'room': room.token if room else ''}.items() if value})}",
+                "url": f"{reverse(test_url_name)}?{urlencode({key: value for key, value in {'discipline': config['key'], 'room': room.token if room else ''}.items() if value})}",
             }
         )
     points = [submission.hybrid_points for submission in completed.values()]
@@ -1664,7 +1680,8 @@ def find_submission_blocker(request, name, email, reps, discipline=DISCIPLINE_PU
     elif email:
         recent_duplicate = recent_duplicate.filter(Q(email__iexact=email) | Q(name__iexact=name))
     else:
-        recent_duplicate = recent_duplicate.filter(name__iexact=name)
+        session_ids = request.session.get("test_submission_ids", [])
+        recent_duplicate = recent_duplicate.filter(name__iexact=name, id__in=session_ids) if session_ids else recent_duplicate.none()
     if recent_duplicate.exists():
         return "That looks like a duplicate of a recent submission. Give it a few minutes or update your active entry with proof."
 
@@ -2294,7 +2311,7 @@ def _level_test(request, view_name, template):
     verified_submissions = get_official_verified_submissions()
     requested_discipline = room_default_discipline(room, request.GET.get("discipline") or DISCIPLINE_PUSHUPS)
     test_identity = get_test_identity(request)
-    existing_progress = build_test_progress(request, room=room)
+    existing_progress = build_test_progress(request, room=room, test_url_name=view_name)
     latest_existing_submission = existing_progress["completed_submissions"][-1] if existing_progress["completed_submissions"] else None
     context = {
         "rank_tiers": RANK_TIERS,
@@ -2308,14 +2325,22 @@ def _level_test(request, view_name, template):
         "has_saved_test_identity": request.user.is_authenticated or bool(test_identity["name"]),
         "challenge_room": room,
         "test_form_action": room_link(view_name, room),
+        "test_claim_token": None if request.user.is_authenticated else get_or_create_claim_token(request),
     }
+    def _ensure_claim_token(submission):
+        if not request.user.is_authenticated and not submission.claim_token:
+            submission.claim_token = get_or_create_claim_token(request)
+            submission.save(update_fields=["claim_token"])
+
     success_submission_id = request.session.pop("last_test_submission_id", None) if request.method == "GET" else None
     if success_submission_id:
         success_submission = Submission.objects.filter(pk=success_submission_id).select_related("user", "user__profile").first()
         if success_submission:
+            _ensure_claim_token(success_submission)
             context["test_submission_success"] = build_submission_success(success_submission, request)
-            context["test_progress"] = build_test_progress(request, success_submission, room=room)
+            context["test_progress"] = build_test_progress(request, success_submission, room=room, test_url_name=view_name)
     elif request.method == "GET" and latest_existing_submission and (existing_progress["is_complete"] or request.GET.get("result") == "1"):
+        _ensure_claim_token(latest_existing_submission)
         context["test_submission_success"] = build_submission_success(latest_existing_submission, request)
 
     if request.method == "POST":
@@ -2360,19 +2385,24 @@ def _level_test(request, view_name, template):
         elif email:
             existing_unverified = existing_unverified_qs.filter(email__iexact=email).first()
         else:
-            existing_unverified = existing_unverified_qs.filter(name__iexact=name).first()
+            _session_ids = request.session.get("test_submission_ids", [])
+            existing_unverified = existing_unverified_qs.filter(name__iexact=name, id__in=_session_ids).first() if _session_ids else None
         if existing_unverified:
             remember_test_submission(request, existing_unverified)
+            if not request.user.is_authenticated and not existing_unverified.claim_token:
+                existing_unverified.claim_token = get_or_create_claim_token(request)
+                existing_unverified.save(update_fields=["claim_token"])
             attach_submission_to_room(room, existing_unverified, build_room_participant_key(request, existing_unverified))
             request.session["last_test_submission_id"] = existing_unverified.id
-            messages.info(request, "You already have an open result for this discipline. Add proof below to earn official status.")
-            official_url = reverse("test_session_official")
-            if room:
-                official_url = f"{official_url}?{room_query(room)}"
-            return redirect(official_url)
+            messages.info(request, "Your open result is already on the leaderboard. Make it official from the overview below.")
+            return redirect(room_link(view_name, room) if room else view_name)
 
         active_filter = blocking_submission_queryset(discipline)
-        active_submission = active_filter.filter(email__iexact=email).first() if email else active_filter.filter(name__iexact=name).first()
+        if email:
+            active_submission = active_filter.filter(email__iexact=email).first()
+        else:
+            _session_ids = request.session.get("test_submission_ids", [])
+            active_submission = active_filter.filter(name__iexact=name, id__in=_session_ids).first() if _session_ids else None
         if active_submission:
             remember_test_submission(request, active_submission)
             attach_submission_to_room(room, active_submission, build_room_participant_key(request, active_submission))
@@ -2395,6 +2425,7 @@ def _level_test(request, view_name, template):
             discipline=discipline,
             reps=score_value,
             status=Submission.STATUS_UNVERIFIED,
+            claim_token="" if request.user.is_authenticated else get_or_create_claim_token(request),
         )
         remember_test_submission(request, submission)
         attach_submission_to_room(room, submission, build_room_participant_key(request, submission))
@@ -2492,6 +2523,19 @@ def test_session_official(request):
         for sub in db_submissions:
             remember_test_submission(request, sub)
         submissions = get_test_journey_submissions(request)
+    # Fallback for anonymous users whose session expired but still have a claim token
+    if not submissions:
+        claim_token = request.session.get("test_claim_token") or request.GET.get("claim")
+        if claim_token:
+            token_submissions = list(
+                Submission.objects.filter(
+                    claim_token=claim_token,
+                    status__in=[Submission.STATUS_UNVERIFIED, Submission.STATUS_PENDING],
+                ).order_by("-created_at")
+            )
+            for sub in token_submissions:
+                remember_test_submission(request, sub)
+            submissions = get_test_journey_submissions(request)
     if not submissions:
         messages.error(request, "Complete a test result before starting Official Review.")
         return redirect(room_link("level_test", room) if room else "level_test")
@@ -2715,6 +2759,34 @@ def leaderboard(request, discipline_key=None):
     return render(request, "leaderboard.html", context)
 
 
+def claim_token_view(request, token):
+    all_with_token = Submission.objects.filter(claim_token=token)
+    if not all_with_token.exists():
+        messages.warning(request, "This save link is no longer valid.")
+        return redirect("home")
+
+    unclaimed = all_with_token.filter(user__isnull=True)
+
+    if not unclaimed.exists():
+        # All already claimed — if this user owns them, just send to dashboard
+        if request.user.is_authenticated and all_with_token.filter(user=request.user).exists():
+            messages.info(request, "These results are already on your profile.")
+            return redirect("dashboard")
+        messages.info(request, "This save link has already been used to claim these results.")
+        return redirect("home")
+
+    if request.user.is_authenticated:
+        count = unclaimed.count()
+        unclaimed.update(user=request.user, name=user_display_name(request.user), email=request.user.email)
+        refresh_profile_stats({request.user.id}, refresh_all_ranks=True)
+        messages.success(request, f"Done — {count} result{'s' if count != 1 else ''} saved to your profile.")
+        return redirect("dashboard")
+
+    request.session["pending_claim_token"] = token
+    request.session.modified = True
+    return redirect(f"{reverse('register')}?claim={token}")
+
+
 def register(request):
     if request.user.is_authenticated:
         return redirect("dashboard")
@@ -2733,6 +2805,13 @@ def register(request):
             profile.slug = ""
             profile.save()
             attached_count = attach_test_session_submissions_to_user(request, user)
+            # Also attach any submissions tied to a claim token (cross-session recovery)
+            claim_token = request.session.pop("pending_claim_token", None) or request.GET.get("claim") or request.POST.get("claim")
+            if claim_token:
+                token_attached = Submission.objects.filter(claim_token=claim_token, user__isnull=True).update(
+                    user=user, name=user_display_name(user), email=user.email,
+                )
+                attached_count += token_attached
             login(request, user)
             if attached_count:
                 messages.success(request, f"Athlete profile claimed. {attached_count} test result(s) are now saved to your profile.")
@@ -2765,6 +2844,15 @@ def login_view(request):
         user = form.get_user()
         login(request, user)
         attached_count = attach_test_session_submissions_to_user(request, user)
+        # Attach any submissions linked to a claim token (cross-device recovery path)
+        claim_token = request.GET.get("claim") or request.POST.get("claim") or request.session.pop("pending_claim_token", None)
+        if claim_token:
+            token_attached = Submission.objects.filter(claim_token=claim_token, user__isnull=True).update(
+                user=user, name=user_display_name(user), email=user.email,
+            )
+            if token_attached:
+                refresh_profile_stats({user.id}, refresh_all_ranks=True)
+                attached_count += token_attached
         messages.success(request, "Welcome back.")
         if attached_count:
             messages.success(request, f"{attached_count} test result(s) are now saved to your profile.")
@@ -3123,14 +3211,21 @@ def social_list(request, slug, kind):
     return render(request, "social_list.html", {"profile": profile, "users": users, "kind": kind, "title": title})
 
 
+def _effective_points(item):
+    """Verified points if available, otherwise best open points."""
+    return item["points"] or item["working_points"]
+
+
 def build_comparison_discipline_rows(left_summary, right_summary):
     rows = []
     for left_item, right_item in zip(left_summary["breakdown"], right_summary["breakdown"]):
-        margin = abs(left_item["points"] - right_item["points"])
-        if left_item["points"] > right_item["points"]:
+        left_pts = _effective_points(left_item)
+        right_pts = _effective_points(right_item)
+        margin = abs(left_pts - right_pts)
+        if left_pts > right_pts:
             leader = "left"
             leader_label = "Left leads"
-        elif right_item["points"] > left_item["points"]:
+        elif right_pts > left_pts:
             leader = "right"
             leader_label = "Right leads"
         else:
@@ -3141,6 +3236,8 @@ def build_comparison_discipline_rows(left_summary, right_summary):
                 "discipline": left_item["discipline"],
                 "left": left_item,
                 "right": right_item,
+                "left_pts": left_pts,
+                "right_pts": right_pts,
                 "margin": margin,
                 "leader": leader,
                 "leader_label": leader_label,
@@ -3154,15 +3251,17 @@ def build_comparison_profile_notes(summary):
     weakest = summary.get("weakest_discipline")
     strengths = []
     weaknesses = []
-    if strongest and strongest["points"]:
-        strengths.append(f"{strongest['discipline']['short_label']} is the strongest verified lane at {strongest['points']} points.")
+    if strongest and _effective_points(strongest):
+        pts = _effective_points(strongest)
+        label = "verified" if strongest["points"] else "open"
+        strengths.append(f"{strongest['discipline']['short_label']} is the strongest lane at {pts} points ({label}).")
     if summary["verified_count"] >= 2:
         strengths.append(f"{summary['verified_count']} verified disciplines make this Hybrid Score harder to dismiss.")
     if weakest:
-        if weakest["submission"]:
+        if weakest["working_submission"]:
             weaknesses.append(f"{weakest['discipline']['short_label']} is the best place to gain the next Hybrid points.")
         else:
-            weaknesses.append(f"{weakest['discipline']['short_label']} is still unclaimed on the official profile.")
+            weaknesses.append(f"{weakest['discipline']['short_label']} has no result yet.")
     if summary["verified_count"] < summary["max_disciplines"]:
         missing_count = summary["max_disciplines"] - summary["verified_count"]
         weaknesses.append(f"{missing_count} discipline lane{'s' if missing_count != 1 else ''} still need verified results.")
@@ -3205,14 +3304,17 @@ def comparison(request, left, right):
     right_summary = build_hybrid_breakdown(right_profile.user)
     left_rank = next((row["position"] for row in build_hybrid_leaderboard_rows() if row["user"] and row["user"].id == left_profile.user_id), None)
     right_rank = next((row["position"] for row in build_hybrid_leaderboard_rows() if row["user"] and row["user"].id == right_profile.user_id), None)
-    score_margin = abs(left_summary["score"] - right_summary["score"])
+    # Use verified score when available, fall back to open score so unverified athletes can still compare
+    left_score = left_summary["score"] or left_summary["open_score"]
+    right_score = right_summary["score"] or right_summary["open_score"]
+    score_margin = abs(left_score - right_score)
     completion_margin = abs(left_summary["verified_count"] - right_summary["verified_count"])
-    if left_summary["score"] > right_summary["score"]:
+    if left_score > right_score:
         winner_profile = left_profile
-        result_label = f"{left_profile.display_name} wins by {score_margin} Hybrid points"
-    elif right_summary["score"] > left_summary["score"]:
+        result_label = f"{left_profile.display_name} leads by {score_margin} Hybrid points"
+    elif right_score > left_score:
         winner_profile = right_profile
-        result_label = f"{right_profile.display_name} wins by {score_margin} Hybrid points"
+        result_label = f"{right_profile.display_name} leads by {score_margin} Hybrid points"
     else:
         winner_profile = None
         result_label = "Dead even on Hybrid Score"
@@ -3232,9 +3334,11 @@ def comparison(request, left, right):
             "right_profile": right_profile,
             "left_summary": left_summary,
             "right_summary": right_summary,
+            "left_score": left_score,
+            "right_score": right_score,
             "left_rank": left_rank,
             "right_rank": right_rank,
-            "score_delta": left_summary["score"] - right_summary["score"],
+            "score_delta": left_score - right_score,
             "completion_delta": left_summary["verified_count"] - right_summary["verified_count"],
             "score_margin": score_margin,
             "completion_margin": completion_margin,
@@ -3425,7 +3529,8 @@ def challenge(request):
         elif email:
             active_submission = active_filter.filter(email__iexact=email).first()
         else:
-            active_submission = active_filter.filter(name__iexact=name).first()
+            _session_ids = request.session.get("test_submission_ids", [])
+            active_submission = active_filter.filter(name__iexact=name, id__in=_session_ids).first() if _session_ids else None
 
         if active_submission:
             if active_submission.status == Submission.STATUS_UNVERIFIED and (video_file or proof_link):

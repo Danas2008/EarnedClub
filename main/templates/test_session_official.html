@@ -119,8 +119,9 @@
                             <input id="proof-link-{{ row.submission.id }}" class="input" type="url" name="proof_link" placeholder="{% if row.submission.is_time_based %}https://www.strava.com/activities/...{% else %}https://example.com/proof{% endif %}">
                         </div>
                         <div>
-                            <label class="field-label" for="video-file-{{ row.submission.id }}">Review file</label>
-                            <input id="video-file-{{ row.submission.id }}" class="input" type="file" name="video_file" accept="video/*,image/*">
+                            <label class="field-label">Review file</label>
+                            <div class="file-pick-row"><button type="button" class="btn-secondary file-pick-trigger">Choose file</button><span class="file-pick-name">No file chosen</span></div>
+                            <input id="video-file-{{ row.submission.id }}" type="file" name="video_file" accept="video/*,image/*" style="display:none;" aria-label="Review file">
                         </div>
                     </div>
                     <button class="btn-main" type="submit">Submit For Official Review</button>
