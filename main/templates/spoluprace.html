@@ -1,0 +1,372 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Spolupráce pro posilovny — EarnedClub{% endblock %}
+{% block meta_description %}Přiveď soutěž přímo do tvé posilovny. EarnedClub instaluje QR/NFC žebříčky na tvé vybavení — bez aplikace, bez složitého nastavení. Bezplatná pilotní instalace.{% endblock %}
+
+{% block content %}
+<style>
+    .sp-hero {
+        padding: clamp(60px, 12vw, 100px) 0 clamp(48px, 8vw, 72px);
+        text-align: center;
+    }
+    .sp-eyebrow {
+        display: inline-block;
+        font-size: 0.78rem;
+        font-weight: 800;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: var(--accent);
+        margin-bottom: 18px;
+    }
+    .sp-hero h1 {
+        font-size: clamp(2.2rem, 6vw, 3.8rem);
+        font-weight: 900;
+        line-height: 1.08;
+        margin: 0 auto 20px;
+        max-width: 800px;
+    }
+    .sp-hero p {
+        font-size: clamp(1rem, 2.2vw, 1.2rem);
+        color: var(--muted);
+        max-width: 600px;
+        margin: 0 auto 36px;
+        line-height: 1.6;
+    }
+    .sp-hero-badge {
+        display: inline-flex;
+        gap: 10px;
+        align-items: center;
+        background: rgba(247,183,51,.1);
+        border: 1px solid rgba(247,183,51,.25);
+        border-radius: 999px;
+        padding: 8px 18px;
+        font-size: 0.85rem;
+        font-weight: 700;
+        color: var(--accent);
+        margin-bottom: 28px;
+    }
+
+    /* ── How it works ── */
+    .sp-steps {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 20px;
+        margin: 0 auto clamp(48px, 8vw, 80px);
+        max-width: 1000px;
+    }
+    .sp-step {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-lg);
+        padding: 28px 24px;
+        position: relative;
+    }
+    .sp-step-num {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        background: rgba(247,183,51,.15);
+        border: 1px solid rgba(247,183,51,.3);
+        color: var(--accent);
+        font-weight: 900;
+        font-size: 0.95rem;
+        margin-bottom: 16px;
+    }
+    .sp-step h3 {
+        font-size: 1.05rem;
+        font-weight: 800;
+        margin: 0 0 8px;
+    }
+    .sp-step p {
+        font-size: 0.9rem;
+        color: var(--muted);
+        margin: 0;
+        line-height: 1.55;
+    }
+
+    /* ── What they get ── */
+    .sp-benefits {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 16px;
+        max-width: 900px;
+        margin: 0 auto clamp(48px, 8vw, 80px);
+    }
+    .sp-benefit {
+        display: flex;
+        gap: 14px;
+        align-items: flex-start;
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 20px;
+    }
+    .sp-benefit-icon {
+        font-size: 1.4rem;
+        flex-shrink: 0;
+        line-height: 1;
+        margin-top: 2px;
+    }
+    .sp-benefit-text strong {
+        display: block;
+        font-size: 0.95rem;
+        font-weight: 800;
+        margin-bottom: 4px;
+    }
+    .sp-benefit-text span {
+        font-size: 0.87rem;
+        color: var(--muted);
+        line-height: 1.5;
+    }
+
+    /* ── Why block ── */
+    .sp-why {
+        max-width: 700px;
+        margin: 0 auto clamp(48px, 8vw, 80px);
+        background: rgba(247,183,51,.07);
+        border: 1px solid rgba(247,183,51,.2);
+        border-radius: var(--radius-lg);
+        padding: clamp(28px, 5vw, 48px);
+        text-align: center;
+    }
+    .sp-why h2 {
+        font-size: clamp(1.3rem, 3vw, 1.8rem);
+        font-weight: 900;
+        margin: 0 0 16px;
+    }
+    .sp-why p {
+        color: var(--muted);
+        line-height: 1.65;
+        margin: 0 0 12px;
+        font-size: 0.97rem;
+    }
+    .sp-why p:last-child { margin: 0; }
+    .sp-why strong { color: var(--text); }
+
+    /* ── Form ── */
+    .sp-form-wrap {
+        max-width: 600px;
+        margin: 0 auto clamp(60px, 10vw, 100px);
+    }
+    .sp-form-wrap h2 {
+        font-size: clamp(1.4rem, 3.5vw, 2rem);
+        font-weight: 900;
+        margin-bottom: 8px;
+    }
+    .sp-form-wrap .lead {
+        color: var(--muted);
+        margin-bottom: 28px;
+        font-size: 0.97rem;
+        line-height: 1.55;
+    }
+    .sp-form {
+        display: grid;
+        gap: 16px;
+    }
+    .sp-form-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 14px;
+    }
+    @media (max-width: 520px) {
+        .sp-form-row { grid-template-columns: 1fr; }
+    }
+    .sp-field label {
+        display: block;
+        font-size: 0.82rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--muted);
+        margin-bottom: 6px;
+    }
+    .sp-field .required-star { color: var(--accent); margin-left: 2px; }
+    .sp-success {
+        text-align: center;
+        padding: clamp(40px, 8vw, 64px) 24px;
+        background: var(--panel);
+        border: 1px solid rgba(30,157,116,.3);
+        border-radius: var(--radius-lg);
+    }
+    .sp-success-icon {
+        font-size: 3rem;
+        margin-bottom: 16px;
+    }
+    .sp-success h2 {
+        font-size: 1.6rem;
+        font-weight: 900;
+        margin-bottom: 12px;
+    }
+    .sp-success p {
+        color: var(--muted);
+        line-height: 1.6;
+        max-width: 440px;
+        margin: 0 auto;
+    }
+
+    .section-label {
+        font-size: 0.78rem;
+        font-weight: 800;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: var(--muted);
+        text-align: center;
+        margin-bottom: 28px;
+    }
+</style>
+
+<div class="container" style="max-width: 1100px; padding: 0 clamp(16px, 4vw, 32px);">
+
+    {# ── HERO ── #}
+    <section class="sp-hero">
+        <div class="sp-eyebrow">Pro posilovny a fitness centra</div>
+        <h1>Udělej z tvé posilovny arénu.</h1>
+        <p>EarnedClub přivede skutečnou soutěž přímo mezi tvé členy — žebříček, ověřené výsledky, komunitní rivalita. Bez stahování aplikace. Bez složitého nastavení. Stačí jeden sken.</p>
+        <div class="sp-hero-badge">
+            Bezplatná pilotní instalace pro první posilovny
+        </div>
+        <div>
+            <a href="#form" class="btn-main" style="font-size:1.05rem;padding:14px 32px;">Mám zájem o spolupráci</a>
+        </div>
+    </section>
+
+    {# ── HOW IT WORKS ── #}
+    <div class="section-label">Jak to funguje</div>
+    <div class="sp-steps">
+        <div class="sp-step">
+            <div class="sp-step-num">1</div>
+            <h3>Dostaneš samolepky</h3>
+            <p>Dodáme ti QR a NFC samolepky s EarnedClub identitou. Nainstaluješ je na vybavení, zrcadla nebo vstupní dveře — kamkoliv, kde jsou členové.</p>
+        </div>
+        <div class="sp-step">
+            <div class="sp-step-num">2</div>
+            <h3>Člen naskenuje</h3>
+            <p>Stačí přiložit telefon nebo naskenovat QR. Otevře se webová stránka — žádná aplikace, žádná registrace nutná. Člen zadá svůj výsledek: kliky, shyby nebo čas na 5K.</p>
+        </div>
+        <div class="sp-step">
+            <div class="sp-step-num">3</div>
+            <h3>Výsledek jde na žebříček</h3>
+            <p>Výsledek se ihned zobrazí na žebříčku tvé posilovny. Každý vidí, jak si stojí — a kdo je nejlepší. Výsledky lze ověřit videem pro získání oficiálního statutu.</p>
+        </div>
+        <div class="sp-step">
+            <div class="sp-step-num">4</div>
+            <h3>Členové se vrací</h3>
+            <p>Soutěž je nejsilnější retenční nástroj. Člen, který je na žebříčku, přijde zpět — ne proto, že musí, ale proto, že chce vyhrát.</p>
+        </div>
+    </div>
+
+    {# ── WHAT THEY GET ── #}
+    <div class="section-label">Co posilovna získá</div>
+    <div class="sp-benefits">
+        <div class="sp-benefit">
+            <div class="sp-benefit-icon">🏆</div>
+            <div class="sp-benefit-text">
+                <strong>Vlastní challenge room</strong>
+                <span>Žebříček pojmenovaný po tvé posilovně. Výsledky vidí jen tvoji členové, nebo ho otevřeš veřejnosti — je to na tobě.</span>
+            </div>
+        </div>
+        <div class="sp-benefit">
+            <div class="sp-benefit-icon">📲</div>
+            <div class="sp-benefit-text">
+                <strong>Žádná aplikace</strong>
+                <span>Funguje přes prohlížeč. Člen nepotřebuje nic stahovat — naskenuje, vyplní výsledek, hotovo. Frikcí téměř nula.</span>
+            </div>
+        </div>
+        <div class="sp-benefit">
+            <div class="sp-benefit-icon">✅</div>
+            <div class="sp-benefit-text">
+                <strong>Ověřené výsledky</strong>
+                <span>Členové mohou přiložit video jako důkaz. Výsledky pak prochází Official Review a získají ověřený status — žebříček zůstane čistý.</span>
+            </div>
+        </div>
+        <div class="sp-benefit">
+            <div class="sp-benefit-icon">🔁</div>
+            <div class="sp-benefit-text">
+                <strong>Retenční nástroj</strong>
+                <span>Člen, který jednou submittuje, se chce zlepšit. Vrátí se. Zabere nové disciplíny. Přivede kamaráda. Soutěž drží lidi déle než jakýkoliv benefit.</span>
+            </div>
+        </div>
+        <div class="sp-benefit">
+            <div class="sp-benefit-icon">🥇</div>
+            <div class="sp-benefit-text">
+                <strong>Hybrid Score systém</strong>
+                <span>Výsledky ze tří disciplín (kliky, shyby, 5K) se kombinují do jednoho skóre. Čím více disciplín člen absolvuje, tím hodnotnější jeho profil — a tím více skenuje.</span>
+            </div>
+        </div>
+        <div class="sp-benefit">
+            <div class="sp-benefit-icon">🚀</div>
+            <div class="sp-benefit-text">
+                <strong>Bezplatná pilotní instalace</strong>
+                <span>První posilovny dostanou sadu QR/NFC samolepek a nastavení challenge roomu zdarma. Chceme dokázat, že to funguje — bez rizika z tvé strany.</span>
+            </div>
+        </div>
+    </div>
+
+    {# ── WHY BLOCK ── #}
+    <div class="sp-why">
+        <h2>Proč EarnedClub a ne klasická nástěnka?</h2>
+        <p>Papírová nástěnka s výsledky fungovala — ale jen pro ty, kteří ji viděli. EarnedClub je digitální, sdílitelný a živý. <strong>Výsledek z tvé posilovny může vidět kdokoliv — na internetu, na TikToku, ve skupině přátel.</strong></p>
+        <p>Každý člen, který submittuje, se stává ambasadorem. Sdílí své skóre, vyzývá přátele a přivádí nové lidi přímo do tvé posilovny — nebo aspoň na tvůj žebříček, kde uvidí tvé logo.</p>
+        <p><strong>Neinvestuješ čas. Neinvestuješ peníze. Dáš nám šanci dokázat, že to funguje.</strong></p>
+    </div>
+
+    {# ── FORM ── #}
+    <div class="sp-form-wrap" id="form">
+        {% if submitted %}
+        <div class="sp-success">
+            <div class="sp-success-icon">🎯</div>
+            <h2>Zpráva dorazila.</h2>
+            <p>Ozvu se ti do 48 hodin. Připravíme nastavení challenge roomu a domluvíme doručení samolepek. Díky za zájem — tohle bude mít výsledky.</p>
+        </div>
+        {% else %}
+        <h2>Pojďme na to.</h2>
+        <p class="lead">Vyplň formulář níže. Žádný závazek — první instalace je zdarma a chci sám vidět, jak to zabere v tvé posilovně.</p>
+
+        {% if messages %}
+            {% for msg in messages %}
+            <div class="mini-card" style="margin-bottom:16px;border-color:rgba(252,74,26,.3);">
+                <p class="muted" style="margin:0;">{{ msg }}</p>
+            </div>
+            {% endfor %}
+        {% endif %}
+
+        <form class="sp-form" method="POST">
+            {% csrf_token %}
+            <div class="sp-form-row">
+                <div class="sp-field">
+                    <label for="contact_name">Jméno<span class="required-star">*</span></label>
+                    <input id="contact_name" class="input" type="text" name="contact_name" placeholder="Tvoje jméno" required>
+                </div>
+                <div class="sp-field">
+                    <label for="gym_name">Název posilovny<span class="required-star">*</span></label>
+                    <input id="gym_name" class="input" type="text" name="gym_name" placeholder="CrossFit Praha, FitZone..." required>
+                </div>
+            </div>
+            <div class="sp-form-row">
+                <div class="sp-field">
+                    <label for="email">E-mail<span class="required-star">*</span></label>
+                    <input id="email" class="input" type="email" name="email" placeholder="ty@posilovna.cz" required>
+                </div>
+                <div class="sp-field">
+                    <label for="phone">Telefon <span style="opacity:.5;font-weight:500;text-transform:none;">(nepovinné)</span></label>
+                    <input id="phone" class="input" type="tel" name="phone" placeholder="+420 777 000 000">
+                </div>
+            </div>
+            <div class="sp-field">
+                <label for="message">Zpráva <span style="opacity:.5;font-weight:500;text-transform:none;">(nepovinné)</span></label>
+                <textarea id="message" class="input" name="message" rows="4" placeholder="Počet členů, typ posilovny, otázky — cokoliv, co mi pomůže se připravit..."></textarea>
+            </div>
+            <button class="btn-main" type="submit" style="font-size:1.05rem;padding:14px 28px;justify-self:start;">
+                Mám zájem o spolupráci
+            </button>
+            <p style="font-size:0.82rem;color:var(--muted);margin:0;">Odpovím do 48 hodin. Žádný spam, žádný závazek.</p>
+        </form>
+        {% endif %}
+    </div>
+
+</div>
+{% endblock %}

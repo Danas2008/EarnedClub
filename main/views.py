@@ -37,6 +37,7 @@ from .models import (
     ChallengeRoomEntry,
     Follow,
     Goal,
+    GymLead,
     NewsletterCampaign,
     NewsletterSendEvent,
     NewsletterSegment,
@@ -4521,3 +4522,25 @@ def terms(request):
 
 def verification_rules(request):
     return render(request, "verification_rules.html")
+
+
+def spoluprace(request):
+    submitted = False
+    if request.method == "POST":
+        contact_name = (request.POST.get("contact_name") or "").strip()
+        gym_name = (request.POST.get("gym_name") or "").strip()
+        email = (request.POST.get("email") or "").strip().lower()
+        phone = (request.POST.get("phone") or "").strip()
+        message = (request.POST.get("message") or "").strip()
+        if contact_name and gym_name and email:
+            GymLead.objects.create(
+                contact_name=contact_name,
+                gym_name=gym_name,
+                email=email,
+                phone=phone,
+                message=message,
+            )
+            submitted = True
+        else:
+            messages.error(request, "Vyplňte prosím jméno, název posilovny a e-mail.")
+    return render(request, "spoluprace.html", {"submitted": submitted})

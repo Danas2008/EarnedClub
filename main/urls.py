@@ -60,4 +60,5 @@ urlpatterns = [
     path("privacy/", views.privacy, name="privacy"),
     path("terms/", views.terms, name="terms"),
     path("verification-rules/", views.verification_rules, name="verification_rules"),
+    path("spoluprace/", views.spoluprace, name="spoluprace"),
 ]

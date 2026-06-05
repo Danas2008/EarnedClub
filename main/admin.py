@@ -7,6 +7,7 @@ from .models import (
     ChallengeRoomEntry,
     Follow,
     Goal,
+    GymLead,
     NewsletterSubscriber,
     Profile,
     Submission,
@@ -127,6 +128,14 @@ class FollowAdmin(admin.ModelAdmin):
 class GoalAdmin(admin.ModelAdmin):
     list_display = ("user", "goal_type", "target_value", "is_active", "created_at")
     list_filter = ("goal_type", "is_active")
+
+
+@admin.register(GymLead)
+class GymLeadAdmin(admin.ModelAdmin):
+    list_display = ("gym_name", "contact_name", "email", "phone", "created_at")
+    search_fields = ("gym_name", "contact_name", "email")
+    ordering = ("-created_at",)
+    readonly_fields = ("created_at",)
 
 
 @admin.register(ContentEnginePrompt)

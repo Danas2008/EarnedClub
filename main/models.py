@@ -1050,3 +1050,18 @@ class NewsletterSendEvent(models.Model):
 
     def __str__(self):
         return f"{self.subscriber.email} - {self.subject}"
+
+
+class GymLead(models.Model):
+    contact_name = models.CharField(max_length=120)
+    gym_name = models.CharField(max_length=180)
+    email = models.EmailField()
+    phone = models.CharField(max_length=30, blank=True)
+    message = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ("-created_at",)
+
+    def __str__(self):
+        return f"{self.gym_name} — {self.contact_name} ({self.email})"
