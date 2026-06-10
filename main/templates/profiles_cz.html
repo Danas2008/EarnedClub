@@ -1,0 +1,82 @@
+{% extends "base_cz.html" %}
+
+{% block title %}Profily atletů{% endblock %}
+{% block meta_description %}Procházej profily atletů Earned Club, oficiální Hybrid Score, přehledy výsledků a veřejnou historii výkonů registrovaných závodníků.{% endblock %}
+
+{% block content %}
+<section class="hero-card" style="margin-bottom: 24px;">
+    <div class="eyebrow">Adresář atletů</div>
+    <h1>Profily.</h1>
+    <p class="muted">Najdi atlety, porovnej Hybrid Score a zobraz veřejné výkonnostní profily. Získej svůj atletický profil a zobraz se zde oficiálně.</p>
+</section>
+
+<section class="card-dark">
+    <form class="search-row" method="GET">
+        <div>
+            <label class="field-label" for="profile-search">Hledat podle jména</label>
+            <input id="profile-search" class="input" type="search" name="q" value="{{ query }}" placeholder="Hledat atlety">
+        </div>
+        <button class="btn-secondary" type="submit">Hledat</button>
+    </form>
+
+    {% for row in profiles %}
+        <a class="athlete-row" href="{% url 'athlete_profile' row.profile.slug %}">
+            {% if row.profile.profile_image_url %}
+                <img class="avatar" src="{{ row.profile.profile_image_url }}" alt="{{ row.profile.display_name }} profilový obrázek">
+            {% else %}
+                <span class="avatar">{{ row.profile.display_name|first|upper }}</span>
+            {% endif %}
+            <div class="row-title">
+                <div class="submission-name">{{ row.profile.display_name }}</div>
+                <div class="submission-meta">
+                    {{ row.hybrid_summary.display_rank.name }}{% if not row.hybrid_summary.score %} (Otevřené){% endif %} - {{ row.hybrid_summary.verified_count }}/{{ row.hybrid_summary.max_disciplines }} ověřeno
+                </div>
+            </div>
+            <span class="tag-pill hide-mobile">Hybrid {{ row.hybrid_summary.score }}</span>
+            <span class="position-pill">{% if row.hybrid_rank_position %}#{{ row.hybrid_rank_position }}{% else %}-{% endif %}</span>
+            <span class="btn-secondary hide-mobile" style="min-height: 36px; padding: 7px 11px;">Zobrazit</span>
+        </a>
+    {% empty %}
+        <h2>Zatím žádné profily.</h2>
+        <p class="muted">Registrované atletické účty se zobrazí zde. Anonymní příspěvky zůstávají pouze na žebříčku.</p>
+    {% endfor %}
+
+    {% if profiles.paginator.num_pages > 1 %}
+        <div class="pagination-row">
+            <div class="muted">Stránka {{ profiles.number }} z {{ profiles.paginator.num_pages }}</div>
+            <div class="button-row" style="margin-top: 0;">
+                {% if profiles.has_previous %}
+                    <a class="btn-secondary" href="?q={{ query }}&page={{ profiles.previous_page_number }}" aria-label="Předchozí stránka">&#8592;</a>
+                {% endif %}
+                {% if profiles.has_next %}
+                    <a class="btn-main" href="?q={{ query }}&page={{ profiles.next_page_number }}" aria-label="Další stránka">&#8594;</a>
+                {% endif %}
+            </div>
+        </div>
+    {% endif %}
+</section>
+
+<section class="card-dark">
+    <div class="section-spread">
+        <div>
+            <h2>Adresář ověřených atletů</h2>
+            <p class="muted">Zobrazují se zde pouze skutečné registrované účty. Anonymní příspěvky nevytvářejí atletické karty.</p>
+        </div>
+        <a class="btn-main" href="{% url 'register_cz' %}">Získej svůj atletický profil</a>
+    </div>
+    <div class="grid-3">
+        <div class="feature-card">
+            <h3>Buduj svou atletickou identitu</h3>
+            <p class="muted">Každý získaný profil zobrazuje oficiální výsledky, výsledky čekající na důkaz, Hybrid Score, rank a historii pokroku.</p>
+        </div>
+        <div class="feature-card">
+            <h3>Vyhledatelná jména</h3>
+            <p class="muted">Atleti mohou být nalezeni přímo podle jména, jak žebříček roste.</p>
+        </div>
+        <div class="feature-card">
+            <h3>Odemkni odznaky</h3>
+            <p class="muted">Ověření atleti získají oficiální status, odznaky a historii výzev připojenou k jejich profilu.</p>
+        </div>
+    </div>
+</section>
+{% endblock %}

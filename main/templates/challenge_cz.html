@@ -1,0 +1,404 @@
+{% extends "base_cz.html" %}
+
+{% block title %}Odeslat výkon - Earned Club{% endblock %}
+{% block meta_description %}Odešli svůj nejlepší výkon v klikách, shybech nebo běhu 5K. Získej rank. Zasluž si ověřený atletický status.{% endblock %}
+
+{% block content %}
+<style>
+    .challenge-funnel {
+        display: grid;
+        gap: 16px;
+        max-width: 920px;
+        margin: 0 auto;
+    }
+
+    .challenge-shell {
+        position: relative;
+        overflow: hidden;
+        display: grid;
+        align-content: start;
+        padding: clamp(18px, 5vw, 34px);
+        background:
+            linear-gradient(145deg, rgba(247, 183, 51, .14), rgba(30, 157, 116, .07)),
+            var(--panel);
+    }
+
+    .challenge-shell::before {
+        content: "";
+        position: absolute;
+        inset: -60px -100px auto auto;
+        width: 220px;
+        height: 220px;
+        border-radius: 50%;
+        background: radial-gradient(circle, rgba(247, 183, 51, .2), transparent 70%);
+        pointer-events: none;
+    }
+
+    .challenge-inner {
+        position: relative;
+        z-index: 1;
+        display: grid;
+        gap: 22px;
+        max-width: 680px;
+    }
+
+    .challenge-discipline-grid {
+        display: grid;
+        gap: 10px;
+    }
+
+    .challenge-form {
+        display: grid;
+        gap: 18px;
+    }
+
+    .challenge-score-input {
+        font-family: "Archivo", sans-serif;
+        font-size: clamp(1.4rem, 7vw, 2.1rem);
+        font-weight: 900;
+        min-height: 62px;
+        max-width: 440px;
+    }
+
+    .challenge-proof-box {
+        display: grid;
+        gap: 12px;
+        padding: 16px;
+        border-radius: var(--radius-md);
+        border: 1px solid rgba(255, 255, 255, .08);
+        background: rgba(255, 255, 255, .03);
+    }
+
+    .challenge-proof-heading {
+        font-size: 0.76rem;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        opacity: 0.55;
+    }
+
+    .challenge-active-sub {
+        padding: 14px 16px;
+        border-radius: var(--radius-md);
+        border: 1px solid rgba(247, 183, 51, .28);
+        background: rgba(247, 183, 51, .07);
+    }
+
+    .challenge-success-card {
+        padding: 24px;
+        border-radius: var(--radius-lg);
+        border: 1px solid rgba(247, 183, 51, .32);
+        background:
+            linear-gradient(145deg, rgba(247, 183, 51, .12), rgba(30, 157, 116, .08)),
+            rgba(8, 11, 15, .42);
+        box-shadow: 0 18px 48px rgba(0, 0, 0, .28);
+        display: grid;
+        gap: 18px;
+    }
+
+    .challenge-submit-btn {
+        min-height: 54px;
+        font-size: 1.05rem;
+    }
+
+    .file-pick-row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 6px;
+    }
+
+    .file-pick-name {
+        font-size: 0.88rem;
+        opacity: 0.55;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        max-width: 260px;
+    }
+
+    @media (min-width: 600px) {
+        .challenge-discipline-grid {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+    }
+</style>
+
+<div class="challenge-funnel">
+
+    {% if submission_success %}
+    <section class="hero-card challenge-success-card">
+        <div class="preview-top">
+            <div>
+                <div class="eyebrow">{% if submission_success.is_official_pending %}V Officiální Revizi{% else %}Jsi na tabuli{% endif %}</div>
+                <h1 style="font-size: clamp(1.8rem, 7vw, 2.8rem); margin-top: 4px;">{% if submission_success.is_official_pending %}Officiální Revize zahájena.{% else %}Tvoje skóre je živé.{% endif %}</h1>
+            </div>
+            <span class="status-pill {{ submission_success.submission.status }}">{{ submission_success.submission.public_status_label }}</span>
+        </div>
+        <div class="preview-grid">
+            <div class="preview-stat">
+                <span class="kicker">Disciplína</span>
+                <div class="submission-name">{{ submission_success.submission.discipline_label }}</div>
+            </div>
+            <div class="preview-stat">
+                <span class="kicker">Výsledek</span>
+                <div class="submission-name">{{ submission_success.submission.display_score }}</div>
+            </div>
+            <div class="preview-stat">
+                <span class="kicker">Body</span>
+                <div class="submission-name">{{ submission_success.display_points }} b.</div>
+            </div>
+            <div class="preview-stat">
+                <span class="kicker">Rank</span>
+                <div class="submission-name">{{ submission_success.submission.rank_name }}</div>
+            </div>
+        </div>
+        <p class="muted">
+            {% if submission_success.is_official_pending %}
+                Pokud bude schváleno, stane se to tvým officiálním rankem, odznakem a ověřeným atletickým statusem.
+            {% else %}
+                Tvůj výsledek je živý na otevřeném žebříčku. Odešli důkaz a získej ověřený atletický status — rank, který platí.
+            {% endif %}
+        </p>
+        {% if submission_success.score_dropped %}
+        <p class="muted">Tvůj Hybrid Score je průměr bodů ze všech disciplín, takže přidání disciplíny s nižším skóre průměr sníží. Tak je Hybrid Score navržen — odměňuje konzistentní sílu ve všech třech disciplínách.</p>
+        {% endif %}
+        <div class="hero-actions">
+            {% if submission_success.is_official_pending %}
+                <a class="btn-main" href="{{ submission_success.leaderboard_url }}">Zobrazit žebříček</a>
+            {% else %}
+                <a class="btn-main" href="{{ submission_success.proof_url }}">Získat officiální status</a>
+            {% endif %}
+            {% if submission_success.profile_url %}
+                <a class="btn-secondary" href="{{ submission_success.profile_url }}">Zobrazit profil</a>
+            {% elif request.user.is_authenticated %}
+                <a class="btn-secondary" href="{% url 'dashboard_cz' %}">Zobrazit dashboard</a>
+            {% else %}
+                <a class="btn-secondary" href="{{ submission_success.register_url }}">Získej svůj atletický profil</a>
+            {% endif %}
+            <button class="btn-secondary" type="button" data-share-text="{{ submission_success.share_text }}">Vyzvi přítele</button>
+            <a class="btn-secondary" href="{{ submission_success.leaderboard_url }}">Zobrazit žebříček</a>
+        </div>
+    </section>
+    {% endif %}
+
+    <section class="hero-card challenge-shell">
+        <div class="challenge-inner">
+            <div>
+                <div class="eyebrow">{% if challenge_room %}{{ challenge_room.display_title }}{% else %}Earned Club{% endif %}</div>
+                <h1>{% if request.user.is_authenticated %}Odešli svůj výsledek{% if profile %}, {{ profile.display_name }}{% endif %}.{% else %}Zapiš svůj výkon.{% endif %}</h1>
+                <p class="muted">
+                    {% if challenge_room %}Odesílání do {{ challenge_room.display_title }}. Kontext místnosti zůstane připojen k výsledku.{% elif request.user.is_authenticated %}Vyber disciplínu, zadej skóre a volitelně přidej důkaz pro zahájení Officiální Revize.{% else %}Zadej výsledek a jméno. E-mail není povinný — nejdřív si pocit žebříčku.{% endif %}
+                </p>
+            </div>
+
+            {% if active_submission %}
+            <div class="challenge-active-sub">
+                <span class="status-pill {{ active_submission.status }}">{{ active_submission.public_status_label }}</span>
+                <p class="muted" style="margin: 10px 0 0;">
+                    {% if active_submission.status == "unverified" %}
+                        Už máš Otevřené skóre pro {{ active_submission.discipline_label }}. Přejdi na dashboard a odešli ho k Officiální Revizi.
+                    {% else %}
+                        Tvůj příspěvek pro {{ active_submission.discipline_label }} čeká na revizi. Vrať se po jeho ověření.
+                    {% endif %}
+                </p>
+            </div>
+            {% else %}
+            <form class="challenge-form" method="POST" enctype="multipart/form-data">
+                {% csrf_token %}
+                <input class="sr-only" type="text" name="website" tabindex="-1" autocomplete="off" aria-hidden="true">
+                {% if challenge_room %}<input type="hidden" name="room" value="{{ challenge_room.token }}">{% endif %}
+
+                {% if discipline_locked %}
+                    <input type="hidden" name="discipline" value="{{ selected_discipline.key }}">
+                {% endif %}
+                <select id="discipline" {% if not discipline_locked %}name="discipline"{% endif %} style="display:none;" {% if discipline_locked %}disabled{% endif %}>
+                    {% for discipline in discipline_cards %}
+                        <option value="{{ discipline.key }}"
+                            data-input-label="{{ discipline.input_label }}"
+                            data-placeholder="{{ discipline.placeholder }}"
+                            data-score-type="{{ discipline.score_type }}"
+                            data-proof-label="{{ discipline.proof_label }}"
+                            {% if discipline.key == selected_discipline.key %}selected{% endif %}
+                        >{{ discipline.label }}</option>
+                    {% endfor %}
+                </select>
+
+                <div>
+                    <div class="field-label" style="margin-bottom: 8px;">{% if discipline_locked %}{{ selected_discipline.label }}{% else %}Vyber svůj žebříček{% endif %}</div>
+                    <div class="challenge-discipline-grid">
+                        {% for d in discipline_cards %}
+                        <label class="discipline-choice"{% if discipline_locked and d.key != selected_discipline.key %} style="opacity:.35;pointer-events:none;"{% endif %}>
+                            <input type="radio" name="discipline_card" value="{{ d.key }}"
+                                {% if d.key == selected_discipline.key %}checked{% endif %}
+                                {% if discipline_locked %}disabled{% endif %}>
+                            <span><strong>{{ d.short_label }}</strong></span>
+                        </label>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                {% if not request.user.is_authenticated %}
+                <div style="display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));">
+                    <div>
+                        <label class="field-label" for="name">Tvoje jméno</label>
+                        <input id="name" class="input" type="text" name="name"
+                            placeholder="Jak se zobrazíš na žebříčku"
+                            value="{{ form_data.name|default:'' }}" required>
+                    </div>
+                    <div>
+                        <label class="field-label" for="email">E-mail <span class="muted">(nepovinné)</span></label>
+                        <input id="email" class="input" type="email" name="email"
+                            placeholder="ty@priklad.cz"
+                            value="{{ form_data.email|default:'' }}">
+                    </div>
+                </div>
+                {% endif %}
+
+                <div>
+                    <label class="field-label" for="score">Tvůj výsledek</label>
+                    <input id="score" class="input challenge-score-input" type="text" name="score"
+                        inputmode="{% if selected_discipline.score_type == 'time' %}text{% else %}numeric{% endif %}"
+                        placeholder="{{ selected_discipline.placeholder }}"
+                        value="{{ form_score }}"
+                        required>
+                    <div class="hint" data-score-hint>{% if selected_discipline.score_type == "time" %}Použij MM:SS nebo HH:MM:SS, např. 21:34. Tip: 21.34 se stane 21:34.{% else %}Zadej přísné opakování. Více = vyšší rank.{% endif %}</div>
+                </div>
+
+                <div class="challenge-proof-box">
+                    <span class="challenge-proof-heading">Důkaz <span style="opacity:.5;font-weight:500;text-transform:none;letter-spacing:0;">(volitelné pro většinu — povinné pro elitní výsledky)</span></span>
+
+                    <div data-proof-link {% if selected_discipline.score_type != "time" %}hidden{% endif %}>
+                        <label class="field-label" for="proof_link">Odkaz na výsledek závodu nebo Stravu</label>
+                        <input id="proof_link" class="input" type="url" name="proof_link"
+                            placeholder="https://www.strava.com/activities/..."
+                            value="{{ form_data.proof_link|default:'' }}">
+                        <div class="hint">Veřejný výsledek závodu, aktivita na Stravě nebo jakýkoli ověřitelný odkaz.</div>
+                    </div>
+
+                    {% if selected_discipline.score_type != "time" %}
+                    <div data-video-proof>
+                        <label class="field-label">Video důkaz</label>
+                        <div class="file-pick-row">
+                            <button type="button" class="btn-secondary file-pick-trigger">Vybrat video</button>
+                            <span class="file-pick-name">Žádný soubor nevybrán</span>
+                        </div>
+                        <input id="video_file" type="file" name="video_file" accept="video/*" style="display:none;" aria-label="Video důkaz">
+                        <div class="hint">Bez důkazu je výsledek viditelný, ale neověřený. S důkazem získá officiální rank po revizi.</div>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <button type="submit" class="btn-main challenge-submit-btn">Odeslat výkon</button>
+            </form>
+            {% endif %}
+        </div>
+    </section>
+
+    <section class="card-dark">
+        <div class="section-spread">
+            <div>
+                <h2>{{ selected_discipline.short_label }} — atleti k dohonutí</h2>
+                <p class="muted">Čistý ověřený výsledek tě může dostat na tuto tabuli.</p>
+            </div>
+            <a class="btn-secondary" href="{% url 'leaderboard_cz' %}#full-leaderboard">Celý žebříček</a>
+        </div>
+        {% if leaderboard_preview %}
+            <div class="compact-board">
+                {% for row in leaderboard_preview %}
+                    <div class="score-row">
+                        {% if row.profile and row.profile.profile_image_url %}
+                            <img class="avatar" src="{{ row.profile.profile_image_url }}" alt="{{ row.profile.display_name }}">
+                        {% elif row.profile %}
+                            <span class="avatar">{{ row.profile.display_name|first|upper }}</span>
+                        {% else %}
+                            <span class="avatar">{{ row.submission.name|first|upper }}</span>
+                        {% endif %}
+                        <div class="score-row-main">
+                            <div class="submission-name">{{ row.submission.name }}</div>
+                            <div class="submission-meta">{{ row.submission.discipline_label }} · {{ row.submission.public_status_label }}</div>
+                        </div>
+                        <div class="score-row-score">
+                            <span class="position-pill">#{{ row.position }}</span>
+                            <div class="score">{{ row.submission.compact_score }}</div>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p class="muted">Zatím žádná skóre. Buď první.</p>
+        {% endif %}
+    </section>
+
+</div>
+
+<script>
+    (() => {
+        const select = document.getElementById("discipline");
+        const score = document.getElementById("score");
+        const videoProof = document.querySelector("[data-video-proof]");
+        const proofLink = document.querySelector("[data-proof-link]");
+        const scoreHint = document.querySelector("[data-score-hint]");
+        if (!select || !score) return;
+
+        function syncUI() {
+            const opt = select.selectedOptions[0];
+            if (!opt) return;
+            score.placeholder = opt.dataset.placeholder || "";
+            score.inputMode = opt.dataset.scoreType === "time" ? "text" : "numeric";
+            if (scoreHint) scoreHint.textContent = opt.dataset.scoreType === "time"
+                ? "Použij MM:SS nebo HH:MM:SS, např. 21:34. Tip: 21.34 se stane 21:34."
+                : "Zadej přísné opakování. Více = vyšší rank.";
+            if (videoProof) videoProof.hidden = opt.dataset.scoreType === "time";
+            if (proofLink) proofLink.hidden = opt.dataset.scoreType !== "time";
+        }
+
+        function normalizeTime() {
+            const opt = select.selectedOptions[0];
+            if (!opt || opt.dataset.scoreType !== "time") return;
+            const raw = score.value.trim();
+            const conv = raw.replace(/^(\d+)\.(\d+)$/, "$1:$2");
+            if (conv !== raw) score.value = conv;
+            const parts = conv.split(":");
+            const valid = parts.length >= 2 && parts.length <= 3
+                && parts.every((p) => /^\d+$/.test(p))
+                && Number(parts[parts.length - 1]) <= 59
+                && Number(parts[parts.length - 2]) <= 59;
+            if (scoreHint) scoreHint.textContent = valid || !conv
+                ? "Použij MM:SS nebo HH:MM:SS, např. 21:34. Tip: 21.34 se stane 21:34."
+                : "Zadej platný čas jako 21:34.";
+        }
+
+        document.querySelectorAll("input[name='discipline_card']").forEach((radio) => {
+            radio.addEventListener("change", () => {
+                const url = new URL(window.location.href);
+                url.searchParams.set("discipline", radio.value);
+                const nameEl = document.getElementById("name");
+                const emailEl = document.getElementById("email");
+                if (nameEl && nameEl.value) url.searchParams.set("name", nameEl.value);
+                else url.searchParams.delete("name");
+                if (emailEl && emailEl.value) url.searchParams.set("email", emailEl.value);
+                else url.searchParams.delete("email");
+                window.location.href = url.toString();
+            });
+        });
+
+        select.addEventListener("change", syncUI);
+        score.addEventListener("input", normalizeTime);
+        score.addEventListener("blur", normalizeTime);
+    })();
+
+    for (const btn of document.querySelectorAll("[data-share-text]")) {
+        const orig = btn.textContent;
+        btn.addEventListener("click", async () => {
+            const text = btn.dataset.shareText;
+            if (navigator.share) await navigator.share({ text });
+            else {
+                await navigator.clipboard.writeText(text);
+                btn.textContent = "Zkopírováno";
+                setTimeout(() => btn.textContent = orig, 1200);
+            }
+        });
+    }
+</script>
+{% endblock %}

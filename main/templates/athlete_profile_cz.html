@@ -1,0 +1,397 @@
+{% extends "base_cz.html" %}
+
+{% block title %}{{ profile.display_name }} - Earned Club atlet{% endblock %}
+{% block meta_description %}{{ profile_description }} Zobrazit Hybrid Score, ověřený přehled disciplín, aktuální rank a veřejné sledování pokroku na Earned Club.{% endblock %}
+{% block og_type %}profile{% endblock %}
+{% block og_title %}{{ profile.display_name }} - Hybrid Score {% if hybrid_summary.score %}{{ hybrid_summary.score }}{% else %}{{ hybrid_summary.open_score }}{% endif %}{% endblock %}
+{% block og_description %}{{ profile_description }}{% endblock %}
+{% block og_image %}{% if profile_og_image %}{{ profile_og_image }}{% else %}{{ og_image_url }}{% endif %}{% endblock %}
+{% block twitter_title %}{{ profile.display_name }} - Earned Club atlet{% endblock %}
+{% block twitter_description %}{{ profile_description }}{% endblock %}
+{% block structured_data %}
+    <script type="application/ld+json">{{ profile_schema_json }}</script>
+{% endblock %}
+
+{% block content %}
+<style>
+    .profile-hero { max-width: none; }
+    .profile-hero-grid { display: grid; gap: 18px; align-items: stretch; }
+    .profile-identity-card, .profile-status-card { position: relative; z-index: 1; }
+    .hybrid-breakdown-row[data-intensity="beginner"] { border-color: rgba(148, 163, 184, .18); }
+    .hybrid-breakdown-row[data-intensity="intermediate"] { border-color: rgba(59, 130, 246, .22); background: rgba(59, 130, 246, .07); }
+    .hybrid-breakdown-row[data-intensity="advanced"] { border-color: rgba(247, 183, 51, .30); background: rgba(247, 183, 51, .09); }
+    .hybrid-breakdown-row[data-intensity="elite"] { border-color: rgba(252, 74, 26, .34); background: rgba(252, 74, 26, .10); }
+    .hybrid-breakdown-row[data-intensity="legend"] { border-color: rgba(141, 240, 201, .38); background: rgba(141, 240, 201, .10); }
+    .profile-identity-card { display: grid; gap: 14px; align-content: start; }
+    .profile-avatar-wrap { display: flex; gap: 16px; align-items: center; }
+    .profile-avatar-wrap .avatar-lg { width: 92px; height: 92px; font-size: 2.2rem; border: 2px solid rgba(247, 183, 51, 0.34); box-shadow: 0 16px 42px rgba(0, 0, 0, 0.28); }
+    .profile-status-card { display: grid; gap: 12px; padding: 16px; border-radius: var(--radius-lg); background: linear-gradient(135deg, rgba(247, 183, 51, 0.12), rgba(30, 157, 116, 0.08)), rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.09); }
+    .profile-status-card[data-intensity="beginner"] { border-color: rgba(148, 163, 184, .22); }
+    .profile-status-card[data-intensity="intermediate"] { border-color: rgba(59, 130, 246, .28); background: linear-gradient(135deg, rgba(59, 130, 246, .12), rgba(255, 255, 255, 0.04)); }
+    .profile-status-card[data-intensity="advanced"] { border-color: rgba(247, 183, 51, .32); }
+    .profile-status-card[data-intensity="elite"] { border-color: rgba(252, 74, 26, .34); background: linear-gradient(135deg, rgba(252, 74, 26, .13), rgba(255, 255, 255, 0.04)); }
+    .profile-status-card[data-intensity="legend"] { border-color: rgba(30, 157, 116, .36); background: linear-gradient(135deg, rgba(30, 157, 116, .14), rgba(255, 255, 255, 0.04)); }
+    .profile-pr-number { font-family: "Archivo", sans-serif; font-size: clamp(3.2rem, 14vw, 5.2rem); line-height: 0.82; color: var(--accent); font-weight: 900; }
+    .hybrid-breakdown { display: grid; gap: 10px; }
+    .hybrid-breakdown-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 11px 12px; border-radius: var(--radius-md); background: rgba(8, 11, 15, 0.32); border: 1px solid rgba(255, 255, 255, 0.08); }
+    .profile-status-grid { display: grid; gap: 10px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .profile-mini-stat { padding: 12px; border-radius: var(--radius-md); background: rgba(8, 11, 15, 0.32); border: 1px solid rgba(255, 255, 255, 0.08); }
+    .profile-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+    .profile-actions .btn-main, .profile-actions .btn-secondary { min-height: 44px; }
+    .profile-badge-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(72px, max-content)); gap: 8px; }
+    .profile-badge { width: 72px; min-height: 72px; display: grid; justify-items: center; align-content: center; gap: 5px; padding: 7px 5px; border-radius: var(--radius-md); border: 1px solid rgba(247, 183, 51, 0.22); background: radial-gradient(circle at top left, rgba(247, 183, 51, 0.18), rgba(255, 255, 255, 0.04) 52%); color: var(--text); cursor: pointer; transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease; }
+    .profile-badge:hover, .profile-badge:focus-visible { transform: translateY(-2px); border-color: rgba(247, 183, 51, 0.55); box-shadow: 0 0 22px rgba(247, 183, 51, 0.12); outline: none; }
+    .profile-badge-icon { width: 30px; height: 30px; display: grid; place-items: center; border-radius: 50%; background: linear-gradient(145deg, #f7b733, #fff0bd); color: #111; font-family: "Archivo", sans-serif; font-weight: 900; font-size: .78rem; }
+    .profile-badge strong { font-size: .72rem; line-height: 1.05; text-align: center; }
+    .profile-badge-modal { position: fixed; inset: 0; z-index: 50; display: none; place-items: center; padding: 20px; background: rgba(0, 0, 0, .62); }
+    .profile-badge-modal.is-open { display: grid; }
+    .profile-badge-modal-panel { width: min(420px, 100%); padding: 20px; border-radius: var(--radius-lg); background: #101821; border: 1px solid rgba(247, 183, 51, .26); box-shadow: var(--shadow); }
+    @media (min-width: 860px) { .profile-hero-grid { grid-template-columns: minmax(0, 1.12fr) minmax(330px, 0.88fr); } .profile-actions .btn-main, .profile-actions .btn-secondary, .profile-actions form { flex: 0 1 auto; } .profile-actions form .btn-secondary { width: auto; } }
+</style>
+
+<section class="hero-card profile-hero">
+    <div class="profile-hero-grid">
+        <div class="profile-identity-card">
+            <div class="profile-avatar-wrap">
+                {% if profile.profile_image_url %}
+                    <img class="avatar avatar-lg" src="{{ profile.profile_image_url }}" alt="{{ profile.display_name }} profilový obrázek">
+                {% else %}
+                    <span class="avatar avatar-lg">{{ profile.display_name|first|upper }}</span>
+                {% endif %}
+                <div>
+                    <div class="eyebrow">Profil atleta</div>
+                    <h1>{{ profile.display_name }}</h1>
+                    <p class="muted">
+                        {% if profile.country %}{{ profile.country }}{% else %}Earned Club atlet{% endif %}
+                        {% if profile.age %} - {{ profile.age }} let{% endif %}
+                    </p>
+                </div>
+            </div>
+            {% if profile.bio %}<p>{{ profile.bio }}</p>{% else %}<p class="muted">Veřejný profil hybridního atleta pro ověřenou sílu, běh, tréninky a pokrok.</p>{% endif %}
+            {% if founding_submission %}
+                <div class="mini-card">
+                    <span class="status-pill verified">Zakládající atlet</span>
+                    <p class="muted" style="margin: 10px 0 0;">Raný vstup do žebříčku: jeden z prvních 100 příspěvků na Earned Club.</p>
+                </div>
+            {% endif %}
+            <div class="profile-actions">
+                <a class="btn-main" href="{% url 'level_test_cz' %}">Odeslat své skóre</a>
+                <a class="btn-secondary" href="{% url 'home_cz' %}#rank-tiers">Úrovně ranku</a>
+                {% if request.user.is_authenticated and request.user != profile.user %}
+                    <a class="btn-secondary" href="{% url 'comparison_cz' request.user.profile.slug profile.slug %}">1v1 Porovnání</a>
+                {% endif %}
+                {% if request.user.is_authenticated and request.user != profile.user %}
+                    <form method="POST" action="{% url 'toggle_follow' profile.slug %}">
+                        {% csrf_token %}
+                        <button class="btn-secondary" type="submit">{% if is_following %}Přestat sledovat{% else %}Sledovat{% endif %}</button>
+                    </form>
+                {% endif %}
+            </div>
+        </div>
+
+        <aside class="profile-status-card" data-intensity="{{ hybrid_summary.display_intensity }}">
+            <div>
+                <span class="kicker">{% if hybrid_summary.score %}Officiální Hybrid Score{% else %}Náhled Otevřeného skóre{% endif %}</span>
+                <div class="profile-pr-number">{% if hybrid_summary.score %}{{ hybrid_summary.score }}{% else %}{{ hybrid_summary.open_score }}{% endif %}</div>
+                <div class="rank-hero-badge rank-{{ hybrid_summary.display_intensity }}">
+                    <span>{% if hybrid_summary.score %}Ověřený titul{% else %}Náhled Otevřeného titulu{% endif %}</span>
+                    <strong>{{ hybrid_summary.display_rank.name }}</strong>
+                </div>
+                <p class="muted">{% if hybrid_summary.score and hybrid_rank_position %}Hybrid Rank #{{ hybrid_rank_position }}{% elif not hybrid_summary.score %}Otevřený atlet. Officiální status se získává přes revizi.{% endif %}</p>
+                {% if hybrid_summary.open_score and hybrid_summary.score %}
+                    <p class="muted">Náhled Otevřeného skóre: {{ hybrid_summary.open_score }}</p>
+                {% endif %}
+            </div>
+            <div class="profile-status-grid">
+                <div class="profile-mini-stat">
+                    <span class="kicker">Dokončení</span>
+                    <div class="submission-name">{% if hybrid_summary.score %}{{ hybrid_summary.completion_percent }}{% else %}{{ hybrid_summary.open_completion_percent }}{% endif %}%</div>
+                </div>
+                <div class="profile-mini-stat">
+                    <span class="kicker">{% if hybrid_summary.score %}Ověřeno{% else %}Dokončeno{% endif %}</span>
+                    <div class="submission-name">{% if hybrid_summary.score %}{{ hybrid_summary.verified_count }}{% else %}{{ hybrid_summary.open_count }}{% endif %}/{{ hybrid_summary.max_disciplines }}</div>
+                </div>
+            </div>
+            <div class="hybrid-breakdown">
+                {% for item in hybrid_summary.breakdown %}
+                    <div class="hybrid-breakdown-row" data-intensity="{{ item.intensity }}">
+                        <div>
+                            <div class="submission-name">{{ item.discipline.short_label }}</div>
+                            <div class="submission-meta">
+                                {{ item.display_score }} - {{ item.status }}
+                                {% if hybrid_summary.best_discipline.discipline.key == item.discipline.key %} - nejsilnější{% endif %}
+                                {% if hybrid_summary.weakest_discipline.discipline.key == item.discipline.key %} - zlepšit příště{% endif %}
+                            </div>
+                            {% if item.submission and item.preview_submission %}
+                                <div class="submission-meta">
+                                    Náhled: {{ item.preview_submission.display_score }} - {{ item.preview_submission.public_status_label }} - {{ item.preview_points }} b. po ověření
+                                </div>
+                            {% elif item.preview_submission and not item.submission %}
+                                <div class="submission-meta">Pouze Otevřené skóre. Officiální revize to zahrne do Hybrid Score.</div>
+                            {% endif %}
+                        </div>
+                        <div style="text-align: right;">
+                            <strong>{{ item.working_points }} b.</strong>
+                            {% if item.preview_submission %}
+                                <div class="submission-meta">Náhled {{ item.preview_points }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+            <div class="profile-actions">
+                <button class="btn-secondary" type="button" data-share-text="{{ profile_share_message }}">Sdílet profil</button>
+                {% if profile.personal_best_reps %}
+                    <button class="btn-secondary" type="button" data-share-text="{{ pr_share_message }}">Sdílet PR</button>
+                {% endif %}
+            </div>
+        </aside>
+    </div>
+</section>
+
+<section class="grid-2 profile-lower-section">
+    <div class="card-dark">
+        <h2>Pokrok Hybrid Score</h2>
+        <p class="muted">Otevřené a ověřené výkony ukazují pokrok atleta. Officiální revize mění náhledy na zasloužený status.</p>
+        <div class="progress-chart progress-chart-large">
+            <svg id="progress-chart" class="chart-area" role="img" aria-label="Graf pokroku Hybrid Score atleta"></svg>
+        </div>
+        <div id="progress-detail" class="hint" style="margin-top: 10px;">Klepni na bod pro detaily.</div>
+    </div>
+
+    <div class="card-dark">
+        <h2>Ověřená historie</h2>
+        {% if verified_submissions %}
+            <div>
+                {% for submission in verified_submissions %}
+                    <div class="athlete-row">
+                        <span class="status-pill verified">{{ submission.status }}</span>
+                        <div class="row-title">
+                            <div class="submission-name">{{ submission.discipline_label }} - {{ submission.display_score }}</div>
+                            <div class="submission-meta">{{ submission.rank_name }}</div>
+                        </div>
+                        <div class="submission-meta">{{ submission.created_at|date:"j. n. Y" }}</div>
+                    </div>
+                {% endfor %}
+            </div>
+            {% if verified_submissions.paginator.num_pages > 1 %}
+                <div class="pagination-row">
+                    <div class="muted">Strana {{ verified_submissions.number }} z {{ verified_submissions.paginator.num_pages }}</div>
+                    <div class="button-row" style="margin-top: 0;">
+                        {% if verified_submissions.has_previous %}
+                            <a class="btn-secondary" href="?page={{ verified_submissions.previous_page_number }}" aria-label="Předchozí strana">&#8592;</a>
+                        {% endif %}
+                        {% for page_number in verified_history_pages %}
+                            {% if page_number == verified_submissions.paginator.ELLIPSIS %}
+                                <span class="tag-pill">{{ page_number }}</span>
+                            {% elif page_number == verified_submissions.number %}
+                                <span class="btn-main">{{ page_number }}</span>
+                            {% else %}
+                                <a class="btn-secondary" href="?page={{ page_number }}">{{ page_number }}</a>
+                            {% endif %}
+                        {% endfor %}
+                        {% if verified_submissions.has_next %}
+                            <a class="btn-secondary" href="?page={{ verified_submissions.next_page_number }}" aria-label="Další strana">&#8594;</a>
+                        {% endif %}
+                    </div>
+                </div>
+            {% endif %}
+        {% else %}
+            <p class="muted">Zatím žádné ověřené příspěvky.</p>
+        {% endif %}
+    </div>
+</section>
+
+<section class="grid-2 profile-lower-section">
+    <div class="card-dark">
+        <h2>Odznaky</h2>
+        {% if badges %}
+            <div class="profile-badge-grid">
+                {% for badge in badges %}
+                    <button
+                        class="profile-badge"
+                        type="button"
+                        data-badge-name="{{ badge.name }}"
+                        data-badge-icon="{{ badge.icon }}"
+                        data-badge-description="{{ badge.description }}"
+                        data-badge-reason="{{ badge.earned_reason }}"
+                        data-badge-share-text="Získal jsem odznak {{ badge.name }} na Earned Club. {{ profile_share_message }}"
+                    >
+                        <span class="profile-badge-icon">{{ badge.icon }}</span>
+                        <strong>{{ badge.name }}</strong>
+                    </button>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p class="muted">Zatím žádné odznaky.</p>
+        {% endif %}
+        {% if public_goals %}
+            <h2 style="margin-top: 18px;">Cíle</h2>
+            {% for goal in public_goals %}
+                <div class="score-row">
+                    <div class="score-row-main">
+                        <div class="submission-name">{% if goal.goal_type == "rank" %}Dosáhnout ranku #{{ goal.target_value }}{% else %}Dosáhnout {{ goal.target_value }} opakování{% endif %}</div>
+                        <div class="submission-meta">{{ goal.note|default:"Veřejný cíl" }}</div>
+                    </div>
+                </div>
+            {% endfor %}
+        {% endif %}
+    </div>
+    <div class="card-dark profile-public-workouts">
+        <h2>Veřejné tréninky</h2>
+        {% if highlighted_workout %}
+            <div class="feature-card">
+                <span class="kicker">Zvýrazněný</span>
+                <h3><a href="{% url 'workout_detail_cz' highlighted_workout.slug %}">{{ highlighted_workout.title }}</a></h3>
+                <p class="muted">{{ highlighted_workout.created_at|date:"j. n. Y" }}</p>
+            </div>
+        {% endif %}
+        {% for workout in public_workouts %}
+            <div class="score-row">
+                <div class="score-row-main">
+                    <div class="submission-name"><a href="{% url 'workout_detail_cz' workout.slug %}">{{ workout.title }}</a></div>
+                    <div class="submission-meta">{{ workout.created_at|date:"j. n." }}{% if workout.duration_minutes %} - {{ workout.duration_minutes }} min{% endif %}</div>
+                </div>
+            </div>
+        {% empty %}
+            <p class="muted">Zatím žádné veřejné tréninky.</p>
+        {% endfor %}
+    </div>
+</section>
+
+<div class="profile-footer-spacer" aria-hidden="true"></div>
+
+<div class="profile-badge-modal" data-badge-modal aria-hidden="true">
+    <div class="profile-badge-modal-panel" role="dialog" aria-modal="true" aria-labelledby="badge-modal-title">
+        <div class="section-spread">
+            <span class="profile-badge-icon" data-modal-badge-icon>V</span>
+            <button class="btn-secondary" type="button" data-close-badge style="min-height: 34px; padding: 6px 10px;">Zavřít</button>
+        </div>
+        <h2 id="badge-modal-title" data-modal-badge-name>Odznak</h2>
+        <p class="muted" data-modal-badge-description></p>
+        <div class="mini-card">
+            <span class="kicker">Proč uděleno</span>
+            <div class="submission-name" data-modal-badge-reason></div>
+        </div>
+        <button class="btn-main" type="button" data-modal-badge-share style="margin-top: 14px;">Sdílet odznak</button>
+    </div>
+</div>
+
+{% if comparison %}
+    <section class="card-dark">
+        <h2>1v1 Porovnání</h2>
+        <div class="grid-4">
+            <div class="metric-card">
+                <span class="kicker">Ty</span>
+                <span class="stat-value">{{ comparison.my_hybrid_score }}</span>
+                <div class="muted">Hybrid Score</div>
+            </div>
+            <div class="metric-card">
+                <span class="kicker">{{ profile.display_name }}</span>
+                <span class="stat-value">{{ comparison.their_hybrid_score }}</span>
+                <div class="muted">Hybrid Score</div>
+            </div>
+            <div class="metric-card">
+                <span class="kicker">Rozdíl skóre</span>
+                <span class="stat-value">{{ comparison.score_delta }}</span>
+                <div class="muted">Otevři 1v1 pro plné Hybrid porovnání.</div>
+            </div>
+            <div class="metric-card">
+                <span class="kicker">Porovnat</span>
+                <span class="stat-value">1v1</span>
+                <div class="muted"><a href="{% url 'comparison_cz' request.user.profile.slug profile.slug %}">Otevřít plné porovnání</a></div>
+            </div>
+        </div>
+    </section>
+{% endif %}
+
+{{ progress_data|json_script:"progress-data" }}
+<script>
+    const progressData = JSON.parse(document.getElementById("progress-data").textContent);
+    const svg = document.getElementById("progress-chart");
+    const chartWrapper = svg?.closest(".progress-chart");
+    const detail = document.getElementById("progress-detail");
+    const isMobileChart = window.matchMedia("(max-width: 768px)").matches;
+    const baseWidth = isMobileChart ? 760 : 1020;
+    const height = isMobileChart ? 280 : 360;
+    const pad = isMobileChart ? 40 : 52;
+    let zoom = 1;
+    function renderChart() {
+        const width = Math.round(baseWidth * zoom);
+        svg.style.minWidth = `${width}px`;
+        svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+        if (!progressData.length) {
+            svg.innerHTML = `<text x="${pad}" y="${height / 2}" fill="rgba(245,247,251,.72)" font-size="18">Zatím žádná ověřená data.</text>`;
+            return;
+        }
+        const scoreValues = progressData.map((point) => Number(point.value || 0));
+        const minScore = Math.max(0, Math.min.apply(null, scoreValues) - 30);
+        const maxScore = Math.max.apply(null, scoreValues.concat([100])) + 30;
+        const step = progressData.length > 1 ? (width - pad * 2) / (progressData.length - 1) : 0;
+        const yTicks = 4;
+        const points = progressData.map((point, index) => {
+            const x = progressData.length > 1 ? pad + index * step : width / 2;
+            const value = Number(point.value || 0);
+            const y = height - pad - ((value - minScore) / Math.max(1, maxScore - minScore)) * (height - pad * 2);
+            return { x, y, value, display: point.display, date: point.date, label: point.label };
+        });
+        const path = points.map((point, index) => `${index === 0 ? "M" : "L"} ${point.x} ${point.y}`).join(" ");
+        const yGuides = Array.from({ length: yTicks + 1 }, (_, index) => {
+            const value = minScore + ((maxScore - minScore) / yTicks) * index;
+            const y = height - pad - ((value - minScore) / Math.max(1, maxScore - minScore)) * (height - pad * 2);
+            return { value: Math.round(value), y };
+        });
+        svg.innerHTML = `
+            ${yGuides.map((guide) => `<g><line x1="${pad}" y1="${guide.y}" x2="${width - pad}" y2="${guide.y}" stroke="rgba(255,255,255,.08)" /><text x="${pad - 10}" y="${guide.y + 4}" text-anchor="end" fill="rgba(245,247,251,.64)" font-size="13">${guide.value}</text></g>`).join("")}
+            <line x1="${pad}" y1="${height - pad}" x2="${width - pad}" y2="${height - pad}" stroke="rgba(255,255,255,.2)" />
+            <line x1="${pad}" y1="${pad}" x2="${pad}" y2="${height - pad}" stroke="rgba(255,255,255,.2)" />
+            <text x="${width / 2}" y="${height - 8}" text-anchor="middle" fill="rgba(245,247,251,.68)" font-size="13">Datum</text>
+            <text x="16" y="${height / 2}" transform="rotate(-90 16 ${height / 2})" text-anchor="middle" fill="rgba(245,247,251,.68)" font-size="13">Hybrid body</text>
+            ${points.map((point, index) => index % Math.max(1, Math.ceil(points.length / 4)) === 0 ? `<text x="${point.x}" y="${height - pad + 20}" text-anchor="middle" fill="rgba(245,247,251,.58)" font-size="12">${point.date.slice(5)}</text>` : "").join("")}
+            <path d="${path}" fill="none" stroke="#f7b733" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" />
+            ${points.map((point, index) => `<g data-point="${index}" style="cursor:pointer"><circle cx="${point.x}" cy="${point.y}" r="${isMobileChart ? 9 : 8}" fill="#ffd77b" stroke="#111" stroke-width="2.5"><title>${point.label}: ${point.display || `${point.value} b.`}</title></circle><text x="${point.x}" y="${point.y - 14}" text-anchor="middle" fill="#f5f7fb" font-size="14" font-weight="700">${point.value}</text>${index > 0 && !isMobileChart ? `<text x="${(points[index - 1].x + point.x) / 2}" y="${Math.min(points[index - 1].y, point.y) - 18}" text-anchor="middle" fill="#8df0c9" font-size="12">${point.value - points[index - 1].value >= 0 ? "+" : ""}${point.value - points[index - 1].value}</text>` : ""}</g>`).join("")}
+        `;
+        svg.querySelectorAll("[data-point]").forEach((node) => {
+            node.addEventListener("click", () => {
+                const point = points[parseInt(node.dataset.point, 10)];
+                detail.textContent = `${point.label}: ${point.display || `${point.value} b.`}.`;
+            });
+        });
+    }
+    renderChart();
+    if (chartWrapper && isMobileChart) {
+        let pinchDistance = null;
+        chartWrapper.addEventListener("touchstart", (e) => { if (e.touches.length === 2) pinchDistance = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY); }, { passive: true });
+        chartWrapper.addEventListener("touchmove", (e) => { if (e.touches.length !== 2 || pinchDistance === null) return; const d = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY); const delta = (d - pinchDistance) / 160; if (Math.abs(delta) > 0.03) { zoom = Math.max(1, Math.min(2.8, zoom + delta)); pinchDistance = d; renderChart(); } }, { passive: true });
+        chartWrapper.addEventListener("touchend", () => { pinchDistance = null; }, { passive: true });
+    }
+    for (const shareButton of document.querySelectorAll("[data-share-text]")) {
+        shareButton.addEventListener("click", async () => {
+            const text = shareButton.dataset.shareText;
+            if (navigator.share) await navigator.share({ text });
+            else { await navigator.clipboard.writeText(text); shareButton.textContent = "Zkopírováno"; }
+        });
+    }
+    const badgeModal = document.querySelector("[data-badge-modal]");
+    const modalShare = document.querySelector("[data-modal-badge-share]");
+    function closeBadgeModal() { badgeModal?.classList.remove("is-open"); badgeModal?.setAttribute("aria-hidden", "true"); }
+    for (const badge of document.querySelectorAll(".profile-badge")) {
+        badge.addEventListener("click", () => {
+            document.querySelector("[data-modal-badge-icon]").textContent = badge.dataset.badgeIcon || "";
+            document.querySelector("[data-modal-badge-name]").textContent = badge.dataset.badgeName || "";
+            document.querySelector("[data-modal-badge-description]").textContent = badge.dataset.badgeDescription || "";
+            document.querySelector("[data-modal-badge-reason]").textContent = badge.dataset.badgeReason || "";
+            modalShare.dataset.shareText = badge.dataset.badgeShareText || "";
+            badgeModal?.classList.add("is-open");
+            badgeModal?.setAttribute("aria-hidden", "false");
+        });
+    }
+    document.querySelector("[data-close-badge]")?.addEventListener("click", closeBadgeModal);
+    badgeModal?.addEventListener("click", (e) => { if (e.target === badgeModal) closeBadgeModal(); });
+    modalShare?.addEventListener("click", async () => {
+        const text = modalShare.dataset.shareText || "Získal jsem odznak na Earned Club.";
+        if (navigator.share) await navigator.share({ text });
+        else { await navigator.clipboard.writeText(text); modalShare.textContent = "Zkopírováno"; setTimeout(() => modalShare.textContent = "Sdílet odznak", 1200); }
+    });
+</script>
+{% endblock %}

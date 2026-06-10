@@ -1,0 +1,62 @@
+{% extends "base_cz.html" %}
+
+{% block title %}{{ workout.title }}{% endblock %}
+{% block meta_description %}Zobrazit sdílený trénink od {{ workout.user.profile.display_name }} na Earned Club.{% endblock %}
+
+{% block content %}
+<section class="hero-card profile-header">
+    <div class="eyebrow">Sdílený trénink</div>
+    <h1>{{ workout.title }}</h1>
+    <p class="muted">
+        Od <a href="{% url 'athlete_profile_cz' workout.user.profile.slug %}">{{ workout.user.profile.display_name }}</a>
+        {% if workout.duration_minutes %} - {{ workout.duration_minutes }} minut{% endif %}
+        - {{ workout.created_at|date:"j. n. Y" }}
+    </p>
+    {% if workout.notes %}<p>{{ workout.notes }}</p>{% endif %}
+    <div class="button-row">
+        {% if request.user.is_authenticated %}
+            <form method="POST" action="{% url 'start_workout' %}">
+                {% csrf_token %}
+                <input type="hidden" name="workout_id" value="{{ workout.id }}">
+                <button class="btn-main" type="submit">Spustit trénink</button>
+            </form>
+        {% endif %}
+        <button class="btn-secondary" type="button" data-share-text="Zkus {{ workout.title }} na EarnedClub: {{ request.build_absolute_uri }}">Sdílet trénink</button>
+        {% if not request.user.is_authenticated %}
+            <a class="btn-main" href="{% url 'register_cz' %}">Vytvořit vlastní</a>
+        {% endif %}
+    </div>
+</section>
+
+<section class="card-dark">
+    <h2>Cviky</h2>
+    {% if workout.exercises.all %}
+        <div class="compact-board">
+            {% for exercise in workout.exercises.all %}
+                <div class="score-row">
+                    <div class="score-row-main">
+                        <div class="submission-name">{{ exercise.name }}</div>
+                        <div class="submission-meta">
+                            {{ exercise.sets }} série
+                            {% if exercise.reps %} - {{ exercise.reps }} opak.{% endif %}
+                            {% if exercise.seconds %} - {{ exercise.seconds }} sek.{% endif %}
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <p class="muted">Pro tento trénink nejsou uloženy žádné cviky.</p>
+    {% endif %}
+</section>
+
+<script>
+    for (const shareButton of document.querySelectorAll("[data-share-text]")) {
+        shareButton.addEventListener("click", async () => {
+            const text = shareButton.dataset.shareText;
+            if (navigator.share) await navigator.share({ text });
+            else { await navigator.clipboard.writeText(text); shareButton.textContent = "Zkopírováno"; }
+        });
+    }
+</script>
+{% endblock %}

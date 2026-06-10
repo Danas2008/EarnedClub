@@ -1,0 +1,461 @@
+{% extends "base_cz.html" %}
+
+{% block title %}Tréninky{% endblock %}
+
+{% block content %}
+<style>
+    .workout-tools-grid {
+        display: grid;
+        gap: 18px;
+    }
+
+    .generator-card {
+        border-color: rgba(247, 183, 51, 0.18);
+    }
+
+    .generator-control-grid {
+        display: grid;
+        gap: 14px;
+    }
+
+    .body-part-picker {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 0;
+    }
+
+    .clean-pagination {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        align-items: center;
+        justify-content: space-between;
+        margin-top: 18px;
+    }
+
+    .clean-pagination-actions {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+
+    .enduro-ad {
+        background:
+            linear-gradient(135deg, rgba(33, 150, 83, 0.2), rgba(9, 68, 43, 0.28)),
+            rgba(255, 255, 255, 0.04);
+        border-color: rgba(91, 214, 139, 0.28);
+    }
+
+    .enduro-ad .eyebrow,
+    .enduro-ad .tag-pill {
+        color: #a8f0bf;
+        background: rgba(33, 150, 83, 0.16);
+        border-color: rgba(91, 214, 139, 0.22);
+    }
+
+    .enduro-ad .btn-secondary {
+        border-color: rgba(91, 214, 139, 0.34);
+        background: rgba(33, 150, 83, 0.14);
+    }
+
+    @media (min-width: 900px) {
+        .workout-tools-grid {
+            grid-template-columns: minmax(260px, 0.85fr) minmax(360px, 1.25fr) minmax(300px, 1fr);
+            align-items: start;
+        }
+
+        .generator-control-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+    }
+</style>
+
+<section class="hero-card" style="margin-bottom: 24px;">
+    <div class="content-split">
+        <div>
+            <div class="eyebrow">Trénink</div>
+            <h1>Tréninky.</h1>
+            <p class="muted">Vyber plán, zaznamenej práci a sdílej pouze tréninky, které chceš zveřejnit.</p>
+        </div>
+        <div class="button-row">
+            <form method="POST" action="{% url 'quick_add_last_workout' %}">
+                {% csrf_token %}
+                <button class="btn-secondary" type="submit">Opakovat poslední</button>
+            </form>
+            <a class="btn-main" href="#quick-log">Rychlý záznam</a>
+        </div>
+    </div>
+</section>
+
+{% if active_workout_session %}
+<section class="card-dark">
+    <div class="section-spread">
+        <div>
+            <h2>Aktivní trénink</h2>
+            <p class="muted">{{ active_workout_session.workout.title }} stále běží. Můžeš se kdykoli vrátit.</p>
+        </div>
+        <a class="btn-main" href="{% url 'workout_session_detail' active_workout_session.id %}">Pokračovat</a>
+    </div>
+</section>
+{% endif %}
+
+<section class="grid-3">
+    {% for card in recommended_templates %}
+        <article class="feature-card">
+            <div class="eyebrow">{{ card.template.get_difficulty_display }} - {{ card.minutes }} min</div>
+            <h3>{{ card.template.name }}</h3>
+            <p class="muted">{{ card.template.notes }}</p>
+            <details class="score-details" data-exercise-details>
+                <summary>Náhled</summary>
+                {% for name, sets, reps, seconds in card.exercises %}
+                    <div class="submission-meta">{{ name }} - {{ sets }} série{% if reps %}, {{ reps }} opak.{% endif %}{% if seconds %}, {{ seconds }} sek.{% endif %}</div>
+                {% endfor %}
+            </details>
+            <div class="button-row">
+                <form method="POST" action="{% url 'start_workout' %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="template_id" value="{{ card.template.id }}">
+                    <button class="btn-main" type="submit">Spustit trénink</button>
+                </form>
+                <button class="btn-secondary" type="button" data-template-id="{{ card.template.id }}" data-template-name="{{ card.template.name }}" data-template-minutes="{{ card.minutes }}">Nejprve upravit</button>
+            </div>
+        </article>
+    {% empty %}
+        <article class="feature-card">
+            <div class="eyebrow">Doporučeno</div>
+            <h3>Push Day</h3>
+            <p class="muted">Jednoduchý silový trénink pro budování přísných opakování.</p>
+            <a class="btn-main" href="#builder">Sestavit</a>
+        </article>
+    {% endfor %}
+</section>
+
+<section class="workout-tools-grid">
+    <div class="card-dark" id="quick-log">
+        <div class="section-spread">
+            <div>
+                <h2>Rychlý záznam</h2>
+                <p class="muted">Jeden cvik. Hotovo za sekundy.</p>
+            </div>
+        </div>
+        <form class="submission-form" method="POST">
+            {% csrf_token %}
+            <input type="hidden" name="form_type" value="quick_result">
+            <select class="select" name="quick_body_part" data-body-select>
+                <option value="">Část těla</option>
+                {% for part in body_parts %}<option value="{{ part }}">{{ part }}</option>{% endfor %}
+            </select>
+            <select class="select" name="quick_exercise" data-exercise-select>
+                <option value="">Cvik</option>
+                {% for exercise in default_exercises %}
+                    <option value="{{ exercise.name }}" data-body="{{ exercise.body_part }}" data-type="{{ exercise.type }}">{{ exercise.name }}</option>
+                {% endfor %}
+            </select>
+            <div class="grid-3" data-quick-fields>
+                <input class="input" type="number" min="1" name="quick_sets" data-strength-field placeholder="Série">
+                <input class="input" type="number" min="1" name="quick_reps" data-strength-field placeholder="Opakování">
+                <input class="input" type="number" min="1" name="quick_seconds" data-time-field placeholder="Sekundy">
+            </div>
+            <p class="hint" data-quick-hint>Silové záznamy potřebují opakování. Kardio záznamy potřebují čas.</p>
+            <button class="btn-main" type="submit">Uložit rychlý záznam</button>
+        </form>
+    </div>
+
+    <div class="card-dark generator-card" id="generator">
+        <h2>Vygenerovat trénink</h2>
+        <p class="muted">Vyber, co chceš trénovat a kolik máš času. Trénink bude vygenerován a spuštěn.</p>
+        <form class="submission-form" method="POST" data-generated-builder>
+            {% csrf_token %}
+            <input type="hidden" name="form_type" value="generated_workout">
+            <div class="generator-control-grid">
+                <div>
+                    <label class="field-label" for="builder-minutes">Čas</label>
+                    <input id="builder-minutes" class="input" type="number" min="10" max="60" name="builder_minutes" value="20">
+                </div>
+                <div>
+                    <label class="field-label" for="builder-difficulty">Obtížnost</label>
+                    <select id="builder-difficulty" class="select" name="builder_difficulty">
+                        <option value="">Odpovídat mé úrovni</option>
+                        <option value="beginner">Začátečník</option>
+                        <option value="intermediate">Středně pokročilý</option>
+                        <option value="advanced">Pokročilý</option>
+                    </select>
+                </div>
+            </div>
+            <div class="generator-control-grid">
+                <div>
+                    <label class="field-label" for="builder-rest">Sekundy odpočinku</label>
+                    <input id="builder-rest" class="input" type="number" min="15" max="300" name="builder_rest_interval_seconds" value="60">
+                </div>
+                <div>
+                    <label class="field-label">Části těla</label>
+                    <div class="body-part-picker">
+                        {% for part in body_parts %}
+                            <label class="tag-pill"><input type="checkbox" name="builder_body_parts" value="{{ part }}" {% if part in "Chest,Back,Core" %}checked{% endif %}> {{ part }}</label>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            <button class="btn-main" type="submit" data-generate-button>Vygenerovat a spustit</button>
+            <div class="hint" data-generate-status hidden>Sestavuji vyvážený trénink...</div>
+        </form>
+    </div>
+
+    <div class="card-dark" id="builder">
+        <h2>Sestavit trénink</h2>
+        <p class="muted">Začni od předpřipraveného tréninku a uprav ho, nebo zvol Vlastní a sestav vlastní.</p>
+        <form class="submission-form" method="POST" data-workout-builder>
+            {% csrf_token %}
+            <input type="hidden" name="form_type" value="workout">
+            <div class="grid-2">
+                <input class="input" name="title" data-workout-title placeholder="Push day">
+                <select class="select" name="template_id" data-template-select>
+                    <option value="">Vlastní</option>
+                    {% for template in workout_templates %}<option value="{{ template.id }}">{{ template.name }} - {{ template.get_difficulty_display }}</option>{% endfor %}
+                </select>
+            </div>
+            <div class="grid-2">
+                <input class="input" type="number" min="1" name="duration_minutes" data-workout-minutes placeholder="Minuty">
+                <input class="input" type="number" min="15" max="300" name="rest_interval_seconds" value="60" placeholder="Sekundy odpočinku">
+                <div>
+                    <label class="tag-pill"><input type="checkbox" name="is_public"> Veřejný</label>
+                    <label class="tag-pill"><input type="checkbox" name="highlighted_on_profile"> Zvýraznit</label>
+                </div>
+            </div>
+            <details class="score-details" data-builder-details>
+                <summary>Cviky +</summary>
+                <div class="hint" data-template-preview style="margin-top: 10px;"></div>
+                {% for i in "123456" %}
+                    <div class="feature-card{% if not forloop.first %} hidden-panel{% endif %}" style="margin-top: 10px;" data-exercise-row>
+                        <select class="select" name="body_part" data-builder-body>
+                            <option value="">Část těla</option>
+                            {% for part in body_parts %}<option value="{{ part }}">{{ part }}</option>{% endfor %}
+                        </select>
+                        <select class="select" name="exercise_name" data-builder-exercise style="margin-top: 10px;">
+                            <option value="">Cvik</option>
+                            {% for exercise in default_exercises %}
+                                <option value="{{ exercise.name }}" data-body="{{ exercise.body_part }}" data-type="{{ exercise.type }}">{{ exercise.name }}</option>
+                            {% endfor %}
+                        </select>
+                        <div class="grid-3" style="margin-top: 10px;">
+                            <input class="input" type="number" min="1" name="exercise_sets" placeholder="Série">
+                            <input class="input" type="number" min="1" name="exercise_reps" placeholder="Opakování">
+                            <input class="input" type="number" min="1" name="exercise_seconds" placeholder="Sekundy">
+                        </div>
+                    </div>
+                {% endfor %}
+                <button class="btn-secondary" type="button" data-add-exercise style="margin-top: 10px;">+ Cvik</button>
+            </details>
+            <textarea class="textarea" name="notes" placeholder="Poznámky"></textarea>
+            <div class="button-row">
+                <button class="btn-secondary" type="submit">Uložit trénink</button>
+                <button class="btn-main" type="submit" name="start_now" value="1">Uložit a spustit</button>
+            </div>
+        </form>
+    </div>
+</section>
+
+<section class="card-dark">
+    <div class="section-spread">
+        <div>
+            <h2>Tvoje tréninky</h2>
+            <p class="muted">Zobrazeno 5 nejnovějších shod.</p>
+        </div>
+    </div>
+    <form class="search-row" method="GET" action="{% url 'workouts_cz' %}">
+        <input class="input" type="search" name="q" value="{{ workout_query }}" placeholder="Hledat tréninky nebo cviky">
+        <button class="btn-secondary" type="submit">Hledat</button>
+    </form>
+    {% for workout in workouts %}
+        <div class="score-row workout-row">
+            <div class="score-row-main">
+                <div class="submission-name">{{ workout.title }}</div>
+                <div class="submission-meta">{{ workout.created_at|date:"j. n." }}{% if workout.duration_minutes %} - {{ workout.duration_minutes }} min{% endif %}{% if workout.is_public %} - Veřejný{% endif %}{% if workout.highlighted_on_profile %} - Zvýrazněný{% endif %}</div>
+            </div>
+            <div class="workout-row-actions">
+                <form method="POST" action="{% url 'start_workout' %}">{% csrf_token %}<input type="hidden" name="workout_id" value="{{ workout.id }}"><button class="btn-main" type="submit">Spustit</button></form>
+                {% if workout.is_public %}<a class="btn-secondary" href="{% url 'workout_detail' workout.slug %}">Otevřít</a>{% endif %}
+                {% if workout.is_public %}
+                    <form method="POST" action="{% url 'toggle_highlight_workout' workout.id %}">{% csrf_token %}<button class="btn-secondary" type="submit">Zvýraznit</button></form>
+                {% endif %}
+                <form method="POST" action="{% url 'duplicate_workout' workout.id %}">{% csrf_token %}<button class="btn-secondary" type="submit">Duplikovat</button></form>
+                <form method="POST" action="{% url 'delete_workout' workout.id %}">{% csrf_token %}<button class="btn-secondary" type="submit">Smazat</button></form>
+            </div>
+            <details class="score-details">
+                <summary>Cviky</summary>
+                {% for exercise in workout.exercises.all %}
+                    <div class="submission-meta">{{ exercise.name }}{% if exercise.body_part %} - {{ exercise.body_part }}{% endif %}: {{ exercise.sets }} série{% if exercise.reps %}, {{ exercise.reps }} opak.{% endif %}{% if exercise.seconds %}, {{ exercise.seconds }} sek.{% endif %}</div>
+                {% empty %}<div class="submission-meta">Žádné cviky.</div>{% endfor %}
+            </details>
+        </div>
+    {% empty %}
+        <p class="muted">Zatím žádné tréninky.</p>
+    {% endfor %}
+    {% if workouts.paginator.num_pages > 1 %}
+        <div class="clean-pagination">
+            <div class="muted">Strana {{ workouts.number }} z {{ workouts.paginator.num_pages }}</div>
+            <div class="clean-pagination-actions">
+                {% if workouts.has_previous %}
+                    <a class="btn-secondary" href="?{% if workout_query %}q={{ workout_query|urlencode }}&{% endif %}page={{ workouts.previous_page_number }}">Předchozí</a>
+                {% endif %}
+                <span class="btn-main">Strana {{ workouts.number }}</span>
+                {% if workouts.has_next %}
+                    <a class="btn-secondary" href="?{% if workout_query %}q={{ workout_query|urlencode }}&{% endif %}page={{ workouts.next_page_number }}">Další</a>
+                {% endif %}
+            </div>
+        </div>
+    {% endif %}
+</section>
+
+<section class="card-dark enduro-ad">
+    <div class="section-spread">
+        <div>
+            <div class="eyebrow">Partnerský trénink</div>
+            <h2>EnduroBuddy.cz</h2>
+            <p class="muted">Zelené, zaměřené plány běhu pro atlety, kteří chtějí strukturovanou vytrvalostní práci vedle síly.</p>
+            <div class="button-row" style="margin-top: 0;">
+                <span class="tag-pill">Plány běhu</span>
+                <span class="tag-pill">Vytrvalost</span>
+                <span class="tag-pill">Český projekt</span>
+            </div>
+        </div>
+        <a class="btn-secondary" href="https://endurobuddy.cz" target="_blank" rel="noopener noreferrer">Otevřít EnduroBuddy</a>
+    </div>
+</section>
+
+{{ template_payload|json_script:"template-data" }}
+<script>
+    const templateData = JSON.parse(document.getElementById("template-data").textContent);
+    const filterExerciseSelect = (select, body, type) => {
+        Array.from(select.options).forEach((option) => {
+            if (!option.value) {
+                option.hidden = false;
+                return;
+            }
+            const bodyMatch = !body || option.dataset.body === body;
+            const typeMatch = !type || option.dataset.type === type;
+            option.hidden = !(bodyMatch && typeMatch);
+        });
+        if (select.selectedOptions[0]?.hidden) select.value = "";
+    };
+
+    const syncQuickLog = () => {
+        const body = document.querySelector("[data-body-select]")?.value || "";
+        const exercise = document.querySelector("[data-exercise-select]");
+        if (exercise) filterExerciseSelect(exercise, body, "");
+        const selectedType = exercise?.selectedOptions[0]?.dataset.type || "strength";
+        document.querySelectorAll("[data-strength-field]").forEach((field) => {
+            field.style.display = selectedType === "cardio" ? "none" : "";
+            field.disabled = selectedType === "cardio";
+        });
+        document.querySelectorAll("[data-time-field]").forEach((field) => {
+            field.placeholder = selectedType === "cardio" ? "Sekundy jsou povinné" : "Sekundy";
+            field.disabled = false;
+        });
+        const hint = document.querySelector("[data-quick-hint]");
+        if (hint) hint.textContent = selectedType === "cardio" ? "Kardio záznamy potřebují čas. Opakování jsou skryta, aby to bylo rychlé." : "Silové záznamy potřebují opakování. Přidej sekundy jen když je to užitečné.";
+    };
+
+    document.querySelector("[data-body-select]")?.addEventListener("change", syncQuickLog);
+    document.querySelector("[data-exercise-select]")?.addEventListener("change", syncQuickLog);
+    syncQuickLog();
+
+    document.querySelectorAll("[data-builder-body]").forEach((control) => {
+        control.addEventListener("change", () => {
+            const card = control.closest(".feature-card");
+            filterExerciseSelect(card.querySelector("[data-builder-exercise]"), card.querySelector("[data-builder-body]").value, "");
+        });
+    });
+
+    const exerciseRows = () => Array.from(document.querySelectorAll("[data-exercise-row]"));
+    const clearExerciseRow = (row) => {
+        row.querySelector("[data-builder-body]").value = "";
+        row.querySelector("[data-builder-exercise]").value = "";
+        row.querySelector("input[name='exercise_sets']").value = "";
+        row.querySelector("input[name='exercise_reps']").value = "";
+        row.querySelector("input[name='exercise_seconds']").value = "";
+    };
+    const showNextExerciseRow = () => {
+        const next = Array.from(document.querySelectorAll("[data-exercise-row]")).find((row) => row.classList.contains("hidden-panel"));
+        if (next) {
+            next.classList.remove("hidden-panel");
+            next.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        }
+        return next;
+    };
+    const fillExerciseRowsFromTemplate = (template) => {
+        if (!template) return;
+        document.querySelector("[data-builder-details]").open = true;
+        exerciseRows().forEach((row, index) => {
+            clearExerciseRow(row);
+            const exercise = template.exercises[index];
+            row.classList.toggle("hidden-panel", !exercise && index > 0);
+            if (!exercise) return;
+            row.querySelector("[data-builder-body]").value = exercise.body_part || "";
+            filterExerciseSelect(row.querySelector("[data-builder-exercise]"), exercise.body_part || "", "");
+            row.querySelector("[data-builder-exercise]").value = exercise.name || "";
+            row.querySelector("input[name='exercise_sets']").value = exercise.sets || "";
+            row.querySelector("input[name='exercise_reps']").value = exercise.reps || "";
+            row.querySelector("input[name='exercise_seconds']").value = exercise.seconds || "";
+        });
+    };
+
+    document.querySelector("[data-add-exercise]")?.addEventListener("click", showNextExerciseRow);
+
+    document.querySelectorAll("[data-template-id]").forEach((button) => {
+        button.addEventListener("click", () => {
+            document.querySelector("[data-template-select]").value = button.dataset.templateId;
+            document.querySelector("[data-workout-title]").value = button.dataset.templateName;
+            document.querySelector("[data-workout-minutes]").value = button.dataset.templateMinutes || "";
+            const template = templateData.find((item) => String(item.id) === String(button.dataset.templateId));
+            const preview = document.querySelector("[data-template-preview]");
+            if (template && preview) {
+                preview.innerHTML = template.exercises.map((exercise) => {
+                    const reps = exercise.reps ? `, ${exercise.reps} opak.` : "";
+                    const seconds = exercise.seconds ? `, ${exercise.seconds} sek.` : "";
+                    return `<div>${exercise.name} - ${exercise.sets} série${reps}${seconds}</div>`;
+                }).join("");
+                fillExerciseRowsFromTemplate(template);
+            }
+            document.getElementById("builder")?.scrollIntoView({ behavior: "smooth", block: "start" });
+        });
+    });
+
+    document.querySelector("[data-template-select]")?.addEventListener("change", (event) => {
+        const template = templateData.find((item) => String(item.id) === String(event.target.value));
+        if (!template) {
+            document.querySelector("[data-workout-title]").value = "";
+            document.querySelector("[data-workout-minutes]").value = "";
+            exerciseRows().forEach((row, index) => {
+                clearExerciseRow(row);
+                row.classList.toggle("hidden-panel", index > 0);
+            });
+            const preview = document.querySelector("[data-template-preview]");
+            if (preview) preview.innerHTML = "";
+            return;
+        }
+        document.querySelector("[data-workout-title]").value = template.name;
+        document.querySelector("[data-workout-minutes]").value = template.minutes;
+        fillExerciseRowsFromTemplate(template);
+        const preview = document.querySelector("[data-template-preview]");
+        if (preview) {
+            preview.innerHTML = template.exercises.map((exercise) => {
+                const reps = exercise.reps ? `, ${exercise.reps} opak.` : "";
+                const seconds = exercise.seconds ? `, ${exercise.seconds} sek.` : "";
+                return `<div>${exercise.name} - ${exercise.sets} série${reps}${seconds}</div>`;
+            }).join("");
+        }
+    });
+    document.querySelector("[data-generated-builder]")?.addEventListener("submit", (event) => {
+        event.preventDefault();
+        const form = event.currentTarget;
+        const button = form.querySelector("[data-generate-button]");
+        const status = form.querySelector("[data-generate-status]");
+        button.disabled = true;
+        button.textContent = "Generuji...";
+        status.hidden = false;
+        setTimeout(() => form.submit(), 900);
+    });
+</script>
+{% endblock %}

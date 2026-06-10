@@ -1,0 +1,54 @@
+{% extends "base_cz.html" %}
+
+{% block title %}Přihlášení{% endblock %}
+{% block meta_description %}Přihlaste se do Earned Club a spravujte svůj atletický profil, čekající příspěvky, ověřenou historii a veřejné sledování ranku.{% endblock %}
+
+{% block content %}
+<section class="card-dark auth-card">
+    <div class="eyebrow">Přístup pro atlety</div>
+    <h1>Přihlášení.</h1>
+    <p class="muted">Vraťte se na svůj dashboard, čekající příspěvky a ověřenou historii pokroku.</p>
+
+    <form class="submission-form" method="POST">
+        {% csrf_token %}
+        {% if challenge_room %}<input type="hidden" name="room" value="{{ challenge_room.token }}">{% endif %}
+
+        {% if form.errors %}
+            <div class="mini-card">
+                <p class="muted" style="margin-bottom: 0;">Vaše uživatelské jméno a heslo se neshodují.</p>
+            </div>
+        {% endif %}
+
+        <div>
+            <label class="field-label" for="{{ form.username.id_for_label }}">Uživatelské jméno</label>
+            {{ form.username }}
+        </div>
+
+        <div>
+            <label class="field-label" for="{{ form.password.id_for_label }}">Heslo</label>
+            <div style="display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px;">
+                {{ form.password }}
+                <button class="btn-secondary" type="button" data-password-toggle>Zobrazit</button>
+            </div>
+        </div>
+
+        <button class="btn-main" type="submit">Přihlásit se</button>
+        <a class="btn-secondary" href="{% url 'register_cz' %}">Vytvořit účet</a>
+    </form>
+</section>
+
+<script>
+    for (const field of document.querySelectorAll("input")) {
+        field.classList.add("input");
+    }
+    const passwordToggle = document.querySelector("[data-password-toggle]");
+    const passwordField = document.querySelector("input[type='password']");
+    if (passwordToggle && passwordField) {
+        passwordToggle.addEventListener("click", () => {
+            const visible = passwordField.type === "text";
+            passwordField.type = visible ? "password" : "text";
+            passwordToggle.textContent = visible ? "Zobrazit" : "Skrýt";
+        });
+    }
+</script>
+{% endblock %}

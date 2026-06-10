@@ -1,0 +1,100 @@
+{% extends "base_cz.html" %}
+
+{% block title %}Získej oficiální status{% endblock %}
+{% block meta_description %}Získej oficiální status Earned Club odesláním důkazu pro stávající výsledek testu a přesunutím do review.{% endblock %}
+
+{% block content %}
+<style>
+    .official-path {
+        display: grid;
+        gap: 10px;
+        margin-top: 18px;
+    }
+
+    .official-step {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr);
+        gap: 12px;
+        align-items: start;
+        padding: 12px;
+        border: 1px solid rgba(247, 183, 51, .18);
+        border-radius: var(--radius-md);
+        background: rgba(255, 255, 255, .04);
+    }
+
+    .official-step-mark {
+        width: 30px;
+        height: 30px;
+        display: grid;
+        place-items: center;
+        border-radius: 50%;
+        background: rgba(247, 183, 51, .16);
+        color: var(--accent);
+        font-family: "Archivo", sans-serif;
+        font-weight: 900;
+    }
+
+    .official-step.is-current {
+        border-color: rgba(247, 183, 51, .52);
+        background: linear-gradient(135deg, rgba(247, 183, 51, .14), rgba(30, 157, 116, .08));
+    }
+</style>
+
+<section class="hero-card">
+    <div class="content-split">
+        <div>
+            <span class="eyebrow">Oficiální status</span>
+            <h1>Získej oficiální status atleta.</h1>
+            <p class="muted">Tvůj Open Score je již uložen. Odešli důkaz pro zahájení review a přemění tento výkon na earned, důvěryhodný status.</p>
+            <div class="stat-grid">
+                <div class="stat-card"><span class="kicker">Výsledek</span><span class="stat-value">{{ submission.display_score }}</span></div>
+                <div class="stat-card"><span class="kicker">Body</span><span class="stat-value">{{ submission.hybrid_points }}</span></div>
+                <div class="stat-card"><span class="kicker">Aktuální status</span><span class="stat-value" style="font-size: 1.2rem;">Open Score</span></div>
+            </div>
+            <div class="official-path">
+                <div class="official-step">
+                    <span class="official-step-mark">1</span>
+                    <div><strong>Open Score</strong><div class="muted">Tvůj výsledek může zahájit příběh na žebříčku.</div></div>
+                </div>
+                <div class="official-step is-current">
+                    <span class="official-step-mark">2</span>
+                    <div><strong>Oficiální review</strong><div class="muted">Důkaz umožní personálu ověřit výkon.</div></div>
+                </div>
+                <div class="official-step">
+                    <span class="official-step-mark">3</span>
+                    <div><strong>Oficiální atlet</strong><div class="muted">Schválené výsledky se počítají do oficiálního Hybrid Score, ranku a odznaků.</div></div>
+                </div>
+            </div>
+        </div>
+        <form class="submit-panel" method="POST" enctype="multipart/form-data">
+            {% csrf_token %}
+            {% if challenge_room %}<input type="hidden" name="room" value="{{ challenge_room.token }}">{% endif %}
+            <h2>Odeslat k oficiálnímu review</h2>
+            <p class="muted">Zvol jednu metodu důkazu. Důkaz by měl jasně odpovídat atletu, disciplíně a výsledku.</p>
+            {% if submission.is_time_based %}
+                <div>
+                    <label class="field-label" for="proof-link">Odkaz na závod nebo Strava</label>
+                    <input id="proof-link" class="input" type="url" name="proof_link" placeholder="https://www.strava.com/activities/...">
+                </div>
+                <div>
+                    <label class="field-label">Soubor pro review</label>
+                    <div class="file-pick-row"><button type="button" class="btn-secondary file-pick-trigger">Vybrat soubor</button><span class="file-pick-name">Žádný soubor</span></div>
+                    <input id="video-file" type="file" name="video_file" accept="video/*,image/*" style="display:none;" aria-label="Soubor pro review">
+                </div>
+            {% else %}
+                <div>
+                    <label class="field-label">Video výkonu</label>
+                    <div class="file-pick-row"><button type="button" class="btn-secondary file-pick-trigger">Vybrat video</button><span class="file-pick-name">Žádný soubor</span></div>
+                    <input id="video-file" type="file" name="video_file" accept="video/*" style="display:none;" aria-label="Video výkonu">
+                </div>
+                <div>
+                    <label class="field-label" for="proof-link">Odkaz na důkaz</label>
+                    <input id="proof-link" class="input" type="url" name="proof_link" placeholder="https://example.com/proof">
+                </div>
+            {% endif %}
+            <button class="btn-main" type="submit">Odeslat k oficiálnímu review</button>
+            <a class="btn-secondary" href="{% if challenge_room %}{% url 'challenge_room' challenge_room.token %}{% else %}{% url 'level_test_cz' %}{% endif %}">Zpět</a>
+        </form>
+    </div>
+</section>
+{% endblock %}

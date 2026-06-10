@@ -886,39 +886,40 @@ def get_pr_share_message(profile, request):
     return f"Hey, I am building my verified Hybrid Score on earnedclub.club. Can you beat it? {url}"
 
 
-def build_submission_success(submission, request):
+def build_submission_success(submission, request, source_view="level_test"):
+    is_cz = source_view == "level_test_cz"
     discipline_config = get_discipline_config(submission.discipline)
     progress = build_test_progress(request, submission)
-    # Single-discipline: point to the discipline leaderboard where the user actually appears
     if progress["completed_count"] == 1:
         disc_key = normalize_discipline(submission.discipline)
-        leaderboard_url = f"{reverse('leaderboard_discipline', args=[disc_key])}#full-leaderboard"
+        lb_name = "leaderboard_discipline_cz" if is_cz else "leaderboard_discipline"
+        leaderboard_url = f"{reverse(lb_name, args=[disc_key])}#full-leaderboard"
     else:
-        leaderboard_url = f"{reverse('leaderboard')}#full-leaderboard"
-    # Score dropped: user added a weak second discipline that brought the average down
+        leaderboard_url = f"{reverse('leaderboard_cz' if is_cz else 'leaderboard')}#full-leaderboard"
     score_dropped = progress["completed_count"] >= 2 and submission.hybrid_points < progress["open_score"]
     register_params = urlencode({"name": submission.name, "email": submission.email}) if submission.email else urlencode({"name": submission.name})
-    profile_url = reverse("athlete_profile", args=[submission.user.profile.slug]) if submission.user_id else ""
+    profile_url = reverse("athlete_profile_cz" if is_cz else "athlete_profile", args=[submission.user.profile.slug]) if submission.user_id else ""
+    official_view = "test_session_official_cz" if is_cz else "test_session_official"
     session_submission_ids = request.session.get("test_submission_ids", [])
     if submission.id in session_submission_ids:
-        proof_url = reverse("test_session_official")
+        proof_url = reverse(official_view)
         room = get_room_from_request(request)
         if room:
             proof_url = f"{proof_url}?{room_query(room)}"
     elif submission.user_id:
-        proof_url = reverse("dashboard")
+        proof_url = reverse("dashboard_cz" if is_cz else "dashboard")
     elif submission.claim_token:
-        # Session expired or different device — use claim token so they can still add proof
-        proof_url = f"{reverse('test_session_official')}?claim={submission.claim_token}"
+        proof_url = f"{reverse(official_view)}?claim={submission.claim_token}"
     else:
-        proof_url = reverse("level_test")
+        proof_url = reverse(source_view)
+    register_view = "register_cz" if is_cz else "register"
     return {
         "submission": submission,
         "is_official_pending": submission.has_proof,
         "is_hidden_until_proof": not is_submission_visible_on_open_board(submission),
         "leaderboard_url": leaderboard_url,
         "profile_url": profile_url,
-        "register_url": f"{reverse('register')}?{register_params}" if register_params else reverse("register"),
+        "register_url": f"{reverse(register_view)}?{register_params}" if register_params else reverse(register_view),
         "proof_url": proof_url,
         "display_points": submission.hybrid_points,
         "is_founding_entry": is_founding_submission(submission),
@@ -2286,7 +2287,7 @@ def build_sitemap_xml(entries):
     )
 
 
-def home(request):
+def _home(request, template_name):
     verified_submissions = get_official_verified_submissions()
     public_submissions = list(public_submission_queryset())
     leaderboard_rows = build_leaderboard_rows(public_submissions)
@@ -2304,8 +2305,17 @@ def home(request):
         "top_three": leaderboard_rows[:3],
         "weekly_top_five": weekly_rows[:5],
         "overall_top_five": leaderboard_rows[:5],
+        "is_cz": template_name.endswith("_cz.html"),
     }
-    return render(request, "home.html", context)
+    return render(request, template_name, context)
+
+
+def home(request):
+    return _home(request, "home.html")
+
+
+def home_cz(request):
+    return _home(request, "home_cz.html")
 
 
 def _level_test(request, view_name, template):
@@ -2329,6 +2339,7 @@ def _level_test(request, view_name, template):
         "challenge_room": room,
         "test_form_action": room_link(view_name, room),
         "test_claim_token": None if request.user.is_authenticated else get_or_create_claim_token(request),
+        "is_cz": view_name == "level_test_cz",
     }
     def _ensure_claim_token(submission):
         if not request.user.is_authenticated and not submission.claim_token:
@@ -2340,11 +2351,11 @@ def _level_test(request, view_name, template):
         success_submission = Submission.objects.filter(pk=success_submission_id).select_related("user", "user__profile").first()
         if success_submission:
             _ensure_claim_token(success_submission)
-            context["test_submission_success"] = build_submission_success(success_submission, request)
+            context["test_submission_success"] = build_submission_success(success_submission, request, source_view=view_name)
             context["test_progress"] = build_test_progress(request, success_submission, room=room, test_url_name=view_name)
     elif request.method == "GET" and latest_existing_submission and (existing_progress["is_complete"] or request.GET.get("result") == "1"):
         _ensure_claim_token(latest_existing_submission)
-        context["test_submission_success"] = build_submission_success(latest_existing_submission, request)
+        context["test_submission_success"] = build_submission_success(latest_existing_submission, request, source_view=view_name)
 
     if request.method == "POST":
         discipline = room_default_discipline(room, request.POST.get("discipline") or DISCIPLINE_PUSHUPS)
@@ -2485,28 +2496,28 @@ def level_test_cz(request):
     return _level_test(request, "level_test_cz", "test_landing_cz.html")
 
 
-def test_submission_proof(request, submission_id):
+def _test_submission_proof(request, submission_id, source_view, template_name):
     room = get_room_from_request(request)
     session_submission_ids = request.session.get("test_submission_ids", [])
     submission = get_object_or_404(Submission.objects.select_related("user", "user__profile"), pk=submission_id)
     can_access = submission.id in session_submission_ids or (request.user.is_authenticated and submission.user_id == request.user.id)
     if not can_access:
         messages.error(request, "Open your own test result before starting Official Review.")
-        return redirect(room_link("level_test", room) if room else "level_test")
+        return redirect(room_link(source_view, room) if room else source_view)
 
     if submission.status != Submission.STATUS_UNVERIFIED:
         messages.info(request, "This result is already in Official Review or has already been reviewed.")
         if room:
             return redirect("challenge_room", token=room.token)
         request.session["last_test_submission_id"] = submission.id
-        return redirect(room_link("level_test", room) if room else "level_test")
+        return redirect(room_link(source_view, room) if room else source_view)
 
     if request.method == "POST":
         proof_link = (request.POST.get("proof_link") or "").strip()
         video_file = request.FILES.get("video_file")
         if not proof_link and not video_file:
             messages.error(request, "Add one proof link or upload one proof file to start Official Review.")
-            return render(request, "test_proof.html", {"submission": submission, "challenge_room": room})
+            return render(request, template_name, {"submission": submission, "challenge_room": room, "is_cz": source_view == "level_test_cz"})
 
         submission.video_link = proof_link
         if video_file:
@@ -2530,16 +2541,23 @@ def test_submission_proof(request, submission_id):
         if room:
             return redirect("challenge_room", token=room.token)
         request.session["last_test_submission_id"] = submission.id
-        return redirect(room_link("level_test", room) if room else "level_test")
+        return redirect(room_link(source_view, room) if room else source_view)
 
-    return render(request, "test_proof.html", {"submission": submission, "challenge_room": room})
+    return render(request, template_name, {"submission": submission, "challenge_room": room, "is_cz": source_view == "level_test_cz"})
 
 
-def test_session_official(request):
+def test_submission_proof(request, submission_id):
+    return _test_submission_proof(request, submission_id, "level_test", "test_proof.html")
+
+
+def test_submission_proof_cz(request, submission_id):
+    return _test_submission_proof(request, submission_id, "level_test_cz", "test_proof_cz.html")
+
+
+def _test_session_official(request, source_view, self_view, template_name):
     room = get_room_from_request(request)
     submissions = get_test_journey_submissions(request)
     if not submissions and request.user.is_authenticated:
-        # Session expired or different device — reconstruct from DB and rebuild session
         db_submissions = list(
             request.user.submission_set.filter(
                 status__in=[Submission.STATUS_UNVERIFIED, Submission.STATUS_PENDING]
@@ -2548,7 +2566,6 @@ def test_session_official(request):
         for sub in db_submissions:
             remember_test_submission(request, sub)
         submissions = get_test_journey_submissions(request)
-    # Fallback for anonymous users whose session expired but still have a claim token
     if not submissions:
         claim_token = request.session.get("test_claim_token") or request.GET.get("claim")
         if claim_token:
@@ -2563,7 +2580,7 @@ def test_session_official(request):
             submissions = get_test_journey_submissions(request)
     if not submissions:
         messages.error(request, "Complete a test result before starting Official Review.")
-        return redirect(room_link("level_test", room) if room else "level_test")
+        return redirect(room_link(source_view, room) if room else source_view)
     progress = build_test_progress(request, room=room)
     proof_rows = []
     for row in progress["rows"]:
@@ -2585,16 +2602,16 @@ def test_session_official(request):
         submission = next((row["submission"] for row in proof_rows if str(row["submission"].id) == str(submission_id)), None)
         if not submission:
             messages.error(request, "Choose one of your completed test results.")
-            return redirect(room_link("test_session_official", room) if room else "test_session_official")
+            return redirect(room_link(self_view, room) if room else self_view)
         if submission.status != Submission.STATUS_UNVERIFIED:
             messages.info(request, f"{submission.discipline_label} is already in Official Review or has already been reviewed.")
-            return redirect(room_link("test_session_official", room) if room else "test_session_official")
+            return redirect(room_link(self_view, room) if room else self_view)
 
         proof_link = (request.POST.get("proof_link") or "").strip()
         video_file = request.FILES.get("video_file")
         if not proof_link and not video_file:
             messages.error(request, "Add one proof link or upload one proof file to start Official Review.")
-            return render(request, "test_session_official.html", {"proof_rows": proof_rows, "test_progress": progress, "challenge_room": room})
+            return render(request, template_name, {"proof_rows": proof_rows, "test_progress": progress, "challenge_room": room, "is_cz": template_name.endswith("_cz.html")})
 
         submission.video_link = proof_link
         if video_file:
@@ -2615,39 +2632,48 @@ def test_session_official(request):
         remember_test_submission(request, submission)
         attach_submission_to_room(room, submission, build_room_participant_key(request, submission))
         messages.success(request, f"Official Review started for {submission.discipline_label}.")
-        return redirect(room_link("test_session_official", room) if room else "test_session_official")
+        return redirect(room_link(self_view, room) if room else self_view)
 
-    return render(
-        request,
-        "test_session_official.html",
-        {
-            "proof_rows": proof_rows,
-            "test_progress": progress,
-            "challenge_room": room,
-        },
-    )
+    return render(request, template_name, {"proof_rows": proof_rows, "test_progress": progress, "challenge_room": room, "is_cz": template_name.endswith("_cz.html")})
 
 
-def test_result_share(request, token):
+def test_session_official(request):
+    return _test_session_official(request, "level_test", "test_session_official", "test_session_official.html")
+
+
+def test_session_official_cz(request):
+    return _test_session_official(request, "level_test_cz", "test_session_official_cz", "test_session_official_cz.html")
+
+
+def _test_result_share(request, token, template_name):
     submissions = submissions_from_test_result_token(token)
     if not submissions:
         raise Http404("Test result not found")
     progress = build_test_progress_from_submissions(submissions)
     owner = progress["completed_submissions"][0].name if progress["completed_submissions"] else "Earned Club athlete"
+    is_cz = template_name.endswith("_cz.html")
     return render(
         request,
-        "test_result_share.html",
+        template_name,
         {
             "owner_name": owner,
             "test_progress": progress,
-            "try_url": reverse("level_test"),
-            "leaderboard_url": f"{reverse('leaderboard')}#full-leaderboard",
-            "tiers_url": f"{reverse('home')}#rank-tiers",
+            "try_url": reverse("level_test_cz" if is_cz else "level_test"),
+            "leaderboard_url": f"{reverse('leaderboard_cz' if is_cz else 'leaderboard')}#full-leaderboard",
+            "tiers_url": f"{reverse('home_cz' if is_cz else 'home')}#rank-tiers",
         },
     )
 
 
-def rank(request):
+def test_result_share(request, token):
+    return _test_result_share(request, token, "test_result_share.html")
+
+
+def test_result_share_cz(request, token):
+    return _test_result_share(request, token, "test_result_share_cz.html")
+
+
+def _rank(request, template_name):
     raw_scores = {
         Submission.DISCIPLINE_PUSHUPS: (request.GET.get("pushups") or request.GET.get("reps") or "").strip(),
         Submission.DISCIPLINE_PULLUPS: (request.GET.get("pullups") or "").strip(),
@@ -2689,11 +2715,12 @@ def rank(request):
         "completion_percent": round((len(points) / len(ACTIVE_DISCIPLINE_KEYS)) * 100),
         "breakdown": hybrid_breakdown,
     }
-    submit_url = f"{reverse('level_test')}?{first_submit_params}" if first_submit_params else reverse("test_session_official")
+    is_cz = template_name.endswith("_cz.html")
+    submit_url = f"{reverse('level_test_cz' if is_cz else 'level_test')}?{first_submit_params}" if first_submit_params else reverse("test_session_official_cz" if is_cz else "test_session_official")
 
     return render(
         request,
-        "rank.html",
+        template_name,
         {
             "hybrid_estimate": hybrid_estimate,
             "submit_url": submit_url,
@@ -2703,8 +2730,17 @@ def rank(request):
             "discipline_point_tiers": build_discipline_point_tiers(),
             "has_rank_input": any(raw_scores.values()),
             "raw_scores": raw_scores,
+            "is_cz": is_cz,
         },
     )
+
+
+def rank(request):
+    return _rank(request, "rank.html")
+
+
+def rank_cz(request):
+    return _rank(request, "rank_cz.html")
 
 
 def sitemap_xml(request):
@@ -2729,7 +2765,7 @@ def robots_txt(request):
     return HttpResponse("\n".join(lines), content_type="text/plain")
 
 
-def leaderboard(request, discipline_key=None):
+def _leaderboard(request, discipline_key, template_name):
     query = (request.GET.get("q") or "").strip()
     active_mode = get_leaderboard_mode(request)
     active_discipline = get_leaderboard_discipline(request, discipline_key)
@@ -2780,8 +2816,17 @@ def leaderboard(request, discipline_key=None):
         "weekly_count": weekly_count,
         "recent_activity": build_recent_activity_items(),
         "query": query,
+        "is_cz": template_name.endswith("_cz.html"),
     }
-    return render(request, "leaderboard.html", context)
+    return render(request, template_name, context)
+
+
+def leaderboard(request, discipline_key=None):
+    return _leaderboard(request, discipline_key, "leaderboard.html")
+
+
+def leaderboard_cz(request, discipline_key=None):
+    return _leaderboard(request, discipline_key, "leaderboard_cz.html")
 
 
 def claim_token_view(request, token):
@@ -2812,12 +2857,12 @@ def claim_token_view(request, token):
     return redirect(f"{reverse('register')}?claim={token}")
 
 
-def register(request):
+def _register(request, template_name, default_next):
     if request.user.is_authenticated:
         return redirect("dashboard")
 
     room = get_room_from_request(request)
-    next_url = request.GET.get("next") or request.POST.get("next") or (room_url(room) if room else "")
+    next_url = request.GET.get("next") or request.POST.get("next") or (room_url(room) if room else "") or default_next
     if request.method == "POST":
         form = FlexibleUsernameCreationForm(request.POST)
         email = (request.POST.get("email") or "").strip().lower()
@@ -2830,7 +2875,6 @@ def register(request):
             profile.slug = ""
             profile.save()
             attached_count = attach_test_session_submissions_to_user(request, user)
-            # Also attach any submissions tied to a claim token (cross-session recovery)
             claim_token = request.session.pop("pending_claim_token", None) or request.GET.get("claim") or request.POST.get("claim")
             if claim_token:
                 token_attached = Submission.objects.filter(claim_token=claim_token, user__isnull=True).update(
@@ -2848,20 +2892,29 @@ def register(request):
 
     return render(
         request,
-        "register.html",
+        template_name,
         {
             "form": form,
             "prefill_username": (request.GET.get("name") or "").strip(),
             "prefill_email": (request.GET.get("email") or "").strip(),
             "next_url": next_url,
             "challenge_room": room,
+            "is_cz": template_name.endswith("_cz.html"),
         },
     )
 
 
-def login_view(request):
+def register(request):
+    return _register(request, "register.html", "")
+
+
+def register_cz(request):
+    return _register(request, "register_cz.html", "")
+
+
+def _login_view(request, template_name, default_redirect):
     if request.user.is_authenticated:
-        return redirect("dashboard")
+        return redirect(default_redirect)
 
     room = get_room_from_request(request)
     form = AuthenticationForm(request, data=request.POST or None)
@@ -2869,7 +2922,6 @@ def login_view(request):
         user = form.get_user()
         login(request, user)
         attached_count = attach_test_session_submissions_to_user(request, user)
-        # Attach any submissions linked to a claim token (cross-device recovery path)
         claim_token = request.GET.get("claim") or request.POST.get("claim") or request.session.pop("pending_claim_token", None)
         if claim_token:
             token_attached = Submission.objects.filter(claim_token=claim_token, user__isnull=True).update(
@@ -2881,10 +2933,18 @@ def login_view(request):
         messages.success(request, "Welcome back.")
         if attached_count:
             messages.success(request, f"{attached_count} test result(s) are now saved to your profile.")
-        next_url = request.GET.get("next") or (room_url(room) if room else "dashboard")
+        next_url = request.GET.get("next") or (room_url(room) if room else default_redirect)
         return redirect(next_url)
 
-    return render(request, "login.html", {"form": form, "challenge_room": room})
+    return render(request, template_name, {"form": form, "challenge_room": room, "is_cz": template_name.endswith("_cz.html")})
+
+
+def login_view(request):
+    return _login_view(request, "login.html", "dashboard")
+
+
+def login_cz(request):
+    return _login_view(request, "login_cz.html", "dashboard_cz")
 
 
 def logout_view(request):
@@ -2894,7 +2954,7 @@ def logout_view(request):
 
 
 @login_required
-def dashboard(request):
+def _dashboard(request, template_name="dashboard.html", redirect_name="dashboard"):
     profile = request.user.profile
     if request.method == "POST":
         form_type = request.POST.get("form_type", "profile")
@@ -2905,7 +2965,7 @@ def dashboard(request):
             goal_type = goal_exercise or request.POST.get("goal_type") or Goal.GOAL_PUSHUPS
             if goal_type in DISCIPLINE_CONFIG and not is_active_discipline(goal_type):
                 messages.error(request, "That discipline is temporarily unavailable for new goals.")
-                return redirect("dashboard")
+                return redirect(redirect_name)
             target_raw = request.POST.get("rank_target" if goal_kind == "rank" else "target_value")
             note = (request.POST.get("note") or "").strip()
             is_public = request.POST.get("is_public") == "on"
@@ -2916,15 +2976,15 @@ def dashboard(request):
                     target_value = int(target_raw)
             except (TypeError, ValueError):
                 messages.error(request, "Goal target must be a whole number or a valid time.")
-                return redirect("dashboard")
+                return redirect(redirect_name)
             if target_value <= 0:
                 messages.error(request, "Goal target must be greater than zero.")
-                return redirect("dashboard")
+                return redirect(redirect_name)
             if goal_type in {Goal.GOAL_5K, Goal.GOAL_10K}:
                 score_error = validate_submission_score(target_value, goal_type)
                 if score_error:
                     messages.error(request, score_error)
-                    return redirect("dashboard")
+                    return redirect(redirect_name)
             hybrid_summary = build_hybrid_breakdown(request.user)
             current_value = get_goal_current_value(request.user, goal_type, hybrid_summary=hybrid_summary)
             if goal_kind == "rank":
@@ -2934,17 +2994,17 @@ def dashboard(request):
                 }
                 if target_value not in available_values:
                     messages.error(request, "Choose a rank above your current level.")
-                    return redirect("dashboard")
+                    return redirect(redirect_name)
             elif current_value is not None:
                 if goal_type in {Goal.GOAL_5K, Goal.GOAL_10K} and target_value >= current_value:
                     messages.error(request, "Running goals must be faster than your current verified best.")
-                    return redirect("dashboard")
+                    return redirect(redirect_name)
                 if goal_type not in {Goal.GOAL_5K, Goal.GOAL_10K} and target_value <= current_value:
                     messages.error(request, "Goal target must be higher than your current verified best.")
-                    return redirect("dashboard")
+                    return redirect(redirect_name)
             Goal.objects.create(user=request.user, goal_type=goal_type, target_value=target_value, note=note, is_public=is_public)
             messages.success(request, "Goal saved.")
-            return redirect("dashboard")
+            return redirect(redirect_name)
 
         if form_type == "workout":
             workout, error = create_workout_from_request(request)
@@ -2952,7 +3012,7 @@ def dashboard(request):
                 messages.error(request, error)
             else:
                 messages.success(request, "Workout saved.")
-            return redirect("dashboard")
+            return redirect(redirect_name)
 
         if form_type == "quick_result":
             exercise_name = (request.POST.get("quick_exercise") or "Quick result").strip()
@@ -2960,11 +3020,11 @@ def dashboard(request):
             seconds = parse_positive_int(request.POST.get("quick_seconds"))
             if not reps and not seconds:
                 messages.error(request, "Add reps or time for quick log.")
-                return redirect("dashboard")
+                return redirect(redirect_name)
             workout = Workout.objects.create(user=request.user, title=f"Quick log - {exercise_name}")
             WorkoutExercise.objects.create(workout=workout, name=exercise_name, reps=reps, seconds=seconds)
             messages.success(request, "Quick log saved.")
-            return redirect("dashboard")
+            return redirect(redirect_name)
 
         username = (request.POST.get("username") or "").strip()
         email = (request.POST.get("email") or "").strip().lower()
@@ -2976,17 +3036,17 @@ def dashboard(request):
 
         if username and User.objects.filter(username=username).exclude(pk=request.user.pk).exists():
             messages.error(request, "This username is already taken.")
-            return redirect("dashboard")
+            return redirect(redirect_name)
 
         if age:
             try:
                 age_value = int(age)
             except ValueError:
                 messages.error(request, "Age must be a whole number.")
-                return redirect("dashboard")
+                return redirect(redirect_name)
             if age_value < 13 or age_value > 100:
                 messages.error(request, "Age must be between 13 and 100.")
-                return redirect("dashboard")
+                return redirect(redirect_name)
         else:
             age_value = None
 
@@ -3018,7 +3078,7 @@ def dashboard(request):
             ]
         )
         messages.success(request, "Profile updated.")
-        return redirect("dashboard")
+        return redirect(redirect_name)
 
     verified_submissions = request.user.submission_set.filter(status=Submission.STATUS_VERIFIED)
     pending_submissions = request.user.submission_set.filter(status=Submission.STATUS_PENDING)
@@ -3111,8 +3171,19 @@ def dashboard(request):
         "improvement_recommendation": improvement_recommendation,
         "profile_share_message": get_profile_share_message(profile, request),
         "pr_share_message": get_pr_share_message(profile, request),
+        "is_cz": template_name.endswith("_cz.html"),
     }
-    return render(request, "dashboard.html", context)
+    return render(request, template_name, context)
+
+
+@login_required
+def dashboard(request):
+    return _dashboard(request)
+
+
+@login_required
+def dashboard_cz(request):
+    return _dashboard(request, "dashboard_cz.html", "dashboard_cz")
 
 
 @require_POST
@@ -3152,7 +3223,36 @@ def profiles(request):
     )
 
 
-def athlete_profile(request, slug):
+def profiles_cz(request):
+    query = (request.GET.get("q") or "").strip()
+    profiles_with_scores = Profile.objects.select_related("user").order_by("display_name")
+    if query:
+        profiles_with_scores = profiles_with_scores.filter(
+            Q(display_name__icontains=query)
+            | Q(user__username__icontains=query)
+            | Q(country__icontains=query)
+        )
+    hybrid_positions = {row["user"].id: row["position"] for row in build_hybrid_leaderboard_rows() if row["user"]}
+    profile_rows = [
+        {
+            "profile": profile,
+            "hybrid_summary": build_hybrid_breakdown(profile.user),
+            "hybrid_rank_position": hybrid_positions.get(profile.user_id),
+        }
+        for profile in profiles_with_scores
+    ]
+    return render(
+        request,
+        "profiles_cz.html",
+        {
+            "profiles": paginate_items(request, profile_rows, per_page=10),
+            "query": query,
+            "is_cz": True,
+        },
+    )
+
+
+def _athlete_profile(request, slug, template_name):
     profile = get_object_or_404(Profile, slug=slug)
     verified_submissions = profile.user.submission_set.filter(status=Submission.STATUS_VERIFIED)
     best_submission = get_best_verified_submission_for_user(profile.user)
@@ -3220,20 +3320,37 @@ def athlete_profile(request, slug):
         "profile_share_message": get_profile_share_message(profile, request),
         "pr_share_message": get_pr_share_message(profile, request),
     }
-    return render(request, "athlete_profile.html", context)
+    return render(request, template_name, context)
+
+
+def athlete_profile(request, slug):
+    return _athlete_profile(request, slug, "athlete_profile.html")
+
+
+def athlete_profile_cz(request, slug):
+    return _athlete_profile(request, slug, "athlete_profile_cz.html")
+
+
+def _social_list(request, slug, kind, template_name):
+    profile = get_object_or_404(Profile, slug=slug)
+    is_cz = template_name.endswith("_cz.html")
+    if kind == "following":
+        users = User.objects.filter(follower_links__follower=profile.user).select_related("profile").order_by("profile__display_name")
+        title = f"{profile.display_name} sleduje" if is_cz else f"{profile.display_name} follows"
+    elif kind == "followers":
+        users = User.objects.filter(following_links__following=profile.user).select_related("profile").order_by("profile__display_name")
+        title = f"Sledovatelé {profile.display_name}" if is_cz else f"{profile.display_name}'s followers"
+    else:
+        return redirect("athlete_profile_cz" if is_cz else "athlete_profile", slug=profile.slug)
+    return render(request, template_name, {"profile": profile, "users": users, "kind": kind, "title": title})
 
 
 def social_list(request, slug, kind):
-    profile = get_object_or_404(Profile, slug=slug)
-    if kind == "following":
-        users = User.objects.filter(follower_links__follower=profile.user).select_related("profile").order_by("profile__display_name")
-        title = f"{profile.display_name} follows"
-    elif kind == "followers":
-        users = User.objects.filter(following_links__following=profile.user).select_related("profile").order_by("profile__display_name")
-        title = f"{profile.display_name}'s followers"
-    else:
-        return redirect("athlete_profile", slug=profile.slug)
-    return render(request, "social_list.html", {"profile": profile, "users": users, "kind": kind, "title": title})
+    return _social_list(request, slug, kind, "social_list.html")
+
+
+def social_list_cz(request, slug, kind):
+    return _social_list(request, slug, kind, "social_list_cz.html")
 
 
 def _effective_points(item):
@@ -3293,7 +3410,7 @@ def build_comparison_profile_notes(summary):
     return {"strengths": strengths, "weaknesses": weaknesses}
 
 
-def comparison_index(request):
+def _comparison_index(request, template_name, redirect_name):
     query = (request.GET.get("q") or "").strip()
     profiles = Profile.objects.select_related("user").order_by("display_name")
     if query:
@@ -3309,11 +3426,11 @@ def comparison_index(request):
         left_slug = (request.POST.get("left") or "").strip()
         right_slug = (request.POST.get("right") or "").strip()
         if left_slug and right_slug and left_slug != right_slug:
-            return redirect("comparison", left=left_slug, right=right_slug)
+            return redirect(redirect_name, left=left_slug, right=right_slug)
         messages.error(request, "Choose two different athlete profiles to compare.")
     return render(
         request,
-        "comparison.html",
+        template_name,
         {
             "is_picker": True,
             "profiles": profile_rows,
@@ -3322,7 +3439,15 @@ def comparison_index(request):
     )
 
 
-def comparison(request, left, right):
+def comparison_index(request):
+    return _comparison_index(request, "comparison.html", "comparison")
+
+
+def comparison_index_cz(request):
+    return _comparison_index(request, "comparison_cz.html", "comparison_cz")
+
+
+def _comparison(request, left, right, template_name):
     left_profile = get_object_or_404(Profile, slug=left)
     right_profile = get_object_or_404(Profile, slug=right)
     left_summary = build_hybrid_breakdown(left_profile.user)
@@ -3334,26 +3459,28 @@ def comparison(request, left, right):
     right_score = right_summary["score"] or right_summary["open_score"]
     score_margin = abs(left_score - right_score)
     completion_margin = abs(left_summary["verified_count"] - right_summary["verified_count"])
+    is_cz = template_name.endswith("_cz.html")
     if left_score > right_score:
         winner_profile = left_profile
-        result_label = f"{left_profile.display_name} leads by {score_margin} Hybrid points"
+        result_label = f"{left_profile.display_name} vede o {score_margin} Hybrid bodů" if is_cz else f"{left_profile.display_name} leads by {score_margin} Hybrid points"
     elif right_score > left_score:
         winner_profile = right_profile
-        result_label = f"{right_profile.display_name} leads by {score_margin} Hybrid points"
+        result_label = f"{right_profile.display_name} vede o {score_margin} Hybrid bodů" if is_cz else f"{right_profile.display_name} leads by {score_margin} Hybrid points"
     else:
         winner_profile = None
-        result_label = "Dead even on Hybrid Score"
+        result_label = "Naprosto vyrovnáno na Hybrid Score" if is_cz else "Dead even on Hybrid Score"
     comparison_rows = build_comparison_discipline_rows(left_summary, right_summary)
     left_notes = build_comparison_profile_notes(left_summary)
     right_notes = build_comparison_profile_notes(right_summary)
-    share_url = request.build_absolute_uri(reverse("comparison", args=[left_profile.slug, right_profile.slug]))
+    url_name = "comparison_cz" if is_cz else "comparison"
+    share_url = request.build_absolute_uri(reverse(url_name, args=[left_profile.slug, right_profile.slug]))
     share_text = f"{left_profile.display_name} vs {right_profile.display_name} on Earned Club: {result_label}. {share_url}"
     joined_profiles = [left_profile, right_profile]
     if request.user.is_authenticated and request.user.profile not in joined_profiles:
         joined_profiles.append(request.user.profile)
     return render(
         request,
-        "comparison.html",
+        template_name,
         {
             "left_profile": left_profile,
             "right_profile": right_profile,
@@ -3377,6 +3504,14 @@ def comparison(request, left, right):
             "joined_profiles": joined_profiles,
         },
     )
+
+
+def comparison(request, left, right):
+    return _comparison(request, left, right, "comparison.html")
+
+
+def comparison_cz(request, left, right):
+    return _comparison(request, left, right, "comparison_cz.html")
 
 
 @require_POST
@@ -3413,34 +3548,45 @@ def challenge_room_create(request):
     return render(request, "challenge_room_create.html", {"focus_choices": focus_choices})
 
 
-def challenge_room_detail(request, token):
+def _challenge_room_detail(request, token, template_name):
     room = get_room_from_token(token)
     if not room:
         raise Http404("Challenge room not found")
+    is_cz = template_name.endswith("_cz.html")
+    redirect_name = "challenge_room_cz" if is_cz else "challenge_room"
     if token != room.token:
-        return redirect("challenge_room", token=room.token)
+        return redirect(redirect_name, token=room.token)
     request.session["active_challenge_room"] = room.token
     rows = build_room_leaderboard(room)
     share_url = request.build_absolute_uri(room_url(room))
-    submit_url = room_link("challenge", room)
-    join_url = room_link("level_test", room)
-    register_url = room_link("register", room)
-    login_url = room_link("login", room)
+    submit_url = room_link("challenge_cz" if is_cz else "challenge", room)
+    join_url = room_link("level_test_cz" if is_cz else "level_test", room)
+    register_url = room_link("register_cz" if is_cz else "register", room)
+    login_url = room_link("login_cz" if is_cz else "login", room)
+    share_text = f"Připoj se k mé EarnedClub výzvě a porovnej své skóre. {share_url}" if is_cz else f"Join my EarnedClub challenge and compare your score. {share_url}"
     return render(
         request,
-        "challenge_room.html",
+        template_name,
         {
             "room": room,
             "leaderboard_rows": rows,
             "winner": rows[0] if rows else None,
             "share_url": share_url,
-            "share_text": f"Join my EarnedClub challenge and compare your score. {share_url}",
+            "share_text": share_text,
             "submit_url": submit_url,
             "join_url": join_url,
             "register_url": register_url,
             "login_url": login_url,
         },
     )
+
+
+def challenge_room_detail(request, token):
+    return _challenge_room_detail(request, token, "challenge_room.html")
+
+
+def challenge_room_detail_cz(request, token):
+    return _challenge_room_detail(request, token, "challenge_room_cz.html")
 
 
 @require_POST
@@ -3459,7 +3605,7 @@ def toggle_follow(request, slug):
     return redirect("athlete_profile", slug=slug)
 
 
-def challenge(request):
+def _challenge(request, template_name="challenge.html", redirect_name="challenge"):
     room = get_room_from_request(request)
     verified_submissions = get_official_verified_submissions()
     selected_discipline = get_discipline_config(room_default_discipline(room, (request.POST.get("discipline") if request.method == "POST" else request.GET.get("discipline")) or DISCIPLINE_PUSHUPS))
@@ -3474,6 +3620,7 @@ def challenge(request):
         "form_data": request.GET,
         "form_score": request.GET.get("score") or request.GET.get("reps") or "",
         "show_submit_help": False,
+        "is_cz": template_name.endswith("_cz.html"),
     }
     if request.user.is_authenticated:
         context["profile"] = request.user.profile
@@ -3501,14 +3648,14 @@ def challenge(request):
 
         if request.POST.get("website"):
             messages.success(request, "Submission received. If it passes review, it will appear on the leaderboard.")
-            return redirect("challenge")
+            return redirect(redirect_name)
 
         if not name or not score_raw:
             messages.error(request, "Please fill in your name and performance before submitting.")
             context["form_data"] = request.POST
             context["form_score"] = score_raw
             context["show_submit_help"] = True
-            return render(request, "challenge.html", context)
+            return render(request, template_name, context)
 
         try:
             score_value = parse_submission_score(score_raw, discipline)
@@ -3517,7 +3664,7 @@ def challenge(request):
             context["form_data"] = request.POST
             context["form_score"] = score_raw
             context["show_submit_help"] = True
-            return render(request, "challenge.html", context)
+            return render(request, template_name, context)
 
         score_error = validate_submission_score(score_value, discipline)
         if score_error:
@@ -3525,28 +3672,28 @@ def challenge(request):
             context["form_data"] = request.POST
             context["form_score"] = score_raw
             context["show_submit_help"] = True
-            return render(request, "challenge.html", context)
+            return render(request, template_name, context)
 
         if discipline == Submission.DISCIPLINE_PUSHUPS and not request.user.is_authenticated and score_value > 40:
             messages.error(request, "Anonymous push-up submissions above 40 need login and video proof.")
             context["form_data"] = request.POST
             context["form_score"] = score_raw
             context["show_submit_help"] = True
-            return render(request, "challenge.html", context)
+            return render(request, template_name, context)
 
         if requires_proof(score_value, discipline) and not (video_file or proof_link):
             messages.error(request, f"{selected_discipline['label']} elite-level results need proof before they can be submitted.")
             context["form_data"] = request.POST
             context["form_score"] = score_raw
             context["show_submit_help"] = True
-            return render(request, "challenge.html", context)
+            return render(request, template_name, context)
 
         if not (video_file or proof_link) and needs_proof_before_open_leaderboard(score_value, discipline):
             messages.error(request, open_leaderboard_proof_message())
             context["form_data"] = request.POST
             context["form_score"] = score_raw
             context["show_submit_help"] = True
-            return render(request, "challenge.html", context)
+            return render(request, template_name, context)
 
         active_filter = blocking_submission_queryset(discipline)
         if request.user.is_authenticated:
@@ -3592,7 +3739,7 @@ def challenge(request):
                 request.session["last_submission_id"] = active_submission.id
                 if room:
                     return redirect("challenge_room", token=room.token)
-                return redirect("challenge")
+                return redirect(redirect_name)
 
             if active_submission.status == Submission.STATUS_PENDING:
                 messages.info(
@@ -3608,18 +3755,18 @@ def challenge(request):
             context["form_score"] = score_raw
             context["active_submission"] = active_submission
             context["show_submit_help"] = True
-            return render(request, "challenge.html", context)
+            return render(request, template_name, context)
 
         blocker = find_submission_blocker(request, name, email, score_value, discipline)
         if blocker == "silent":
             messages.success(request, "Submission received. If it passes review, it will appear on the leaderboard.")
-            return redirect("challenge")
+            return redirect(redirect_name)
         if blocker:
             messages.error(request, blocker)
             context["form_data"] = request.POST
             context["form_score"] = score_raw
             context["show_submit_help"] = True
-            return render(request, "challenge.html", context)
+            return render(request, template_name, context)
 
         estimated_position = estimate_verified_position(score_value, discipline)
         submission = Submission.objects.create(
@@ -3674,9 +3821,17 @@ def challenge(request):
         if room:
             messages.info(request, "Your result is now inside the challenge room.")
             return redirect("challenge_room", token=room.token)
-        return redirect("challenge")
+        return redirect(redirect_name)
 
-    return render(request, "challenge.html", context)
+    return render(request, template_name, context)
+
+
+def challenge(request):
+    return _challenge(request)
+
+
+def challenge_cz(request):
+    return _challenge(request, "challenge_cz.html", "challenge_cz")
 
 
 @require_POST
@@ -4252,31 +4407,48 @@ def newsletter_unsubscribe(request, token):
     return redirect("home")
 
 
-def calculators(request):
+def _calculators(request, template_name):
     prompts = ContentEnginePrompt.objects.filter(is_active=True)
     return render(
         request,
-        "calculators.html",
+        template_name,
         {
             "rank_tiers": RANK_TIERS,
             "content_prompts": prompts,
             "discipline_cards": active_discipline_configs(),
             "discipline_point_tiers": build_discipline_point_tiers(),
             "hybrid_ranks": HYBRID_RANKS,
+            "is_cz": template_name.endswith("_cz.html"),
         },
     )
 
 
-def workout_detail(request, slug):
+def calculators(request):
+    return _calculators(request, "calculators.html")
+
+
+def calculators_cz(request):
+    return _calculators(request, "calculators_cz.html")
+
+
+def _workout_detail(request, slug, template_name):
     workout = get_object_or_404(Workout.objects.prefetch_related("exercises").select_related("user", "user__profile"), slug=slug)
     if not workout.is_public and (not request.user.is_authenticated or workout.user != request.user):
         messages.error(request, "This workout is private.")
         return redirect("home")
-    return render(request, "workout_detail.html", {"workout": workout})
+    return render(request, template_name, {"workout": workout})
+
+
+def workout_detail(request, slug):
+    return _workout_detail(request, slug, "workout_detail.html")
+
+
+def workout_detail_cz(request, slug):
+    return _workout_detail(request, slug, "workout_detail_cz.html")
 
 
 @login_required
-def workouts(request):
+def _workouts(request, template_name="workouts.html", redirect_name="workouts"):
     ensure_system_workout_templates()
     if request.method == "POST":
         form_type = request.POST.get("form_type", "workout")
@@ -4295,10 +4467,10 @@ def workouts(request):
             seconds = parse_positive_int(request.POST.get("quick_seconds"))
             if exercise_type == WorkoutExercise.TYPE_CARDIO and not seconds:
                 messages.error(request, "Cardio quick logs need a time.")
-                return redirect("workouts")
+                return redirect(redirect_name)
             if exercise_type != WorkoutExercise.TYPE_CARDIO and not reps:
                 messages.error(request, "Strength quick logs need reps.")
-                return redirect("workouts")
+                return redirect(redirect_name)
             workout = Workout.objects.create(user=request.user, title=f"Quick log - {exercise_name}")
             WorkoutExercise.objects.create(
                 workout=workout,
@@ -4310,7 +4482,7 @@ def workouts(request):
                 seconds=seconds,
             )
             messages.success(request, "Quick log saved.")
-            return redirect("workouts")
+            return redirect(redirect_name)
 
         workout, error = create_workout_from_request(request)
         if error:
@@ -4321,7 +4493,7 @@ def workouts(request):
                 messages.success(request, f"{workout.title} started.")
                 return redirect("workout_session_detail", session_id=session.id)
             messages.success(request, "Workout saved.")
-        return redirect("workouts")
+        return redirect(redirect_name)
 
     workout_query = (request.GET.get("q") or "").strip()
     workouts_qs = request.user.workouts.prefetch_related("exercises").order_by("-created_at")
@@ -4347,7 +4519,7 @@ def workouts(request):
     random.shuffle(template_cards)
     return render(
         request,
-        "workouts.html",
+        template_name,
         {
             "workouts": workout_page,
             "workout_query": workout_query,
@@ -4364,8 +4536,19 @@ def workouts(request):
             "default_exercises": DEFAULT_EXERCISES,
             "body_parts": BODY_PARTS,
             "active_workout_session": request.user.workout_sessions.filter(status=WorkoutSession.STATUS_ACTIVE).select_related("workout").first(),
+            "is_cz": template_name.endswith("_cz.html"),
         },
     )
+
+
+@login_required
+def workouts(request):
+    return _workouts(request)
+
+
+@login_required
+def workouts_cz(request):
+    return _workouts(request, "workouts_cz.html", "workouts_cz")
 
 
 @require_POST
@@ -4540,12 +4723,24 @@ def privacy(request):
     return render(request, "privacy.html")
 
 
+def privacy_cz(request):
+    return render(request, "privacy_cz.html")
+
+
 def terms(request):
     return render(request, "terms.html")
 
 
+def terms_cz(request):
+    return render(request, "terms_cz.html")
+
+
 def verification_rules(request):
     return render(request, "verification_rules.html")
+
+
+def verification_rules_cz(request):
+    return render(request, "verification_rules_cz.html")
 
 
 def spoluprace(request):

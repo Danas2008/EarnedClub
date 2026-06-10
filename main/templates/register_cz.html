@@ -1,0 +1,61 @@
+{% extends "base_cz.html" %}
+
+{% block title %}Získej svůj atletický profil{% endblock %}
+{% block meta_description %}Získej svůj atletický profil Earned Club — ulož Hybrid Score, zveřejni výsledky, odemkni odznaky a sleduj pokrok v čase.{% endblock %}
+
+{% block content %}
+<section class="card-dark auth-card">
+    <div class="eyebrow">Získat profil</div>
+    <h1>Získej svůj atletický profil.</h1>
+    <p class="muted">Ulož Hybrid Score, zveřejni výsledky, odemkni odznaky, sleduj pokrok a zapoj se do výzev s reální atletickou identitou.</p>
+
+    <form class="submission-form" method="POST">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ next_url }}">
+        {% if challenge_room %}<input type="hidden" name="room" value="{{ challenge_room.token }}">{% endif %}
+
+        {% if form.errors %}
+            <div class="mini-card">
+                <p class="muted" style="margin-bottom: 0;">Zkontroluj níže uvedená pole a zkus to znovu.</p>
+            </div>
+        {% endif %}
+
+        <div>
+            <label class="field-label" for="{{ form.username.id_for_label }}">Uživatelské jméno</label>
+            {{ form.username }}
+            {% for error in form.username.errors %}<div class="hint">{{ error }}</div>{% endfor %}
+        </div>
+
+        <div>
+            <label class="field-label" for="email">E-mail</label>
+            <input id="email" class="input" type="email" name="email" value="{{ prefill_email }}" placeholder="ty@example.com">
+        </div>
+
+        <div>
+            <label class="field-label" for="{{ form.password1.id_for_label }}">Heslo</label>
+            {{ form.password1 }}
+            <div class="hint">Heslo musí mít alespoň 6 znaků. Doporučujeme 8 nebo více.</div>
+            {% for error in form.password1.errors %}<div class="hint">{{ error }}</div>{% endfor %}
+        </div>
+
+        <div>
+            <label class="field-label" for="{{ form.password2.id_for_label }}">Potvrď heslo</label>
+            {{ form.password2 }}
+            {% for error in form.password2.errors %}<div class="hint">{{ error }}</div>{% endfor %}
+        </div>
+
+        <button class="btn-main" type="submit">Získej svůj atletický profil</button>
+        <a class="btn-secondary" href="{% url 'login' %}{% if request.GET.claim %}?claim={{ request.GET.claim }}{% endif %}">Přihlásit se místo toho</a>
+    </form>
+</section>
+
+<script>
+    for (const field of document.querySelectorAll("input")) {
+        field.classList.add("input");
+    }
+    const username = document.getElementById("{{ form.username.id_for_label }}");
+    if (username && !username.value && "{{ prefill_username|escapejs }}") {
+        username.value = "{{ prefill_username|escapejs }}";
+    }
+</script>
+{% endblock %}

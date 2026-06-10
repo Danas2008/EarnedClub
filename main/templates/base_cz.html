@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+
+{% block mobile_dashboard_label %}Dashboard{% endblock %}
+
+{% block nav_items %}
+<ul class="navbar-nav align-items-lg-center">
+    <li class="nav-item">
+        <a class="nav-link" href="{% url 'home_cz' %}">Domů</a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link" href="{% url 'challenge_cz' %}">Výzva</a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link" href="{% url 'leaderboard_cz' %}">Žebříček</a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link" href="{% url 'profiles_cz' %}">Profily</a>
+    </li>
+    {% if request.user.is_authenticated %}
+        <li class="nav-item">
+            <a class="nav-link" href="{% url 'dashboard_cz' %}">Profil</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" href="{% url 'workouts_cz' %}">Tréninky</a>
+        </li>
+        {% if request.user.is_staff %}
+            <li class="nav-item">
+                <a class="nav-link" href="{% url 'admin_menu' %}">Admin</a>
+            </li>
+        {% endif %}
+        <li class="nav-item">
+            <a class="nav-link" href="{% url 'logout' %}">Odhlásit</a>
+        </li>
+    {% else %}
+        <li class="nav-item">
+            <a class="nav-link" href="{% url 'login_cz' %}">Přihlásit</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" href="{% url 'register_cz' %}">Získat profil</a>
+        </li>
+    {% endif %}
+</ul>
+{% endblock nav_items %}
+
+{% block footer_tagline %}Sleduj to. Dokaž to. Získej svůj rank.{% endblock %}
+{% block footer_social_label %}Sociální sítě{% endblock %}
+{% block footer_legal_label %}Právní{% endblock %}
+{% block footer_legal_links %}
+<a href="{% url 'privacy_cz' %}">Ochrana soukromí</a>
+<a href="{% url 'terms_cz' %}">Podmínky použití</a>
+<a href="{% url 'verification_rules_cz' %}">Pravidla verifikace</a>
+{% endblock footer_legal_links %}
+
+{% block cookie_text %}Používáme cookies pro přihlášení, analytiku a zlepšování platformy.{% endblock %}
+{% block cookie_learn_more %}Více informací{% endblock %}
+{% block cookie_accept %}Přijmout{% endblock %}
+{% block floating_cta_href %}{% url 'level_test_cz' %}{% endblock %}
+{% block floating_cta_label %}Odeslat skóre{% endblock %}

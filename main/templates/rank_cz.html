@@ -1,0 +1,400 @@
+{% extends "base_cz.html" %}
+
+{% block title %}Zjisti svůj Hybrid Score — Earned Club{% endblock %}
+{% block meta_description %}Odhadni svůj Earned Club Hybrid Score v klikách, shybech a běhu 5K, pak odešli důkaz pro officiální status na žebříčku.{% endblock %}
+
+{% block content %}
+<style>
+    .rank-page { display: grid; gap: 16px; }
+    .rank-page > * { margin-bottom: 0; }
+    .section-accent-bar {
+        display: block;
+        width: 30px;
+        height: 3px;
+        border-radius: 999px;
+        background: linear-gradient(90deg, var(--accent), var(--accent-2));
+        margin-bottom: 14px;
+    }
+    .rank-hero-card {
+        position: relative;
+        overflow: hidden;
+        padding: clamp(22px, 4vw, 40px);
+        background:
+            radial-gradient(ellipse at 12% 50%, rgba(247,183,51,0.07), transparent 50%),
+            linear-gradient(145deg, rgba(247,183,51,0.09), transparent 34%),
+            linear-gradient(180deg, rgba(255,255,255,0.045), rgba(255,255,255,0.018)),
+            var(--panel);
+        border-color: rgba(255,255,255,0.11);
+    }
+    .rank-hero-card::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: radial-gradient(circle at 90% 10%, rgba(247,183,51,0.14), transparent 34%);
+        pointer-events: none;
+    }
+    .rank-hero-card::after {
+        content: "";
+        position: absolute;
+        inset: auto 20px 0;
+        height: 1px;
+        background: linear-gradient(90deg, transparent, rgba(247,183,51,0.65), transparent);
+        pointer-events: none;
+    }
+    .rank-hero-card-pattern {
+        position: absolute;
+        inset: 0;
+        background-image: radial-gradient(circle, rgba(255,255,255,0.04) 1px, transparent 1px);
+        background-size: 28px 28px;
+        pointer-events: none;
+    }
+    .rank-hero-grid {
+        position: relative;
+        z-index: 1;
+        display: grid;
+        gap: 24px;
+        align-items: center;
+        max-width: 1040px;
+        margin: 0 auto;
+    }
+    .rank-hero-copy h1 { font-size: clamp(2.6rem, 9vw, 4.4rem); line-height: 0.92; margin-bottom: 14px; }
+    .rank-hero-copy h1 em { font-style: normal; color: var(--accent); }
+    .rank-hero-lead { max-width: 520px; font-size: clamp(1rem, 3vw, 1.22rem); line-height: 1.58; color: var(--muted); margin-bottom: 0; }
+    .rank-stat-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 20px; }
+    .rank-stat-chip { display: inline-flex; align-items: baseline; gap: 6px; padding: 8px 14px; border-radius: var(--radius-sm); border: 1px solid rgba(255,255,255,0.09); background: rgba(255,255,255,0.05); font-size: 0.88rem; color: var(--muted); }
+    .rank-stat-chip strong { font-family: "Archivo", sans-serif; font-size: 1.3rem; font-weight: 900; color: var(--accent); line-height: 1; }
+    .rank-hero-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 20px; }
+    .rank-result-card { position: relative; overflow: hidden; display: grid; gap: 12px; padding: 20px; border-radius: var(--radius-lg); border: 1px solid rgba(247,183,51,0.22); background: linear-gradient(150deg, rgba(247,183,51,0.16), rgba(252,74,26,0.06) 40%, rgba(255,255,255,0.04)), rgba(8,11,15,0.4); box-shadow: 0 24px 56px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.08); max-width: 400px; width: 100%; justify-self: center; }
+    .rank-result-card::before { content: ""; position: absolute; inset: -60px -100px auto auto; width: 200px; height: 200px; border-radius: 50%; background: radial-gradient(circle, rgba(247,183,51,0.2), transparent 70%); pointer-events: none; }
+    .rank-result-card > * { position: relative; z-index: 1; }
+    .rank-preview-card { display: grid; gap: 12px; padding: 20px; border-radius: var(--radius-lg); border: 1px solid rgba(255,255,255,0.1); background: linear-gradient(150deg, rgba(247,183,51,0.1), rgba(255,255,255,0.04)), rgba(255,255,255,0.03); max-width: 400px; width: 100%; justify-self: center; }
+    .rank-score-number { font-family: "Archivo", sans-serif; font-size: clamp(4.5rem, 20vw, 7rem); line-height: 0.78; color: var(--accent); font-weight: 900; letter-spacing: -0.04em; text-shadow: 0 0 60px rgba(247,183,51,0.4), 0 14px 32px rgba(247,183,51,0.12); }
+    .rank-score-example { font-family: "Archivo", sans-serif; font-size: clamp(4rem, 18vw, 6rem); line-height: 0.78; font-weight: 900; letter-spacing: -0.04em; color: rgba(247,183,51,0.3); }
+    .hybrid-rank-badge { display: inline-flex; align-items: center; padding: 7px 12px; border-radius: var(--radius-sm); font-family: "Archivo", sans-serif; font-size: 0.9rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; border: 1px solid; width: fit-content; }
+    .hybrid-rank-badge.rank-beginner     { color: #94a3b8; border-color: rgba(148,163,184,0.35); background: rgba(148,163,184,0.1); }
+    .hybrid-rank-badge.rank-intermediate  { color: #6ba0f5; border-color: rgba(59,130,246,0.35); background: rgba(59,130,246,0.1); }
+    .hybrid-rank-badge.rank-advanced     { color: #ffd77b; border-color: rgba(247,183,51,0.4); background: rgba(247,183,51,0.12); }
+    .hybrid-rank-badge.rank-elite        { color: #ff8a6e; border-color: rgba(252,74,26,0.4); background: rgba(252,74,26,0.12); }
+    .hybrid-rank-badge.rank-legend       { color: #5ee6b0; border-color: rgba(30,157,116,0.4); background: rgba(30,157,116,0.12); }
+    .tier-meter-wrap { display: grid; gap: 8px; }
+    .tier-meter-track { position: relative; height: 10px; border-radius: 999px; background: rgba(255,255,255,0.07); overflow: hidden; }
+    .tier-meter-fill { position: absolute; inset: 0 auto 0 0; border-radius: inherit; background: linear-gradient(90deg, #5a7a90 0%, #2d6db4 35%, #e09818 55%, #e82e0c 75%, #00e07a 100%); transition: width 0.6s ease; }
+    .tier-meter-ticks { display: flex; justify-content: space-between; color: var(--muted); font-size: 0.7rem; font-weight: 700; padding: 0 1px; }
+    .completion-strip { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: var(--radius-sm); background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); font-size: 0.84rem; color: var(--muted); }
+    .completion-dots { display: flex; gap: 4px; }
+    .completion-dot { width: 8px; height: 8px; border-radius: 50%; background: rgba(255,255,255,0.15); }
+    .completion-dot.filled { background: var(--accent); box-shadow: 0 0 6px rgba(247,183,51,0.5); }
+    .calc-inputs { display: grid; gap: 14px; margin-bottom: 16px; }
+    .calc-input-group { display: grid; gap: 6px; }
+    .calc-input-group .field-label { display: flex; align-items: center; gap: 7px; font-size: 0.95rem; font-weight: 700; color: var(--muted); margin-bottom: 0; }
+    .calc-input-hint { font-size: 0.82rem; color: rgba(245,247,251,0.45); line-height: 1.3; padding-left: 2px; }
+    .calc-submit-row { display: flex; gap: 10px; flex-wrap: wrap; }
+    .calc-submit-row .btn-main { flex: 1 1 200px; min-height: 50px; font-size: 1.02rem; box-shadow: 0 12px 28px rgba(247,183,51,0.2); }
+    .calc-submit-row .btn-secondary { min-height: 50px; padding: 10px 20px; }
+    .breakdown-grid { display: grid; gap: 10px; }
+    .breakdown-card { padding: 16px; border: 1px solid rgba(255,255,255,0.08); border-radius: var(--radius-md); background: rgba(255,255,255,0.04); display: grid; gap: 10px; }
+    .breakdown-card.has-score { border-color: rgba(247,183,51,0.15); }
+    .breakdown-header { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .breakdown-label { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .breakdown-discipline-name { font-family: "Archivo", sans-serif; font-weight: 800; font-size: 1rem; display: flex; align-items: center; gap: 7px; }
+    .breakdown-points { font-family: "Archivo", sans-serif; font-size: 1.25rem; font-weight: 900; color: var(--accent); white-space: nowrap; }
+    .points-bar-track { height: 8px; border-radius: 999px; background: rgba(255,255,255,0.07); overflow: hidden; }
+    .points-bar-fill { height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--accent), #ffd77b); transition: width 0.5s ease; min-width: 4px; }
+    .points-bar-fill.empty { background: rgba(255,255,255,0.1); min-width: 0; }
+    .breakdown-meta { font-size: 0.88rem; color: var(--muted); }
+    .rank-cta-row { display: grid; gap: 10px; }
+    .rank-cta-row .btn-main, .rank-cta-row .btn-secondary { width: 100%; min-height: 48px; }
+    .how-hybrid-grid { display: grid; gap: 12px; align-items: start; margin-bottom: 16px; }
+    .how-hybrid-step { padding: 16px; border: 1px solid rgba(255,255,255,0.08); border-radius: var(--radius-md); background: rgba(255,255,255,0.04); position: relative; overflow: hidden; }
+    .how-hybrid-step::before { content: ""; position: absolute; inset: 0 auto 0 0; width: 3px; background: linear-gradient(180deg, var(--accent), transparent); border-radius: var(--radius-md) 0 0 var(--radius-md); }
+    .how-step-num { font-family: "Archivo", sans-serif; font-size: 2.2rem; font-weight: 900; color: rgba(247,183,51,0.16); letter-spacing: -0.04em; line-height: 1; margin-bottom: 6px; }
+    .how-hybrid-step strong { display: block; font-family: "Archivo", sans-serif; font-size: 1rem; margin-bottom: 4px; color: var(--text); }
+    .how-hybrid-step p { margin: 0; font-size: 0.9rem; color: var(--muted); }
+    .how-hybrid-note { padding: 14px 16px; border-radius: var(--radius-md); border-left: 3px solid rgba(247,183,51,0.5); background: rgba(247,183,51,0.06); font-size: 0.93rem; color: var(--muted); }
+    .how-hybrid-note strong { color: #ffd77b; }
+    .point-ref-grid { display: grid; gap: 12px; }
+    .point-ref-card { padding: 16px; border: 1px solid rgba(255,255,255,0.08); border-radius: var(--radius-md); background: rgba(255,255,255,0.04); display: grid; gap: 8px; }
+    .point-ref-header { display: flex; justify-content: space-between; align-items: center; padding-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.07); margin-bottom: 2px; }
+    .point-ref-header strong { font-family: "Archivo", sans-serif; font-size: 1rem; font-weight: 800; display: flex; align-items: center; gap: 7px; }
+    .point-ref-row { display: grid; grid-template-columns: 80px 1fr 48px; gap: 8px; align-items: center; font-size: 0.88rem; }
+    .point-ref-row span:first-child { color: var(--muted); font-weight: 600; font-size: 0.85rem; }
+    .point-bar-mini { height: 5px; border-radius: 999px; background: rgba(255,255,255,0.07); overflow: hidden; }
+    .point-bar-mini-fill { height: 100%; border-radius: inherit; background: linear-gradient(90deg, #2d6db4 0%, #e09818 55%, #00e07a 100%); }
+    .point-ref-pts { text-align: right; font-family: "Archivo", sans-serif; font-weight: 800; font-size: 0.88rem; color: var(--text); }
+    .hybrid-tier-grid { display: grid; gap: 10px; }
+    .hybrid-tier-card { position: relative; padding: 16px 14px 14px 18px; border: 1px solid rgba(255,255,255,0.08); border-radius: var(--radius-md); background: rgba(255,255,255,0.04); overflow: hidden; display: grid; gap: 5px; }
+    .hybrid-tier-card::before { content: ""; position: absolute; inset: 0 auto 0 0; width: 4px; border-radius: var(--radius-md) 0 0 var(--radius-md); background: var(--tier-color, var(--accent)); }
+    .hybrid-tier-card.rank-beginner    { --tier-color:#94a3b8; border-color:rgba(148,163,184,.2); background:linear-gradient(135deg,rgba(148,163,184,.07),rgba(255,255,255,.03)); }
+    .hybrid-tier-card.rank-intermediate{ --tier-color:#3b82f6; border-color:rgba(59,130,246,.2);  background:linear-gradient(135deg,rgba(59,130,246,.08),rgba(255,255,255,.03)); }
+    .hybrid-tier-card.rank-advanced    { --tier-color:#f7b733; border-color:rgba(247,183,51,.28); background:linear-gradient(135deg,rgba(247,183,51,.12),rgba(255,255,255,.03)); }
+    .hybrid-tier-card.rank-elite       { --tier-color:#fc4a1a; border-color:rgba(252,74,26,.26);  background:linear-gradient(135deg,rgba(252,74,26,.1),rgba(255,255,255,.03)); }
+    .hybrid-tier-card.rank-legend      { --tier-color:#1e9d74; border-color:rgba(30,157,116,.3);  background:linear-gradient(135deg,rgba(30,157,116,.12),rgba(247,183,51,.05)); }
+    .hybrid-tier-name { font-family: "Archivo", sans-serif; font-size: 1rem; font-weight: 800; color: var(--text); }
+    .hybrid-tier-range { font-family: "Archivo", sans-serif; font-size: 1.3rem; font-weight: 900; color: var(--tier-color, var(--accent)); letter-spacing: -0.03em; }
+    .hybrid-tier-desc { font-size: 0.84rem; color: var(--muted); margin-top: 2px; line-height: 1.4; }
+    .rank-final-cta { position: relative; overflow: hidden; text-align: center; padding: clamp(28px, 5vw, 48px) 24px; background: radial-gradient(ellipse at 50% -10%, rgba(247,183,51,0.14), transparent 58%), var(--panel); border-color: rgba(247,183,51,0.2); }
+    .rank-final-cta::before { content: ""; position: absolute; inset: 0; background-image: radial-gradient(circle, rgba(255,255,255,0.03) 1px, transparent 1px); background-size: 24px 24px; pointer-events: none; }
+    .rank-final-cta > * { position: relative; z-index: 1; }
+    .rank-final-cta h2 { font-size: clamp(2rem, 8vw, 3.4rem); line-height: 0.94; margin-bottom: 10px; }
+    .rank-final-cta h2 em { font-style: normal; color: var(--accent); }
+    .rank-final-cta-row { display: grid; gap: 10px; max-width: 440px; margin: 18px auto 0; }
+    @media (min-width: 720px) {
+        .rank-page { gap: 20px; }
+        .rank-hero-grid { grid-template-columns: minmax(0, 1fr) minmax(310px, 380px); min-height: min(480px, calc(100svh - 160px)); align-items: center; gap: 28px; }
+        .rank-result-card, .rank-preview-card { justify-self: start; }
+        .calc-inputs { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+        .how-hybrid-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+        .point-ref-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+        .hybrid-tier-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+        .breakdown-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+        .rank-cta-row { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+        .rank-final-cta-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        .rank-stat-chip { font-size: 0.9rem; }
+    }
+    @media (min-width: 1100px) { .rank-hero-grid { grid-template-columns: minmax(0, 580px) 370px; gap: 36px; } }
+    @media (max-width: 719px) {
+        .rank-page { gap: 12px; }
+        .rank-hero-card { padding: 18px 14px; }
+        .rank-result-card, .rank-preview-card { max-width: none; }
+        .rank-score-number { font-size: clamp(4rem, 22vw, 5.5rem); }
+        .rank-score-example { font-size: clamp(3.5rem, 20vw, 5rem); }
+        .calc-submit-row { flex-direction: column; }
+        .calc-submit-row .btn-main { flex: none; }
+        .hybrid-tier-card { grid-template-columns: 1fr auto; grid-template-rows: auto auto; }
+        .hybrid-tier-name { grid-column: 1; grid-row: 1; }
+        .hybrid-tier-range { grid-column: 2; grid-row: 1; align-self: center; }
+        .hybrid-tier-desc { grid-column: 1 / -1; grid-row: 2; }
+    }
+</style>
+
+<div class="rank-page">
+
+    <section class="hero-card rank-hero-card">
+        <div class="rank-hero-card-pattern" aria-hidden="true"></div>
+        <div class="rank-hero-grid">
+            <div class="rank-hero-copy">
+                <div class="eyebrow">Kalkulačka Hybrid Score</div>
+                <h1>Zjisti, kde <em>stojíš.</em></h1>
+                <p class="rank-hero-lead">
+                    Zadej libovolnou kombinaci kliků, shybů a běhu 5K. Tvůj Hybrid Score je průměr všech disciplín — pouze ověřený důkaz ho dělá officiálním.
+                </p>
+                <div class="rank-stat-row">
+                    <div class="rank-stat-chip"><strong>3</strong> disciplíny</div>
+                    <div class="rank-stat-chip"><strong>0–1000</strong> b. každá</div>
+                    <div class="rank-stat-chip"><strong>5</strong> rankových úrovní</div>
+                </div>
+                {% if not has_rank_input %}
+                <div class="rank-hero-actions">
+                    <a class="btn-main" href="#rank-inputs">Zadat výkony</a>
+                    <a class="btn-secondary" href="{% url 'register_cz' %}">Získej svůj profil</a>
+                </div>
+                {% endif %}
+            </div>
+
+            {% if has_rank_input %}
+            <aside class="rank-result-card" aria-label="Odhadovaný výsledek Hybrid Score">
+                <span class="kicker">Odhadovaný Hybrid Score</span>
+                <div class="rank-score-number">{{ hybrid_estimate.score }}</div>
+                <div class="hybrid-rank-badge rank-{{ hybrid_estimate.rank.intensity }}">{{ hybrid_estimate.rank.name }}</div>
+                <div class="tier-meter-wrap">
+                    <div class="tier-meter-track" aria-label="Pozice skóre">
+                        <div class="tier-meter-fill" style="width: {% widthratio hybrid_estimate.score 1000 100 %}%;"></div>
+                    </div>
+                    <div class="tier-meter-ticks">
+                        <span>0</span><span>350</span><span>550</span><span>750</span><span>900+</span>
+                    </div>
+                </div>
+                <div class="completion-strip">
+                    <div class="completion-dots" aria-hidden="true">
+                        {% for row in hybrid_estimate.breakdown %}
+                            <div class="completion-dot{% if row.points %} filled{% endif %}"></div>
+                        {% endfor %}
+                    </div>
+                    <span>{{ hybrid_estimate.verified_count }}/{{ hybrid_estimate.max_disciplines }} disciplín zadáno</span>
+                </div>
+                <p class="muted" style="margin:0; font-size:.88rem;">Officiální skóre vyžaduje ověřený důkaz. Přidej chybějící disciplíny pro zvýšení skóre.</p>
+                <a class="btn-main" href="{{ submit_url }}" style="box-shadow: 0 10px 24px rgba(247,183,51,0.22);">Odeslat officiální výsledek</a>
+            </aside>
+            {% else %}
+            <div class="rank-preview-card" aria-label="Ukázkový hybrid score">
+                <span class="kicker" style="color: rgba(245,247,251,0.45); font-size:.78rem;">Příklad výsledku</span>
+                <div class="rank-score-example">742</div>
+                <div class="hybrid-rank-badge rank-elite" style="opacity:.7;">Elitní Hybrid atlet</div>
+                <div class="tier-meter-wrap">
+                    <div class="tier-meter-track">
+                        <div class="tier-meter-fill" style="width:74%; opacity:.5;"></div>
+                    </div>
+                    <div class="tier-meter-ticks" style="opacity:.5;">
+                        <span>0</span><span>350</span><span>550</span><span>750</span><span>900+</span>
+                    </div>
+                </div>
+                <p class="muted" style="margin:0; font-size:.86rem;">Zadej své výkony níže a vypočítej své reálné skóre.</p>
+            </div>
+            {% endif %}
+        </div>
+    </section>
+
+    <section id="rank-inputs" class="card-dark" style="scroll-margin-top: 96px;">
+        <span class="section-accent-bar" aria-hidden="true"></span>
+        <h2 style="margin-bottom: 6px;">Zadat výkony</h2>
+        <p class="muted" style="margin-bottom: 18px;">Opakování pro sílu. MM:SS pro běh. Nechej prázdné pro přeskočení disciplíny.</p>
+        <form method="GET" action="{% url 'rank_cz' %}">
+            <div class="calc-inputs">
+                <div class="calc-input-group">
+                    <label class="field-label" for="rank-pushups">
+                        <span class="calc-icon" aria-hidden="true">💪</span> Kliky
+                    </label>
+                    <input id="rank-pushups" class="input" type="number" min="1" step="1"
+                           name="pushups" value="{{ raw_scores.pushups }}" placeholder="42" inputmode="numeric">
+                    <div class="calc-input-hint">Max čistých opakování v jedné sérii</div>
+                </div>
+                <div class="calc-input-group">
+                    <label class="field-label" for="rank-pullups">
+                        <span class="calc-icon" aria-hidden="true">🏋️</span> Shyby
+                    </label>
+                    <input id="rank-pullups" class="input" type="number" min="1" step="1"
+                           name="pullups" value="{{ raw_scores.pullups }}" placeholder="12" inputmode="numeric">
+                    <div class="calc-input-hint">Plná opakování ze závěsu</div>
+                </div>
+                <div class="calc-input-group">
+                    <label class="field-label" for="rank-5k">
+                        <span class="calc-icon" aria-hidden="true">🏃</span> Běh 5K
+                    </label>
+                    <input id="rank-5k" class="input" type="text"
+                           name="run_5k" value="{{ raw_scores.run_5k }}" placeholder="21:34" inputmode="text">
+                    <div class="calc-input-hint">Formát: MM:SS nebo HH:MM:SS</div>
+                </div>
+            </div>
+            <div class="calc-submit-row">
+                <button class="btn-main" type="submit">Vypočítat Hybrid Score</button>
+                {% if has_rank_input %}
+                <a class="btn-secondary" href="{% url 'rank_cz' %}">Vymazat</a>
+                {% endif %}
+            </div>
+        </form>
+    </section>
+
+    {% if has_rank_input %}
+    <section class="card-dark">
+        <span class="section-accent-bar" aria-hidden="true"></span>
+        <h2 style="margin-bottom: 16px;">Přehled disciplín</h2>
+        <div class="breakdown-grid">
+            {% for row in hybrid_estimate.breakdown %}
+            <div class="breakdown-card{% if row.points %} has-score{% endif %}">
+                <div class="breakdown-header">
+                    <div class="breakdown-label">
+                        <div class="breakdown-discipline-name">
+                            <span aria-hidden="true">{% if row.discipline.key == "pushups" %}💪{% elif row.discipline.key == "pullups" %}🏋️{% elif row.discipline.key == "run_5k" %}🏃{% elif row.discipline.key == "run_10k" %}🏃‍♂️{% else %}🎯{% endif %}</span>
+                            {{ row.discipline.short_label }}
+                        </div>
+                        {% if row.tier %}<span class="status-pill verified" style="font-size:.74rem; padding: 4px 8px;">{{ row.tier.name }}</span>{% endif %}
+                    </div>
+                    <div class="breakdown-points">{{ row.points }} b.</div>
+                </div>
+                <div class="points-bar-track">
+                    {% if row.points %}
+                    <div class="points-bar-fill" style="width: {% widthratio row.points 1000 100 %}%;"></div>
+                    {% else %}
+                    <div class="points-bar-fill empty" style="width:0;"></div>
+                    {% endif %}
+                </div>
+                <div class="breakdown-meta">
+                    {% if row.error %}
+                        <span style="color: #ffb8a8;">{{ row.error }}</span>
+                    {% elif row.display_score and row.display_score != "-" %}
+                        {{ row.display_score }}
+                    {% else %}
+                        Nezadáno — přidej tuto disciplínu pro zvýšení Hybrid Score
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </section>
+
+    <section class="rank-cta-row">
+        <a class="btn-main" href="{{ submit_url }}">Odeslat officiální výsledek</a>
+        <a class="btn-secondary" href="{% url 'leaderboard_cz' %}">Zobrazit žebříček</a>
+        <a class="btn-secondary" href="{% url 'register_cz' %}">Získej svůj atletický profil</a>
+    </section>
+    {% endif %}
+
+    <section class="card-dark">
+        <span class="section-accent-bar" aria-hidden="true"></span>
+        <h2 style="margin-bottom: 18px;">Jak funguje Hybrid Score</h2>
+        <div class="how-hybrid-grid">
+            <div class="how-hybrid-step">
+                <div class="how-step-num">01</div>
+                <strong>Zadej libovolnou disciplínu</strong>
+                <p>Odešli kliky, shyby nebo 5K. Můžeš zadat jednu nebo všechny tři — více disciplín znamená silnější profil.</p>
+            </div>
+            <div class="how-hybrid-step">
+                <div class="how-step-num">02</div>
+                <strong>Získej 0–1000 bodů</strong>
+                <p>Každá disciplína převede tvůj výkon na bodové skóre na křivce. Silnější výsledek = více bodů.</p>
+            </div>
+            <div class="how-hybrid-step">
+                <div class="how-step-num">03</div>
+                <strong>Skóre se průměruje</strong>
+                <p>Tvůj Hybrid Score je průměr přes všechny zadané disciplíny. To odměňuje šíři, ne jen jeden silný výkon.</p>
+            </div>
+        </div>
+        <div class="how-hybrid-note">
+            <strong>Důkaz dělá vše officiálním.</strong> Tato kalkulačka zobrazuje odhad. Pouze příspěvky s ověřeným důkazem (video nebo výsledek závodu) získají officiální status na žebříčku a počítají se do tvého reálného Hybrid Score.
+        </div>
+    </section>
+
+    <section class="card-dark">
+        <span class="section-accent-bar" aria-hidden="true"></span>
+        <h2 style="margin-bottom: 8px;">Přehled bodů</h2>
+        <p class="muted" style="margin-bottom: 18px;">Jaký výkon přináší jaké body v každé disciplíně.</p>
+        <div class="point-ref-grid">
+            {% for key, data in discipline_point_tiers.items %}
+            <div class="point-ref-card">
+                <div class="point-ref-header">
+                    <strong>
+                        <span aria-hidden="true">{% if data.discipline.key == "pushups" %}💪{% elif data.discipline.key == "pullups" %}🏋️{% elif data.discipline.key == "run_5k" %}🏃{% elif data.discipline.key == "run_10k" %}🏃‍♂️{% else %}🎯{% endif %}</span>
+                        {{ data.discipline.short_label }}
+                    </strong>
+                    <span class="muted" style="font-size:.8rem; font-weight:700;">0 – 1000 b.</span>
+                </div>
+                {% for tier in data.tiers %}
+                <div class="point-ref-row">
+                    <span>{{ tier.display }}</span>
+                    <div class="point-bar-mini">
+                        <div class="point-bar-mini-fill" style="width: {{ tier.width_percent }}%;"></div>
+                    </div>
+                    <span class="point-ref-pts">{{ tier.points }}</span>
+                </div>
+                {% endfor %}
+            </div>
+            {% endfor %}
+        </div>
+    </section>
+
+    <section class="card-dark">
+        <span class="section-accent-bar" aria-hidden="true"></span>
+        <h2 style="margin-bottom: 8px;">Úrovně Hybrid ranku</h2>
+        <p class="muted" style="margin-bottom: 16px;">Kde tě tvůj Hybrid Score zařadí v hierarchii atletů.</p>
+        <div class="hybrid-tier-grid">
+            {% for rank in hybrid_ranks %}
+            <div class="hybrid-tier-card rank-{{ rank.intensity }}">
+                <div class="hybrid-tier-name">{{ rank.name }}</div>
+                <div class="hybrid-tier-range">{{ rank.range_label }}</div>
+                <div class="hybrid-tier-desc">{{ rank.description }}</div>
+            </div>
+            {% endfor %}
+        </div>
+    </section>
+
+    <section class="hero-card rank-final-cta">
+        <h2>Připraven udělat to <em>officiálním?</em></h2>
+        <p class="muted">Odešli skóre s důkazem a získej ověřený rank na veřejném žebříčku.</p>
+        <div class="rank-final-cta-row">
+            <a class="btn-main" href="{% url 'test_session_official_cz' %}" style="min-height:50px;">Odeslat officiální výsledek</a>
+            <a class="btn-secondary" href="{% url 'leaderboard_cz' %}#full-leaderboard" style="min-height:50px;">Zobrazit žebříček</a>
+        </div>
+    </section>
+
+</div>
+{% endblock %}

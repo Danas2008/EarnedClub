@@ -1,0 +1,235 @@
+{% extends "base_cz.html" %}
+
+{% block title %}{% if is_picker %}Porovnat atlety{% else %}{{ left_profile.display_name }} vs {{ right_profile.display_name }}{% endif %}{% endblock %}
+
+{% block content %}
+{% if is_picker %}
+<section class="hero-card">
+    <div class="content-split">
+        <div>
+            <span class="eyebrow">Hybrid 1v1</span>
+            <h1>Postav atletický souboj.</h1>
+            <p class="muted">Vyber dva atlety, porovnej Hybrid Score a zkopíruj výzvu do skupinového chatu.</p>
+        </div>
+        <form class="submit-panel" method="POST">
+            {% csrf_token %}
+            <div>
+                <label class="field-label" for="left-profile">Levý atlet</label>
+                <select id="left-profile" class="select" name="left" required>
+                    <option value="">Vyber atleta</option>
+                    {% for row in profiles %}
+                        <option value="{{ row.profile.slug }}">{{ row.profile.display_name }} - Hybrid {{ row.hybrid_summary.score|default:row.hybrid_summary.open_score }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label class="field-label" for="right-profile">Pravý atlet</label>
+                <select id="right-profile" class="select" name="right" required>
+                    <option value="">Vyber atleta</option>
+                    {% for row in profiles %}
+                        <option value="{{ row.profile.slug }}">{{ row.profile.display_name }} - Hybrid {{ row.hybrid_summary.score|default:row.hybrid_summary.open_score }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <button class="btn-main" type="submit">Porovnat</button>
+        </form>
+    </div>
+</section>
+
+<section class="card-dark">
+    <div class="section-spread">
+        <div>
+            <h2>Chceš porovnat s přáteli?</h2>
+            <p class="muted">Vytvoř skupinovou challenge místnost, sdílej odkaz a nechej každého odeslat Hybrid Score, kliky, shyby nebo výsledek na 5K.</p>
+        </div>
+        <a class="btn-main" href="{% url 'challenge_room_create' %}">Vytvořit skupinovou výzvu</a>
+    </div>
+</section>
+
+<section class="card-dark">
+    <div class="section-spread">
+        <div>
+            <h2>Najít profily</h2>
+            <p class="muted">Zde se zobrazují pouze nárokované profily atletů. Hosté na otevřeném žebříčku se mohou nejprve otestovat a pak nárokovat status.</p>
+        </div>
+    </div>
+    <form class="search-row" method="GET">
+        <input class="input" type="search" name="q" value="{{ query }}" placeholder="Hledat atlety">
+        <button class="btn-secondary" type="submit">Hledat</button>
+    </form>
+    {% for row in profiles %}
+        <a class="athlete-row" href="{% url 'athlete_profile_cz' row.profile.slug %}">
+            {% if row.profile.profile_image_url %}
+                <img class="avatar" src="{{ row.profile.profile_image_url }}" alt="{{ row.profile.display_name }} profilový obrázek">
+            {% else %}
+                <span class="avatar">{{ row.profile.display_name|first|upper }}</span>
+            {% endif %}
+            <div class="row-title">
+                <div class="submission-name">{{ row.profile.display_name }}</div>
+                <div class="submission-meta">{{ row.hybrid_summary.display_rank.name }}{% if not row.hybrid_summary.score %} (Otevřeno){% endif %} - {{ row.hybrid_summary.verified_count }}/{{ row.hybrid_summary.max_disciplines }} ověřeno</div>
+            </div>
+            <span class="tag-pill">Hybrid {{ row.hybrid_summary.score|default:row.hybrid_summary.open_score }}</span>
+            <span class="btn-secondary hide-mobile" style="min-height: 36px; padding: 7px 11px;">Profil</span>
+        </a>
+    {% empty %}
+        <div class="mini-card">
+            <h3>Žádné nárokované profily nenalezeny.</h3>
+            <p class="muted">Nárokuj svůj profil atleta pro zapojení do officiálních soubojů.</p>
+            <a class="btn-main" href="{% url 'register_cz' %}">Nárokovat profil atleta</a>
+        </div>
+    {% endfor %}
+</section>
+{% else %}
+<section class="hero-card" style="padding: 0;">
+    <div class="comparison-header">
+        <span class="kicker">Hybrid 1v1 Challenge</span>
+        <h1>{{ left_profile.display_name }} vs {{ right_profile.display_name }}</h1>
+        <p>{{ result_label }}</p>
+    </div>
+    <div class="comparison-split">
+        <div class="comparison-side{% if winner_profile and winner_profile.id == left_profile.id %} comparison-winner{% endif %}">
+            {% if winner_profile and winner_profile.id == left_profile.id %}<span class="winner-crown" aria-label="Vítěz">&#9819;</span>{% endif %}
+            {% if left_profile.profile_image_url %}<img class="avatar avatar-lg" src="{{ left_profile.profile_image_url }}" alt="{{ left_profile.display_name }} profilový obrázek">{% else %}<span class="avatar avatar-lg">{{ left_profile.display_name|first|upper }}</span>{% endif %}
+            <div class="eyebrow">Hybrid atlet</div>
+            <h1>{{ left_profile.display_name }}</h1>
+            <span class="stat-value">{{ left_score }}</span>
+            <p class="muted">{{ left_summary.display_rank.name }}{% if not left_summary.score %} (Otevřeno){% endif %} - {% if left_rank %}Hybrid Rank #{{ left_rank }}{% else %}Neohodnocen{% endif %}</p>
+            <p class="muted">{{ left_summary.verified_count }}/{{ left_summary.max_disciplines }} ověřených disciplín</p>
+            <a class="btn-secondary" href="{% url 'athlete_profile_cz' left_profile.slug %}">Profil</a>
+        </div>
+        <div class="comparison-side{% if winner_profile and winner_profile.id == right_profile.id %} comparison-winner{% endif %}">
+            {% if winner_profile and winner_profile.id == right_profile.id %}<span class="winner-crown" aria-label="Vítěz">&#9819;</span>{% endif %}
+            {% if right_profile.profile_image_url %}<img class="avatar avatar-lg" src="{{ right_profile.profile_image_url }}" alt="{{ right_profile.display_name }} profilový obrázek">{% else %}<span class="avatar avatar-lg">{{ right_profile.display_name|first|upper }}</span>{% endif %}
+            <div class="eyebrow">Hybrid atlet</div>
+            <h1>{{ right_profile.display_name }}</h1>
+            <span class="stat-value">{{ right_score }}</span>
+            <p class="muted">{{ right_summary.display_rank.name }}{% if not right_summary.score %} (Otevřeno){% endif %} - {% if right_rank %}Hybrid Rank #{{ right_rank }}{% else %}Neohodnocen{% endif %}</p>
+            <p class="muted">{{ right_summary.verified_count }}/{{ right_summary.max_disciplines }} ověřených disciplín</p>
+            <a class="btn-secondary" href="{% url 'athlete_profile_cz' right_profile.slug %}">Profil</a>
+        </div>
+    </div>
+</section>
+
+<section class="card-dark">
+    <div class="section-spread">
+        <div>
+            <h2>Chceš porovnat s přáteli ve skupinové výzvě?</h2>
+            <p class="muted">Vytvoř místnost, pošli odkaz a seřaď všechny podle Hybrid Score, kliků, shybů nebo 5K.</p>
+        </div>
+        <a class="btn-main" href="{% url 'challenge_room_create' %}">Vytvořit skupinovou výzvu</a>
+    </div>
+</section>
+
+<section class="grid-2">
+    <div class="metric-card">
+        <span class="kicker">Výsledek Hybrid Score</span>
+        <span class="stat-value">{{ score_margin }}</span>
+        <div class="muted">{{ result_label }}.</div>
+    </div>
+    <div class="metric-card">
+        <span class="kicker">Rozdíl ověřených disciplín</span>
+        <span class="stat-value">{{ completion_margin }}</span>
+        <div class="muted">Rozdíl v počtu dokončených officiálních disciplín.</div>
+    </div>
+</section>
+
+<section class="card-dark">
+    <div class="section-spread">
+        <div>
+            <h2>{{ left_profile.display_name }} vyzval {{ right_profile.display_name }}</h2>
+            <p class="muted">Kdokoli může sledovat tento souboj. Nárokuj profil atleta pro officiální účast, historii soubojů, odznaky a ověření skóre.</p>
+        </div>
+        <button class="btn-secondary" type="button" data-share-text="{{ share_text }}" data-copy-label="Zkopírovat odkaz">Zkopírovat odkaz / Sdílet</button>
+    </div>
+    <div class="grid-3">
+        <div class="feature-card">
+            <span class="kicker">Název výzvy</span>
+            <h3>{{ left_profile.display_name }} vs {{ right_profile.display_name }}</h3>
+            <p class="muted">Odkaz na Hybrid Score souboj připraven k odeslání.</p>
+        </div>
+        <div class="feature-card">
+            <span class="kicker">Pozvaní / přidaní atleti</span>
+            {% for profile in joined_profiles %}
+                <div class="submission-name">{{ profile.display_name }}</div>
+            {% endfor %}
+        </div>
+        <div class="feature-card">
+            <span class="kicker">Stav výzvy</span>
+            <h3>{% if winner_profile %}{{ winner_profile.display_name }} vede{% else %}Naprosto vyrovnáno{% endif %}</h3>
+            <p class="muted">Bodový rozdíl: {{ score_margin }} Hybrid bodů.</p>
+        </div>
+    </div>
+    <div class="button-row">
+        <form method="POST" action="{% url 'comparison_join' left_profile.slug right_profile.slug %}">
+            {% csrf_token %}
+            <button class="btn-main" type="submit">Připojit se officiálně</button>
+        </form>
+        <a class="btn-secondary" href="{% url 'level_test_cz' %}">Otestuj své skóre</a>
+        <a class="btn-secondary" href="{% url 'register_cz' %}">Nárokovat profil atleta</a>
+    </div>
+</section>
+
+<section class="card-dark">
+    <div class="section-spread">
+        <div>
+            <h2>Přehled disciplín</h2>
+            <p class="muted">Officiální Hybrid Score používá pouze ověřené příspěvky. Toto skóre je jen náhled, dokud ho nenárokuješ a neověříš.</p>
+        </div>
+    </div>
+    <div class="compact-board">
+        {% for row in comparison_rows %}
+            <div class="score-row">
+                <div class="score-row-main">
+                    <div class="submission-name">{{ row.discipline.short_label }}</div>
+                    <div class="submission-meta">{{ row.leader_label }} o {{ row.margin }} b.</div>
+                </div>
+                <div class="score-row-score">
+                    <span class="tag-pill">{{ left_profile.display_name }}: {{ row.left_pts }}</span>
+                    <span class="tag-pill">{{ right_profile.display_name }}: {{ row.right_pts }}</span>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+</section>
+
+<section class="grid-2">
+    <div class="card-dark">
+        <h2>{{ left_profile.display_name }} silné / slabé stránky</h2>
+        <h3>Silné stránky</h3>
+        <ul class="list-clean">
+            {% for item in left_notes.strengths %}<li>{{ item }}</li>{% empty %}<li>Zatím žádná ověřená silná stránka.</li>{% endfor %}
+        </ul>
+        <h3>Slabé stránky</h3>
+        <ul class="list-clean">
+            {% for item in left_notes.weaknesses %}<li>{{ item }}</li>{% empty %}<li>Žádná zjevná mezera z ověřených dat.</li>{% endfor %}
+        </ul>
+    </div>
+    <div class="card-dark">
+        <h2>{{ right_profile.display_name }} silné / slabé stránky</h2>
+        <h3>Silné stránky</h3>
+        <ul class="list-clean">
+            {% for item in right_notes.strengths %}<li>{{ item }}</li>{% empty %}<li>Zatím žádná ověřená silná stránka.</li>{% endfor %}
+        </ul>
+        <h3>Slabé stránky</h3>
+        <ul class="list-clean">
+            {% for item in right_notes.weaknesses %}<li>{{ item }}</li>{% empty %}<li>Žádná zjevná mezera z ověřených dat.</li>{% endfor %}
+        </ul>
+    </div>
+</section>
+
+<script>
+    for (const shareButton of document.querySelectorAll("[data-share-text]")) {
+        const originalLabel = shareButton.dataset.copyLabel || shareButton.textContent;
+        shareButton.addEventListener("click", async () => {
+            const text = shareButton.dataset.shareText;
+            if (navigator.share) await navigator.share({ text });
+            else {
+                await navigator.clipboard.writeText(text);
+                shareButton.textContent = "Zkopírováno";
+                setTimeout(() => shareButton.textContent = originalLabel, 1200);
+            }
+        });
+    }
+</script>
+{% endif %}
+{% endblock %}

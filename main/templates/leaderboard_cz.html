@@ -1,0 +1,756 @@
+{% extends "base_cz.html" %}
+
+{% block title %}{{ active_discipline.title }}{% endblock %}
+{% block meta_description %}Porovnej žebříčky Earned Club pro kliky, shyby a 5K. Ověřené oficiální rankingy — pro oficiální status je nutný důkaz.{% endblock %}
+
+{% block content %}
+<style>
+    /* ════════════════════════════════════════
+       TOP 3 CARDS
+    ════════════════════════════════════════ */
+
+    .lb-top3 {
+        display: grid;
+        grid-template-columns: 1fr 0.58fr;
+        grid-template-rows: auto auto;
+        gap: 8px;
+        margin-bottom: 16px;
+    }
+
+    .lb-hero {
+        grid-row: 1 / span 2;
+        position: relative;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-end;
+        padding: 28px 24px 24px;
+        border-radius: var(--radius-lg);
+        border: 1px solid rgba(247, 183, 51, 0.28);
+        background: linear-gradient(150deg, rgba(247, 183, 51, 0.1) 0%, rgba(252, 74, 26, 0.07) 60%, rgba(12, 17, 23, 0) 100%);
+        min-height: 240px;
+        text-decoration: none;
+        color: var(--text);
+        transition: border-color 0.15s, transform 0.15s;
+    }
+    .lb-hero:hover {
+        border-color: rgba(247, 183, 51, 0.5);
+        transform: translateY(-2px);
+        text-decoration: none;
+    }
+    .lb-hero-watermark {
+        position: absolute;
+        top: -10px;
+        right: 16px;
+        font-family: "Archivo", sans-serif;
+        font-size: 10rem;
+        font-weight: 900;
+        color: rgba(247, 183, 51, 0.065);
+        line-height: 1;
+        pointer-events: none;
+        user-select: none;
+    }
+    .lb-hero-av {
+        width: 54px;
+        height: 54px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.1);
+        border: 2px solid rgba(247, 183, 51, 0.28);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.25rem;
+        font-weight: 900;
+        font-family: "Archivo", sans-serif;
+        overflow: hidden;
+        margin-bottom: 14px;
+    }
+    .lb-hero-eyebrow {
+        font-size: 0.7rem;
+        font-weight: 900;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--accent);
+        margin-bottom: 4px;
+    }
+    .lb-hero-name {
+        font-family: "Archivo", sans-serif;
+        font-size: 1.2rem;
+        font-weight: 900;
+        line-height: 1.2;
+        margin-bottom: 12px;
+    }
+    .lb-hero-score {
+        font-family: "Archivo", sans-serif;
+        font-size: 3.4rem;
+        font-weight: 900;
+        line-height: 1;
+        letter-spacing: -0.03em;
+        color: var(--accent);
+        margin-bottom: 10px;
+    }
+    .lb-hero-meta {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        flex-wrap: wrap;
+    }
+    .lb-hero-tier {
+        font-size: 0.76rem;
+        font-weight: 800;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--accent);
+    }
+
+    .lb-side {
+        position: relative;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        padding: 16px 18px;
+        border-radius: var(--radius-md);
+        border: 1px solid var(--line);
+        background: rgba(255, 255, 255, 0.03);
+        text-decoration: none;
+        color: var(--text);
+        transition: background 0.12s, border-color 0.12s;
+    }
+    .lb-side:hover {
+        background: rgba(255, 255, 255, 0.055);
+        border-color: rgba(255, 255, 255, 0.13);
+        text-decoration: none;
+    }
+    .lb-side-watermark {
+        position: absolute;
+        top: -6px;
+        right: 12px;
+        font-family: "Archivo", sans-serif;
+        font-size: 5.5rem;
+        font-weight: 900;
+        color: rgba(255, 255, 255, 0.04);
+        line-height: 1;
+        pointer-events: none;
+        user-select: none;
+    }
+    .lb-side-top {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: auto;
+    }
+    .lb-side-av {
+        width: 34px;
+        height: 34px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.09);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.8rem;
+        font-weight: 900;
+        font-family: "Archivo", sans-serif;
+        overflow: hidden;
+        flex-shrink: 0;
+    }
+    .lb-side-eyebrow {
+        font-size: 0.66rem;
+        font-weight: 900;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: var(--muted);
+        margin-bottom: 2px;
+    }
+    .lb-side-name {
+        font-size: 0.9rem;
+        font-weight: 700;
+        line-height: 1.2;
+    }
+    .lb-side-score {
+        font-family: "Archivo", sans-serif;
+        font-size: 2.1rem;
+        font-weight: 900;
+        letter-spacing: -0.02em;
+        line-height: 1;
+        margin: 12px 0 8px;
+    }
+    .lb-side-meta {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        flex-wrap: wrap;
+    }
+    .lb-side-tier {
+        font-size: 0.72rem;
+        font-weight: 800;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+    }
+
+    [data-tier="legend"]       { color: #1e9d74; }
+    [data-tier="elite"]        { color: #fc4a1a; }
+    [data-tier="advanced"]     { color: #f7b733; }
+    [data-tier="intermediate"] { color: #3b82f6; }
+    [data-tier="beginner"]     { color: #94a3b8; }
+
+    .st-official   { color: #1e9d74; font-weight: 700; }
+    .st-pending    { color: #f7b733; font-weight: 700; }
+    .st-unverified { color: rgba(255, 255, 255, 0.3); font-weight: 600; }
+    .lb-sep        { color: rgba(255, 255, 255, 0.18); }
+
+    .lb-hero-crown {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 34px;
+        height: 34px;
+        border-radius: 50%;
+        background: linear-gradient(145deg, #fff0bd, var(--accent));
+        color: #111;
+        font-size: 1.3rem;
+        line-height: 1;
+        box-shadow: 0 0 20px rgba(247, 183, 51, 0.3);
+        margin-bottom: 8px;
+    }
+
+    .lb-row-tier[data-tier="legend"],
+    .lb-side-tier[data-tier="legend"]       { color: #1e9d74; }
+    .lb-row-tier[data-tier="elite"],
+    .lb-side-tier[data-tier="elite"]        { color: #fc4a1a; }
+    .lb-row-tier[data-tier="advanced"],
+    .lb-side-tier[data-tier="advanced"]     { color: #f7b733; }
+    .lb-row-tier[data-tier="intermediate"],
+    .lb-side-tier[data-tier="intermediate"] { color: #3b82f6; }
+    .lb-row-tier[data-tier="beginner"],
+    .lb-side-tier[data-tier="beginner"]     { color: #94a3b8; }
+
+    .lb-header {
+        background: rgba(255, 255, 255, 0.025);
+        border: 1px solid var(--line);
+        border-radius: var(--radius-lg);
+        padding: 22px 24px 20px;
+        margin-bottom: 8px;
+    }
+    .lb-header h1 {
+        font-family: "Archivo", sans-serif;
+        font-size: 2.1rem;
+        font-weight: 900;
+        letter-spacing: -0.015em;
+        line-height: 1.05;
+        margin: 0 0 5px;
+    }
+    .lb-header .muted { margin: 0 0 18px; font-size: 0.88rem; }
+    .lb-header-actions {
+        display: flex;
+        gap: 8px;
+        align-items: stretch;
+        flex-wrap: wrap;
+    }
+    .lb-header-actions .btn-main {
+        padding: 10px 22px;
+        font-size: 0.88rem;
+        white-space: nowrap;
+    }
+    .lb-search-wrap {
+        display: flex;
+        flex: 1;
+        max-width: 360px;
+    }
+    .lb-search-wrap input[type="search"] {
+        flex: 1;
+        min-width: 0;
+        padding: 10px 14px;
+        border-radius: var(--radius-sm) 0 0 var(--radius-sm);
+        border: 1px solid var(--line);
+        border-right: none;
+        background: rgba(255, 255, 255, 0.04);
+        color: var(--text);
+        font-size: 0.88rem;
+        font-family: inherit;
+        outline: none;
+        -webkit-appearance: none;
+        transition: border-color 0.14s;
+    }
+    .lb-search-wrap input[type="search"]:focus { border-color: rgba(255, 255, 255, 0.22); }
+    .lb-search-wrap input[type="search"]::placeholder { color: var(--muted); }
+    .lb-search-wrap .btn-main {
+        border-radius: 0 var(--radius-sm) var(--radius-sm) 0 !important;
+        padding: 10px 20px;
+        font-size: 0.88rem;
+        white-space: nowrap;
+    }
+
+    .lb-tabs {
+        display: flex;
+        gap: 5px;
+        flex-wrap: wrap;
+        margin-bottom: 8px;
+    }
+    .lb-tab {
+        display: inline-block;
+        padding: 8px 17px;
+        border-radius: var(--radius-sm);
+        border: 1px solid var(--line);
+        background: rgba(255, 255, 255, 0.025);
+        color: var(--muted);
+        font-size: 0.78rem;
+        font-weight: 800;
+        letter-spacing: 0.07em;
+        text-transform: uppercase;
+        transition: all 0.12s;
+        white-space: nowrap;
+    }
+    .lb-tab:hover:not(.is-active) {
+        color: var(--text);
+        border-color: rgba(255, 255, 255, 0.16);
+        background: rgba(255, 255, 255, 0.04);
+    }
+    .lb-tab.is-active {
+        background: rgba(247, 183, 51, 0.09);
+        border-color: rgba(247, 183, 51, 0.32);
+        color: var(--accent);
+    }
+
+    .lb-statsline {
+        font-size: 0.76rem;
+        color: var(--muted);
+        margin-bottom: 18px;
+        padding: 0 1px;
+        display: flex;
+        gap: 3px;
+        align-items: center;
+        flex-wrap: wrap;
+    }
+    .lb-statsline strong { color: var(--text); font-weight: 800; }
+    .lb-statsline .sep { opacity: 0.22; padding: 0 3px; }
+
+    .lb-modes-bar {
+        display: flex;
+        gap: 5px;
+        flex-wrap: wrap;
+        margin-bottom: 10px;
+        padding: 14px 18px;
+        background: rgba(255, 255, 255, 0.025);
+        border: 1px solid var(--line);
+        border-radius: var(--radius-md);
+    }
+    .lb-mode {
+        padding: 6px 13px;
+        border-radius: var(--radius-sm);
+        border: 1px solid transparent;
+        background: transparent;
+        color: var(--muted);
+        font-size: 0.74rem;
+        font-weight: 800;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        transition: all 0.11s;
+        white-space: nowrap;
+    }
+    .lb-mode:hover {
+        color: var(--text);
+        border-color: var(--line);
+        background: rgba(255, 255, 255, 0.04);
+    }
+    .lb-mode.is-active {
+        color: var(--text);
+        border-color: rgba(255, 255, 255, 0.28);
+        background: rgba(255, 255, 255, 0.06);
+    }
+
+    .lb-results {
+        background: rgba(255, 255, 255, 0.025);
+        border: 1px solid var(--line);
+        border-radius: var(--radius-md);
+        overflow: hidden;
+        margin-bottom: 4px;
+    }
+    .lb-row {
+        display: grid;
+        grid-template-columns: 48px 1fr auto;
+        gap: 14px;
+        align-items: center;
+        padding: 13px 20px 13px 20px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        position: relative;
+        color: var(--text);
+        text-decoration: none;
+        transition: background 0.1s;
+    }
+    .lb-row:last-child { border-bottom: none; }
+    .lb-row::before {
+        content: "";
+        position: absolute;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        width: 3px;
+        background: var(--row-accent, transparent);
+    }
+    .lb-row[data-tier="legend"]       { --row-accent: #1e9d74; }
+    .lb-row[data-tier="elite"]        { --row-accent: #fc4a1a; }
+    .lb-row[data-tier="advanced"]     { --row-accent: #f7b733; }
+    .lb-row[data-tier="intermediate"] { --row-accent: #3b82f6; }
+    .lb-row[data-tier="beginner"]     { --row-accent: #94a3b8; }
+    .lb-row:hover { background: rgba(255, 255, 255, 0.038); text-decoration: none; }
+
+    .lb-row-pos {
+        font-family: "Archivo", sans-serif;
+        font-size: 0.86rem;
+        font-weight: 900;
+        color: var(--muted);
+        text-align: center;
+        white-space: nowrap;
+    }
+    .lb-row-athlete {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-width: 0;
+    }
+    .lb-row-av {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.08);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.74rem;
+        font-weight: 900;
+        font-family: "Archivo", sans-serif;
+        overflow: hidden;
+        flex-shrink: 0;
+    }
+    .lb-row-body { min-width: 0; }
+    .lb-row-name {
+        font-size: 0.9rem;
+        font-weight: 700;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        line-height: 1.25;
+    }
+    .lb-row-meta {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        margin-top: 2px;
+        flex-wrap: wrap;
+    }
+    .lb-row-tier {
+        font-size: 0.66rem;
+        font-weight: 800;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+    }
+    .lb-row-status { font-size: 0.66rem; font-weight: 700; }
+    .lb-row-right { text-align: right; flex-shrink: 0; }
+    .lb-score-big {
+        font-family: "Archivo", sans-serif;
+        font-size: 1.55rem;
+        font-weight: 900;
+        line-height: 1;
+        letter-spacing: -0.02em;
+        white-space: nowrap;
+    }
+    .lb-score-sub {
+        font-size: 0.64rem;
+        font-weight: 600;
+        color: var(--muted);
+        text-align: right;
+        margin-top: 2px;
+    }
+
+    .lb-empty {
+        text-align: center;
+        padding: 60px 24px;
+        background: rgba(255, 255, 255, 0.02);
+        border: 1px solid var(--line);
+        border-radius: var(--radius-md);
+    }
+
+    .lb-pages {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 4px;
+        padding-top: 20px;
+        flex-wrap: wrap;
+    }
+    .lb-page {
+        min-width: 34px;
+        height: 34px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: var(--radius-sm);
+        border: 1px solid var(--line);
+        background: rgba(255, 255, 255, 0.025);
+        color: var(--muted);
+        font-size: 0.82rem;
+        font-weight: 700;
+        padding: 0 10px;
+        transition: all 0.11s;
+        white-space: nowrap;
+    }
+    .lb-page:hover { background: rgba(255, 255, 255, 0.05); color: var(--text); border-color: rgba(255,255,255,.14); }
+    .lb-page.is-active {
+        background: rgba(247, 183, 51, 0.09);
+        border-color: rgba(247, 183, 51, 0.32);
+        color: var(--accent);
+        pointer-events: none;
+        font-weight: 900;
+    }
+    .lb-page.is-ellipsis { border: none; background: transparent; pointer-events: none; }
+
+    @media (max-width: 600px) {
+        .lb-header { padding: 16px; }
+        .lb-header h1 { font-size: 1.7rem; }
+        .lb-header-actions { flex-direction: column; }
+        .lb-search-wrap { max-width: 100%; }
+        .lb-top3 { grid-template-columns: 1fr; }
+        .lb-hero { grid-row: auto; min-height: auto; }
+        .lb-hero-score { font-size: 2.6rem; }
+        .lb-hero-watermark { font-size: 7rem; }
+        .lb-side-score { font-size: 1.7rem; }
+        .lb-row { grid-template-columns: 38px 1fr auto; padding: 11px 14px 11px 16px; gap: 8px; }
+        .lb-score-big { font-size: 1.25rem; }
+    }
+</style>
+
+{# ── Header card ── #}
+<div class="lb-header">
+    <h1>{% if is_hybrid_leaderboard %}Hybrid žebříček{% else %}{{ active_discipline.title }}{% endif %}</h1>
+    <p class="muted">{% if is_hybrid_leaderboard %}Celkové hodnocení atletů — ověřené body disciplín zprůměrované do jednoho skóre.{% elif active_discipline.score_type == "time" %}Nižší čas = vyšší rank. Pro oficiální status je nutný důkaz.{% else %}Více opakování = vyšší rank. Pro oficiální status je nutný důkaz.{% endif %}</p>
+    <div class="lb-header-actions">
+        <a class="btn-main" href="{% if request.user.is_authenticated %}{% url 'challenge' %}?discipline={{ active_discipline.key }}{% else %}{% url 'level_test_cz' %}?discipline={{ active_discipline.key }}{% endif %}">Odeslat své skóre</a>
+        <form class="lb-search-wrap" method="GET" action="{% url 'leaderboard_cz' %}">
+            <input type="search" name="q" value="{{ query }}" placeholder="Hledat atlety…" autocomplete="off">
+            <input type="hidden" name="discipline" value="{{ active_discipline.key }}">
+            <button class="btn-main" type="submit">Hledat</button>
+        </form>
+    </div>
+</div>
+
+{# ── Discipline tabs ── #}
+<nav class="lb-tabs">
+    <a class="lb-tab {% if is_hybrid_leaderboard %}is-active{% endif %}" href="{% url 'leaderboard_cz' %}">Hybrid</a>
+    {% for d in discipline_cards %}
+    <a class="lb-tab {% if not is_hybrid_leaderboard and active_discipline.key == d.key %}is-active{% endif %}"
+       href="{% url 'leaderboard_discipline_cz' d.key %}">{{ d.short_label }}</a>
+    {% endfor %}
+</nav>
+
+{# ── Stats line ── #}
+<div class="lb-statsline">
+    <strong>{{ verified_count }}</strong> oficiálních
+    <span class="sep">·</span>
+    <strong>{{ pending_count }}</strong> čeká na review
+    <span class="sep">·</span>
+    <strong>{{ submission_count }}</strong> na žebříčku
+</div>
+
+{# ── Mode filters ── #}
+<div class="lb-modes-bar" id="full-leaderboard">
+    {% for mode in leaderboard_modes %}
+    <a class="lb-mode {% if mode.key == active_mode.key %}is-active{% endif %}"
+       href="?discipline={{ active_discipline.key }}&mode={{ mode.key }}{% if query %}&q={{ query|urlencode }}{% endif %}#full-leaderboard">{{ mode.label }}</a>
+    {% endfor %}
+</div>
+
+{% if leaderboard_rows %}
+
+{% if not query and leaderboard_rows.number == 1 %}
+{% with top3=leaderboard_rows|slice:":3" %}
+{% if top3|length >= 2 %}
+<div class="lb-top3">
+    {% for row in top3 %}
+
+    {% if forloop.first %}
+    <a class="lb-hero" href="{% if row.profile %}{% url 'athlete_profile' row.profile.slug %}{% else %}#{% endif %}">
+        <div class="lb-hero-watermark">1</div>
+        <div class="lb-hero-av">
+            {% if is_hybrid_leaderboard %}
+                {% if row.profile and row.profile.profile_image_url %}<img src="{{ row.profile.profile_image_url }}" style="width:100%;height:100%;object-fit:cover;" alt="">
+                {% else %}{{ row.display_name|first|upper }}{% endif %}
+            {% else %}
+                {% if row.profile and row.profile.profile_image_url %}<img src="{{ row.profile.profile_image_url }}" style="width:100%;height:100%;object-fit:cover;" alt="">
+                {% elif row.profile %}{{ row.profile.display_name|first|upper }}
+                {% else %}{{ row.submission.name|first|upper }}{% endif %}
+            {% endif %}
+        </div>
+        <div class="lb-hero-crown">&#9819;</div>
+        <div class="lb-hero-eyebrow">Rank #1</div>
+        <div class="lb-hero-name">
+            {% if is_hybrid_leaderboard %}{% if row.profile %}{{ row.profile.display_name }}{% else %}{{ row.display_name }}{% endif %}
+            {% else %}{{ row.submission.name }}{% endif %}
+        </div>
+        <div class="lb-hero-score">
+            {% if is_hybrid_leaderboard %}{{ row.hybrid_score }}{% else %}{{ row.submission.compact_score }}{% endif %}
+        </div>
+        <div class="lb-hero-meta">
+            {% if is_hybrid_leaderboard %}
+                <span class="lb-hero-tier" data-tier="{{ row.rank_intensity }}">{{ row.hybrid_rank.name }}</span>
+                <span class="lb-sep">·</span>
+                {% if row.status_label == "Official" %}<span class="st-official" style="font-size:.76rem;">✓ Oficiální</span>
+                {% elif row.status_label == "Pending" %}<span class="st-pending" style="font-size:.76rem;">⏱ Čeká</span>
+                {% else %}<span class="st-unverified" style="font-size:.76rem;">○ Neověřeno</span>{% endif %}
+            {% else %}
+                <span class="lb-hero-tier" data-tier="{{ row.rank_intensity }}">{{ row.submission.rank_name }}</span>
+                <span class="lb-sep">·</span>
+                {% if row.submission.status == "verified" %}<span class="st-official" style="font-size:.76rem;">✓ Oficiální</span>
+                {% elif row.submission.status == "pending" %}<span class="st-pending" style="font-size:.76rem;">⏱ Čeká</span>
+                {% else %}<span class="st-unverified" style="font-size:.76rem;">○ Neověřeno</span>{% endif %}
+            {% endif %}
+        </div>
+    </a>
+
+    {% else %}
+    <a class="lb-side" href="{% if row.profile %}{% url 'athlete_profile' row.profile.slug %}{% else %}#{% endif %}">
+        <div class="lb-side-watermark">{{ forloop.counter }}</div>
+        <div class="lb-side-top">
+            <div class="lb-side-av">
+                {% if is_hybrid_leaderboard %}
+                    {% if row.profile and row.profile.profile_image_url %}<img src="{{ row.profile.profile_image_url }}" style="width:100%;height:100%;object-fit:cover;" alt="">
+                    {% else %}{{ row.display_name|first|upper }}{% endif %}
+                {% else %}
+                    {% if row.profile and row.profile.profile_image_url %}<img src="{{ row.profile.profile_image_url }}" style="width:100%;height:100%;object-fit:cover;" alt="">
+                    {% elif row.profile %}{{ row.profile.display_name|first|upper }}
+                    {% else %}{{ row.submission.name|first|upper }}{% endif %}
+                {% endif %}
+            </div>
+            <div>
+                <div class="lb-side-eyebrow">Rank #{{ forloop.counter }}</div>
+                <div class="lb-side-name">
+                    {% if is_hybrid_leaderboard %}{% if row.profile %}{{ row.profile.display_name }}{% else %}{{ row.display_name }}{% endif %}
+                    {% else %}{{ row.submission.name }}{% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="lb-side-score">
+            {% if is_hybrid_leaderboard %}{{ row.hybrid_score }}{% else %}{{ row.submission.compact_score }}{% endif %}
+        </div>
+        <div class="lb-side-meta">
+            {% if is_hybrid_leaderboard %}
+                <span class="lb-side-tier" data-tier="{{ row.rank_intensity }}">{{ row.hybrid_rank.name }}</span>
+                <span class="lb-sep" style="font-size:.7rem;">·</span>
+                {% if row.status_label == "Official" %}<span class="st-official" style="font-size:.72rem;">✓ Oficiální</span>
+                {% elif row.status_label == "Pending" %}<span class="st-pending" style="font-size:.72rem;">⏱ Čeká</span>
+                {% else %}<span class="st-unverified" style="font-size:.72rem;">○ Neověřeno</span>{% endif %}
+            {% else %}
+                <span class="lb-side-tier" data-tier="{{ row.rank_intensity }}">{{ row.submission.rank_name }}</span>
+                <span class="lb-sep" style="font-size:.7rem;">·</span>
+                {% if row.submission.status == "verified" %}<span class="st-official" style="font-size:.72rem;">✓ Oficiální</span>
+                {% elif row.submission.status == "pending" %}<span class="st-pending" style="font-size:.72rem;">⏱ Čeká</span>
+                {% else %}<span class="st-unverified" style="font-size:.72rem;">○ Neověřeno</span>{% endif %}
+            {% endif %}
+        </div>
+    </a>
+    {% endif %}
+
+    {% endfor %}
+</div>
+{% endif %}
+{% endwith %}
+{% endif %}
+
+{# ── Results table ── #}
+<div class="lb-results">
+    {% for row in leaderboard_rows %}
+    {% if not query and leaderboard_rows.number == 1 and forloop.counter <= 3 %}{% else %}
+
+    {% if is_hybrid_leaderboard %}
+    <a class="lb-row" data-tier="{{ row.rank_intensity }}"
+       href="{% if row.profile %}{% url 'athlete_profile' row.profile.slug %}{% else %}#{% endif %}">
+        <div class="lb-row-pos">#{{ row.position }}</div>
+        <div class="lb-row-athlete">
+            <div class="lb-row-av">
+                {% if row.profile and row.profile.profile_image_url %}<img src="{{ row.profile.profile_image_url }}" style="width:100%;height:100%;object-fit:cover;" alt="">
+                {% else %}{{ row.display_name|first|upper }}{% endif %}
+            </div>
+            <div class="lb-row-body">
+                <div class="lb-row-name">{% if row.profile %}{{ row.profile.display_name }}{% else %}{{ row.display_name }}{% endif %}</div>
+                <div class="lb-row-meta">
+                    <span class="lb-row-tier" data-tier="{{ row.rank_intensity }}">{{ row.hybrid_rank.name }}</span>
+                    <span class="lb-sep">·</span>
+                    {% if row.status_label == "Official" %}<span class="lb-row-status st-official">✓ Oficiální</span>
+                    {% elif row.status_label == "Pending" %}<span class="lb-row-status st-pending">⏱ Čeká</span>
+                    {% else %}<span class="lb-row-status st-unverified">○ Neověřeno</span>{% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="lb-row-right">
+            <div class="lb-score-big">{{ row.hybrid_score }}</div>
+            <div class="lb-score-sub">pts</div>
+        </div>
+    </a>
+
+    {% else %}
+    <a class="lb-row" data-tier="{{ row.rank_intensity }}"
+       href="{% if row.profile %}{% url 'athlete_profile' row.profile.slug %}{% else %}#{% endif %}">
+        <div class="lb-row-pos">#{{ row.position }}</div>
+        <div class="lb-row-athlete">
+            <div class="lb-row-av">
+                {% if row.profile and row.profile.profile_image_url %}<img src="{{ row.profile.profile_image_url }}" style="width:100%;height:100%;object-fit:cover;" alt="">
+                {% elif row.profile %}{{ row.profile.display_name|first|upper }}
+                {% else %}{{ row.submission.name|first|upper }}{% endif %}
+            </div>
+            <div class="lb-row-body">
+                <div class="lb-row-name">{{ row.submission.name }}</div>
+                <div class="lb-row-meta">
+                    <span class="lb-row-tier" data-tier="{{ row.rank_intensity }}">{{ row.submission.rank_name }}</span>
+                    <span class="lb-sep">·</span>
+                    {% if row.submission.status == "verified" %}<span class="lb-row-status st-official">✓ Oficiální</span>
+                    {% elif row.submission.status == "pending" %}<span class="lb-row-status st-pending">⏱ Čeká</span>
+                    {% else %}<span class="lb-row-status st-unverified">○ Neověřeno</span>{% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="lb-row-right">
+            <div class="lb-score-big">{{ row.submission.compact_score }}</div>
+            {% if row.display_points %}<div class="lb-score-sub">{{ row.display_points }} pts</div>{% endif %}
+        </div>
+    </a>
+    {% endif %}
+
+    {% endif %}
+    {% endfor %}
+</div>
+
+{% else %}
+<div class="lb-empty">
+    {% if active_mode.key != "all" or query %}
+    <h3 style="margin-bottom:8px;">Žádné výsledky pro tento filtr.</h3>
+    <p class="muted" style="margin-bottom:18px;">Zkus jiné časové okno nebo zruš hledání.</p>
+    <a class="lb-tab is-active" style="display:inline-block;margin-bottom:10px;" href="?discipline={{ active_discipline.key }}&mode=all">← Zobrazit vše</a>
+    {% else %}
+    <h3 style="margin-bottom:8px;">Nikdo ještě žebříček neovládl.</h3>
+    <p class="muted" style="margin-bottom:20px;">Odešli reálný výsledek a získej první místo.</p>
+    <a class="btn-main" href="{% url 'level_test_cz' %}">Odeslat své skóre</a>
+    {% endif %}
+</div>
+{% endif %}
+
+{# ── Pagination ── #}
+{% if leaderboard_rows.paginator.num_pages > 1 %}
+<div class="lb-pages">
+    {% if leaderboard_rows.has_previous %}
+    <a class="lb-page" href="?discipline={{ active_discipline.key }}&mode={{ active_mode.key }}{% if query %}&q={{ query|urlencode }}{% endif %}&page={{ leaderboard_rows.previous_page_number }}#full-leaderboard">←</a>
+    {% endif %}
+    {% for page_number in leaderboard_pages %}
+        {% if page_number == leaderboard_rows.paginator.ELLIPSIS %}
+        <span class="lb-page is-ellipsis">…</span>
+        {% elif page_number == leaderboard_rows.number %}
+        <span class="lb-page is-active">{{ page_number }}</span>
+        {% else %}
+        <a class="lb-page" href="?discipline={{ active_discipline.key }}&mode={{ active_mode.key }}{% if query %}&q={{ query|urlencode }}{% endif %}&page={{ page_number }}#full-leaderboard">{{ page_number }}</a>
+        {% endif %}
+    {% endfor %}
+    {% if leaderboard_rows.has_next %}
+    <a class="lb-page" href="?discipline={{ active_discipline.key }}&mode={{ active_mode.key }}{% if query %}&q={{ query|urlencode }}{% endif %}&page={{ leaderboard_rows.next_page_number }}#full-leaderboard">→</a>
+    {% endif %}
+</div>
+{% endif %}
+{% endblock %}

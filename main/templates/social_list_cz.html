@@ -1,0 +1,29 @@
+{% extends "base_cz.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<section class="hero-card profile-header">
+    <div class="eyebrow">Sociální</div>
+    <h1>{{ title }}</h1>
+    <a class="btn-secondary" href="{% url 'athlete_profile_cz' profile.slug %}">Zpět na profil</a>
+</section>
+
+<section class="card-dark">
+    {% for user in users %}
+        <a class="athlete-row" href="{% url 'athlete_profile_cz' user.profile.slug %}">
+            {% if user.profile.profile_image_url %}
+                <img class="avatar" src="{{ user.profile.profile_image_url }}" alt="{{ user.profile.display_name }} profilový obrázek">
+            {% else %}
+                <span class="avatar">{{ user.profile.display_name|first|upper }}</span>
+            {% endif %}
+            <div class="row-title">
+                <div class="submission-name">{{ user.profile.display_name }}</div>
+                <div class="submission-meta">{% if user.profile.personal_best_reps %}Ověřený atlet{% else %}Buduje Hybrid Score{% endif %}</div>
+            </div>
+        </a>
+    {% empty %}
+        <p class="muted">Zatím žádní atleti.</p>
+    {% endfor %}
+</section>
+{% endblock %}
