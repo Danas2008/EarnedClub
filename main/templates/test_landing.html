@@ -578,6 +578,9 @@
                 </div>
                 <input id="test-result" class="input test-input" type="number" min="1" inputmode="numeric" placeholder="42">
                 <div class="hint" data-result-hint>Higher reps rank higher.</div>
+                <div data-wr-warning style="display:none; background: #1f0a0a; border: 1px solid #a02020; border-radius: 8px; padding: 12px 16px; margin-top: 8px; font-size: 0.88rem; line-height: 1.45; color: #f06060;">
+                    <strong>Score matches or beats the world record.</strong> Please double-check your entry — this result is at or beyond the all-time world record.
+                </div>
                 <div class="button-row">
                     <button class="btn-main" type="button" data-next>Show My Score</button>
                     <button class="btn-secondary" type="button" data-back>Back</button>
@@ -817,9 +820,10 @@
         document.querySelector("[data-result-title]").textContent = config.resultTitle;
         document.querySelector("[data-result-help]").textContent = config.help;
         document.querySelector("[data-result-hint]").textContent = config.hint;
+        document.querySelector("[data-wr-warning]").style.display = "none";
         input.value = "";
         input.type = config.unit === "time" ? "text" : "number";
-        input.inputMode = config.unit === "time" ? "numeric" : "numeric";
+        input.inputMode = "numeric";
         input.placeholder = config.placeholder;
         if (config.unit === "time") {
             input.setAttribute("data-time-mask", "1");
@@ -901,11 +905,18 @@
         const config = disciplineLabels[discipline];
         const rawResult = document.getElementById("test-result").value.trim();
         const value = config.unit === "time" ? parseTime(rawResult) : Number(rawResult);
+        const wrWarning = document.querySelector("[data-wr-warning]");
         if (!value || value <= 0) {
+            wrWarning.style.display = "none";
             showStep(2);
             document.querySelector("[data-result-hint]").textContent = config.unit === "time" ? "Enter a valid time like 21:34. Tip: 21.34 becomes 21:34." : "Enter a whole number above zero.";
             return null;
         }
+        if (exceedsWR(discipline, value)) {
+            wrWarning.style.display = "block";
+            return null;
+        }
+        wrWarning.style.display = "none";
         return { discipline, rawResult };
     }
 
@@ -920,11 +931,18 @@
     }
 
     const proofThresholds = { pushups: 60, pullups: 15, run_5k: 20 * 60 };
+    const worldRecords = { pushups: 180, pullups: 82, run_5k: 12 * 60 + 49 };
 
     function needsProof(discipline, value) {
         const t = proofThresholds[discipline];
         if (t === undefined) return false;
         return disciplineLabels[discipline].unit === "time" ? value <= t : value >= t;
+    }
+
+    function exceedsWR(discipline, value) {
+        const wr = worldRecords[discipline];
+        if (wr === undefined) return false;
+        return disciplineLabels[discipline].unit === "time" ? value <= wr : value >= wr;
     }
 
     function showPreview() {

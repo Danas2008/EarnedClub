@@ -1432,10 +1432,10 @@ def validate_submission_score(score, discipline):
     if not config.get("world_record"):
         return ""
     if config["higher_is_better"]:
-        if score > config["world_record"]:
-            return f"{config['label']} cannot be above the current listed world-record benchmark of {config['world_record']} reps."
-    elif score < config["world_record"]:
-        return f"{config['label']} cannot be faster than the current listed world-record benchmark of {format_duration(config['world_record'])}."
+        if score >= config["world_record"]:
+            return f"{config['label']} cannot match or exceed the current listed world-record benchmark of {config['world_record']} reps."
+    elif score <= config["world_record"]:
+        return f"{config['label']} cannot match or beat the current listed world-record benchmark of {format_duration(config['world_record'])}."
     return ""
 
 
@@ -2391,6 +2391,28 @@ def _level_test(request, view_name, template):
             _session_ids = request.session.get("test_submission_ids", [])
             existing_unverified = existing_unverified_qs.filter(name__iexact=name, id__in=_session_ids).first() if _session_ids else None
         if existing_unverified:
+            # If the submission was never visible (needs proof, hasn't got any yet),
+            # let the user replace it with a corrected/lower score.
+            is_hidden_pending_proof = (
+                needs_proof_before_open_leaderboard(existing_unverified.reps, existing_unverified.discipline)
+                and not existing_unverified.has_proof
+            )
+            if is_hidden_pending_proof:
+                existing_unverified.reps = score_value
+                existing_unverified.name = user_display_name(request.user) if request.user.is_authenticated else name
+                update_fields = ["reps", "name"]
+                if not request.user.is_authenticated and not existing_unverified.claim_token:
+                    existing_unverified.claim_token = get_or_create_claim_token(request)
+                    update_fields.append("claim_token")
+                existing_unverified.save(update_fields=update_fields)
+                remember_test_submission(request, existing_unverified)
+                attach_submission_to_room(room, existing_unverified, build_room_participant_key(request, existing_unverified))
+                request.session["last_test_submission_id"] = existing_unverified.id
+                if needs_proof_before_open_leaderboard(score_value, discipline):
+                    messages.success(request, "Your score has been updated. Submit for Official Review to make it visible on the open leaderboard.")
+                else:
+                    messages.success(request, "Your score has been updated and is now live on the open leaderboard.")
+                return redirect(room_link(view_name, room) if room else view_name)
             remember_test_submission(request, existing_unverified)
             if not request.user.is_authenticated and not existing_unverified.claim_token:
                 existing_unverified.claim_token = get_or_create_claim_token(request)

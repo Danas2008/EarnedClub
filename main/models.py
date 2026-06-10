@@ -71,7 +71,7 @@ DISCIPLINE_CONFIG = {
         "input_label": "Max clean push-ups",
         "placeholder": "42",
         "elite_threshold": 60,
-        "world_record": None,
+        "world_record": 180,
         "proof_label": "Proof video or result link",
         "points_target": 80,
     },
