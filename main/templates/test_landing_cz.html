@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load static %}
 
 {% block title %}Hybrid Score Test{% endblock %}
 {% block meta_description %}Vyber disciplínu, zadej výsledek a zjisti svůj tier, body a rank mezi skutečnými atlety.{% endblock %}
@@ -121,6 +122,10 @@
         color: #111;
         font-family: "Archivo", sans-serif;
         font-weight: 900;
+    }
+    .discipline-mark img {
+        display: block;
+        object-fit: contain;
     }
 
     .discipline-choice strong,
@@ -590,8 +595,16 @@
                     {% for discipline in discipline_cards %}
                         <label class="discipline-choice">
                             <input type="radio" name="discipline_choice" value="{{ discipline.key }}" {% if discipline.key == active_discipline_key %}checked{% endif %}>
-                            <span class="discipline-mark">{% if discipline.key == "pushups" %}PU{% elif discipline.key == "pullups" %}PL{% else %}5K{% endif %}</span>
-                            <span><strong>{{ discipline.short_label }}</strong><span class="submission-meta">{% if discipline.score_type == "time" %}Závodní čas nebo Strava{% else %}Max čistých opakování{% endif %}</span></span>
+                            <span class="discipline-mark">
+                                {% if discipline.key == "pushups" %}
+                                <img src="{% static 'icons/icon-pushup.png' %}" style="width:34px;height:34px;" alt="Kliky">
+                                {% elif discipline.key == "pullups" %}
+                                <img src="{% static 'icons/icon-pullup.png' %}" style="width:34px;height:34px;" alt="Přítahy">
+                                {% else %}
+                                <img src="{% static 'icons/icon-run.png' %}" style="width:28px;height:28px;" alt="5km běh">
+                                {% endif %}
+                            </span>
+                            <span><strong>{% if discipline.key == "pushups" %}Kliky{% elif discipline.key == "pullups" %}Přítahy{% else %}5km běh{% endif %}</strong><span class="submission-meta">{% if discipline.score_type == "time" %}Závodní čas nebo Strava{% else %}Max čistých opakování{% endif %}</span></span>
                         </label>
                     {% endfor %}
                 </div>

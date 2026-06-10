@@ -1,392 +1,776 @@
 {% extends "base.html" %}
 
 {% block title %}{{ active_discipline.title }}{% endblock %}
-{% block meta_description %}Compare Earned Club performance leaderboards for push-ups, pull-ups, and 5K with verified official rankings.{% endblock %}
+{% block meta_description %}Compare Earned Club leaderboards for push-ups, pull-ups and 5K. Verified official rankings — proof required for official status.{% endblock %}
 
 {% block content %}
 <style>
-    .leaderboard-tier-panel { margin-bottom: 24px; }
-    .leaderboard-tier-grid { display: grid; gap: 10px; }
-    .leaderboard-tier-card {
+    /* ════════════════════════════════════════
+       TOP 3 CARDS — untouched
+    ════════════════════════════════════════ */
+
+    .lb-top3 {
+        display: grid;
+        grid-template-columns: 1fr 0.58fr;
+        grid-template-rows: auto auto;
+        gap: 8px;
+        margin-bottom: 16px;
+    }
+
+    /* Hero card — #1 */
+    .lb-hero {
+        grid-row: 1 / span 2;
         position: relative;
         overflow: hidden;
-        display: grid;
-        gap: 8px;
-        padding: 12px;
-        border-radius: var(--radius-md);
-        border: 1px solid var(--tier-border, rgba(255, 255, 255, .08));
-        background: linear-gradient(135deg, var(--tier-bg, rgba(255, 255, 255, .04)), rgba(255, 255, 255, .035));
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-end;
+        padding: 28px 24px 24px;
+        border-radius: var(--radius-lg);
+        border: 1px solid rgba(247, 183, 51, 0.28);
+        background: linear-gradient(150deg, rgba(247, 183, 51, 0.1) 0%, rgba(252, 74, 26, 0.07) 60%, rgba(12, 17, 23, 0) 100%);
+        min-height: 240px;
+        text-decoration: none;
+        color: var(--text);
+        transition: border-color 0.15s, transform 0.15s;
     }
-    .leaderboard-tier-card::before {
-        content: "";
-        width: 34px;
-        height: 4px;
-        border-radius: 999px;
-        background: var(--tier-color, var(--accent));
+    .lb-hero:hover {
+        border-color: rgba(247, 183, 51, 0.5);
+        transform: translateY(-2px);
+        text-decoration: none;
     }
-    .leaderboard-tier-row {
-        display: grid;
-        grid-template-columns: minmax(72px, .5fr) minmax(64px, .42fr) minmax(0, 1fr);
-        gap: 8px;
+    .lb-hero-watermark {
+        position: absolute;
+        top: -10px;
+        right: 16px;
+        font-family: "Archivo", sans-serif;
+        font-size: 10rem;
+        font-weight: 900;
+        color: rgba(247, 183, 51, 0.065);
+        line-height: 1;
+        pointer-events: none;
+        user-select: none;
+    }
+    .lb-hero-av {
+        width: 54px;
+        height: 54px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.1);
+        border: 2px solid rgba(247, 183, 51, 0.28);
+        display: flex;
         align-items: center;
-        padding: 8px 10px;
-        border-radius: var(--radius-sm);
-        background: rgba(8, 11, 15, .32);
+        justify-content: center;
+        font-size: 1.25rem;
+        font-weight: 900;
+        font-family: "Archivo", sans-serif;
+        overflow: hidden;
+        margin-bottom: 14px;
     }
-    .leaderboard-tier-fill {
-        height: 8px;
-        width: var(--tier-width);
-        border-radius: 999px;
-        background: linear-gradient(90deg, var(--accent), var(--accent-2));
+    .lb-hero-eyebrow {
+        font-size: 0.7rem;
+        font-weight: 900;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--accent);
+        margin-bottom: 4px;
     }
-    .rank-row {
+    .lb-hero-name {
+        font-family: "Archivo", sans-serif;
+        font-size: 1.2rem;
+        font-weight: 900;
+        line-height: 1.2;
+        margin-bottom: 12px;
+    }
+    .lb-hero-score {
+        font-family: "Archivo", sans-serif;
+        font-size: 3.4rem;
+        font-weight: 900;
+        line-height: 1;
+        letter-spacing: -0.03em;
+        color: var(--accent);
+        margin-bottom: 10px;
+    }
+    .lb-hero-meta {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        flex-wrap: wrap;
+    }
+    .lb-hero-tier {
+        font-size: 0.76rem;
+        font-weight: 800;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--accent);
+    }
+
+    /* Side cards — #2 and #3 */
+    .lb-side {
         position: relative;
         overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        padding: 16px 18px;
+        border-radius: var(--radius-md);
+        border: 1px solid var(--line);
+        background: rgba(255, 255, 255, 0.03);
+        text-decoration: none;
+        color: var(--text);
+        transition: background 0.12s, border-color 0.12s;
     }
-    .leaderboard-table .rank-row td,
-    .score-row.rank-row {
-        background: rgba(255, 255, 255, .035) !important;
+    .lb-side:hover {
+        background: rgba(255, 255, 255, 0.055);
+        border-color: rgba(255, 255, 255, 0.13);
+        text-decoration: none;
     }
-    .leaderboard-table .rank-row:hover td,
-    .score-row.rank-row:hover {
-        background: rgba(255, 255, 255, .055) !important;
+    .lb-side-watermark {
+        position: absolute;
+        top: -6px;
+        right: 12px;
+        font-family: "Archivo", sans-serif;
+        font-size: 5.5rem;
+        font-weight: 900;
+        color: rgba(255, 255, 255, 0.04);
+        line-height: 1;
+        pointer-events: none;
+        user-select: none;
     }
-    .rank-row {
-        --rank-color: rgba(255, 255, 255, .24);
-        --rank-fill: 10%;
+    .lb-side-top {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: auto;
     }
-    .rank-empty { --rank-color: rgba(255, 255, 255, .22); --rank-fill: 10%; }
-    .rank-beginner { --rank-color: #94a3b8; --rank-fill: 25%; }
-    .rank-intermediate { --rank-color: #3b82f6; --rank-fill: 42%; }
-    .rank-advanced { --rank-color: #f7b733; --rank-fill: 60%; }
-    .rank-elite { --rank-color: #fc4a1a; --rank-fill: 80%; }
-    .rank-legend { --rank-color: #1e9d74; --rank-fill: 100%; }
-    .leaderboard-table .rank-row td:first-child,
-    .score-row.rank-row {
+    .lb-side-av {
+        width: 34px;
+        height: 34px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.09);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.8rem;
+        font-weight: 900;
+        font-family: "Archivo", sans-serif;
+        overflow: hidden;
+        flex-shrink: 0;
+    }
+    .lb-side-eyebrow {
+        font-size: 0.66rem;
+        font-weight: 900;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: var(--muted);
+        margin-bottom: 2px;
+    }
+    .lb-side-name {
+        font-size: 0.9rem;
+        font-weight: 700;
+        line-height: 1.2;
+    }
+    .lb-side-score {
+        font-family: "Archivo", sans-serif;
+        font-size: 2.1rem;
+        font-weight: 900;
+        letter-spacing: -0.02em;
+        line-height: 1;
+        margin: 12px 0 8px;
+    }
+    .lb-side-meta {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        flex-wrap: wrap;
+    }
+    .lb-side-tier {
+        font-size: 0.72rem;
+        font-weight: 800;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+    }
+
+    /* Tier colors */
+    [data-tier="legend"]       { color: #1e9d74; }
+    [data-tier="elite"]        { color: #fc4a1a; }
+    [data-tier="advanced"]     { color: #f7b733; }
+    [data-tier="intermediate"] { color: #3b82f6; }
+    [data-tier="beginner"]     { color: #94a3b8; }
+
+    /* Status labels */
+    .st-official   { color: #1e9d74; font-weight: 700; }
+    .st-pending    { color: #f7b733; font-weight: 700; }
+    .st-unverified { color: rgba(255, 255, 255, 0.3); font-weight: 600; }
+    .lb-sep        { color: rgba(255, 255, 255, 0.18); }
+
+    /* Crown for #1 */
+    .lb-hero-crown {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 34px;
+        height: 34px;
+        border-radius: 50%;
+        background: linear-gradient(145deg, #fff0bd, var(--accent));
+        color: #111;
+        font-size: 1.3rem;
+        line-height: 1;
+        box-shadow: 0 0 20px rgba(247, 183, 51, 0.3);
+        margin-bottom: 8px;
+    }
+
+    /* Rank label tier colors — explicit, override inheritance */
+    .lb-row-tier[data-tier="legend"],
+    .lb-side-tier[data-tier="legend"]       { color: #1e9d74; }
+    .lb-row-tier[data-tier="elite"],
+    .lb-side-tier[data-tier="elite"]        { color: #fc4a1a; }
+    .lb-row-tier[data-tier="advanced"],
+    .lb-side-tier[data-tier="advanced"]     { color: #f7b733; }
+    .lb-row-tier[data-tier="intermediate"],
+    .lb-side-tier[data-tier="intermediate"] { color: #3b82f6; }
+    .lb-row-tier[data-tier="beginner"],
+    .lb-side-tier[data-tier="beginner"]     { color: #94a3b8; }
+
+    /* ════════════════════════════════════════
+       EVERYTHING ELSE — redesigned
+    ════════════════════════════════════════ */
+
+    /* Header card */
+    .lb-header {
+        background: rgba(255, 255, 255, 0.025);
+        border: 1px solid var(--line);
+        border-radius: var(--radius-lg);
+        padding: 22px 24px 20px;
+        margin-bottom: 8px;
+    }
+    .lb-header h1 {
+        font-family: "Archivo", sans-serif;
+        font-size: 2.1rem;
+        font-weight: 900;
+        letter-spacing: -0.015em;
+        line-height: 1.05;
+        margin: 0 0 5px;
+    }
+    .lb-header .muted { margin: 0 0 18px; font-size: 0.88rem; }
+    .lb-header-actions {
+        display: flex;
+        gap: 8px;
+        align-items: stretch;
+        flex-wrap: wrap;
+    }
+    .lb-header-actions .btn-main {
+        padding: 10px 22px;
+        font-size: 0.88rem;
+        white-space: nowrap;
+    }
+    /* Joined search field + button */
+    .lb-search-wrap {
+        display: flex;
+        flex: 1;
+        max-width: 360px;
+    }
+    .lb-search-wrap input[type="search"] {
+        flex: 1;
+        min-width: 0;
+        padding: 10px 14px;
+        border-radius: var(--radius-sm) 0 0 var(--radius-sm);
+        border: 1px solid var(--line);
+        border-right: none;
+        background: rgba(255, 255, 255, 0.04);
+        color: var(--text);
+        font-size: 0.88rem;
+        font-family: inherit;
+        outline: none;
+        -webkit-appearance: none;
+        transition: border-color 0.14s;
+    }
+    .lb-search-wrap input[type="search"]:focus { border-color: rgba(255, 255, 255, 0.22); }
+    .lb-search-wrap input[type="search"]::placeholder { color: var(--muted); }
+    .lb-search-wrap .btn-main {
+        border-radius: 0 var(--radius-sm) var(--radius-sm) 0 !important;
+        padding: 10px 20px;
+        font-size: 0.88rem;
+        white-space: nowrap;
+    }
+
+    /* Discipline tabs — card style */
+    .lb-tabs {
+        display: flex;
+        gap: 5px;
+        flex-wrap: wrap;
+        margin-bottom: 8px;
+    }
+    .lb-tab {
+        display: inline-block;
+        padding: 8px 17px;
+        border-radius: var(--radius-sm);
+        border: 1px solid var(--line);
+        background: rgba(255, 255, 255, 0.025);
+        color: var(--muted);
+        font-size: 0.78rem;
+        font-weight: 800;
+        letter-spacing: 0.07em;
+        text-transform: uppercase;
+        transition: all 0.12s;
+        white-space: nowrap;
+    }
+    .lb-tab:hover:not(.is-active) {
+        color: var(--text);
+        border-color: rgba(255, 255, 255, 0.16);
+        background: rgba(255, 255, 255, 0.04);
+    }
+    .lb-tab.is-active {
+        background: rgba(247, 183, 51, 0.09);
+        border-color: rgba(247, 183, 51, 0.32);
+        color: var(--accent);
+    }
+
+    /* Stats line */
+    .lb-statsline {
+        font-size: 0.76rem;
+        color: var(--muted);
+        margin-bottom: 18px;
+        padding: 0 1px;
+        display: flex;
+        gap: 3px;
+        align-items: center;
+        flex-wrap: wrap;
+    }
+    .lb-statsline strong { color: var(--text); font-weight: 800; }
+    .lb-statsline .sep { opacity: 0.22; padding: 0 3px; }
+
+    /* Mode filters panel */
+    .lb-modes-bar {
+        display: flex;
+        gap: 5px;
+        flex-wrap: wrap;
+        margin-bottom: 10px;
+        padding: 14px 18px;
+        background: rgba(255, 255, 255, 0.025);
+        border: 1px solid var(--line);
+        border-radius: var(--radius-md);
+    }
+    .lb-mode {
+        padding: 6px 13px;
+        border-radius: var(--radius-sm);
+        border: 1px solid transparent;
+        background: transparent;
+        color: var(--muted);
+        font-size: 0.74rem;
+        font-weight: 800;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        transition: all 0.11s;
+        white-space: nowrap;
+    }
+    .lb-mode:hover {
+        color: var(--text);
+        border-color: var(--line);
+        background: rgba(255, 255, 255, 0.04);
+    }
+    .lb-mode.is-active {
+        color: var(--text);
+        border-color: rgba(255, 255, 255, 0.28);
+        background: rgba(255, 255, 255, 0.06);
+    }
+
+    /* Results table — one panel, rows separated by lines */
+    .lb-results {
+        background: rgba(255, 255, 255, 0.025);
+        border: 1px solid var(--line);
+        border-radius: var(--radius-md);
+        overflow: hidden;
+        margin-bottom: 4px;
+    }
+    .lb-row {
+        display: grid;
+        grid-template-columns: 48px 1fr auto;
+        gap: 14px;
+        align-items: center;
+        padding: 13px 20px 13px 20px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
         position: relative;
-        border-left: 1px solid rgba(255, 255, 255, .08);
+        color: var(--text);
+        text-decoration: none;
+        transition: background 0.1s;
     }
-    .leaderboard-table .rank-row td:first-child::before,
-    .score-row.rank-row::before {
+    .lb-row:last-child { border-bottom: none; }
+    .lb-row::before {
         content: "";
         position: absolute;
         left: 0;
-        bottom: 10px;
-        width: 5px;
-        height: var(--rank-fill);
-        border-radius: 999px 999px 0 0;
-        background: var(--rank-color);
-        box-shadow: 0 0 10px var(--rank-color);
+        top: 0;
+        bottom: 0;
+        width: 3px;
+        background: var(--row-accent, transparent);
     }
-    .score-row.rank-row {
-        border-left-width: 0;
-        padding-left: 16px;
+    .lb-row[data-tier="legend"]       { --row-accent: #1e9d74; }
+    .lb-row[data-tier="elite"]        { --row-accent: #fc4a1a; }
+    .lb-row[data-tier="advanced"]     { --row-accent: #f7b733; }
+    .lb-row[data-tier="intermediate"] { --row-accent: #3b82f6; }
+    .lb-row[data-tier="beginner"]     { --row-accent: #94a3b8; }
+    .lb-row:hover { background: rgba(255, 255, 255, 0.038); text-decoration: none; }
+
+    .lb-row-pos {
+        font-family: "Archivo", sans-serif;
+        font-size: 0.86rem;
+        font-weight: 900;
+        color: var(--muted);
+        text-align: center;
+        white-space: nowrap;
     }
-    .rank-row .submission-name,
-    .rank-row .submission-meta,
-    .rank-row td,
-    .rank-row a {
-        color: var(--text);
+    .lb-row-athlete {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-width: 0;
     }
-    .rank-row .score {
-        color: var(--text) !important;
-        text-shadow: none;
+    .lb-row-av {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.08);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.74rem;
+        font-weight: 900;
+        font-family: "Archivo", sans-serif;
+        overflow: hidden;
+        flex-shrink: 0;
     }
-    .rank-row .position-pill {
-        border-color: rgba(255, 255, 255, .12);
-        box-shadow: none;
+    .lb-row-body { min-width: 0; }
+    .lb-row-name {
+        font-size: 0.9rem;
+        font-weight: 700;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        line-height: 1.25;
     }
-    @media (min-width: 860px) {
-        .leaderboard-tier-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .lb-row-meta {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        margin-top: 2px;
+        flex-wrap: wrap;
+    }
+    .lb-row-tier {
+        font-size: 0.66rem;
+        font-weight: 800;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+    }
+    .lb-row-status { font-size: 0.66rem; font-weight: 700; }
+    .lb-row-right { text-align: right; flex-shrink: 0; }
+    .lb-score-big {
+        font-family: "Archivo", sans-serif;
+        font-size: 1.55rem;
+        font-weight: 900;
+        line-height: 1;
+        letter-spacing: -0.02em;
+        white-space: nowrap;
+    }
+    .lb-score-sub {
+        font-size: 0.64rem;
+        font-weight: 600;
+        color: var(--muted);
+        text-align: right;
+        margin-top: 2px;
+    }
+
+    /* Empty state */
+    .lb-empty {
+        text-align: center;
+        padding: 60px 24px;
+        background: rgba(255, 255, 255, 0.02);
+        border: 1px solid var(--line);
+        border-radius: var(--radius-md);
+    }
+
+    /* Pagination */
+    .lb-pages {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 4px;
+        padding-top: 20px;
+        flex-wrap: wrap;
+    }
+    .lb-page {
+        min-width: 34px;
+        height: 34px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: var(--radius-sm);
+        border: 1px solid var(--line);
+        background: rgba(255, 255, 255, 0.025);
+        color: var(--muted);
+        font-size: 0.82rem;
+        font-weight: 700;
+        padding: 0 10px;
+        transition: all 0.11s;
+        white-space: nowrap;
+    }
+    .lb-page:hover { background: rgba(255, 255, 255, 0.05); color: var(--text); border-color: rgba(255,255,255,.14); }
+    .lb-page.is-active {
+        background: rgba(247, 183, 51, 0.09);
+        border-color: rgba(247, 183, 51, 0.32);
+        color: var(--accent);
+        pointer-events: none;
+        font-weight: 900;
+    }
+    .lb-page.is-ellipsis { border: none; background: transparent; pointer-events: none; }
+
+    @media (max-width: 600px) {
+        .lb-header { padding: 16px; }
+        .lb-header h1 { font-size: 1.7rem; }
+        .lb-header-actions { flex-direction: column; }
+        .lb-search-wrap { max-width: 100%; }
+        .lb-top3 { grid-template-columns: 1fr; }
+        .lb-hero { grid-row: auto; min-height: auto; }
+        .lb-hero-score { font-size: 2.6rem; }
+        .lb-hero-watermark { font-size: 7rem; }
+        .lb-side-score { font-size: 1.7rem; }
+        .lb-row { grid-template-columns: 38px 1fr auto; padding: 11px 14px 11px 16px; gap: 8px; }
+        .lb-score-big { font-size: 1.25rem; }
     }
 </style>
 
-<section class="hero-card" style="margin-bottom: 24px;">
-    <div class="content-split">
-        <div>
-            <div class="eyebrow">Leaderboard</div>
-            <h1>{{ active_discipline.title }}</h1>
-            <p class="muted">The fitness leaderboard for real performance. Official ranks require proof. Unverified results are shown, but not official.</p>
-            <div class="button-row">
-                <a class="btn-main" href="{% if request.user.is_authenticated %}{% url 'challenge' %}?discipline={{ active_discipline.key }}{% else %}{% url 'level_test' %}?discipline={{ active_discipline.key }}{% endif %}">Submit Performance</a>
-                {% if not request.user.is_authenticated %}
-                    <a class="btn-secondary" href="{% url 'register' %}">Claim Your Athlete Profile</a>
-                {% endif %}
-            </div>
-        </div>
-        <div class="stat-grid">
-            <div class="stat-card"><span class="kicker">Verified</span><span class="stat-value">{{ verified_count }}</span></div>
-            <div class="stat-card"><span class="kicker">Shown</span><span class="stat-value">{{ submission_count }}</span></div>
-            <div class="stat-card"><span class="kicker">Pending</span><span class="stat-value">{{ pending_count }}</span></div>
-        </div>
+{# ── Header card ── #}
+<div class="lb-header">
+    <h1>{% if is_hybrid_leaderboard %}Hybrid Leaderboard{% else %}{{ active_discipline.title }}{% endif %}</h1>
+    <p class="muted">{% if is_hybrid_leaderboard %}Overall athlete rating — verified discipline points averaged into one score.{% elif active_discipline.score_type == "time" %}Lower time ranks higher. Proof required for official status.{% else %}Higher reps rank higher. Proof required for official status.{% endif %}</p>
+    <div class="lb-header-actions">
+        <a class="btn-main" href="{% if request.user.is_authenticated %}{% url 'challenge' %}?discipline={{ active_discipline.key }}{% else %}{% url 'level_test' %}?discipline={{ active_discipline.key }}{% endif %}">Submit Your Score</a>
+        <form class="lb-search-wrap" method="GET" action="{% url 'leaderboard' %}">
+            <input type="search" name="q" value="{{ query }}" placeholder="Search athletes…" autocomplete="off">
+            <input type="hidden" name="discipline" value="{{ active_discipline.key }}">
+            <button class="btn-main" type="submit">Search</button>
+        </form>
     </div>
-</section>
+</div>
 
-<section class="card-dark" style="margin-bottom: 24px;">
-    <div class="section-spread">
-        <div>
-            <h2>Choose your leaderboard.</h2>
-            <p class="muted">Hybrid Leaderboard first. Discipline boards underneath. Submit your best performance. Get ranked. Prove it.</p>
-        </div>
-    </div>
-    <div class="grid-4">
-        <a class="feature-card" href="{% url 'leaderboard' %}#full-leaderboard">
-            <span class="kicker">Overall athlete rating</span>
-            <h3>Hybrid Leaderboard</h3>
-            <p class="muted">Visible discipline points averaged into Hybrid Score.</p>
-        </a>
-        {% for discipline in discipline_cards %}
-            <a class="feature-card" href="{% url 'leaderboard_discipline' discipline.key %}#full-leaderboard">
-                <span class="kicker">{% if discipline.score_type == "time" %}Lower time wins{% else %}Higher score wins{% endif %}</span>
-                <h3>{{ discipline.title }}</h3>
-                <p class="muted">Proof makes it official.</p>
-            </a>
-        {% endfor %}
-    </div>
-</section>
+{# ── Discipline tabs ── #}
+<nav class="lb-tabs">
+    <a class="lb-tab {% if is_hybrid_leaderboard %}is-active{% endif %}" href="{% url 'leaderboard' %}">Hybrid</a>
+    {% for d in discipline_cards %}
+    <a class="lb-tab {% if not is_hybrid_leaderboard and active_discipline.key == d.key %}is-active{% endif %}"
+       href="{% url 'leaderboard_discipline' d.key %}">{{ d.short_label }}</a>
+    {% endfor %}
+</nav>
 
-{% if recent_activity %}
-<section class="card-dark" style="margin-bottom: 24px;">
-    <div class="section-spread">
-        <div>
-            <h2>Recent activity</h2>
-            <p class="muted">Real submissions and proof updates from Earned Club.</p>
-        </div>
-    </div>
-    <div class="compact-board">
-        {% for item in recent_activity %}
-            <a class="score-row" href="{{ item.url }}">
-                <span class="avatar">{{ item.text|first|upper }}</span>
-                <div class="score-row-main">
-                    <div class="submission-name">{{ item.text }}</div>
-                    <div class="submission-meta">{{ item.time|date:"M j, H:i" }}</div>
-                </div>
-                <span class="status-pill {{ item.status }}">{{ item.status|title }}</span>
-            </a>
-        {% endfor %}
-    </div>
-</section>
-{% endif %}
+{# ── Stats line ── #}
+<div class="lb-statsline">
+    <strong>{{ verified_count }}</strong> official
+    <span class="sep">·</span>
+    <strong>{{ pending_count }}</strong> pending
+    <span class="sep">·</span>
+    <strong>{{ submission_count }}</strong> on board
+</div>
 
-<section class="card-dark leaderboard-tier-panel">
-    <div class="section-spread">
-        <div>
-            <h2>{% if is_hybrid_leaderboard %}Hybrid rank tiers{% else %}{{ active_discipline.short_label }} point tiers{% endif %}</h2>
-            <p class="muted">{% if is_hybrid_leaderboard %}Hybrid titles are based on visible discipline points in this leaderboard.{% else %}These are the current score-to-points targets for this leaderboard.{% endif %}</p>
-        </div>
-        <a class="btn-secondary" href="{% url 'calculators' %}">Open Calculator</a>
-    </div>
-    {% if is_hybrid_leaderboard %}
-        <div class="leaderboard-tier-grid">
-            {% for rank in hybrid_ranks %}
-                <div class="leaderboard-tier-card rank-{{ rank.intensity }}">
-                    <span class="kicker">{{ rank.min_score }}+ Hybrid Score</span>
-                    <h3>{{ rank.name }}</h3>
-                    <p class="muted">{{ rank.description }}</p>
-                </div>
-            {% endfor %}
-        </div>
-    {% else %}
-        <div class="leaderboard-tier-grid">
-            {% for key, board in discipline_point_tiers.items %}
-                {% if key == active_discipline.key %}
-                    {% for tier in board.tiers %}
-                        <div class="leaderboard-tier-row">
-                            <strong>{{ tier.display }}</strong>
-                            <span class="tag-pill">{{ tier.points }} pts</span>
-                            <span class="leaderboard-tier-fill" style="--tier-width: {{ tier.width_percent }}%;"></span>
-                        </div>
-                    {% endfor %}
-                {% endif %}
-            {% endfor %}
-        </div>
-    {% endif %}
-</section>
+{# ── Mode filters — always visible ── #}
+<div class="lb-modes-bar" id="full-leaderboard">
+    {% for mode in leaderboard_modes %}
+    <a class="lb-mode {% if mode.key == active_mode.key %}is-active{% endif %}"
+       href="?discipline={{ active_discipline.key }}&mode={{ mode.key }}{% if query %}&q={{ query|urlencode }}{% endif %}#full-leaderboard">{{ mode.label }}</a>
+    {% endfor %}
+</div>
 
-<section id="full-leaderboard" class="card-dark full-leaderboard-section">
-    <div class="section-spread">
-        <div>
-            <h2>{% if is_hybrid_leaderboard %}Hybrid Leaderboard{% else %}{{ active_discipline.label }} Results{% endif %}</h2>
-            <p class="muted">Verified rows can earn official rank. Pending and unverified rows show the chase, not official status.</p>
-            {% if not request.user.is_authenticated %}
-                <p class="muted">Your result can be live on the open leaderboard first. Claim Your Athlete Profile to save it, verify results, unlock badges, and keep challenge history.</p>
+{% if leaderboard_rows %}
+
+{# ── Top 3 — page 1 only, no search ── #}
+{% if not query and leaderboard_rows.number == 1 %}
+{% with top3=leaderboard_rows|slice:":3" %}
+{% if top3|length >= 2 %}
+<div class="lb-top3">
+    {% for row in top3 %}
+
+    {% if forloop.first %}
+    <a class="lb-hero" href="{% if row.profile %}{% url 'athlete_profile' row.profile.slug %}{% else %}#{% endif %}">
+        <div class="lb-hero-watermark">1</div>
+        <div class="lb-hero-av">
+            {% if is_hybrid_leaderboard %}
+                {% if row.profile and row.profile.profile_image_url %}<img src="{{ row.profile.profile_image_url }}" style="width:100%;height:100%;object-fit:cover;" alt="">
+                {% else %}{{ row.display_name|first|upper }}{% endif %}
+            {% else %}
+                {% if row.profile and row.profile.profile_image_url %}<img src="{{ row.profile.profile_image_url }}" style="width:100%;height:100%;object-fit:cover;" alt="">
+                {% elif row.profile %}{{ row.profile.display_name|first|upper }}
+                {% else %}{{ row.submission.name|first|upper }}{% endif %}
             {% endif %}
         </div>
-    </div>
-    <form class="search-row" method="GET" action="{% url 'leaderboard' %}#full-leaderboard">
-        <input id="leaderboard-search" class="input" type="search" name="q" value="{{ query }}" placeholder="Search athletes">
-        <input type="hidden" name="discipline" value="{{ active_discipline.key }}">
-        <button class="btn-secondary" type="submit">Search</button>
-    </form>
-    <div class="button-row" style="margin-top: 0; margin-bottom: 16px;">
-        {% for mode in leaderboard_modes %}
-            <a class="{% if mode.key == active_mode.key %}btn-main{% else %}btn-secondary{% endif %}" href="?discipline={{ active_discipline.key }}&mode={{ mode.key }}{% if query %}&q={{ query|urlencode }}{% endif %}#full-leaderboard">{{ mode.label }}</a>
-        {% endfor %}
-    </div>
-
-    {% if leaderboard_rows %}
-        {% if is_hybrid_leaderboard %}
-        <table class="leaderboard-table">
-            <thead>
-                <tr>
-                    <th>#</th>
-                    <th>Discipline</th>
-                    <th>Athlete</th>
-                    <th>Score</th>
-                    <th>Rank</th>
-                    <th>Status</th>
-                    <th>Position</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for row in leaderboard_rows %}
-                    <tr class="rank-row rank-{{ row.rank_intensity }}" data-intensity="{{ row.rank_intensity }}">
-                        <td><span class="position-pill">#{{ row.position }}</span></td>
-                        <td>Hybrid</td>
-                        <td>
-                            <div class="submission-name">
-                                {% if row.profile %}
-                                    <a href="{% url 'athlete_profile' row.profile.slug %}" style="display: inline-flex; align-items: center; gap: 10px;">
-                                        {% if row.profile.profile_image_url %}<img class="avatar" src="{{ row.profile.profile_image_url }}" alt="{{ row.profile.display_name }} profile picture">{% else %}<span class="avatar">{{ row.profile.display_name|first|upper }}</span>{% endif %}
-                                        {{ row.profile.display_name }}
-                                    </a>
-                                {% else %}
-                                    <span style="display: inline-flex; align-items: center; gap: 10px;"><span class="avatar">{{ row.display_name|first|upper }}</span>{{ row.display_name }}</span>
-                                {% endif %}
-                            </div>
-                        </td>
-                        <td><span class="score">{{ row.hybrid_score }}</span></td>
-                        <td><span class="tag-pill rank-pill rank-{{ row.rank_intensity }}">{{ row.hybrid_rank.name }}</span></td>
-                        <td>
-                            <span class="status-pill {% if row.status_label == 'Official' %}verified{% else %}unverified{% endif %}">{{ row.status_label }}</span>
-                        </td>
-                        <td>
-                            #{{ row.position }}
-                            <div class="submission-meta">{{ row.verified_count }}/{{ row.open_count }} verified</div>
-                        </td>
-                    </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-
-        <div class="mobile-cards compact-board">
-            {% for row in leaderboard_rows %}
-                <div class="score-row rank-row rank-{{ row.rank_intensity }}" data-intensity="{{ row.rank_intensity }}">
-                    {% if row.profile and row.profile.profile_image_url %}
-                        <img class="avatar" src="{{ row.profile.profile_image_url }}" alt="{{ row.profile.display_name }} profile picture">
-                    {% elif row.profile %}
-                        <span class="avatar">{{ row.profile.display_name|first|upper }}</span>
-                    {% else %}
-                        <span class="avatar">{{ row.display_name|first|upper }}</span>
-                    {% endif %}
-                    <div class="score-row-main">
-                        <div class="submission-name">{% if row.profile %}<a href="{% url 'athlete_profile' row.profile.slug %}">{{ row.profile.display_name }}</a>{% else %}{{ row.display_name }}{% endif %}</div>
-                        <div class="submission-meta">{{ row.hybrid_rank.name }} - {{ row.status_label }} - #{{ row.position }}</div>
-                    </div>
-                    <div class="score-row-score">
-                        <span class="position-pill">#{{ row.position }}</span>
-                        <div class="score">{{ row.hybrid_score }}</div>
-                    </div>
-                </div>
-            {% endfor %}
+        <div class="lb-hero-crown">&#9819;</div>
+        <div class="lb-hero-eyebrow">Rank #1</div>
+        <div class="lb-hero-name">
+            {% if is_hybrid_leaderboard %}{% if row.profile %}{{ row.profile.display_name }}{% else %}{{ row.display_name }}{% endif %}
+            {% else %}{{ row.submission.name }}{% endif %}
         </div>
-        {% else %}
-        <table class="leaderboard-table">
-            <thead>
-                <tr>
-                    <th>#</th>
-                    <th>Discipline</th>
-                    <th>Athlete</th>
-                    <th>{{ leaderboard_rows.0.submission.score_heading|default:"Score" }}</th>
-                    <th>Rank</th>
-                    <th>Status</th>
-                    <th>Position</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for row in leaderboard_rows %}
-                    <tr class="rank-row rank-{{ row.rank_intensity }}" data-board-row data-status="{{ row.submission.status }}" data-created="{{ row.submission.created_at|date:'c' }}" data-intensity="{{ row.rank_intensity }}">
-                        <td><span class="position-pill">#{{ row.position }}</span></td>
-                        <td>{{ row.submission.discipline_label }}</td>
-                        <td>
-                            <div class="submission-name">
-                                {% if row.profile %}
-                                    <a href="{% url 'athlete_profile' row.profile.slug %}" style="display: inline-flex; align-items: center; gap: 10px;">
-                                        {% if row.profile.profile_image_url %}<img class="avatar" src="{{ row.profile.profile_image_url }}" alt="{{ row.profile.display_name }} profile picture">{% else %}<span class="avatar">{{ row.profile.display_name|first|upper }}</span>{% endif %}
-                                        {{ row.submission.name }}
-                                    </a>
-                                {% else %}
-                                    <span style="display: inline-flex; align-items: center; gap: 10px;"><span class="avatar">{{ row.submission.name|first|upper }}</span>{{ row.submission.name }}</span>
-                                {% endif %}
-                            </div>
-                        </td>
-                        <td><span class="score">{{ row.submission.compact_score }}</span></td>
-                        <td><span class="tag-pill rank-pill rank-{{ row.rank_intensity }}">{{ row.submission.rank_name }}</span><div class="submission-meta">{{ row.display_points }} pts</div></td>
-                        <td><span class="status-pill {{ row.submission.status }}">{{ row.submission.public_status_label }}</span></td>
-                        <td>
-                            {% if row.verified_position %}Official rank #{{ row.verified_position }}{% else %}-{% endif %}
-                            {% if not row.verified_position %}<div class="submission-meta">Waiting for verification</div>{% endif %}
-                            {% if request.user.is_authenticated and row.profile and row.profile.user != request.user %}
-                                <a class="btn-secondary" style="margin-top: 8px; min-height: 34px; padding: 6px 10px;" href="{% url 'comparison' request.user.profile.slug row.profile.slug %}">1v1</a>
-                            {% endif %}
-                        </td>
-                    </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-
-        <div class="mobile-cards compact-board">
-            {% for row in leaderboard_rows %}
-                <div class="score-row rank-row rank-{{ row.rank_intensity }}" data-board-row data-status="{{ row.submission.status }}" data-created="{{ row.submission.created_at|date:'c' }}" data-intensity="{{ row.rank_intensity }}">
-                    {% if row.profile and row.profile.profile_image_url %}
-                        <img class="avatar" src="{{ row.profile.profile_image_url }}" alt="{{ row.profile.display_name }} profile picture">
-                    {% elif row.profile %}
-                        <span class="avatar">{{ row.profile.display_name|first|upper }}</span>
-                    {% else %}
-                        <span class="avatar">{{ row.submission.name|first|upper }}</span>
-                    {% endif %}
-                    <div class="score-row-main">
-                        <div class="submission-name">{% if row.profile %}<a href="{% url 'athlete_profile' row.profile.slug %}">{{ row.submission.name }}</a>{% else %}{{ row.submission.name }}{% endif %}</div>
-                        <div class="submission-meta">{{ row.submission.discipline_label }} - {{ row.submission.display_score }} - {{ row.submission.public_status_label }} - {{ row.display_points }} pts</div>
-                    </div>
-                    <div class="score-row-score">
-                        <span class="position-pill">#{{ row.position }}</span>
-                        <div class="score">{{ row.submission.compact_score }}</div>
-                    </div>
-                </div>
-            {% endfor %}
+        <div class="lb-hero-score">
+            {% if is_hybrid_leaderboard %}{{ row.hybrid_score }}{% else %}{{ row.submission.compact_score }}{% endif %}
         </div>
-        {% endif %}
+        <div class="lb-hero-meta">
+            {% if is_hybrid_leaderboard %}
+                <span class="lb-hero-tier" data-tier="{{ row.rank_intensity }}">{{ row.hybrid_rank.name }}</span>
+                <span class="lb-sep">·</span>
+                {% if row.status_label == "Official" %}<span class="st-official" style="font-size:.76rem;">✓ Official</span>
+                {% elif row.status_label == "Pending" %}<span class="st-pending" style="font-size:.76rem;">⏱ Pending</span>
+                {% else %}<span class="st-unverified" style="font-size:.76rem;">○ Unverified</span>{% endif %}
+            {% else %}
+                <span class="lb-hero-tier" data-tier="{{ row.rank_intensity }}">{{ row.submission.rank_name }}</span>
+                <span class="lb-sep">·</span>
+                {% if row.submission.status == "verified" %}<span class="st-official" style="font-size:.76rem;">✓ Official</span>
+                {% elif row.submission.status == "pending" %}<span class="st-pending" style="font-size:.76rem;">⏱ Pending</span>
+                {% else %}<span class="st-unverified" style="font-size:.76rem;">○ Unverified</span>{% endif %}
+            {% endif %}
+        </div>
+    </a>
+
     {% else %}
-        <div class="mini-card">
-            <h3>No one owns this board yet. Be first.</h3>
-            <p class="muted">Submit a real result and claim the first spot on this leaderboard.</p>
-            <a class="btn-main" href="{% url 'level_test' %}">Submit Your Score</a>
-            <a class="btn-secondary" href="{% url 'register' %}">Claim Your Athlete Profile</a>
-        </div>
-    {% endif %}
-
-    {% if leaderboard_rows.paginator.num_pages > 1 %}
-        <div class="pagination-row">
-            <div class="muted">Page {{ leaderboard_rows.number }} of {{ leaderboard_rows.paginator.num_pages }}</div>
-            <div class="button-row" style="margin-top: 0;">
-                {% if leaderboard_rows.has_previous %}
-                    <a class="btn-secondary" href="?discipline={{ active_discipline.key }}&mode={{ active_mode.key }}{% if query %}&q={{ query|urlencode }}{% endif %}&page={{ leaderboard_rows.previous_page_number }}#full-leaderboard" aria-label="Previous page">&#8592;</a>
-                {% endif %}
-                {% for page_number in leaderboard_pages %}
-                    {% if page_number == leaderboard_rows.paginator.ELLIPSIS %}
-                        <span class="tag-pill">{{ page_number }}</span>
-                    {% elif page_number == leaderboard_rows.number %}
-                        <span class="btn-main">{{ page_number }}</span>
-                    {% else %}
-                        <a class="btn-secondary" href="?discipline={{ active_discipline.key }}&mode={{ active_mode.key }}{% if query %}&q={{ query|urlencode }}{% endif %}&page={{ page_number }}#full-leaderboard">{{ page_number }}</a>
-                    {% endif %}
-                {% endfor %}
-                {% if leaderboard_rows.has_next %}
-                    <a class="btn-secondary" href="?discipline={{ active_discipline.key }}&mode={{ active_mode.key }}{% if query %}&q={{ query|urlencode }}{% endif %}&page={{ leaderboard_rows.next_page_number }}#full-leaderboard" aria-label="Next page">&#8594;</a>
+    <a class="lb-side" href="{% if row.profile %}{% url 'athlete_profile' row.profile.slug %}{% else %}#{% endif %}">
+        <div class="lb-side-watermark">{{ forloop.counter }}</div>
+        <div class="lb-side-top">
+            <div class="lb-side-av">
+                {% if is_hybrid_leaderboard %}
+                    {% if row.profile and row.profile.profile_image_url %}<img src="{{ row.profile.profile_image_url }}" style="width:100%;height:100%;object-fit:cover;" alt="">
+                    {% else %}{{ row.display_name|first|upper }}{% endif %}
+                {% else %}
+                    {% if row.profile and row.profile.profile_image_url %}<img src="{{ row.profile.profile_image_url }}" style="width:100%;height:100%;object-fit:cover;" alt="">
+                    {% elif row.profile %}{{ row.profile.display_name|first|upper }}
+                    {% else %}{{ row.submission.name|first|upper }}{% endif %}
                 {% endif %}
             </div>
+            <div>
+                <div class="lb-side-eyebrow">Rank #{{ forloop.counter }}</div>
+                <div class="lb-side-name">
+                    {% if is_hybrid_leaderboard %}{% if row.profile %}{{ row.profile.display_name }}{% else %}{{ row.display_name }}{% endif %}
+                    {% else %}{{ row.submission.name }}{% endif %}
+                </div>
+            </div>
         </div>
+        <div class="lb-side-score">
+            {% if is_hybrid_leaderboard %}{{ row.hybrid_score }}{% else %}{{ row.submission.compact_score }}{% endif %}
+        </div>
+        <div class="lb-side-meta">
+            {% if is_hybrid_leaderboard %}
+                <span class="lb-side-tier" data-tier="{{ row.rank_intensity }}">{{ row.hybrid_rank.name }}</span>
+                <span class="lb-sep" style="font-size:.7rem;">·</span>
+                {% if row.status_label == "Official" %}<span class="st-official" style="font-size:.72rem;">✓ Official</span>
+                {% elif row.status_label == "Pending" %}<span class="st-pending" style="font-size:.72rem;">⏱ Pending</span>
+                {% else %}<span class="st-unverified" style="font-size:.72rem;">○ Unverified</span>{% endif %}
+            {% else %}
+                <span class="lb-side-tier" data-tier="{{ row.rank_intensity }}">{{ row.submission.rank_name }}</span>
+                <span class="lb-sep" style="font-size:.7rem;">·</span>
+                {% if row.submission.status == "verified" %}<span class="st-official" style="font-size:.72rem;">✓ Official</span>
+                {% elif row.submission.status == "pending" %}<span class="st-pending" style="font-size:.72rem;">⏱ Pending</span>
+                {% else %}<span class="st-unverified" style="font-size:.72rem;">○ Unverified</span>{% endif %}
+            {% endif %}
+        </div>
+    </a>
     {% endif %}
-</section>
+
+    {% endfor %}
+</div>
+{% endif %}
+{% endwith %}
+{% endif %}
+
+{# ── Results table ── #}
+<div class="lb-results">
+    {% for row in leaderboard_rows %}
+    {% if not query and leaderboard_rows.number == 1 and forloop.counter <= 3 %}{% else %}
+
+    {% if is_hybrid_leaderboard %}
+    <a class="lb-row" data-tier="{{ row.rank_intensity }}"
+       href="{% if row.profile %}{% url 'athlete_profile' row.profile.slug %}{% else %}#{% endif %}">
+        <div class="lb-row-pos">#{{ row.position }}</div>
+        <div class="lb-row-athlete">
+            <div class="lb-row-av">
+                {% if row.profile and row.profile.profile_image_url %}<img src="{{ row.profile.profile_image_url }}" style="width:100%;height:100%;object-fit:cover;" alt="">
+                {% else %}{{ row.display_name|first|upper }}{% endif %}
+            </div>
+            <div class="lb-row-body">
+                <div class="lb-row-name">{% if row.profile %}{{ row.profile.display_name }}{% else %}{{ row.display_name }}{% endif %}</div>
+                <div class="lb-row-meta">
+                    <span class="lb-row-tier" data-tier="{{ row.rank_intensity }}">{{ row.hybrid_rank.name }}</span>
+                    <span class="lb-sep">·</span>
+                    {% if row.status_label == "Official" %}<span class="lb-row-status st-official">✓ Official</span>
+                    {% elif row.status_label == "Pending" %}<span class="lb-row-status st-pending">⏱ Pending</span>
+                    {% else %}<span class="lb-row-status st-unverified">○ Unverified</span>{% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="lb-row-right">
+            <div class="lb-score-big">{{ row.hybrid_score }}</div>
+            <div class="lb-score-sub">pts</div>
+        </div>
+    </a>
+
+    {% else %}
+    <a class="lb-row" data-tier="{{ row.rank_intensity }}"
+       href="{% if row.profile %}{% url 'athlete_profile' row.profile.slug %}{% else %}#{% endif %}">
+        <div class="lb-row-pos">#{{ row.position }}</div>
+        <div class="lb-row-athlete">
+            <div class="lb-row-av">
+                {% if row.profile and row.profile.profile_image_url %}<img src="{{ row.profile.profile_image_url }}" style="width:100%;height:100%;object-fit:cover;" alt="">
+                {% elif row.profile %}{{ row.profile.display_name|first|upper }}
+                {% else %}{{ row.submission.name|first|upper }}{% endif %}
+            </div>
+            <div class="lb-row-body">
+                <div class="lb-row-name">{{ row.submission.name }}</div>
+                <div class="lb-row-meta">
+                    <span class="lb-row-tier" data-tier="{{ row.rank_intensity }}">{{ row.submission.rank_name }}</span>
+                    <span class="lb-sep">·</span>
+                    {% if row.submission.status == "verified" %}<span class="lb-row-status st-official">✓ Official</span>
+                    {% elif row.submission.status == "pending" %}<span class="lb-row-status st-pending">⏱ Pending</span>
+                    {% else %}<span class="lb-row-status st-unverified">○ Unverified</span>{% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="lb-row-right">
+            <div class="lb-score-big">{{ row.submission.compact_score }}</div>
+            {% if row.display_points %}<div class="lb-score-sub">{{ row.display_points }} pts</div>{% endif %}
+        </div>
+    </a>
+    {% endif %}
+
+    {% endif %}
+    {% endfor %}
+</div>
+
+{% else %}
+<div class="lb-empty">
+    {% if active_mode.key != "all" or query %}
+    <h3 style="margin-bottom:8px;">No results for this filter.</h3>
+    <p class="muted" style="margin-bottom:18px;">Try a different time window or clear your search.</p>
+    <a class="lb-tab is-active" style="display:inline-block;margin-bottom:10px;" href="?discipline={{ active_discipline.key }}&mode=all">← Show all results</a>
+    {% else %}
+    <h3 style="margin-bottom:8px;">No one owns this board yet.</h3>
+    <p class="muted" style="margin-bottom:20px;">Submit a real result and claim the first spot.</p>
+    <a class="btn-main" href="{% url 'level_test' %}">Submit Your Score</a>
+    {% endif %}
+</div>
+{% endif %}
+
+{# ── Pagination ── #}
+{% if leaderboard_rows.paginator.num_pages > 1 %}
+<div class="lb-pages">
+    {% if leaderboard_rows.has_previous %}
+    <a class="lb-page" href="?discipline={{ active_discipline.key }}&mode={{ active_mode.key }}{% if query %}&q={{ query|urlencode }}{% endif %}&page={{ leaderboard_rows.previous_page_number }}#full-leaderboard">←</a>
+    {% endif %}
+    {% for page_number in leaderboard_pages %}
+        {% if page_number == leaderboard_rows.paginator.ELLIPSIS %}
+        <span class="lb-page is-ellipsis">…</span>
+        {% elif page_number == leaderboard_rows.number %}
+        <span class="lb-page is-active">{{ page_number }}</span>
+        {% else %}
+        <a class="lb-page" href="?discipline={{ active_discipline.key }}&mode={{ active_mode.key }}{% if query %}&q={{ query|urlencode }}{% endif %}&page={{ page_number }}#full-leaderboard">{{ page_number }}</a>
+        {% endif %}
+    {% endfor %}
+    {% if leaderboard_rows.has_next %}
+    <a class="lb-page" href="?discipline={{ active_discipline.key }}&mode={{ active_mode.key }}{% if query %}&q={{ query|urlencode }}{% endif %}&page={{ leaderboard_rows.next_page_number }}#full-leaderboard">→</a>
+    {% endif %}
+</div>
+{% endif %}
+
 {% endblock %}

@@ -9,5 +9,5 @@ def site_metadata(request):
     return {
         "site_url": site_url,
         "canonical_url": canonical_url,
-        "og_image_url": urljoin(f"{site_url}/", "static/favicon.png"),
+        "og_image_url": urljoin(f"{site_url}/", "static/logo.png"),
     }

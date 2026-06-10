@@ -1392,10 +1392,12 @@ def build_discipline_point_tiers():
 
 def parse_duration_to_seconds(value):
     raw = (value or "").strip()
-    if "." in raw and ":" not in raw:
-        dot_parts = raw.split(".")
-        if len(dot_parts) == 2 and all(part.isdigit() for part in dot_parts):
-            raw = ":".join(dot_parts)
+    for sep in (".", ","):
+        if sep in raw and ":" not in raw:
+            sep_parts = raw.split(sep)
+            if len(sep_parts) == 2 and all(part.isdigit() for part in sep_parts):
+                raw = ":".join(sep_parts)
+                break
     if not raw:
         raise ValueError("Enter a time.")
     parts = raw.split(":")

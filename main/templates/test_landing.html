@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load static %}
 
 {% block title %}Performance Test{% endblock %}
 {% block meta_description %}Choose your strongest discipline, post your result to the open leaderboard, and start Official Review to earn official status.{% endblock %}
@@ -121,6 +122,10 @@
         color: #111;
         font-family: "Archivo", sans-serif;
         font-weight: 900;
+    }
+    .discipline-mark img {
+        display: block;
+        object-fit: contain;
     }
 
     .discipline-choice strong,
@@ -545,7 +550,15 @@
                     {% for discipline in discipline_cards %}
                         <label class="discipline-choice">
                             <input type="radio" name="discipline_choice" value="{{ discipline.key }}" {% if discipline.key == active_discipline_key %}checked{% endif %}>
-                            <span class="discipline-mark">{% if discipline.key == "pushups" %}PU{% elif discipline.key == "pullups" %}PL{% else %}5K{% endif %}</span>
+                            <span class="discipline-mark">
+                                {% if discipline.key == "pushups" %}
+                                <img src="{% static 'icons/icon-pushup.png' %}" style="width:34px;height:34px;" alt="Push-ups">
+                                {% elif discipline.key == "pullups" %}
+                                <img src="{% static 'icons/icon-pullup.png' %}" style="width:34px;height:34px;" alt="Pull-ups">
+                                {% else %}
+                                <img src="{% static 'icons/icon-run.png' %}" style="width:28px;height:28px;" alt="5K run">
+                                {% endif %}
+                            </span>
                             <span><strong>{{ discipline.short_label }}</strong><span class="submission-meta">{% if discipline.score_type == "time" %}Race or Strava time{% else %}Max clean reps{% endif %}</span></span>
                         </label>
                     {% endfor %}
@@ -589,7 +602,10 @@
                         <span class="submission-meta" style="margin-top: 8px; display: block;" data-preview-result>—</span>
                     </div>
                 </div>
-                <p class="muted">This is a preview — just for you. Next step posts it to the public leaderboard.</p>
+                <div data-proof-warning style="display:none; background: #2a1f0a; border: 1px solid #a06020; border-radius: 8px; padding: 12px 16px; margin-top: 8px; font-size: 0.88rem; line-height: 1.45; color: #f0c060;">
+                    <strong>Proof required to go live.</strong> This score is above the open threshold — it will be saved as pending and won't appear on the leaderboard until you add a video or result link.
+                </div>
+                <p class="muted" data-preview-footer>This is a preview — just for you. Next step posts it to the public leaderboard.</p>
                 <div class="button-row">
                     <button class="btn-main" type="button" data-next>I want this score →</button>
                     <button class="btn-secondary" type="button" data-back>Back</button>
@@ -773,7 +789,7 @@
     const disciplineLabels = {
         pushups: { label: "Push-ups", unit: "reps", placeholder: "42", help: "Enter max clean reps.", hint: "Higher reps rank higher.", resultTitle: "How many push-ups can you do?" },
         pullups: { label: "Pull-ups", unit: "reps", placeholder: "12", help: "Enter max clean reps.", hint: "Higher reps rank higher.", resultTitle: "How many pull-ups can you do?" },
-        run_5k: { label: "5K", unit: "time", placeholder: "21:34", help: "Use MM:SS, e.g. 21:34.", hint: "Use MM:SS or HH:MM:SS. Lower time ranks higher.", resultTitle: "What's your best 5K time?" },
+        run_5k: { label: "5K", unit: "time", placeholder: "21:34", help: "Type your time, e.g. 2134 → 21:34.", hint: "Type 4 digits — auto-formats to MM:SS. Lower time ranks higher.", resultTitle: "What's your best 5K time?" },
     };
     const previewHeadlines = {
         "Earned Legend": "Lethal. That's Earned Legend territory.",
@@ -803,12 +819,41 @@
         document.querySelector("[data-result-hint]").textContent = config.hint;
         input.value = "";
         input.type = config.unit === "time" ? "text" : "number";
-        input.inputMode = config.unit === "time" ? "text" : "numeric";
+        input.inputMode = config.unit === "time" ? "numeric" : "numeric";
         input.placeholder = config.placeholder;
+        if (config.unit === "time") {
+            input.setAttribute("data-time-mask", "1");
+        } else {
+            input.removeAttribute("data-time-mask");
+        }
     }
 
+    (function attachTimeMask() {
+        const input = document.getElementById("test-result");
+
+        input.addEventListener("keydown", function (e) {
+            if (!input.hasAttribute("data-time-mask")) return;
+            const allowed = ["Backspace", "Delete", "ArrowLeft", "ArrowRight", "Tab", "Enter"];
+            if (allowed.includes(e.key)) return;
+            if (!/^\d$/.test(e.key)) { e.preventDefault(); return; }
+        });
+
+        input.addEventListener("input", function (e) {
+            if (!input.hasAttribute("data-time-mask")) return;
+            const deleting = e.inputType && e.inputType.startsWith("delete");
+            let digits = input.value.replace(/\D/g, "").slice(0, 4);
+            if (digits.length > 2) {
+                input.value = digits.slice(0, 2) + ":" + digits.slice(2);
+            } else if (digits.length === 2 && !deleting) {
+                input.value = digits + ":";
+            } else {
+                input.value = digits;
+            }
+        });
+    })();
+
     function parseTime(value) {
-        const raw = (value || "").trim().replace(/^(\d+)\.(\d+)$/, "$1:$2");
+        const raw = (value || "").trim().replace(/^(\d+)[.,](\d+)$/, "$1:$2");
         const parts = raw.split(":").map((part) => Number(part));
         if (!raw || !parts.every((part) => Number.isInteger(part) && part >= 0)) return null;
         if (parts.length === 2 && parts[1] <= 59) return parts[0] * 60 + parts[1];
@@ -874,6 +919,14 @@
         return false;
     }
 
+    const proofThresholds = { pushups: 60, pullups: 15, run_5k: 20 * 60 };
+
+    function needsProof(discipline, value) {
+        const t = proofThresholds[discipline];
+        if (t === undefined) return false;
+        return disciplineLabels[discipline].unit === "time" ? value <= t : value >= t;
+    }
+
     function showPreview() {
         const discipline = selectedDiscipline();
         const config = disciplineLabels[discipline];
@@ -889,6 +942,11 @@
         document.querySelector("[data-preview-discipline]").textContent = config.label;
         document.querySelector("[data-preview-result]").textContent = formatted;
         document.querySelector("[data-preview-headline]").textContent = previewHeadlines[tier] || "Here's where you stand.";
+        const requiresProof = needsProof(discipline, value);
+        document.querySelector("[data-proof-warning]").style.display = requiresProof ? "block" : "none";
+        document.querySelector("[data-preview-footer]").textContent = requiresProof
+            ? "Submit it — you'll be prompted to add proof so it goes live."
+            : "This is a preview — just for you. Next step posts it to the public leaderboard.";
     }
 
     function reveal() {
