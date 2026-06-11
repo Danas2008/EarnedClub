@@ -1,4 +1,5 @@
 from django.contrib import admin
+from django.urls import reverse
 from django.utils.html import format_html
 
 from .models import (
@@ -40,9 +41,9 @@ class ChallengeRoomAdmin(admin.ModelAdmin):
 class SubmissionAdmin(admin.ModelAdmin):
     list_display = ("name", "email", "discipline", "score_display", "rank_name", "status", "verified", "proof_access", "created_at")
     list_filter = ("discipline", "status", "verified", "created_at")
-    search_fields = ("name", "email", "video_link")
+    search_fields = ("name", "email", "video_link", "claim_token")
     ordering = ("-created_at",)
-    readonly_fields = ("proof_access",)
+    readonly_fields = ("proof_access", "claim_link")
 
     @admin.display(description="Proof")
     def proof_access(self, obj):
@@ -53,6 +54,24 @@ class SubmissionAdmin(admin.ModelAdmin):
     @admin.display(description="Result")
     def score_display(self, obj):
         return obj.display_score
+
+    @admin.display(description="Recovery / Claim Link")
+    def claim_link(self, obj):
+        if not obj.claim_token:
+            return "No token — submission is linked to a registered account"
+        path = reverse("claim_token", args=[obj.claim_token])
+        return format_html(
+            '<a href="{path}" target="_blank" rel="noopener noreferrer" style="margin-right:14px;">Open link ↗</a>'
+            '<code onclick="this.parentElement.querySelector(\'input\').select()" '
+            'style="font-size:12px;cursor:pointer;" title="Click the field to select all">'
+            '{path}</code>'
+            '<br><input readonly value="{path}" '
+            'style="margin-top:6px;width:100%;max-width:480px;padding:4px 8px;'
+            'font-family:monospace;font-size:12px;border:1px solid #ccc;border-radius:4px;'
+            'background:#f9f9f9;cursor:text;" onclick="this.select()" '
+            'title="Click to select all — then Ctrl+C / Cmd+C to copy for email">',
+            path=path,
+        )
 
 
 @admin.register(Profile)

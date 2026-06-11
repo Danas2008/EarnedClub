@@ -3,6 +3,54 @@
 {% block title %}Review Submissions{% endblock %}
 
 {% block content %}
+<style>
+    .bulk-bar {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 14px 0 6px;
+        flex-wrap: wrap;
+        border-top: 1px solid var(--line);
+        margin-top: 18px;
+    }
+
+    .bulk-select-all-label {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        font-size: 0.88rem;
+        color: var(--muted);
+        cursor: pointer;
+        white-space: nowrap;
+    }
+
+    .sub-check,
+    #select-all-check {
+        width: 17px;
+        height: 17px;
+        cursor: pointer;
+        accent-color: var(--accent);
+        flex-shrink: 0;
+    }
+
+    .bulk-count {
+        font-size: 0.82rem;
+        color: var(--muted);
+        min-width: 80px;
+    }
+
+    .review-card {
+        display: flex;
+        align-items: flex-start;
+        gap: 14px;
+    }
+
+    .review-card-check {
+        padding-top: 4px;
+        flex-shrink: 0;
+    }
+</style>
+
 <section class="hero-card" style="margin-bottom: 24px;">
     <div class="content-split">
         <div>
@@ -68,14 +116,43 @@
         <button class="btn-secondary" type="submit">Filter</button>
     </form>
 
+    {% if review_submissions %}
+    <form id="bulk-form" method="POST" action="{% url 'admin_review' %}">
+        {% csrf_token %}
+        <input type="hidden" name="status_filter" value="{{ status_filter }}">
+        <input type="hidden" name="proof_filter" value="{{ proof_filter }}">
+        <input type="hidden" name="order_filter" value="{{ order_filter }}">
+        <input type="hidden" name="q" value="{{ query }}">
+        <div class="bulk-bar">
+            <label class="bulk-select-all-label">
+                <input type="checkbox" id="select-all-check">
+                Select all
+            </label>
+            <span class="bulk-count" id="bulk-count"></span>
+            <select name="bulk_action" id="bulk-action-select" class="select" style="min-width:180px;">
+                <option value="">— Bulk action —</option>
+                <option value="approve">Approve</option>
+                <option value="reject">Reject</option>
+                <option value="mark_pending">Mark Pending</option>
+                <option value="mark_unverified">Mark Unverified</option>
+                <option value="delete">Delete selected</option>
+            </select>
+            <button type="submit" class="btn-secondary">Apply to selected</button>
+        </div>
+    </form>
+    {% endif %}
+
     {% for submission in review_submissions %}
         <div class="review-card">
+            <div class="review-card-check">
+                <input type="checkbox" class="sub-check" value="{{ submission.id }}" aria-label="Select {{ submission.name }}">
+            </div>
             {% if submission.user and submission.user.profile.profile_image_url %}
                 <img class="avatar" src="{{ submission.user.profile.profile_image_url }}" alt="{{ submission.name }} profile picture">
             {% else %}
                 <span class="avatar">{{ submission.name|first|upper }}</span>
             {% endif %}
-            <div class="stack" style="gap: 12px;">
+            <div class="stack" style="gap: 12px; flex: 1; min-width: 0;">
                 <div class="submission-name">{{ submission.name }}</div>
                 <div class="submission-meta">
                     {{ submission.discipline_label }} - {{ submission.display_score }} submitted {{ submission.created_at|date:"M j, Y H:i" }}
@@ -125,4 +202,47 @@
     {% endfor %}
 </section>
 
+<script>
+(function () {
+    const bulkForm = document.getElementById('bulk-form');
+    if (!bulkForm) return;
+
+    const selectAll = document.getElementById('select-all-check');
+    const countEl = document.getElementById('bulk-count');
+    const checks = () => Array.from(document.querySelectorAll('.sub-check'));
+    const checked = () => checks().filter(c => c.checked);
+
+    function updateUI() {
+        const n = checked().length;
+        const total = checks().length;
+        countEl.textContent = n ? n + ' selected' : '';
+        selectAll.checked = n === total && total > 0;
+        selectAll.indeterminate = n > 0 && n < total;
+    }
+
+    checks().forEach(cb => cb.addEventListener('change', updateUI));
+
+    selectAll.addEventListener('change', function () {
+        checks().forEach(cb => { cb.checked = this.checked; });
+        updateUI();
+    });
+
+    bulkForm.addEventListener('submit', function (e) {
+        const sel = checked();
+        if (!sel.length) {
+            e.preventDefault();
+            alert('Select at least one submission first.');
+            return;
+        }
+        bulkForm.querySelectorAll('[name="submission_ids"]').forEach(el => el.remove());
+        sel.forEach(cb => {
+            const inp = document.createElement('input');
+            inp.type = 'hidden';
+            inp.name = 'submission_ids';
+            inp.value = cb.value;
+            bulkForm.appendChild(inp);
+        });
+    });
+}());
+</script>
 {% endblock %}

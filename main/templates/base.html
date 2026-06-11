@@ -1079,11 +1079,13 @@
         /* Claim save card */
         .claim-save-card {
             display: grid;
+            grid-template-columns: minmax(0, 1fr);
             gap: 10px;
             padding: 14px 16px;
             border-radius: var(--radius-md);
             border: 1px solid rgba(30, 157, 116, .35);
             background: rgba(30, 157, 116, .07);
+            min-width: 0;
         }
 
         .claim-save-row {
@@ -1094,11 +1096,14 @@
             border-radius: var(--radius-md);
             background: rgba(0, 0, 0, .28);
             border: 1px solid rgba(255, 255, 255, .08);
+            min-width: 0;
+            overflow: hidden;
         }
 
         .claim-save-url {
             flex: 1;
             min-width: 0;
+            display: block;
             font-family: monospace;
             font-size: 0.8rem;
             overflow: hidden;

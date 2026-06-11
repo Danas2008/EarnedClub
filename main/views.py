@@ -4092,6 +4092,71 @@ def admin_user_detail(request, user_id):
 
 @user_passes_test(is_app_admin, login_url="login")
 def admin_review(request):
+    if request.method == "POST":
+        action = request.POST.get("bulk_action", "").strip()
+        ids = request.POST.getlist("submission_ids")
+        params = build_querystring(
+            status=request.POST.get("status_filter") or "all",
+            proof=request.POST.get("proof_filter") or "all",
+            order=request.POST.get("order_filter") or "newest",
+            q=request.POST.get("q") or "",
+        )
+        redirect_url = reverse("admin_review")
+        if params:
+            redirect_url = f"{redirect_url}?{params}"
+        if not action:
+            messages.error(request, "Select a bulk action before applying.")
+            return redirect(redirect_url)
+        if not ids:
+            messages.error(request, "Select at least one submission.")
+            return redirect(redirect_url)
+        valid_ids = [int(i) for i in ids if i.isdigit()]
+        bulk_submissions = Submission.objects.filter(pk__in=valid_ids)
+        succeeded = 0
+        skipped = 0
+        for submission in bulk_submissions:
+            try:
+                with transaction.atomic():
+                    if action == "approve":
+                        submission.status = Submission.STATUS_VERIFIED
+                        submission.verified = True
+                        submission.save(update_fields=["status", "verified"])
+                        create_verification_event(submission, VerificationEvent.ACTION_APPROVED, reviewer=request.user)
+                        succeeded += 1
+                    elif action == "reject":
+                        submission.status = Submission.STATUS_REJECTED
+                        submission.verified = False
+                        submission.save(update_fields=["status", "verified"])
+                        create_verification_event(submission, VerificationEvent.ACTION_REJECTED, reviewer=request.user)
+                        succeeded += 1
+                    elif action == "mark_pending":
+                        if not submission.has_proof:
+                            skipped += 1
+                            continue
+                        submission.status = Submission.STATUS_PENDING
+                        submission.verified = False
+                        submission.save(update_fields=["status", "verified"])
+                        succeeded += 1
+                    elif action == "mark_unverified":
+                        submission.status = Submission.STATUS_UNVERIFIED
+                        submission.verified = False
+                        submission.save(update_fields=["status", "verified"])
+                        succeeded += 1
+                    elif action == "delete":
+                        submission.delete()
+                        succeeded += 1
+                    else:
+                        messages.error(request, "Unknown bulk action.")
+                        return redirect(redirect_url)
+            except Exception:
+                logger.exception("Bulk review action %s failed for submission %s", action, submission.pk)
+                skipped += 1
+        if succeeded:
+            messages.success(request, f"Bulk {action}: {succeeded} submission(s) updated.")
+        if skipped:
+            messages.warning(request, f"{skipped} submission(s) skipped (no proof or error).")
+        return redirect(redirect_url)
+
     status_filter = (request.GET.get("status") or "all").strip()
     proof_filter = (request.GET.get("proof") or "all").strip()
     order_filter = (request.GET.get("order") or "newest").strip()
