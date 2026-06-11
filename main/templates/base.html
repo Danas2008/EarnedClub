@@ -1915,7 +1915,7 @@
             <div class="topbar-inner">
                 <nav class="navbar navbar-expand-lg">
                     <div class="container-fluid px-0">
-                        <a class="navbar-brand" href="/">
+                        <a class="navbar-brand" href="{% block logo_href %}/{% endblock %}">
                             <img
                                 src="{% static 'logo.png' %}"
                                 class="brand-logo"
@@ -1923,7 +1923,7 @@
                             >
                             <span class="brand-copy">
                                 <span class="brand-title">EarnedClub</span>
-                                <span class="brand-tagline">Public proof. Real rank. Future status.</span>
+                                <span class="brand-tagline">{% block brand_tagline %}Public proof. Real rank. Future status.{% endblock %}</span>
                             </span>
                         </a>
 
