@@ -55,6 +55,13 @@
 
 {% block cookie_text %}Používáme cookies pro přihlášení, analytiku a zlepšování platformy.{% endblock %}
 {% block cookie_learn_more %}Více informací{% endblock %}
-{% block cookie_accept %}Přijmout{% endblock %}
+{% block cookie_reject %}Odmítnout volitelné{% endblock %}
+{% block cookie_accept %}Přijmout vše{% endblock %}
+{% block cookie_cat_essential_label %}Nezbytné{% endblock %}
+{% block cookie_always_on %}Vždy zapnuto{% endblock %}
+{% block cookie_cat_essential_text %}Vyžadováno pro přihlášení, bezpečnost (CSRF) a správu relací. Nelze vypnout.{% endblock %}
+{% block cookie_cat_analytics_label %}Analytika a zlepšování{% endblock %}
+{% block cookie_optional %}Volitelné{% endblock %}
+{% block cookie_cat_analytics_text %}Pomáhají nám pochopit, jak atleti platformu používají — slouží ke zlepšování funkcí a opravě chyb.{% endblock %}
 {% block floating_cta_href %}{% url 'level_test_cz' %}{% endblock %}
 {% block floating_cta_label %}Odeslat skóre{% endblock %}

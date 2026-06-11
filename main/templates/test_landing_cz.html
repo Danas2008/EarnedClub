@@ -11,6 +11,7 @@
         gap: 16px;
         max-width: 920px;
         margin: 0 auto;
+        min-width: 0;
     }
 
     .test-shell {
@@ -18,7 +19,7 @@
         overflow: hidden;
         min-height: min(720px, calc(100svh - 120px));
         display: grid;
-        align-content: center;
+        align-content: start;
         padding: clamp(18px, 5vw, 34px);
         background:
             linear-gradient(145deg, rgba(247, 183, 51, .16), rgba(30, 157, 116, .08)),
@@ -69,6 +70,8 @@
     .test-step h1 {
         max-width: 720px;
         font-size: clamp(2.4rem, 12vw, 4.8rem);
+        overflow-wrap: break-word;
+        min-width: 0;
     }
 
     .test-options {
@@ -163,11 +166,20 @@
         justify-content: space-between;
         gap: 12px;
         align-items: start;
+        flex-wrap: wrap;
+    }
+
+    .preview-top > div {
+        min-width: 0;
+    }
+
+    .preview-card > * {
+        min-width: 0;
     }
 
     .preview-score {
         font-family: "Archivo", sans-serif;
-        font-size: clamp(4rem, 22vw, 7rem);
+        font-size: clamp(3.2rem, 16vw, 7rem);
         line-height: .78;
         color: var(--accent);
         font-weight: 900;
@@ -175,7 +187,7 @@
 
     .preview-score-sm {
         font-family: "Archivo", sans-serif;
-        font-size: clamp(3rem, 16vw, 5.5rem);
+        font-size: clamp(2.6rem, 13vw, 5.5rem);
         line-height: .82;
         color: var(--accent);
         font-weight: 900;
@@ -529,11 +541,15 @@
         .nfc-tap-icon { opacity: 1; }
     }
 
-    @media (min-width: 760px) {
+    /* Discipline cards go 2-col at 480px+ */
+    @media (min-width: 480px) {
         .test-options {
             grid-template-columns: repeat(2, minmax(0, 1fr));
         }
+    }
 
+    /* Checklist rows go 3-col at 640px+ */
+    @media (min-width: 640px) {
         .test-check-row {
             grid-template-columns: auto minmax(0, 1fr) auto;
         }
@@ -548,10 +564,50 @@
             text-align: center;
             white-space: nowrap;
         }
+    }
 
+    /* Stack layout for all phones and small tablets */
+    @media (max-width: 860px) {
+        .hero-actions {
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        .hero-actions .btn-main,
+        .hero-actions .btn-secondary {
+            width: 100%;
+            text-align: center;
+            white-space: normal;
+        }
+
+        .nfc-headline {
+            font-size: clamp(2.4rem, 10vw, 3.8rem) !important;
+        }
+
+        .preview-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .preview-top {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 8px;
+        }
+
+        .preview-score {
+            font-size: clamp(2.8rem, 14vw, 6rem);
+        }
+
+        .preview-score-sm {
+            font-size: clamp(2.4rem, 12vw, 5rem);
+        }
+    }
+
+    /* Side-by-side score card only on wide screens */
+    @media (min-width: 920px) {
         .preview-card {
-            grid-template-columns: minmax(0, .95fr) minmax(220px, .65fr);
-            align-items: center;
+            grid-template-columns: minmax(0, .95fr) minmax(0, .65fr);
+            align-items: start;
         }
     }
 </style>
@@ -820,16 +876,18 @@
 </form>
 
 {{ discipline_point_tiers|json_script:"discipline-point-tier-data" }}
+<script type="application/json" id="page-config">{"requiresName": {% if request.user.is_authenticated %}false{% else %}true{% endif %}, "hasSavedIdentity": {% if has_saved_test_identity %}true{% else %}false{% endif %}, "initialStep": {% if test_submission_success %}6{% elif active_discipline_key != "pushups" %}2{% else %}0{% endif %}}</script>
 <script>
     const pointTierData = JSON.parse(document.getElementById("discipline-point-tier-data").textContent);
     const pointCurves = Object.fromEntries(Object.entries(pointTierData).map(([key, row]) => {
         const baseline = row.discipline.score_type === "time" ? (key === "run_5k" ? [2400, 0] : [4500, 0]) : [0, 0];
         return [key, [baseline, ...row.tiers.map((tier) => [tier.value, tier.points])]];
     }));
+    const pageConfig = JSON.parse(document.getElementById("page-config").textContent);
     const steps = Array.from(document.querySelectorAll("[data-step]"));
     const progress = document.querySelector("[data-progress]");
-    const requiresName = {% if request.user.is_authenticated %}false{% else %}true{% endif %};
-    const hasSavedIdentity = {% if has_saved_test_identity %}true{% else %}false{% endif %};
+    const requiresName = pageConfig.requiresName;
+    const hasSavedIdentity = pageConfig.hasSavedIdentity;
     const finalStep = 6;
     const disciplineLabels = {
         pushups: { label: "Kliky", unit: "reps", resultTitle: "Tvůj nejlepší výsledek v klikách?", help: "Zadej max čistých opakování.", hint: "Více opakování = vyšší rank.", placeholder: "42" },
@@ -1060,6 +1118,6 @@
             showStep(active + 1);
         });
     });
-    showStep({% if test_submission_success %}finalStep{% elif active_discipline_key != "pushups" %}2{% else %}0{% endif %});
+    showStep(pageConfig.initialStep);
 </script>
 {% endblock %}

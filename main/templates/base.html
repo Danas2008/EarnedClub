@@ -1548,44 +1548,126 @@
             left: 20px;
             right: 20px;
             bottom: 18px;
+            top: auto;
             z-index: 50;
             display: none;
-            align-items: center;
-            justify-content: space-between;
-            gap: 14px;
+            flex-direction: column;
+            align-items: stretch;
+            gap: 0;
             max-width: 760px;
             margin: 0 auto;
-            padding: 12px 14px;
+            padding: 14px 16px;
             border-radius: var(--radius-md);
             border: 1px solid rgba(247, 183, 51, 0.35);
-            background: rgba(8, 11, 15, 0.96);
+            background: rgba(8, 11, 15, 0.97);
             box-shadow: 0 20px 50px rgba(0, 0, 0, 0.42);
             backdrop-filter: blur(14px);
+            animation: cookieSlideIn 0.3s ease;
+        }
+
+        @keyframes cookieSlideIn {
+            from { opacity: 0; transform: translateY(12px); }
+            to   { opacity: 1; transform: translateY(0); }
         }
 
         .cookie-banner.is-visible {
             display: flex;
         }
 
-        .cookie-banner p {
+        .cookie-main {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 14px;
+        }
+
+        .cookie-main p {
             margin: 0;
             color: var(--muted);
-            font-size: 0.95rem;
+            font-size: 0.93rem;
+            flex: 1;
         }
 
         .cookie-actions {
             display: flex;
             gap: 8px;
             flex: 0 0 auto;
+            align-items: center;
+        }
+
+        .cookie-learn-btn {
+            background: none;
+            border: none;
+            color: var(--accent, #f7b733);
+            font-size: 0.88rem;
+            cursor: pointer;
+            padding: 4px 2px;
+            text-decoration: underline;
+            text-underline-offset: 3px;
+            white-space: nowrap;
+        }
+
+        .cookie-learn-btn:hover {
+            opacity: 0.8;
         }
 
         .cookie-actions .btn-main,
         .cookie-actions .btn-secondary {
-            min-height: 38px;
-            padding: 8px 12px;
+            min-height: 36px;
+            padding: 7px 12px;
             border: 0;
-            font-size: 0.92rem;
+            font-size: 0.88rem;
             cursor: pointer;
+            white-space: nowrap;
+        }
+
+        .cookie-details {
+            margin-top: 14px;
+            padding-top: 14px;
+            border-top: 1px solid rgba(247, 183, 51, 0.12);
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .cookie-category {
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+        }
+
+        .cookie-category-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .cookie-category-header strong {
+            font-size: 0.9rem;
+            color: var(--text, #f0f0f0);
+        }
+
+        .cookie-badge {
+            font-size: 0.75rem;
+            border-radius: 4px;
+            padding: 2px 7px;
+        }
+
+        .cookie-badge-on {
+            color: #5cb85c;
+            background: rgba(92, 184, 92, 0.12);
+        }
+
+        .cookie-badge-optional {
+            color: var(--muted, #8a8a8a);
+            background: rgba(255, 255, 255, 0.06);
+        }
+
+        .cookie-category-desc {
+            margin: 0;
+            font-size: 0.85rem;
+            color: var(--muted, #8a8a8a);
+            line-height: 1.45;
         }
 
         .footer {
@@ -1721,13 +1803,14 @@
                 grid-template-columns: 1fr;
             }
 
-            .cookie-banner {
-                align-items: stretch;
+            .cookie-main {
                 flex-direction: column;
+                align-items: stretch;
             }
 
             .cookie-actions {
                 width: 100%;
+                flex-wrap: wrap;
             }
 
             .cookie-actions .btn-main,
@@ -2036,10 +2119,29 @@
     </div>
 
     <div class="cookie-banner" data-cookie-banner role="region" aria-label="Cookie notice">
-        <p>{% block cookie_text %}We use cookies for login, analytics and improving the platform.{% endblock %}</p>
-        <div class="cookie-actions">
-            <a class="btn-secondary" href="{% url 'privacy' %}">{% block cookie_learn_more %}Learn More{% endblock %}</a>
-            <button class="btn-main" type="button" data-cookie-accept>{% block cookie_accept %}Accept{% endblock %}</button>
+        <div class="cookie-main">
+            <p>{% block cookie_text %}We use cookies for login, analytics and improving the platform.{% endblock %}</p>
+            <div class="cookie-actions">
+                <button class="cookie-learn-btn" type="button" data-cookie-learn>{% block cookie_learn_more %}Learn more{% endblock %}</button>
+                <button class="btn-secondary" type="button" data-cookie-reject>{% block cookie_reject %}Reject non-essential{% endblock %}</button>
+                <button class="btn-main" type="button" data-cookie-accept>{% block cookie_accept %}Accept all{% endblock %}</button>
+            </div>
+        </div>
+        <div class="cookie-details" data-cookie-details hidden>
+            <div class="cookie-category">
+                <div class="cookie-category-header">
+                    <strong>{% block cookie_cat_essential_label %}Essential{% endblock %}</strong>
+                    <span class="cookie-badge cookie-badge-on">{% block cookie_always_on %}Always on{% endblock %}</span>
+                </div>
+                <p class="cookie-category-desc">{% block cookie_cat_essential_text %}Required for login, security (CSRF) and session management. These cannot be disabled.{% endblock %}</p>
+            </div>
+            <div class="cookie-category">
+                <div class="cookie-category-header">
+                    <strong>{% block cookie_cat_analytics_label %}Analytics &amp; Improvements{% endblock %}</strong>
+                    <span class="cookie-badge cookie-badge-optional">{% block cookie_optional %}Optional{% endblock %}</span>
+                </div>
+                <p class="cookie-category-desc">{% block cookie_cat_analytics_text %}Help us understand how athletes use the platform. Used to improve features and fix issues.{% endblock %}</p>
+            </div>
         </div>
     </div>
 
@@ -2093,13 +2195,62 @@
 
         const cookieBanner = document.querySelector("[data-cookie-banner]");
         const cookieAccept = document.querySelector("[data-cookie-accept]");
+        const cookieReject = document.querySelector("[data-cookie-reject]");
+        const cookieLearn = document.querySelector("[data-cookie-learn]");
+        const cookieDetails = document.querySelector("[data-cookie-details]");
         const cookieConsentKey = "earnedclub_cookie_consent";
-        if (cookieBanner && localStorage.getItem(cookieConsentKey) !== "accepted") {
-            cookieBanner.classList.add("is-visible");
+
+        function getConsentCookie() {
+            const match = document.cookie.match(/(?:^|;\s*)earnedclub_cookie_consent=([^;]*)/);
+            return match ? decodeURIComponent(match[1]) : null;
         }
-        cookieAccept?.addEventListener("click", () => {
-            localStorage.setItem(cookieConsentKey, "accepted");
+
+        function writeConsentCookie(value) {
+            const expires = new Date(Date.now() + 365 * 864e5).toUTCString();
+            document.cookie = cookieConsentKey + "=" + value + "; expires=" + expires + "; path=/; SameSite=Lax";
+        }
+
+        function applyCookiePadding() {
+            document.body.style.paddingBottom = (cookieBanner.offsetHeight + 28) + "px";
+        }
+
+        function removeCookiePadding() {
+            document.body.style.paddingBottom = "";
+        }
+
+        function dismissBanner() {
             cookieBanner?.classList.remove("is-visible");
+            removeCookiePadding();
+        }
+
+        const consent = getConsentCookie();
+        if (cookieBanner && consent !== "accepted" && consent !== "essential") {
+            let triggered = false;
+            const onFirstScroll = () => {
+                if (triggered) return;
+                triggered = true;
+                window.removeEventListener("scroll", onFirstScroll);
+                setTimeout(() => {
+                    cookieBanner.classList.add("is-visible");
+                    applyCookiePadding();
+                }, 3000);
+            };
+            window.addEventListener("scroll", onFirstScroll, { passive: true });
+        }
+
+        cookieLearn?.addEventListener("click", () => {
+            cookieDetails.hidden = !cookieDetails.hidden;
+            setTimeout(applyCookiePadding, 20);
+        });
+
+        cookieAccept?.addEventListener("click", () => {
+            writeConsentCookie("accepted");
+            dismissBanner();
+        });
+
+        cookieReject?.addEventListener("click", () => {
+            writeConsentCookie("essential");
+            dismissBanner();
         });
 
         // Wire up claim-token copy buttons
