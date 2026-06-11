@@ -19,6 +19,7 @@
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="{% block twitter_title %}Earned Club{% endblock %}">
     <meta name="twitter:description" content="{% block twitter_description %}Earned Club is the fitness leaderboard for hybrid athletes, where verified push-ups, pull-ups, and 5K results build public status through Hybrid Score.{% endblock %}">
+    <meta name="color-scheme" content="dark">
 
     <link rel="icon" type="image/svg+xml" href="{% static 'favicon.svg' %}">
     <link rel="icon" type="image/png" href="{% static 'logo.png' %}" sizes="any">
@@ -53,6 +54,7 @@
 
     <style>
         :root {
+            color-scheme: only dark;
             --bg: #0c1117;
             --bg-soft: #131b24;
             --panel: rgba(15, 20, 27, 0.88);
@@ -76,11 +78,13 @@
 
         html {
             scroll-behavior: smooth;
+            overflow-x: hidden;
         }
 
         body {
             margin: 0;
             min-height: 100vh;
+            overflow-x: hidden;
             color: var(--text);
             font-family: "Source Sans 3", sans-serif;
             background: linear-gradient(180deg, #0a0f14 0%, #0d141c 45%, #0c1117 100%);
