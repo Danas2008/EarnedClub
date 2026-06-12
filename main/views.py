@@ -164,20 +164,34 @@ SITEMAP_NAMESPACE = "http://www.sitemaps.org/schemas/sitemap/0.9"
 register_namespace("", SITEMAP_NAMESPACE)
 
 SITEMAP_STATIC_PAGES = [
-    {"view_name": "home", "changefreq": "daily", "priority": "1.0"},
-    {"view_name": "rank", "changefreq": "daily", "priority": "0.95"},
-    {"view_name": "level_test", "changefreq": "weekly", "priority": "0.9"},
-    {"view_name": "challenge", "changefreq": "weekly", "priority": "0.9"},
-    {"view_name": "leaderboard", "changefreq": "daily", "priority": "0.9"},
-    {"view_name": "profiles", "changefreq": "daily", "priority": "0.8"},
-    {"view_name": "comparison_index", "changefreq": "daily", "priority": "0.75"},
-    {"view_name": "challenge_room_create", "changefreq": "weekly", "priority": "0.7"},
-    {"view_name": "calculators", "changefreq": "monthly", "priority": "0.6"},
-    {"view_name": "register", "changefreq": "monthly", "priority": "0.5"},
-    {"view_name": "login", "changefreq": "monthly", "priority": "0.3"},
-    {"view_name": "privacy", "changefreq": "yearly", "priority": "0.2"},
-    {"view_name": "terms", "changefreq": "yearly", "priority": "0.2"},
-    {"view_name": "verification_rules", "changefreq": "monthly", "priority": "0.4"},
+    # ── English pages ──────────────────────────────────────────
+    {"view_name": "home",              "changefreq": "daily",   "priority": "1.0"},
+    {"view_name": "leaderboard",       "changefreq": "daily",   "priority": "0.95"},
+    {"view_name": "rank",              "changefreq": "daily",   "priority": "0.9"},
+    {"view_name": "profiles",          "changefreq": "daily",   "priority": "0.85"},
+    {"view_name": "level_test",        "changefreq": "weekly",  "priority": "0.85"},
+    {"view_name": "challenge",         "changefreq": "weekly",  "priority": "0.8"},
+    {"view_name": "comparison_index",  "changefreq": "daily",   "priority": "0.75"},
+    {"view_name": "workouts",          "changefreq": "weekly",  "priority": "0.7"},
+    {"view_name": "calculators",       "changefreq": "monthly", "priority": "0.6"},
+    {"view_name": "verification_rules","changefreq": "monthly", "priority": "0.5"},
+    {"view_name": "register",          "changefreq": "monthly", "priority": "0.4"},
+    {"view_name": "privacy",           "changefreq": "yearly",  "priority": "0.2"},
+    {"view_name": "terms",             "changefreq": "yearly",  "priority": "0.2"},
+    # ── Czech pages ────────────────────────────────────────────
+    {"view_name": "home_cz",               "changefreq": "daily",   "priority": "0.95"},
+    {"view_name": "leaderboard_cz",        "changefreq": "daily",   "priority": "0.9"},
+    {"view_name": "rank_cz",               "changefreq": "daily",   "priority": "0.85"},
+    {"view_name": "profiles_cz",           "changefreq": "daily",   "priority": "0.8"},
+    {"view_name": "level_test_cz",         "changefreq": "weekly",  "priority": "0.8"},
+    {"view_name": "challenge_cz",          "changefreq": "weekly",  "priority": "0.75"},
+    {"view_name": "comparison_index_cz",   "changefreq": "daily",   "priority": "0.7"},
+    {"view_name": "workouts_cz",           "changefreq": "weekly",  "priority": "0.65"},
+    {"view_name": "calculators_cz",        "changefreq": "monthly", "priority": "0.55"},
+    {"view_name": "verification_rules_cz", "changefreq": "monthly", "priority": "0.45"},
+    {"view_name": "spoluprace",            "changefreq": "monthly", "priority": "0.4"},
+    {"view_name": "privacy_cz",            "changefreq": "yearly",  "priority": "0.2"},
+    {"view_name": "terms_cz",              "changefreq": "yearly",  "priority": "0.2"},
 ]
 
 LEADERBOARD_MODES = [
@@ -2247,24 +2261,57 @@ def build_sitemap_entries(request):
         }
         for page in SITEMAP_STATIC_PAGES
     ]
-    entries.extend(
-        {
+
+    # Discipline leaderboard pages (EN + CZ) for each active discipline
+    for discipline_key in ACTIVE_DISCIPLINE_KEYS:
+        entries.append({
+            "loc": build_absolute_url(request, "leaderboard_discipline", discipline_key),
+            "changefreq": "daily",
+            "priority": "0.85",
+        })
+        entries.append({
+            "loc": build_absolute_url(request, "leaderboard_discipline_cz", discipline_key),
+            "changefreq": "daily",
+            "priority": "0.8",
+        })
+
+    # Athlete profiles (EN + CZ)
+    profiles = list(
+        Profile.objects.filter(personal_best_reps__gt=0)
+        .only("slug", "updated_at")
+        .order_by("slug")
+    )
+    for profile in profiles:
+        lastmod = format_sitemap_date(profile.updated_at)
+        entries.append({
             "loc": build_absolute_url(request, "athlete_profile", profile.slug),
-            "lastmod": format_sitemap_date(profile.updated_at),
+            "lastmod": lastmod,
             "changefreq": "weekly",
             "priority": "0.7",
-        }
-        for profile in Profile.objects.filter(personal_best_reps__gt=0).only("slug", "updated_at").order_by("slug")
-    )
-    entries.extend(
-        {
+        })
+        entries.append({
+            "loc": build_absolute_url(request, "athlete_profile_cz", profile.slug),
+            "lastmod": lastmod,
+            "changefreq": "weekly",
+            "priority": "0.65",
+        })
+
+    # Public workout pages (EN + CZ)
+    for workout in Workout.objects.filter(is_public=True).only("slug", "created_at").order_by("slug"):
+        lastmod = format_sitemap_date(workout.created_at)
+        entries.append({
             "loc": build_absolute_url(request, "workout_detail", workout.slug),
-            "lastmod": format_sitemap_date(workout.created_at),
+            "lastmod": lastmod,
             "changefreq": "monthly",
             "priority": "0.5",
-        }
-        for workout in Workout.objects.filter(is_public=True).only("slug", "created_at").order_by("slug")
-    )
+        })
+        entries.append({
+            "loc": build_absolute_url(request, "workout_detail_cz", workout.slug),
+            "lastmod": lastmod,
+            "changefreq": "monthly",
+            "priority": "0.45",
+        })
+
     return entries
 
 
@@ -2282,6 +2329,7 @@ def build_sitemap_xml(entries):
     return "\n".join(
         [
             '<?xml version="1.0" encoding="UTF-8"?>',
+            '<?xml-stylesheet type="text/xsl" href="/sitemap.xsl"?>',
             body,
         ]
     )
