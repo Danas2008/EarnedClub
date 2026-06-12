@@ -166,6 +166,17 @@
                         <span class="tag-pill">No proof yet</span>
                     {% endif %}
                 </div>
+                {% if submission.claim_token %}
+                <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                    <span class="kicker" style="white-space:nowrap;">Recovery link:</span>
+                    <a class="btn-secondary" style="min-height:34px; padding:6px 10px; flex-shrink:0;" href="{% url 'claim_token' submission.claim_token %}" target="_blank" rel="noopener noreferrer">Open ↗</a>
+                    <input readonly
+                        value="{{ request.scheme }}://{{ request.get_host }}{% url 'claim_token' submission.claim_token %}"
+                        onclick="this.select()"
+                        style="flex:1; min-width:0; max-width:420px; padding:5px 9px; font-family:monospace; font-size:0.78rem; background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.14); border-radius:6px; color:var(--muted); cursor:text;"
+                        title="Click to select — Ctrl+C to copy for email">
+                </div>
+                {% endif %}
                 {% if submission.verification_events.all %}
                     <div class="audit-list">
                         {% for event in submission.verification_events.all|slice:":2" %}
