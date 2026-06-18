@@ -16,7 +16,6 @@ urlpatterns = [
     path("test/submissions/<int:submission_id>/proof/", views.test_submission_proof, name="test_submission_proof"),
     path("test-cz/submissions/<int:submission_id>/proof/", views.test_submission_proof_cz, name="test_submission_proof_cz"),
     path("sitemap.xml", views.sitemap_xml, name="sitemap_xml"),
-    path("sitemap.xsl", views.sitemap_xsl, name="sitemap_xsl"),
     path("robots.txt", views.robots_txt, name="robots_txt"),
     path("claim/<str:token>/", views.claim_token_view, name="claim_token"),
     path("register/", views.register, name="register"),

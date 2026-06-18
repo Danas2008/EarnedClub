@@ -3,7 +3,6 @@ import logging
 import random
 import secrets
 from datetime import timedelta
-from xml.etree.ElementTree import Element, SubElement, indent, register_namespace, tostring
 from xml.sax.saxutils import quoteattr
 from urllib.parse import urlencode, urljoin
 
@@ -160,38 +159,36 @@ EMAIL_SYSTEM_DISABLED_MESSAGE = (
 logger = logging.getLogger(__name__)
 
 
-SITEMAP_NAMESPACE = "http://www.sitemaps.org/schemas/sitemap/0.9"
-register_namespace("", SITEMAP_NAMESPACE)
-
-SITEMAP_STATIC_PAGES = [
-    # ── English pages ──────────────────────────────────────────
-    {"view_name": "home",              "changefreq": "daily",   "priority": "1.0"},
-    {"view_name": "leaderboard",       "changefreq": "daily",   "priority": "0.95"},
-    {"view_name": "rank",              "changefreq": "daily",   "priority": "0.9"},
-    {"view_name": "profiles",          "changefreq": "daily",   "priority": "0.85"},
-    {"view_name": "level_test",        "changefreq": "weekly",  "priority": "0.85"},
-    {"view_name": "challenge",         "changefreq": "weekly",  "priority": "0.8"},
-    {"view_name": "comparison_index",  "changefreq": "daily",   "priority": "0.75"},
-    {"view_name": "workouts",          "changefreq": "weekly",  "priority": "0.7"},
-    {"view_name": "calculators",       "changefreq": "monthly", "priority": "0.6"},
-    {"view_name": "verification_rules","changefreq": "monthly", "priority": "0.5"},
-    {"view_name": "register",          "changefreq": "monthly", "priority": "0.4"},
-    {"view_name": "privacy",           "changefreq": "yearly",  "priority": "0.2"},
-    {"view_name": "terms",             "changefreq": "yearly",  "priority": "0.2"},
-    # ── Czech pages ────────────────────────────────────────────
-    {"view_name": "home_cz",               "changefreq": "daily",   "priority": "0.95"},
-    {"view_name": "leaderboard_cz",        "changefreq": "daily",   "priority": "0.9"},
-    {"view_name": "rank_cz",               "changefreq": "daily",   "priority": "0.85"},
-    {"view_name": "profiles_cz",           "changefreq": "daily",   "priority": "0.8"},
-    {"view_name": "level_test_cz",         "changefreq": "weekly",  "priority": "0.8"},
-    {"view_name": "challenge_cz",          "changefreq": "weekly",  "priority": "0.75"},
-    {"view_name": "comparison_index_cz",   "changefreq": "daily",   "priority": "0.7"},
-    {"view_name": "workouts_cz",           "changefreq": "weekly",  "priority": "0.65"},
-    {"view_name": "calculators_cz",        "changefreq": "monthly", "priority": "0.55"},
-    {"view_name": "verification_rules_cz", "changefreq": "monthly", "priority": "0.45"},
-    {"view_name": "spoluprace",            "changefreq": "monthly", "priority": "0.4"},
-    {"view_name": "privacy_cz",            "changefreq": "yearly",  "priority": "0.2"},
-    {"view_name": "terms_cz",              "changefreq": "yearly",  "priority": "0.2"},
+# (view_name, changefreq, priority)
+_SITEMAP_STATIC = [
+    # English
+    ("home",               "daily",   "1.0"),
+    ("leaderboard",        "daily",   "0.95"),
+    ("rank",               "daily",   "0.9"),
+    ("profiles",           "daily",   "0.85"),
+    ("level_test",         "weekly",  "0.85"),
+    ("challenge",          "weekly",  "0.8"),
+    ("comparison_index",   "daily",   "0.75"),
+    ("workouts",           "weekly",  "0.7"),
+    ("calculators",        "monthly", "0.6"),
+    ("verification_rules", "monthly", "0.5"),
+    ("register",           "monthly", "0.4"),
+    ("privacy",            "yearly",  "0.2"),
+    ("terms",              "yearly",  "0.2"),
+    # Czech
+    ("home_cz",               "daily",   "0.95"),
+    ("leaderboard_cz",        "daily",   "0.9"),
+    ("rank_cz",               "daily",   "0.85"),
+    ("profiles_cz",           "daily",   "0.8"),
+    ("level_test_cz",         "weekly",  "0.8"),
+    ("challenge_cz",          "weekly",  "0.75"),
+    ("comparison_index_cz",   "daily",   "0.7"),
+    ("workouts_cz",           "weekly",  "0.65"),
+    ("calculators_cz",        "monthly", "0.55"),
+    ("verification_rules_cz", "monthly", "0.45"),
+    ("spoluprace",            "monthly", "0.4"),
+    ("privacy_cz",            "yearly",  "0.2"),
+    ("terms_cz",              "yearly",  "0.2"),
 ]
 
 LEADERBOARD_MODES = [
@@ -2242,7 +2239,7 @@ def start_workout_session_for_user(user, workout):
     return session
 
 
-def format_sitemap_date(value):
+def _sm_date(value):
     if not value:
         return ""
     if hasattr(value, "date"):
@@ -2252,87 +2249,44 @@ def format_sitemap_date(value):
     return value.isoformat()
 
 
-def build_sitemap_entries(request):
+def _sm_loc(request, view_name, *args):
+    return request.build_absolute_uri(reverse(view_name, args=args))
+
+
+def _build_sitemap_entries(request):
     entries = [
-        {
-            "loc": build_absolute_url(request, page["view_name"]),
-            "changefreq": page["changefreq"],
-            "priority": page["priority"],
-        }
-        for page in SITEMAP_STATIC_PAGES
+        {"loc": _sm_loc(request, name), "changefreq": freq, "priority": pri}
+        for name, freq, pri in _SITEMAP_STATIC
     ]
-
-    # Discipline leaderboard pages (EN + CZ) for each active discipline
-    for discipline_key in ACTIVE_DISCIPLINE_KEYS:
-        entries.append({
-            "loc": build_absolute_url(request, "leaderboard_discipline", discipline_key),
-            "changefreq": "daily",
-            "priority": "0.85",
-        })
-        entries.append({
-            "loc": build_absolute_url(request, "leaderboard_discipline_cz", discipline_key),
-            "changefreq": "daily",
-            "priority": "0.8",
-        })
-
-    # Athlete profiles (EN + CZ)
-    profiles = list(
-        Profile.objects.filter(personal_best_reps__gt=0)
-        .only("slug", "updated_at")
-        .order_by("slug")
-    )
-    for profile in profiles:
-        lastmod = format_sitemap_date(profile.updated_at)
-        entries.append({
-            "loc": build_absolute_url(request, "athlete_profile", profile.slug),
-            "lastmod": lastmod,
-            "changefreq": "weekly",
-            "priority": "0.7",
-        })
-        entries.append({
-            "loc": build_absolute_url(request, "athlete_profile_cz", profile.slug),
-            "lastmod": lastmod,
-            "changefreq": "weekly",
-            "priority": "0.65",
-        })
-
-    # Public workout pages (EN + CZ)
+    for key in ACTIVE_DISCIPLINE_KEYS:
+        entries.append({"loc": _sm_loc(request, "leaderboard_discipline", key),    "changefreq": "daily", "priority": "0.85"})
+        entries.append({"loc": _sm_loc(request, "leaderboard_discipline_cz", key), "changefreq": "daily", "priority": "0.8"})
+    for profile in Profile.objects.filter(personal_best_reps__gt=0).only("slug", "updated_at").order_by("slug"):
+        lm = _sm_date(profile.updated_at)
+        entries.append({"loc": _sm_loc(request, "athlete_profile",    profile.slug), "lastmod": lm, "changefreq": "weekly", "priority": "0.7"})
+        entries.append({"loc": _sm_loc(request, "athlete_profile_cz", profile.slug), "lastmod": lm, "changefreq": "weekly", "priority": "0.65"})
     for workout in Workout.objects.filter(is_public=True).only("slug", "created_at").order_by("slug"):
-        lastmod = format_sitemap_date(workout.created_at)
-        entries.append({
-            "loc": build_absolute_url(request, "workout_detail", workout.slug),
-            "lastmod": lastmod,
-            "changefreq": "monthly",
-            "priority": "0.5",
-        })
-        entries.append({
-            "loc": build_absolute_url(request, "workout_detail_cz", workout.slug),
-            "lastmod": lastmod,
-            "changefreq": "monthly",
-            "priority": "0.45",
-        })
-
+        lm = _sm_date(workout.created_at)
+        entries.append({"loc": _sm_loc(request, "workout_detail",    workout.slug), "lastmod": lm, "changefreq": "monthly", "priority": "0.5"})
+        entries.append({"loc": _sm_loc(request, "workout_detail_cz", workout.slug), "lastmod": lm, "changefreq": "monthly", "priority": "0.45"})
     return entries
 
 
-def build_sitemap_xml(entries):
-    urlset = Element(f"{{{SITEMAP_NAMESPACE}}}urlset")
-    for entry in entries:
-        url = SubElement(urlset, f"{{{SITEMAP_NAMESPACE}}}url")
-        for key in ("loc", "lastmod", "changefreq", "priority"):
-            value = entry.get(key)
-            if value:
-                SubElement(url, f"{{{SITEMAP_NAMESPACE}}}{key}").text = str(value)
-
-    indent(urlset, space="  ")
-    body = tostring(urlset, encoding="unicode")
-    return "\n".join(
-        [
-            '<?xml version="1.0" encoding="UTF-8"?>',
-            '<?xml-stylesheet type="text/xsl" href="/sitemap.xsl"?>',
-            body,
-        ]
-    )
+def _render_sitemap_xml(entries):
+    lines = [
+        '<?xml version="1.0" encoding="UTF-8"?>',
+        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
+    ]
+    for e in entries:
+        lines.append("  <url>")
+        lines.append(f'    <loc>{e["loc"]}</loc>')
+        if e.get("lastmod"):
+            lines.append(f'    <lastmod>{e["lastmod"]}</lastmod>')
+        lines.append(f'    <changefreq>{e["changefreq"]}</changefreq>')
+        lines.append(f'    <priority>{e["priority"]}</priority>')
+        lines.append("  </url>")
+    lines.append("</urlset>")
+    return "\n".join(lines)
 
 
 def _home(request, template_name):
@@ -2792,23 +2746,22 @@ def rank_cz(request):
 
 
 def sitemap_xml(request):
-    xml = build_sitemap_xml(build_sitemap_entries(request))
+    xml = _render_sitemap_xml(_build_sitemap_entries(request))
     return HttpResponse(xml, content_type="application/xml; charset=utf-8")
 
 
-def sitemap_xsl(request):
-    response = render(request, "sitemap.xsl", content_type="text/xsl; charset=utf-8")
-    response["X-Robots-Tag"] = "noindex"
-    return response
-
-
-
 def robots_txt(request):
+    sitemap_url = request.build_absolute_uri(reverse("sitemap_xml"))
     lines = [
         "User-agent: *",
         "Allow: /",
         "Disallow: /admin/",
-        f"Sitemap: {build_public_url(reverse('sitemap_xml'))}",
+        "Disallow: /admin-menu/",
+        "Disallow: /admin-review/",
+        "Disallow: /dashboard/",
+        "Disallow: /content/",
+        "Disallow: /newsletter/",
+        f"Sitemap: {sitemap_url}",
     ]
     return HttpResponse("\n".join(lines), content_type="text/plain")
 
